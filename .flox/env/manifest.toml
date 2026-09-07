@@ -1,0 +1,163 @@
+schema-version = "1.15.0"
+
+
+## Install Packages --------------------------------------------------
+##  $ flox install gum  <- puts a package in [install] section below
+##  $ flox search gum   <- search for a package
+##  $ flox show gum     <- show all versions of a package
+## -------------------------------------------------------------------
+[install]
+ansible.pkg-path = "ansible"
+ansible.version = "2.21.3"
+cilium-cli.pkg-path = "cilium-cli"
+cilium-cli.version = "0.19.7"
+fluxcd.pkg-path = "fluxcd"
+fluxcd.version = "2.9.4"
+fluxcd-operator-mcp.pkg-path = "fluxcd-operator-mcp"
+fluxcd-operator-mcp.version = "0.58.1"
+kubectl.pkg-path = "kubectl"
+kubectl.version = "1.37.0"
+github-cli.pkg-path = "github-cli"
+github-cli.version = "2.99.0"
+go.pkg-path = "go"
+go.version = "1.26.7"
+gopls.pkg-path = "gopls"
+gopls.version = "0.23.0"
+kubernetes-helm.pkg-path = "kubernetes-helm"
+kubernetes-helm.version = "4.2.4"
+kustomize.pkg-path = "kustomize"
+kustomize.version = "5.8.1"
+netbird.pkg-path = "netbird"
+netbird.version = "0.77.1"
+proton-pass-cli.pkg-path = "proton-pass-cli"
+proton-pass-cli.version = "2.3.3"
+python3.pkg-path = "python3"
+python3.version = "3.14.7"
+opentofu.pkg-path = "opentofu"
+opentofu.version = "1.12.6"
+### TEMPORARY
+# talosctl.pkg-path = "talosctl"
+# talosctl.version = "1.13.9"
+
+## Environment Variables ---------------------------------------------
+##  ... available for use in the activated environment
+##      as well as [hook], [profile] scripts and [services] below.
+## -------------------------------------------------------------------
+[vars]
+# INTRO_MESSAGE = "It's gettin' Flox in here"
+
+
+## Activation Hook ---------------------------------------------------
+##  ... run by _bash_ shell when you run 'flox activate'.
+## -------------------------------------------------------------------
+[hook]
+# on-activate = '''
+#   # -> Set variables, create files and directories
+#   # -> Perform initialization steps, e.g. create a python venv
+#   # -> Useful environment variables:
+#   #      - FLOX_ENV_PROJECT=/home/user/example
+#   #      - FLOX_ENV=/home/user/example/.flox/run
+#   #      - FLOX_ENV_CACHE=/home/user/example/.flox/cache
+# '''
+on-activate = '''
+  install_talosctl() {
+    cache_dir="${FLOX_ENV_CACHE:-$FLOX_ENV_PROJECT/.flox/cache}"
+    mkdir -p "$cache_dir/bin"
+    if [ ! -x "$cache_dir/bin/talosctl" ]; then
+      curl -L -o "$cache_dir/bin/talosctl" \
+        "https://github.com/siderolabs/talos/releases/download/v1.14.0/talosctl-linux-amd64"
+      chmod +x "$cache_dir/bin/talosctl"
+    fi
+  }
+  # install_terraform() {
+  #   cache_dir="${FLOX_ENV_CACHE:-$FLOX_ENV_PROJECT/.flox/cache}"
+  #   mkdir -p "$cache_dir/bin"
+  #   if [ ! -x "$cache_dir/bin/terraform" ]; then
+  #     curl -fsSL "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_linux_amd64.zip" -o /tmp/terraform.zip \
+  #       && unzip -o /tmp/terraform.zip -d "$cache_dir/bin" \
+  #       && rm -f /tmp/terraform.zip \
+  #       && chmod +x "$cache_dir/bin/terraform"
+  #   fi
+  # }
+  install_talosctl
+  # install_terraform
+  cd "$FLOX_ENV_PROJECT" || return
+'''
+
+
+## Profile script ----------------------------------------------------
+## ... sourced by _your shell_ when you run 'flox activate'.
+## -------------------------------------------------------------------
+[profile]
+# common = '''
+#   gum style \
+#   --foreground 212 --border-foreground 212 --border double \
+#   --align center --width 50 --margin "1 2" --padding "2 4" \
+#     $INTRO_MESSAGE
+# '''
+## Shell-specific customizations such as setting aliases go here:
+# bash = ...
+# zsh  = ...
+# fish = ...
+common = '''
+  export PATH="$FLOX_ENV_CACHE/bin:$PATH"
+  alias terraform=tofu
+'''
+
+
+## Services ---------------------------------------------------------
+##  $ flox services start             <- Starts all services
+##  $ flox services status            <- Status of running services
+##  $ flox activate --start-services  <- Activates & starts all
+## ------------------------------------------------------------------
+[services]
+# myservice.command = "python3 -m http.server"
+[services.flux-operator-mcp]
+command = '''
+  export KUBECONFIG="$FLOX_ENV_PROJECT/kubeconfig"
+  flux-operator-mcp serve --transport http --port 8080 --kubeconfig "$KUBECONFIG"
+'''
+
+[services.netbird]
+command = '''
+  sudo mkdir -p /var/run/netbird /var/log/netbird /var/lib/netbird
+  sudo env PATH="$PATH" netbird service run --log-file console --log-level info
+'''
+
+
+
+## Include ----------------------------------------------------------
+## ... environments to create a composed environment
+## ------------------------------------------------------------------
+[include]
+# environments = [
+#     { dir = "../common" }
+# ]
+
+
+## Build and publish your own packages ------------------------------
+##  $ flox build
+##  $ flox publish
+## ------------------------------------------------------------------
+[build]
+# [build.myproject]
+# description = "The coolest project ever"
+# version = "0.0.1"
+# command = """
+#   mkdir -p $out/bin
+#   cargo build --release
+#   cp target/release/myproject $out/bin/myproject
+# """
+
+
+## Other Environment Options -----------------------------------------
+[options]
+# Systems that environment is compatible with
+# systems = [
+#   "aarch64-darwin",
+#   "aarch64-linux",
+#   "x86_64-linux",
+# ]
+# Uncomment to disable CUDA detection.
+# cuda-detection = false
+allow.unfree = true

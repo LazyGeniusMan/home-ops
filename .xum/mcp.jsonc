@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "flux-schema": {
+      "transport": "http",
+      "url": "https://schemas.fluxoperator.dev/mcp"
+    },
+    "flux-operator": {
+      "transport": "http",
+      "url": "http://localhost:8080/mcp"
+    }
+  }
+}

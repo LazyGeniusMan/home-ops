@@ -1,0 +1,197 @@
+# Talos Linux Image Factory
+
+The Image Factory builds and serves customized Talos Linux boot artifacts. Artifacts are parameterized by a **schematic** (a hash-identified YAML document describing customizations) and a **Talos Linux version**. The official instance is at `https://factory.talos.dev` (HTTP/OCI) and `https://pxe.talos.dev` (PXE).
+
+## Core Concepts
+
+**Schematic**: A YAML document that describes image customizations. Submitting one returns a stable SHA-256 ID. The same customizations always produce the same ID. The well-known default schematic (no customizations) has ID `376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba`.
+
+**Version**: A Talos Linux release version string, e.g. `v1.5.0`. Use `GET /versions` to list available versions.
+
+**Model**: The combination of a schematic ID and a Talos version. From a model you can derive any artifact type.
+
+## Typical Workflow
+
+1. POST a schematic → get back an ID
+2. GET `/versions` to find a version to target
+3. GET `/image/:schematic/:version/:path` to download an artifact
+
+## HTTP API (`https://factory.talos.dev`)
+
+**Authentication**: The official public instance (`factory.talos.dev`) does not require authentication. Enterprise deployments may enable either htpasswd Basic authentication or Auth0 access tokens. Auth0 tokens are accepted as Bearer credentials and as the password in Basic credentials for OCI clients. Schematic, image, PXE, generated Installer OCI, SBOM, VEX and scan routes require authentication when it is enabled. Version, extension, overlay, `talosctl`, SecureBoot certificate, signing key, JWKS and `llms.txt` routes remain public.
+
+### POST /schematics
+
+Create a schematic. Request body is YAML (or JSON). Returns `{"id": "<sha256>", "schematic": "<canonical-yaml>"}`.
+
+```yaml
+customization:
+  extraKernelArgs:        # optional
+    - vga=791
+  meta:                   # optional, initial Talos META
+    - key: 0xa
+      value: "{}"
+  systemExtensions:
+    officialExtensions:   # optional
+      - siderolabs/gvisor
+      - siderolabs/amd-ucode
+  secureboot:             # optional, SecureBoot images only
+    includeWellKnownCertificates: true
+    enrollKeys: force     # off | manual | if-safe | force
+  bootloader: sd-boot     # optional: auto | sd-boot | dual-boot | grub
+  embeddedMachineConfiguration: |  # optional, YAML machine config docs
+    apiVersion: v1alpha1
+    kind: HostnameConfig
+    hostname: my-host
+  diskImage:              # optional, disk images only
+    sectorSize: 4096
+overlay:                  # optional, for SBC/overlay targets
+  image: ghcr.io/siderolabs/sbc-raspberry-pi
+  name: rpi_generic
+  options:
+    data: "mydata"
+```
+
+### GET /schematics/:schematic
+
+Retrieve schematic YAML by ID. Returns 404 if not found.
+
+### GET /versions
+
+List available Talos Linux versions. Returns a JSON array of version strings.
+Use `GET /versions?broken=true` to list versions configured as broken instead.
+
+```json
+["v1.5.0","v1.5.1","v1.5.2"]
+```
+
+### GET /version/:version/extensions/official
+
+List official system extensions for a version. Returns array of `{name, ref, digest, author, description}`.
+
+### GET /version/:version/overlays/official
+
+List official overlays (e.g. SBC support) for a version. Returns array of `{name, image, ref, digest}`.
+
+### GET, HEAD /image/:schematic/:version/:path
+
+Download a boot artifact. `:path` values:
+
+| Path pattern | Description |
+|---|---|
+| `kernel-<arch>` | Raw kernel (e.g. `kernel-amd64`) |
+| `cmdline-<platform>-<arch>[-secureboot]` | Kernel command line |
+| `initramfs-<arch>.xz` | Initramfs (with extensions) |
+| `<platform>-<arch>[-secureboot].iso` | ISO image |
+| `<platform>-<arch>[-secureboot]-uki.efi` | UEFI UKI image |
+| `installer-<arch>[-secureboot].tar` | Metal installer OCI tar |
+| `<platform>-installer-<arch>[-secureboot].tar` | Platform-specific installer |
+| `metal-<arch>[-secureboot].raw.xz` | Raw disk image (metal) |
+| `aws-<arch>.raw.xz` | Raw disk image for AWS AMI import |
+| `gcp-<arch>.raw.tar.gz` | Raw disk image for GCE import |
+
+`<arch>` is `amd64` or `arm64`. `<platform>` examples: `metal`, `aws`, `gcp`, `azure`, `vmware`.
+The optional `filename` query parameter overrides the download filename.
+
+Append `.sha256` or `.sha512` to any path to get a checksum file (Enterprise only).
+Append `.sigstore.json` to get a detached Sigstore bundle when Enterprise asset signing is configured.
+
+### GET /talosctl/:version
+
+List `talosctl` binary download URLs for a version (available from v1.11.0+).
+
+### GET, HEAD /talosctl/:version/:path
+
+Download a `talosctl` binary. `:path` example: `talosctl-linux-amd64`.
+
+### GET /secureboot/signing-cert.pem
+
+Returns the PEM-encoded SecureBoot signing certificate for manual UEFI enrollment.
+
+## PXE API (`https://pxe.talos.dev`)
+
+### GET /pxe/:schematic/:version/:path
+
+Returns an iPXE script that boots Talos Linux. `:path` is `<platform>-<arch>[-secureboot]`, e.g. `metal-amd64`.
+
+Example iPXE chain URL to embed in firmware:
+```
+chain --replace --autofree https://pxe.talos.dev/pxe/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba/v1.5.0/metal-${buildarch}
+```
+
+## OCI Registry API (`factory.talos.dev`)
+
+Pull installer images directly with `docker`/`crane`/`skopeo`:
+
+```
+# Legacy form
+docker pull factory.talos.dev/installer/<schematic>:<version>
+docker pull factory.talos.dev/installer-secureboot/<schematic>:<version>
+
+# Current form (preferred)
+docker pull factory.talos.dev/metal-installer/<schematic>:<version>
+docker pull factory.talos.dev/aws-installer/<schematic>:<version>
+
+# latest tag resolves to latest stable (non-prerelease) version
+docker pull factory.talos.dev/metal-installer/<schematic>:latest
+```
+
+### GET /oci/cosign/signing-key.pub
+
+Returns the PEM-encoded public key used to sign installer images. Verify with:
+
+```shell
+cosign verify --offline --insecure-ignore-tlog --insecure-ignore-sct \
+  --key signing-key.pub factory.talos.dev/metal-installer/<schematic>:<version>
+```
+
+## Enterprise-Only APIs
+
+Requires Talos Enterprise Image Factory.
+
+### GET, HEAD /spdx/:schematic/:version/:arch
+
+Returns an SPDX 2.3 JSON SBOM for the given schematic and version. Available from Talos v1.11.0.
+
+### GET, HEAD /vex/:version/vex.json
+
+Returns a VEX JSON document for vulnerability suppression. Available from Talos v1.13.0.
+
+### GET, HEAD /scans/:schematic/:version/:arch/:report
+
+Returns a vulnerability scan report. `:report` suffix: `.json`, `.table`, `.sarif`, `.cdx`. Available from Talos v1.13.0.
+
+### POST /download-token
+
+Registered only when Enterprise authentication is enabled. Returns a short-lived `{access_token, token_type, expires_in}` JWT for authenticated image URLs. Append it as `?token=<access_token>` only on `GET` or `HEAD /image/...`.
+
+### GET /.well-known/jwks.json
+
+Registered only when Enterprise authentication is enabled. Returns the public JSON Web Key Set used to verify download tokens. This route is public when registered.
+
+## Examples
+
+Download a default metal AMD64 ISO for Talos v1.14.0-rc.2:
+```shell
+curl -LO https://factory.talos.dev/image/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba/v1.14.0-rc.2/metal-amd64.iso
+```
+
+Create a schematic with an extension and download its installer image:
+```shell
+# 1. Create schematic
+curl -s -X POST https://factory.talos.dev/schematics \
+  -H 'Content-Type: application/yaml' \
+  --data-binary 'customization:
+  systemExtensions:
+    officialExtensions:
+      - siderolabs/gvisor'
+# Returns: {"id":"<id>","schematic":"..."}
+
+# 2. Pull installer
+docker pull factory.talos.dev/metal-installer/<id>:v1.14.0-rc.2
+```
+
+List extensions available for a version:
+```shell
+curl https://factory.talos.dev/version/v1.14.0-rc.2/extensions/official
+```

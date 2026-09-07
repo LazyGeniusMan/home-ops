@@ -1,0 +1,14 @@
+!.agents/**
+**/inventory/**
+!**/inventory/**.example
+**/inventory.y*ml
+!**/inventory.y*ml.example
+**/secrets.y*ml
+**/controlplane.y*ml
+**/worker.y*ml
+**/talosconfig
+**/kubeconfig
+**/*.tfvars
+!**/*.tfvars.example
+**/.env*
+!**/.env.example

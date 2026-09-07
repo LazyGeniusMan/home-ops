@@ -1,0 +1,8 @@
+{
+    "recommendations": [
+        "flox.flox",
+        "golang.go",
+        "redhat.vscode-yaml",
+        "ms-kubernetes-tools.vscode-kubernetes-tools"
+    ]
+}
