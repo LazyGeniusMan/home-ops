@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/plan"
@@ -90,13 +89,7 @@ func (s *Server) Run() error {
 	mux.HandleFunc("POST /records", s.handleApplyChanges)
 	mux.HandleFunc("POST /adjustendpoints", s.handleAdjustEndpoints)
 
-	ops := http.NewServeMux()
-	ops.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
-	})
-	ops.Handle("/metrics", promhttp.HandlerFor(s.registry, promhttp.HandlerOpts{}))
+	ops := s.opsHandler()
 
 	webhookSrv := &http.Server{
 		Addr:              s.webhookAddr,

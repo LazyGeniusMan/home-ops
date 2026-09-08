@@ -24,7 +24,7 @@ const (
 	DefaultBaseURL = "https://api.netbird.io"
 
 	defaultTimeout = 30 * time.Second
-	maxBodyBytes  = 8 << 20 // 8 MiB safety cap on API response bodies
+	maxBodyBytes   = 8 << 20 // 8 MiB safety cap on API response bodies
 )
 
 // Zone is a NetBird custom DNS zone.
