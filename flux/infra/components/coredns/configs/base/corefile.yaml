@@ -1,0 +1,45 @@
+# Standalone Corefile for CoreDNS §8.3 (ConfigMap `coredns`, key `Corefile`).
+# The chart-owned ConfigMap is skipped (deployment.skipConfig: true) because
+# it would render the same <fullname>/Corefile object; the chart Deployment
+# still mounts config-volume from this ConfigMap, so the Corefile below is
+# what CoreDNS actually serves. Plugin chain: template -> hosts -> forward.
+# (CoreDNS runs template before hosts in its directive chain, so the LAN
+# answers below win; hosts only carries static entries and falls through;
+# everything else forwards upstream.)
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns
+data:
+  Corefile: |-
+    home-ops.yansyah.my.id:53 {
+        errors
+        cache 30
+        # Apex: home-ops.yansyah.my.id -> gateway LB VIP.
+        template IN A {
+            match "^home-ops\\.yansyah\\.my\\.id\\.$"
+            answer "{{ .Name }} 60 IN A 192.168.1.199"
+            fallthrough
+        }
+        # Single-level wildcard: *.home-ops.yansyah.my.id -> gateway LB VIP.
+        template IN A {
+            match "^[^.]+\\.home-ops\\.yansyah\\.my\\.id\\.$"
+            answer "{{ .Name }} 60 IN A 192.168.1.199"
+            fallthrough
+        }
+        # Nested wildcard: *.*.home-ops.yansyah.my.id -> gateway LB VIP.
+        template IN A {
+            match "^.+\\.home-ops\\.yansyah\\.my\\.id\\.$"
+            answer "{{ .Name }} 60 IN A 192.168.1.199"
+            fallthrough
+        }
+        # Static host entries (empty by default); falls through to forward.
+        hosts {
+            fallthrough
+        }
+        forward . /etc/resolv.conf
+        loop
+        reload
+        loadbalance
+    }

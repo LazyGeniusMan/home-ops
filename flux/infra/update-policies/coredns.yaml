@@ -1,0 +1,23 @@
+# Update policy for the coredns component (§8.3): tracks the classic Helm chart, and the
+# ImageUpdateAutomation (update cluster) opens PRs via markers in
+# components/coredns (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: coredns
+spec:
+  image: "coredns/coredns"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: coredns
+spec:
+  imageRepositoryRef:
+    name: coredns
+  policy:
+    semver:
+      range: ">=1.47.0"

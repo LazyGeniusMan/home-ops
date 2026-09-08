@@ -1,0 +1,81 @@
+# CoreDNS v1.14.7 (§8.3): in-cluster DNS for the home-ops Tailnet edge.
+# Deployed at bootstrap alongside Cilium (§8.2) so cluster DNS is live before
+# any workload that resolves *.home-ops.yansyah.my.id lands.
+# Chart: coredns/coredns via classic HelmRepository (chart 1.47.0 carries app
+# 1.14.6; app image pinned to 1.14.7 explicitly — see README for the
+# OCI-first justification). App image verified live on Docker Hub.
+# Telemetry: no usage-reporting/telemetry keys in chart values (verified:
+# non-comment values lines matching telemetry|usageReporting|phoneHome|
+# analytics are empty), so there is nothing to switch off.
+# Monitoring: prometheus scrape annotations on (safe without a stack);
+# ServiceMonitor stays disabled until monitoring.coreos.com CRDs land.
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: coredns
+spec:
+  interval: 1h
+  url: https://coredns.github.io/helm
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: coredns
+spec:
+  interval: 1h
+  releaseName: coredns
+  serviceAccountName: flux
+  chart:
+    spec:
+      chart: coredns
+      version: 1.47.0 # {"$imagepolicy": "infra:coredns:tag"}
+      sourceRef:
+        kind: HelmRepository
+        name: coredns
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  # https://github.com/coredns/helm/tree/master/charts/coredns
+  values:
+    image:
+      repository: coredns/coredns
+      tag: 1.14.7
+    # Standalone CoreDNS (not the kube-dns replacement): drop the
+    # cluster-service labels/selectors so kubelet DNS is untouched.
+    isClusterService: false
+    # The chart-owned ConfigMap would collide with configs/base/corefile.yaml
+    # (both render <fullname>/Corefile), so skip it; the Deployment still
+    # mounts config-volume from the standalone ConfigMap of the same name.
+    deployment:
+      skipConfig: true
+    # The servers: chain only carries the default "." zone; the
+    # home-ops.yansyah.my.id zone block lives in the standalone ConfigMap.
+    servers:
+      - zones:
+          - zone: .
+            use_tcp: true
+        port: 53
+        plugins:
+          - name: errors
+          - name: health
+            configBlock: |-
+              lameduck 10s
+          - name: ready
+          - name: forward
+            parameters: . /etc/resolv.conf
+          - name: cache
+            parameters: 30
+          - name: loop
+          - name: reload
+          - name: loadbalance
+    prometheus:
+      service:
+        enabled: true
+      monitor:
+        enabled: false
