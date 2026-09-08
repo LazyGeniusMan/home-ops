@@ -1,0 +1,27 @@
+# Update policy for the dragonfly component (§10): tracks the OCI Helm chart, and the
+# ImageUpdateAutomation (update cluster) opens PRs via markers in
+# components/dragonfly (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+# Chart-to-operator mapping: chart v1.6.x embeds operator v1.6.x
+# (appVersion: v1.6.1 in the pulled Chart.yaml), so the semver floor below
+# tracks both lines at once (unlike §10.1 cnpg, where chart and operator
+# versions diverge).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: dragonfly
+spec:
+  image: "ghcr.io/dragonflydb/dragonfly-operator/helm/dragonfly-operator"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: dragonfly
+spec:
+  imageRepositoryRef:
+    name: dragonfly
+  policy:
+    semver:
+      range: ">=1.6.1"

@@ -1,0 +1,23 @@
+# Wildcard certificate for Dragonfly TLS (§10.3). Lives in the same namespace
+# as the Dragonfly instance so server-TLS (spec.tlsSecretRef) and client
+# connections stay namespace-local (same pattern as the §8.1 gateway-api and
+# §10.1 cnpg namespace-local TLS references).
+# DNS: no DNSEndpoint CR — the §9 external-dns chart ships the external-dns
+# binary without enabling the CRD source for this zone, and a nested
+# *.dragonfly wildcard rides on the existing *.home-ops wildcard A automation
+# (§9.4: the zone apex wildcard materializes from the Gateway LB target).
+# The per-host names clients actually dial (e.g.
+# cache.dragonfly.home-ops.yansyah.my.id) must resolve via that same wildcard
+# automation; verify with dig before cutting traffic over.
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-dragonfly
+spec:
+  secretName: wildcard-dragonfly-tls
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.dragonfly.home-ops.yansyah.my.id"

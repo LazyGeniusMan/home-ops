@@ -1,0 +1,75 @@
+# Reusable Dragonfly HA cache base template (§10.3). Copy this stanza into a
+# namespace-local Dragonfly object; it is a template, not a live instance
+# (same shape as the §10.1 cnpg cluster-base — Zitadel in §11 consumes this
+# base as its Redis-compatible cache, see README for the connection contract).
+# - HA: 3 replicas (1 primary + 2 replicas), automatic failover by the
+#   operator; the <name>.<namespace>.svc.cluster.local Service always selects
+#   the current primary. Pod anti-affinity spreads replicas across nodes.
+# - Persistence: tiering.persistentVolumeClaimSpec on local-ssd-nvme (the §9
+#   default class). NOTE: upstream mounts a snapshot.persistentVolumeClaimSpec
+#   AT snapshot.dir, so a PVC snapshot volume cannot combine with an S3 dir
+#   (the mountPath would be the s3:// URI). Persistent local disk therefore
+#   lives on the tiering volume; S3 carries the snapshots (below).
+# - Backup: hourly snapshots (snapshot_cron) stream to the SeaweedFS S3
+#   endpoint (s3.seaweedfs.home-ops.yansyah.my.id, §12 — same wave, referenced
+#   by DNS name only, no file dependency). Credentials come from the
+#   s3-credentials ExternalSecret in this directory (AWS_* env + s3_endpoint
+#   arg on the Dragonfly object). Restore: see README runbook.
+# - Connection contract for §11 consumers: host
+#   <name>.<namespace>.svc.cluster.local, port 6379 (Redis-compatible).
+---
+apiVersion: dragonflydb.io/v1alpha1
+kind: Dragonfly
+metadata:
+  name: dragonfly-base
+spec:
+  replicas: 3
+
+  # Persistent local disk for tiered entries (see header note for why the
+  # snapshot PVC is NOT used here — S3 owns snapshots in this design).
+  tiering:
+    persistentVolumeClaimSpec:
+      storageClassName: local-ssd-nvme
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 20Gi
+
+  # Hourly snapshots to SeaweedFS S3 (operator passes --dir/--snapshot_cron;
+  # Dragonfly auto-loads the latest snapshot from dir on startup).
+  snapshot:
+    dir: "s3://dragonfly-backups/dragonfly/"
+    cron: "0 * * * *"
+    enableOnMasterOnly: true
+
+  # S3-compatible endpoint + static creds from the synced Secret (same
+  # namespace). Region is required by the AWS SDK credential chain even for
+  # S3-compatible backends.
+  env:
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: dragonfly-s3-credentials
+          key: ACCESS_KEY_ID
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: dragonfly-s3-credentials
+          key: SECRET_ACCESS_KEY
+    - name: AWS_REGION
+      value: us-east-1
+
+  args:
+    - --s3_endpoint=s3.seaweedfs.home-ops.yansyah.my.id
+    - --dbfilename=dump-{timestamp}
+
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: dragonfly
+            topologyKey: kubernetes.io/hostname
