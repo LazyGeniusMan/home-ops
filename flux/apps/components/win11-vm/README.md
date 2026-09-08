@@ -52,7 +52,7 @@ auto-enabled — set explicitly). Contrast talos-vm, which disables it.
 
 ## Environments
 
-`production` and `staging` track `../base` with no patches.
+`prd` and `stg` track `../base` with no patches.
 
 ## Telemetry-off / monitoring / updates
 

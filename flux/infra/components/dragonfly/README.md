@@ -125,6 +125,6 @@ client traffic over TLS.
 
 ## Environments
 
-`production` and `staging` currently inherit `../base` unchanged (same shape
+`prd` and `stg` currently inherit `../base` unchanged (same shape
 as cert-manager before per-env divergence). Per-env tuning (replica count,
 snapshot schedule, storage size) lands with the first real instance, not here.

@@ -32,9 +32,9 @@ and create the bucket prefix once via the SeaweedFS S3 API.
 
 - Base: 2 shards x 2 replicas, 50Gi data / 5Gi log per replica, nightly backup
   CronJob enabled.
-- `production`: data volumes grow to 100Gi per replica (patch on
+- `prd`: data volumes grow to 100Gi per replica (patch on
   `ClickHouseInstallation/clickhouse`).
-- `staging`: single shard / single replica, 20Gi data, backup CronJob
+- `stg`: single shard / single replica, 20Gi data, backup CronJob
   suspended (patch on `CronJob/clickhouse-backup`).
 
 ## HA

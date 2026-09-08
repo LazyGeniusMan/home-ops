@@ -6,7 +6,7 @@ Scheduled vault sync: SeaweedFS S3 bucket → Proton Drive, image
 ## Layout (environment-direct, apps area)
 
 `base/` holds every manifest (CronJob `rclone-vault-sync` + secrets
-ExternalSecret); env overlays `{dev,staging,production}/` patch vault refs
+ExternalSecret); env overlays `{dev,stg,prd}/` patch vault refs
 and the S3 endpoint via `resources: [../base]`. Tenant is `apps/rclone` via
 `flux/apps/update-policies/rclone.yaml`.
 
@@ -15,14 +15,14 @@ and the S3 endpoint via `resources: [../base]`. Tenant is `apps/rclone` via
 Four plain env vars define each sync — patch them per environment or per
 new job without touching the image args:
 
-| Var | Base | Production | Staging |
+| Var | Base | Prd | Stg |
 | --- | --- | --- | --- |
 | `SOURCE` | `sw:rclone-vault` | same | same |
 | `DEST` | `drive:/home-ops-vault` | same | same |
 | `SYNC_FLAGS` | `--dry-run --verbose` | `--verbose --transfers=4 --checkers=8` (live) | dry-run (base) |
 | `RETENTION_DAYS` | `30` (`--max-age`) | `30` | `30` |
 
-Schedule: base hourly; production nightly `0 3 * * *`; staging
+Schedule: base hourly; prd nightly `0 3 * * *`; stg
 `suspend: true` (manual drill: un-suspend + `kubectl create job`).
 `concurrencyPolicy: Forbid`, `backoffLimit: 2`, 1h deadline.
 Copy the CronJob block for new buckets and change
@@ -51,8 +51,8 @@ seaweedfs README "S3 contract".
 
 ## Environments
 
-Base ships dry-run so a mis-applied overlay can only log. Production
-flips to live flags + nightly schedule. Staging is suspended dry-run.
+Base ships dry-run so a mis-applied overlay can only log. Prd
+flips to live flags + nightly schedule. Stg is suspended dry-run.
 PVC mode: the CronJob carries a commented `volumeMounts`/`volumes`
 stanza — uncomment, point `SOURCE` at `/data`, set `claimName` to back
 up a volume instead of a bucket.

@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Staging: LE ACME server.
+  # Stg: LE ACME server.
   - patch: |
       - op: add
         path: /spec/acme/server

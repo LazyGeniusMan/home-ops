@@ -7,7 +7,7 @@ Relay itself ships in the cilium component, NOT here (no duplication).
 
 `base/` holds every manifest (`hubble-ui.yaml` + `oauth2-proxy.yaml`
 workload, plus secrets, wildcard certificate, HTTPRoute); env overlays
-`{dev,staging,production}/` patch hostnames, vault refs, and proxy args via
+`{dev,stg,prd}/` patch hostnames, vault refs, and proxy args via
 `resources: [../base]`. Tenant is `apps/hubble-ui` via
 `flux/apps/update-policies/hubble-ui.yaml`.
 
@@ -79,6 +79,6 @@ Secrets are namespace-local).
 
 ## Environments
 
-`production` and `staging` currently inherit `../base` unchanged (same shape
+`prd` and `stg` currently inherit `../base` unchanged (same shape
 as cert-manager before per-env divergence). Per-env tuning (replica count,
 schedule knobs) lands with the first real divergence, not here.

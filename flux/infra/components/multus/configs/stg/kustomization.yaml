@@ -1,5 +1,5 @@
-# Staging tracks the dev cluster (QEMU/KVM virtio NIC eth0), so the NAD
-# master is repatched from the production default (enp45s0).
+# Stg tracks the dev cluster (QEMU/KVM virtio NIC eth0), so the NAD
+# master is repatched from the prd default (enp45s0).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:

@@ -48,7 +48,7 @@ dig @<coredns-svc-ip> example.com +short
 
 Deployed at bootstrap alongside Cilium (§8.2, initial wave) so cluster DNS is
 live before any workload that resolves the LAN names lands. Base carries the
-full chain; `production`/`staging` inherit `../base` unchanged.
+full chain; `prd`/`stg` inherit `../base` unchanged.
 
 ## Telemetry-off / monitoring / updates
 

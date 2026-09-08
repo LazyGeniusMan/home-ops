@@ -1,6 +1,6 @@
 # Cilium LB IP pool + L2 announcement (§8.2). Base holds placeholders —
 # per-environment kustomizations patch them (see
-# configs/{production,staging,dev}/kustomization.yaml):
+# configs/{prd,stg,dev}/kustomization.yaml):
 #   __LB_VIP__: the single LoadBalancer VIP (prd 192.168.1.199, dev 192.168.1.249).
 #   __NODE_NIC__: L2 announcement NIC (prd enp45s0, dev eth0/QEMU virtio).
 # The Talos API VIP (__TALOS_API_VIP__: prd .198, dev .248 Layer2VIP) is NOT in

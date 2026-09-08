@@ -30,9 +30,9 @@ OCI is the upstream source of truth, verified by pull:
 
 ## Layout
 
-Mirrors §9/cert-manager file-for-file: `controllers/{base,production,staging}`
+Mirrors §9/cert-manager file-for-file: `controllers/{base,prd,stg}`
 (OCIRepository + HelmRelease, env overlays inherit base unchanged) and
-`configs/{base,production,staging}` (secrets, DB, cache, certificate, routes,
+`configs/{base,prd,stg}` (secrets, DB, cache, certificate, routes,
 static identity intent).
 
 ## Dependencies (§§8–10)
@@ -138,7 +138,7 @@ lands.
 
 ## Environments
 
-`production` and `staging` currently inherit `../base` unchanged (same shape
+`prd` and `stg` currently inherit `../base` unchanged (same shape
 as cert-manager before per-env divergence). Per-env tuning (replica count,
 ExternalDomain hostnames, storage size) lands with the first real divergence,
 not here.

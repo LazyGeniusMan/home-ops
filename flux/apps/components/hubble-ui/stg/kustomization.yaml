@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Staging (prd values) route hostname (hubble.home-ops.yansyah.my.id).
+  # Stg (prd values) route hostname (hubble.home-ops.yansyah.my.id).
   - patch: |
       - op: replace
         path: /spec/hostnames/0
@@ -11,7 +11,7 @@ patches:
     target:
       kind: HTTPRoute
       name: hubble
-  # Staging (prd values) proxy + token vault refs.
+  # Stg (prd values) proxy + token vault refs.
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -29,7 +29,7 @@ patches:
     target:
       kind: ExternalSecret
       name: cloudflare-api-token
-  # Staging (prd values) wildcard Certificate (wildcard-home-ops).
+  # Stg (prd values) wildcard Certificate (wildcard-home-ops).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -58,7 +58,7 @@ patches:
     target:
       kind: Certificate
       name: wildcard-home-ops
-  # Staging (prd values) proxy: Zitadel issuer, cookie domain, callback.
+  # Stg (prd values) proxy: Zitadel issuer, cookie domain, callback.
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/args/3

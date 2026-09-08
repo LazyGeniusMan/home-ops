@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Staging (prd values) Gateway TLS secret (wildcard-home-ops-tls).
+  # Stg (prd values) Gateway TLS secret (wildcard-home-ops-tls).
   - patch: |
       - op: replace
         path: /spec/listeners/1/tls/certificateRefs/0/name
@@ -11,7 +11,7 @@ patches:
     target:
       kind: Gateway
       name: main
-  # Staging (prd values) hostnames (home-ops.yansyah.my.id).
+  # Stg (prd values) hostnames (home-ops.yansyah.my.id).
   - patch: |
       - op: replace
         path: /spec/hostnames/0
@@ -26,7 +26,7 @@ patches:
     target:
       kind: HTTPRoute
       name: redirect-services
-  # Staging (prd values) wildcard Certificate (wildcard-home-ops).
+  # Stg (prd values) wildcard Certificate (wildcard-home-ops).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key

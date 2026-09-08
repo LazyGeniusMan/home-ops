@@ -62,7 +62,7 @@ ServiceMonitor creation.
 
 ## Environments
 
-`production` and `staging` (controllers + configs) track `../base` with no
+`prd` and `stg` (controllers + configs) track `../base` with no
 patches — a single-node fleet has one KVM host profile.
 
 ## runStrategy ownership (coordination with §13.4/§13.5)

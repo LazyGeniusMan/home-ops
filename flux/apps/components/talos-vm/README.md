@@ -48,7 +48,7 @@ win11-vm's SecureBoot+SMM shape would refuse to boot here.
 
 ## Environments
 
-`production` and `staging` track `../base` with no patches.
+`prd` and `stg` track `../base` with no patches.
 
 ## Telemetry-off / monitoring / updates
 

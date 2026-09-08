@@ -39,7 +39,7 @@ patches:
     target:
       kind: ExternalSecret
       name: rclone-credentials
-  # Production syncs nightly for real: 03:00, live flags (no --dry-run),
+  # Prd syncs nightly for real: 03:00, live flags (no --dry-run),
   # against the prd SeaweedFS S3 endpoint.
   - patch: |
       apiVersion: batch/v1

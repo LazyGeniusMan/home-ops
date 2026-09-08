@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Staging (prd values) UI/S3 hostnames (ui.seaweedfs.home-ops.yansyah.my.id / s3.seaweedfs.home-ops.yansyah.my.id).
+  # Stg (prd values) UI/S3 hostnames (ui.seaweedfs.home-ops.yansyah.my.id / s3.seaweedfs.home-ops.yansyah.my.id).
   - patch: |
       - op: replace
         path: /spec/hostnames/0
@@ -32,7 +32,7 @@ patches:
     target:
       kind: HTTPRoute
       name: seaweedfs-s3-tls
-  # Staging (prd values) proxy vault refs + issuer/callback/cookie-domain.
+  # Stg (prd values) proxy vault refs + issuer/callback/cookie-domain.
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -59,7 +59,7 @@ patches:
     target:
       kind: Deployment
       name: ui-auth
-  # Staging (prd values) token vault + wildcard DNS.
+  # Stg (prd values) token vault + wildcard DNS.
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key

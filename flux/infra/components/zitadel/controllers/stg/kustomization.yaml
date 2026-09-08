@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Staging (prd values) external domain (zitadel.home-ops.yansyah.my.id).
+  # Stg (prd values) external domain (zitadel.home-ops.yansyah.my.id).
   - patch: |
       - op: replace
         path: /spec/values/zitadel/configmapConfig/ExternalDomain

@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Staging (prd values) Proton Pass vault (pass://acme-prd-bdo1-talos-apps-01).
+  # Stg (prd values) Proton Pass vault (pass://acme-prd-bdo1-talos-apps-01).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -39,7 +39,7 @@ patches:
     target:
       kind: ExternalSecret
       name: rclone-credentials
-  # Staging stays suspended (manual drill only: un-suspend + trigger) and
+  # Stg stays suspended (manual drill only: un-suspend + trigger) and
   # keeps the base dry-run flags, so it never writes to Proton Drive.
   # Endpoint is the prd SeaweedFS S3 (base holds a placeholder).
   - patch: |

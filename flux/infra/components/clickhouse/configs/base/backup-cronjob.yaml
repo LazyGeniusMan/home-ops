@@ -2,7 +2,7 @@
 # immutable point-in-time snapshot under the `nightly/` prefix; retention is
 # enforced by bucket lifecycle (see README runbook). The operator creates a
 # CHI-level Service named exactly `clickhouse` (ports 8123/9000), so the job
-# needs no hardcoded pod addresses. Suspended in staging (see overlay).
+# needs no hardcoded pod addresses. Suspended in stg (see overlay).
 ---
 apiVersion: batch/v1
 kind: CronJob

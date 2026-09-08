@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Staging (prd values) route hostname (headlamp.home-ops.yansyah.my.id).
+  # Stg (prd values) route hostname (headlamp.home-ops.yansyah.my.id).
   - patch: |
       - op: replace
         path: /spec/hostnames/0
@@ -11,7 +11,7 @@ patches:
     target:
       kind: HTTPRoute
       name: headlamp
-  # Staging (prd values) OIDC issuer + client-secret vault ref.
+  # Stg (prd values) OIDC issuer + client-secret vault ref.
   - patch: |
       - op: replace
         path: /spec/target/template/data/OIDC_ISSUER_URL
@@ -22,7 +22,7 @@ patches:
     target:
       kind: ExternalSecret
       name: headlamp-oidc
-  # Staging (prd values) wildcard Certificate (wildcard-home-ops).
+  # Stg (prd values) wildcard Certificate (wildcard-home-ops).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key

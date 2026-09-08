@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Staging (prd values) secrets vault (pass://acme-prd-bdo1-talos-apps-01).
+  # Stg (prd values) secrets vault (pass://acme-prd-bdo1-talos-apps-01).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -53,7 +53,7 @@ patches:
     target:
       kind: ExternalSecret
       name: cloudflare-api-token
-  # Staging (prd values) CNPG S3 refs + endpoint.
+  # Stg (prd values) CNPG S3 refs + endpoint.
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -71,7 +71,7 @@ patches:
     target:
       kind: Cluster
       name: ferretdb
-  # Staging (prd values) S3 backup endpoint.
+  # Stg (prd values) S3 backup endpoint.
   - patch: |
       - op: replace
         path: /spec/configuration/files/storage.xml
@@ -92,7 +92,7 @@ patches:
       kind: ClickHouseInstallation
       name: clickstack
 
-  # Staging (prd values) route hostname (clickstack.home-ops.yansyah.my.id).
+  # Stg (prd values) route hostname (clickstack.home-ops.yansyah.my.id).
   - patch: |
       - op: replace
         path: /spec/hostnames/0
@@ -100,7 +100,7 @@ patches:
     target:
       kind: HTTPRoute
       name: clickstack
-  # Staging (prd values) wildcard Certificate.
+  # Stg (prd values) wildcard Certificate.
   - patch: |
       - op: replace
         path: /metadata/name
@@ -122,7 +122,7 @@ patches:
     target:
       kind: Certificate
       name: wildcard-home-ops
-  # Staging (prd values) app URL (FRONTEND_URL).
+  # Stg (prd values) app URL (FRONTEND_URL).
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/env/2/value
@@ -130,7 +130,7 @@ patches:
     target:
       kind: Deployment
       name: clickstack
-  # Staging (prd values) proxy: Zitadel issuer, cookie domain, callback.
+  # Stg (prd values) proxy: Zitadel issuer, cookie domain, callback.
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/args/3

@@ -23,7 +23,7 @@ patches:
     target:
       kind: CronJob
       name: clickhouse-backup
-  # Staging (prd values) S3 endpoint + vault refs + wildcard DNS.
+  # Stg (prd values) S3 endpoint + vault refs + wildcard DNS.
   - patch: |
       - op: replace
         path: /spec/configuration/files/storage.xml

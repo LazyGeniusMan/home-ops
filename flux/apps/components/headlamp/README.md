@@ -7,7 +7,7 @@ OIDC login via Zitadel (§11.1) plus the locked plugin set.
 
 `base/` holds every manifest (`headlamp.yaml` HelmRepository + HelmRelease,
 secrets, RBAC, wildcard certificate, HTTPRoute); env overlays
-`{dev,staging,production}/` patch hostnames, vault refs, and OIDC issuer via
+`{dev,stg,prd}/` patch hostnames, vault refs, and OIDC issuer via
 `resources: [../base]`. Tenant is `apps/headlamp` via
 `flux/apps/update-policies/headlamp.yaml`.
 
@@ -110,7 +110,7 @@ this namespace too.
 
 ## Environments
 
-`production` and `staging` currently inherit `../base` unchanged (same shape
+`prd` and `stg` currently inherit `../base` unchanged (same shape
 as cert-manager before per-env divergence). Per-env tuning (replicas,
 plugin set, ExternalDomain hostnames) lands with the first real divergence,
 not here.

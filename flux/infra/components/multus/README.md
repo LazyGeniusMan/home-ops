@@ -36,8 +36,8 @@ This component OWNS `NetworkAttachmentDefinition/lan-dhcp`; `win11-vm` and
   (KubeVirt `spec.template.spec.networks[].multus.networkName`, also honored
   via the `k8s.v1.cni.cncf.io/networks` annotation).
 - L2: `macvlan` on the LAN uplink in `bridge` mode; guests DHCP directly
-  against the router at **192.168.1.1**. Base master targets production
-  (`enp45s0` = RTL8125 2.5GbE); the staging overlay repatches master to the
+  against the router at **192.168.1.1**. Base master targets the prd host NIC
+  (`enp45s0` = RTL8125 2.5GbE); the stg overlay repatches master to the
   dev virtio NIC (`eth0`, QEMU/KVM).
 
 ## DHCP dependency
@@ -48,8 +48,8 @@ address, check the router's DHCP pool/scope before suspecting Multus.
 
 ## Environments
 
-`production` and `staging` controllers track `../base` with no patches;
-staging configs repatch the NAD master to `eth0` (above).
+`prd` and `stg` controllers track `../base` with no patches;
+stg configs repatch the NAD master to `eth0` (above).
 
 ## Telemetry-off / monitoring / updates
 

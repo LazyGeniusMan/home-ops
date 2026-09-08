@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Staging (prd values) DB/cache S3 + vault refs.
+  # Stg (prd values) DB/cache S3 + vault refs.
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -38,7 +38,7 @@ patches:
     target:
       kind: Dragonfly
       name: zitadel-cache
-  # Staging (prd values) identity secrets vault refs.
+  # Stg (prd values) identity secrets vault refs.
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -70,7 +70,7 @@ patches:
     target:
       kind: ExternalSecret
       name: zitadel-db-app-secret
-  # Staging (prd values) token vault + cert rename + wildcard DNS.
+  # Stg (prd values) token vault + cert rename + wildcard DNS.
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -99,7 +99,7 @@ patches:
     target:
       kind: Certificate
       name: wildcard-home-ops
-  # Staging (prd values) route hostnames (zitadel.home-ops.yansyah.my.id).
+  # Stg (prd values) route hostnames (zitadel.home-ops.yansyah.my.id).
   - patch: |
       - op: replace
         path: /spec/hostnames/0
@@ -114,7 +114,7 @@ patches:
     target:
       kind: HTTPRoute
       name: zitadel-login
-  # Staging (prd values) identity intent: annotation key, users, clients.
+  # Stg (prd values) identity intent: annotation key, users, clients.
   - patch: |
       - op: remove
         path: /metadata/annotations/__ZITADEL_HOST__~1managed-by

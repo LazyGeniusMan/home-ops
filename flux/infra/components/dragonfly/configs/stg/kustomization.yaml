@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Staging (prd values) S3 host + vault refs + wildcard DNS.
+  # Stg (prd values) S3 host + vault refs + wildcard DNS.
   - patch: |
       - op: replace
         path: /spec/args/0

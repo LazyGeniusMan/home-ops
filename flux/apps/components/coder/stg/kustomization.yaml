@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Staging (prd values) secrets vault (pass://acme-prd-bdo1-talos-apps-01).
+  # Stg (prd values) secrets vault (pass://acme-prd-bdo1-talos-apps-01).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -91,7 +91,7 @@ patches:
     target:
       kind: Certificate
       name: coder-wildcard
-  # Staging (prd values) Coder URLs, OIDC issuer, mail domain, sign-in text.
+  # Stg (prd values) Coder URLs, OIDC issuer, mail domain, sign-in text.
   - patch: |
       - op: replace
         path: /spec/values/coder/env/0/value

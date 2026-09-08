@@ -14,7 +14,7 @@ only when a custom template is required; none is).
 
 `base/` holds every manifest (`coder.yaml` HelmRepository + HelmRelease,
 secrets, CNPG Cluster, wildcard certificates, HTTPRoutes); env overlays
-`{dev,staging,production}/` patch hostnames, vault refs, and chart values
+`{dev,stg,prd}/` patch hostnames, vault refs, and chart values
 via `resources: [../base]`. Tenant is `apps/coder` (wired by the fleet tenant
 file, not here — no tenant/workflow edits in this change).
 
@@ -107,7 +107,7 @@ this namespace too). Seed each vault entry with pass-cli.
 
 ## Environments
 
-`production` and `staging` inherit `../base` unchanged (same shape as
+`prd` and `stg` inherit `../base` unchanged (same shape as
 cert-manager before per-env divergence). Per-env tuning (replicas,
 storage size, `CODER_DISABLE_PASSWORD_AUTH`) lands with the first real
 divergence, not here.
