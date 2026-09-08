@@ -5,8 +5,8 @@
 # targetNamespace=multus, so this lands in `multus`. Consumers MUST reference
 # it namespace-qualified as `multus/lan-dhcp` (see multus README + VM READMEs).
 # L2: macvlan on the LAN uplink in bridge mode; guests DHCP directly against
-# the router at 192.168.1.1. Base targets production (enp45s0 = RTL8125);
-# the staging overlay repatches master to the dev virtio NIC.
+# the router at 192.168.1.1. Base holds the __NODE_NIC__ placeholder
+# (prd enp45s0 = RTL8125, dev-cluster virtio eth0); overlays patch it.
 ---
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
@@ -17,7 +17,7 @@ spec:
       "cniVersion": "0.3.1",
       "name": "lan-dhcp",
       "type": "macvlan",
-      "master": "enp45s0",
+      "master": "__NODE_NIC__",
       "mode": "bridge",
       "ipam": { "type": "dhcp" }
     }'
