@@ -1,0 +1,43 @@
+# Per-cluster tenants overlay for acme-prd-bdo1-talos-apps-01.
+#
+# This kustomization is what the cluster actually syncs: see
+# clusters/acme-prd-bdo1-talos-apps-01/tenants.yaml
+# (path: ./tenants/overlays/acme-prd-bdo1-talos-apps-01).
+#
+# Default: pass-through of the full shared set (apps + infra + policies).
+# No `patches:` are active, so this cluster deploys exactly what
+# tenants/{apps,infra,policies}.yaml define.
+#
+# To add a per-cluster exception (opt-in): uncomment a `patches:` entry
+# below (or add a new RFC 6902 patch, see ../README.md). Patches are inline
+# so every file in this directory stays a valid Kubernetes manifest.
+# Verify: kustomize build on this directory must succeed, and the guarded
+# `test` ops must pass (they fail the build loudly if the base input order
+# in tenants/*.yaml changed under you).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../apps.yaml
+  - ../../infra.yaml
+  - ../../policies.yaml
+# EXAMPLE (disabled by default): prd-only source-policy tightening.
+# The shared tenants/policies.yaml allowlist trusts the same OCI prefixes on
+# every cluster. An operator MAY enable this patch so prd records an extra
+# pinning note in the allowlist ConfigMap (belt-and-braces on top of the
+# cosign verify blocks that already pin the release workflow + tag).
+# To enable, uncomment the block below.
+# NOTE: this edits a map value (not an ordered list), so no `test` guard is
+# needed — but keep the resource index + key name stable with
+# tenants/policies.yaml.
+# patches:
+#   - target:
+#       group: fluxcd.controlplane.io
+#       version: v1
+#       kind: ResourceSet
+#       name: policies
+#     patch: |-
+#       - op: add
+#         path: /spec/resources/0/data/prd-only-note
+#         value: >-
+#           prd pins stable tags via cosign verify; see tenants/infra.yaml
+#           and tenants/apps.yaml matchOIDCIdentity blocks.

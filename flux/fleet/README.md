@@ -14,10 +14,10 @@ flux/fleet/
 ├── clusters/
 │   ├── acme-prd-bdo1-talos-apps-01/  # prd cluster (ENVIRONMENT=prd, syncs OCI tag stable)
 │   │   ├── flux-system/ # FluxInstance + operator ResourceSet + values + runtime-info
-│   │   └── tenants.yaml # tenants Kustomization (renders ../tenants with runtime substitution)
+│   │   └── tenants.yaml # tenants Kustomization (renders tenants/overlays/acme-prd-bdo1-talos-apps-01)
 │   ├── acme-dev-bdo1-talos-apps-01/  # dev cluster (ENVIRONMENT=dev, syncs OCI tag dev)
 │   │   ├── flux-system/
-│   │   └── tenants.yaml
+│   │   └── tenants.yaml # tenants Kustomization (renders tenants/overlays/acme-dev-bdo1-talos-apps-01)
 │   └── update/          # image-automation cluster, NOT a Talos cluster
 │                        # (ENVIRONMENT=stg, syncs OCI tag dev)
 │       ├── flux-system/
@@ -25,7 +25,11 @@ flux/fleet/
 ├── tenants/
 │   ├── policies.yaml    # source allowlist + ValidatingAdmissionPolicy
 │   ├── infra.yaml       # ResourceSet: per-component namespace + OCIRepository + Kustomizations
-│   └── apps.yaml        # ResourceSet: per-component namespace + OCIRepository + Kustomizations
+│   ├── apps.yaml        # ResourceSet: per-component namespace + OCIRepository + Kustomizations
+│   └── overlays/        # per-cluster selection (one dir per cluster, pass-through by default)
+│       ├── README.md    # mechanism, onboarding, CLUSTER_NAME/CLUSTER_DOMAIN consumption
+│       ├── acme-prd-bdo1-talos-apps-01/  # prd overlay (full set by default)
+│       └── acme-dev-bdo1-talos-apps-01/  # dev overlay (full set by default)
 └── terraform/           # OpenTofu bootstrap of the Flux Operator (no live apply in CI)
 ```
 

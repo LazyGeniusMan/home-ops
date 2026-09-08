@@ -1,3 +1,6 @@
+# Tenants for acme-prd-bdo1-talos-apps-01.
+# Renders the per-cluster overlay at tenants/overlays/acme-prd-bdo1-talos-apps-01
+# (default: full shared set; opt-in exceptions live as commented patches there).
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
@@ -7,7 +10,7 @@ spec:
   serviceAccountName: flux-operator
   interval: 12h
   retryInterval: 3m
-  path: ./tenants
+  path: ./tenants/overlays/acme-prd-bdo1-talos-apps-01
   prune: true
   sourceRef:
     kind: OCIRepository
