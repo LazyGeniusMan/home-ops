@@ -2,12 +2,12 @@
 # accept routes from all namespaces — cross-namespace parentRef, no
 # targetNamespace override needed). Chart-native httproute templating stays
 # OFF (we own the §8.1 pattern explicitly rather than through chart values).
-# - Dashboard route (hostname coder.home-ops.yansyah.my.id, path /) → the
+# - Dashboard route (hostname __SERVICE_HOST__, path /) → the
 #   coder Service (port 80 → coderd 8080). Covers the UI, API, and the OIDC
 #   callback /api/v2/users/oidc/callback.
-# - Workspace route (hostname *.coder.home-ops.yansyah.my.id, path /) → the
+# - Workspace route (hostname __WILDCARD_SERVICE_HOST__, path /) → the
 #   same coder Service. Workspace agents and workspace apps dial
-#   <workspace>.coder.home-ops.yansyah.my.id, which coderd multiplexes by
+#   <workspace>.__SERVICE_DOMAIN__, which coderd multiplexes by
 #   subdomain (CODER_WILDCARD_ACCESS_URL in controllers/base/coder.yaml) —
 #   one route covers every workspace, no per-workspace objects. Per the
 #   Gateway API spec a `*.coder.…` hostname matches dots to the left, so
@@ -27,7 +27,7 @@ spec:
       namespace: gateway-api
       sectionName: http
   hostnames:
-    - coder.home-ops.yansyah.my.id
+    - __SERVICE_HOST__
   rules:
     - filters:
         - type: RequestRedirect
@@ -45,7 +45,7 @@ spec:
       namespace: gateway-api
       sectionName: https
   hostnames:
-    - coder.home-ops.yansyah.my.id
+    - __SERVICE_HOST__
   rules:
     - matches:
         - path:
@@ -65,7 +65,7 @@ spec:
       namespace: gateway-api
       sectionName: https
   hostnames:
-    - "*.coder.home-ops.yansyah.my.id"
+    - "*.coder.__BASE_DOMAIN__"
   rules:
     - matches:
         - path:
@@ -85,7 +85,7 @@ spec:
       namespace: gateway-api
       sectionName: http
   hostnames:
-    - "*.coder.home-ops.yansyah.my.id"
+    - "*.coder.__BASE_DOMAIN__"
   rules:
     - filters:
         - type: RequestRedirect

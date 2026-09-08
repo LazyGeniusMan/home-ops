@@ -69,9 +69,9 @@ spec:
       envUseClusterAccessURL: false
       env:
         - name: CODER_ACCESS_URL
-          value: https://coder.home-ops.yansyah.my.id
+          value: https://__SERVICE_HOST__
         - name: CODER_WILDCARD_ACCESS_URL
-          value: "*.coder.home-ops.yansyah.my.id"
+          value: "*.coder.__BASE_DOMAIN__"
         - name: CODER_TELEMETRY_ENABLE
           value: "false"
         # Database: the §10.1 CNPG instance in configs/base/coder-db.yaml
@@ -85,10 +85,10 @@ spec:
         # Direct OIDC against Zitadel (§11.1, NO oauth2-proxy — Coder speaks
         # OIDC natively). Issuer/client/scopes per the locked contract; the
         # client secret comes from ESO (configs/base/coder-secrets.yaml).
-        # Callback https://coder.home-ops.yansyah.my.id/api/v2/users/oidc/callback
-        # is covered by the locked redirect https://coder.home-ops.yansyah.my.id/*.
+        # Callback https://__SERVICE_HOST__/api/v2/users/oidc/callback
+        # is covered by the locked redirect https://__SERVICE_HOST__/*.
         - name: CODER_OIDC_ISSUER_URL
-          value: https://zitadel.home-ops.yansyah.my.id
+          value: __ZITADEL_ISSUER_URL__
         - name: CODER_OIDC_CLIENT_ID
           value: coder
         - name: CODER_OIDC_CLIENT_SECRET
@@ -99,11 +99,11 @@ spec:
         - name: CODER_OIDC_SCOPES
           value: openid,profile,email,groups
         - name: CODER_OIDC_EMAIL_DOMAIN
-          value: home-ops.yansyah.my.id
+          value: __EMAIL_DOMAIN__
         # Group allowlist (locked): only Zitadel `admin` + `users` members may
         # sign in. The `groups` claim needs no groupField override (the scope
         # and the claim share the name `groups` — upstream default applies).
         - name: CODER_OIDC_ALLOWED_GROUPS
           value: admin,users
         - name: CODER_OIDC_SIGN_IN_TEXT
-          value: Sign in with home-ops SSO
+          value: __SSO_SIGN_IN_TEXT__
