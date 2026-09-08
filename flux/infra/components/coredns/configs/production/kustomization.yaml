@@ -2,3 +2,42 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../base
+patches:
+  # Prd Corefile (home-ops.yansyah.my.id -> .199) — replaces base placeholder block.
+  - patch: |
+      - op: replace
+        path: /data/Corefile
+        value: |-
+              home-ops.yansyah.my.id:53 {
+                  errors
+                  cache 30
+                  # Apex: home-ops.yansyah.my.id -> gateway LB VIP.
+                  template IN A {
+                      match "^home-ops\\.yansyah\\.my\\.id\\.$"
+                      answer "{{ .Name }} 60 IN A 192.168.1.199"
+                      fallthrough
+                  }
+                  # Single-level wildcard: *.home-ops.yansyah.my.id -> gateway LB VIP.
+                  template IN A {
+                      match "^[^.]+\\.home-ops\\.yansyah\\.my\\.id\\.$"
+                      answer "{{ .Name }} 60 IN A 192.168.1.199"
+                      fallthrough
+                  }
+                  # Nested wildcard: *.*.home-ops.yansyah.my.id -> gateway LB VIP.
+                  template IN A {
+                      match "^.+\\.home-ops\\.yansyah\\.my\\.id\\.$"
+                      answer "{{ .Name }} 60 IN A 192.168.1.199"
+                      fallthrough
+                  }
+                  # Static host entries (empty by default); falls through to forward.
+                  hosts {
+                      fallthrough
+                  }
+                  forward . /etc/resolv.conf
+                  loop
+                  reload
+                  loadbalance
+              }
+    target:
+      kind: ConfigMap
+      name: coredns

@@ -1,4 +1,43 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - corefile.yaml
+  - ../base
+patches:
+  # Dev Corefile (homelab-dev.yansyah.my.id -> .249) — replaces base placeholder block.
+  - patch: |
+      - op: replace
+        path: /data/Corefile
+        value: |-
+              homelab-dev.yansyah.my.id:53 {
+                  errors
+                  cache 30
+                  # Apex: homelab-dev.yansyah.my.id -> gateway LB VIP.
+                  template IN A {
+                      match "^homelab-dev\\.yansyah\\.my\\.id\\.$"
+                      answer "{{ .Name }} 60 IN A 192.168.1.249"
+                      fallthrough
+                  }
+                  # Single-level wildcard: *.homelab-dev.yansyah.my.id -> gateway LB VIP.
+                  template IN A {
+                      match "^[^.]+\\.homelab-dev\\.yansyah\\.my\\.id\\.$"
+                      answer "{{ .Name }} 60 IN A 192.168.1.249"
+                      fallthrough
+                  }
+                  # Nested wildcard: *.*.homelab-dev.yansyah.my.id -> gateway LB VIP.
+                  template IN A {
+                      match "^.+\\.homelab-dev\\.yansyah\\.my\\.id\\.$"
+                      answer "{{ .Name }} 60 IN A 192.168.1.249"
+                      fallthrough
+                  }
+                  # Static host entries (empty by default); falls through to forward.
+                  hosts {
+                      fallthrough
+                  }
+                  forward . /etc/resolv.conf
+                  loop
+                  reload
+                  loadbalance
+              }
+    target:
+      kind: ConfigMap
+      name: coredns

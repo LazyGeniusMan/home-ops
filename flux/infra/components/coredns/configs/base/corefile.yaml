@@ -13,25 +13,25 @@ metadata:
   name: coredns
 data:
   Corefile: |-
-    home-ops.yansyah.my.id:53 {
+    __BASE_DOMAIN__:53 {
         errors
         cache 30
-        # Apex: home-ops.yansyah.my.id -> gateway LB VIP.
+        # Apex: __BASE_DOMAIN__ -> gateway LB VIP (__LB_VIP__).
         template IN A {
-            match "^home-ops\\.yansyah\\.my\\.id\\.$"
-            answer "{{ .Name }} 60 IN A 192.168.1.199"
+            match "^__BASE_DOMAIN_ESCAPED__\\.$"
+            answer "{{ .Name }} 60 IN A __LB_VIP__"
             fallthrough
         }
-        # Single-level wildcard: *.home-ops.yansyah.my.id -> gateway LB VIP.
+        # Single-level wildcard: *.__BASE_DOMAIN__ -> gateway LB VIP.
         template IN A {
-            match "^[^.]+\\.home-ops\\.yansyah\\.my\\.id\\.$"
-            answer "{{ .Name }} 60 IN A 192.168.1.199"
+            match "^[^.]+\\.__BASE_DOMAIN_ESCAPED__\\.$"
+            answer "{{ .Name }} 60 IN A __LB_VIP__"
             fallthrough
         }
-        # Nested wildcard: *.*.home-ops.yansyah.my.id -> gateway LB VIP.
+        # Nested wildcard: *.*.__BASE_DOMAIN__ -> gateway LB VIP.
         template IN A {
-            match "^.+\\.home-ops\\.yansyah\\.my\\.id\\.$"
-            answer "{{ .Name }} 60 IN A 192.168.1.199"
+            match "^.+\\.__BASE_DOMAIN_ESCAPED__\\.$"
+            answer "{{ .Name }} 60 IN A __LB_VIP__"
             fallthrough
         }
         # Static host entries (empty by default); falls through to forward.
