@@ -1,29 +1,37 @@
 # Shared barebone base patch for all clusters (Talos v1.14).
 # Multi-document: consumed via `talosctl gen config --config-patch @file`
 # (see reference/configuration/overview.mdx: machine config is multi-doc;
-# v1alpha1 doc is mandatory, split-doc kinds merge after it).
+# split-doc kinds merge after it).
 #
-# Field evidence (public/talos/v1.14/schemas/config.schema.json):
-#   cluster.network.cni.name enum [flannel, custom, none]  ("none" = Talos
-#     manages no CNI; Cilium arrives via GitOps)
-#   cluster.coreDNS.disabled: bool  ("Disable coredns deployment on cluster bootstrap.")
-#   cluster.proxy: ProxyConfig{disabled, mode}  (neutral here: deployed with
-#     default mode; clusters that run Cilium kube-proxy replacement apply
-#     kube-proxy-override.yml to set disabled: true)
-#   cluster.discovery.enabled: bool  (false = no auto-join/discovery; Talos
-#     v1.14 has NO telemetry field — zero hits in config.schema.json)
+# Replacements per reference/configuration/document-map.mdx:
+#   No managed CNI -> delete the default KubeFlannelCNIConfig doc (patching.mdx:
+#     "disable the default CNI (Flannel)" via `$patch: delete`). Talos then
+#     manages no CNI; Cilium arrives via GitOps.
+#   CoreDNS off -> KubeCoreDNSConfig{enabled: false}.
+#   kube-proxy neutral -> KubeProxyConfig{mode: iptables} (deployed with
+#     iptables mode; clusters running Cilium kube-proxy replacement set
+#     enabled: false in their cluster patches.yml).
+#   discovery off -> delete the generated DiscoveryServiceConfig named
+#     `default` (discovery.mdx: "To disable the discovery service, remove
+#     all DiscoveryServiceConfig documents").
 # No inlineManifests / extraManifests: base ships zero bootstrap manifests.
 ---
-cluster:
-  network:
-    cni:
-      name: none
-  coreDNS:
-    disabled: true
-  proxy:
-    mode: iptables
-  discovery:
-    enabled: false
+apiVersion: v1alpha1
+kind: KubeFlannelCNIConfig
+$patch: delete
+---
+apiVersion: v1alpha1
+kind: KubeCoreDNSConfig
+enabled: false
+---
+apiVersion: v1alpha1
+kind: KubeProxyConfig
+mode: iptables
+---
+apiVersion: v1alpha1
+kind: DiscoveryServiceConfig
+name: default
+$patch: delete
 ---
 apiVersion: v1alpha1
 kind: TimeSyncConfig

@@ -5,13 +5,23 @@
 # Secrets: double-brace refs rendered via pass-cli inject into gitignored build/:
 #   export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_...
 #   pass-cli inject --in-file patches.yml --out-file ../../ansible/build/acme-dev-bdo1-talos-apps-01/patches.yml
+# Split-doc kinds per reference/configuration/document-map.mdx:
+#   endpoint -> KubeClusterConfig{endpoint}; proxy off -> KubeProxyConfig{enabled};
+#   scheduling on the control-plane -> KubeNodeConfig with the default
+#   control-plane NoSchedule taint removed (workloads-on-controlplane.mdx).
 ---
-cluster:
-  controlPlane:
-    endpoint: https://192.168.1.248:6443
-  proxy:
-    disabled: true # Cilium replaces kube-proxy
-  allowSchedulingOnControlPlanes: true # single-node: permit workloads on the control-plane
+apiVersion: v1alpha1
+kind: KubeClusterConfig
+endpoint: https://192.168.1.248:6443
+---
+apiVersion: v1alpha1
+kind: KubeProxyConfig
+enabled: false # Cilium replaces kube-proxy
+---
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+taints:
+  $patch: delete # single-node: permit workloads on the control-plane
 ---
 apiVersion: v1alpha1
 kind: Layer2VIPConfig
