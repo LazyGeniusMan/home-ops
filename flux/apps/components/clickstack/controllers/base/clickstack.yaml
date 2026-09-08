@@ -46,7 +46,7 @@ spec:
             - name: API_PORT
               value: "8000"
             - name: FRONTEND_URL
-              value: "https://clickstack.home-ops.yansyah.my.id"
+              value: "https://__SERVICE_HOST__"
             - name: HYPERDX_API_PORT
               value: "8000"
             - name: HYPERDX_APP_PORT

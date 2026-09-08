@@ -1,8 +1,8 @@
 # Per-instance oauth2-proxy (§11.2, locked proxy contract): fronts clickstack,
-# authenticates against Zitadel (issuer https://zitadel.home-ops.yansyah.my.id,
+# authenticates against Zitadel (issuer __ZITADEL_ISSUER_URL__,
 # client oauth2-proxy-shared), gates on the `admin` group. Image
 # quay.io/oauth2-proxy/oauth2-proxy:v7.6.0. ESO secret below holds refs only.
-# Callback https://clickstack.home-ops.yansyah.my.id/oauth2/callback is covered
+# Callback https://__SERVICE_HOST__/oauth2/callback is covered
 # by the registered wildcard redirect https://*/oauth2/callback. HTTPRoute
 # backend (configs) points at this proxy Service (:4180); the proxy upstreams
 # to http://clickstack.<ns>.svc:3000 (namespace patched per env in
@@ -34,11 +34,11 @@ spec:
             - --http-address=0.0.0.0:4180
             - --upstream=http://clickstack.clickstack.svc:3000
             - --provider=oidc
-            - --oidc-issuer-url=https://zitadel.home-ops.yansyah.my.id
+            - --oidc-issuer-url=__ZITADEL_ISSUER_URL__
             - --client-id=oauth2-proxy-shared
             - --client-secret-file=/etc/oauth2-proxy/client-secret
             - --cookie-secret-file=/etc/oauth2-proxy/cookie-secret
-            - --cookie-domain=.home-ops.yansyah.my.id
+            - --cookie-domain=.__BASE_DOMAIN__
             - --cookie-secure=true
             - --cookie-samesite=lax
             - --email-domain=*
@@ -47,7 +47,7 @@ spec:
             - --allowed-group=admin
             - --reverse-proxy=true
             - --skip-provider-button=true
-            - --redirect-url=https://clickstack.home-ops.yansyah.my.id/oauth2/callback
+            - --redirect-url=https://__SERVICE_HOST__/oauth2/callback
           env:
             - name: OAUTH2_PROXY_CLIENT_SECRET
               valueFrom:

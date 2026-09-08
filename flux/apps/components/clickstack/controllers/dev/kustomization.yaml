@@ -1,6 +1,27 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - clickstack.yaml
-  - ferretdb.yaml
-  - oauth2-proxy.yaml
+  - ../base
+patches:
+  # Dev app URL (FRONTEND_URL).
+  - patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/2/value
+        value: "https://clickstack.homelab-dev.yansyah.my.id"
+    target:
+      kind: Deployment
+      name: clickstack
+  # Dev proxy: Zitadel issuer, cookie domain, callback.
+  - patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/args/3
+        value: --oidc-issuer-url=https://zitadel.homelab-dev.yansyah.my.id
+      - op: replace
+        path: /spec/template/spec/containers/0/args/7
+        value: --cookie-domain=.homelab-dev.yansyah.my.id
+      - op: replace
+        path: /spec/template/spec/containers/0/args/16
+        value: --redirect-url=https://clickstack.homelab-dev.yansyah.my.id/oauth2/callback
+    target:
+      kind: Deployment
+      name: oauth2-proxy
