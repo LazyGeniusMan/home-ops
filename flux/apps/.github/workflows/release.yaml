@@ -3,13 +3,33 @@
 # flux-cluster-vX.Y.Z and move latest-stable. The home cluster verifies this workflow
 # + tag via the cosign subject pinned in ../../fleet/tenants/apps.yaml
 # (refs/tags/flux-cluster-v\d+\.\d+\.\d+).
-# Canonical definition: the root wiring file .github/workflows/flux-apps-release.yaml
-# mirrors this job.
+# Split-ready layout: paths assume the area directory is the repository root.
+# After the per-area repo split this file executes as-is (callable via
+# workflow_call); until then GitHub only executes the root wiring file
+# .github/workflows/flux-apps-release.yaml, which calls the same shared logic
+# in ../actions/oci-release with monorepo-relative paths.
 name: release-artifact
 
 # OCI: oci://ghcr.io/<owner>/home-ops/apps/<component>:<flux-cluster-vX.Y.Z> + latest-stable.
 
 on:
+  workflow_call:
+    inputs:
+      repository-prefix:
+        description: 'OCI repository prefix'
+        required: false
+        type: string
+        default: ''
+      source-prefix:
+        description: 'Artifact source directory prefix, relative to the repository root'
+        required: false
+        type: string
+        default: 'components'
+      diff-tag:
+        description: 'Diff tag for the push (the release tag)'
+        required: false
+        type: string
+        default: ''
   push:
     tags:
       - 'flux-cluster-v*'
@@ -36,26 +56,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Install flux
-        uses: controlplaneio-fluxcd/distribution/actions/setup@1eaaa7f67ad253af88d4fac2f349ed8e7d801b83 # main
-      - name: Install cosign
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+      - name: Publish component release
+        uses: ./.github/actions/oci-release
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push artifact
-        uses: controlplaneio-fluxcd/distribution/actions/push@1eaaa7f67ad253af88d4fac2f349ed8e7d801b83 # main
-        id: push
-        with:
-          repository: ghcr.io/${{ github.repository }}/apps/${{ matrix.component }}
-          path: "./components/${{ matrix.component }}"
-          diff-tag: ${{ github.ref_name }}
-          tags: latest-stable
-      - name: Sign artifact
-        if: steps.push.outputs.pushed == 'true'
-        run: cosign sign --yes $DIGEST_URL
-        env:
-          DIGEST_URL: ${{ steps.push.outputs.digest-url }}
+          component: ${{ matrix.component }}
+          repository-prefix: ${{ inputs.repository-prefix || format('ghcr.io/{0}/apps', github.repository) }}
+          source-prefix: ${{ inputs.source-prefix || 'components' }}
+          diff-tag: ${{ inputs.diff-tag || github.ref_name }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}

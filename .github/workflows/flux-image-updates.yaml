@@ -3,7 +3,9 @@
 # chart/image bumps to image-updates-infra and image-updates-apps branches;
 # this workflow opens a PR to main for each. Review + merge per branch
 # promotes the bump through the push/release pipelines above.
-# Mirrors the canonical job in flux/fleet/.github/workflows/image-updates.yaml.
+# This file carries the triggers and calls the canonical job logic in
+# flux/fleet/.github/actions/image-updates via the area-local reusable workflow
+# flux/fleet/.github/workflows/image-updates.yaml (workflow_call).
 
 name: flux-image-updates
 
@@ -24,14 +26,6 @@ jobs:
         with:
           fetch-depth: 0
       - name: Create Pull Request
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPO: ${{ github.repository }}
-          GITHUB_REF: ${{ github.ref }}
-          HEAD_BRANCH: ${{ github.ref_name }}
-        run: |
-          gh pr create \
-            --repo="${GITHUB_REPO}" \
-            --head="${HEAD_BRANCH}" \
-            --base=main \
-            --fill-first
+        uses: ./flux/fleet/.github/actions/image-updates
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}

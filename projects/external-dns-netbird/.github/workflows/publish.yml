@@ -1,12 +1,25 @@
 # Canonical publish workflow for external-dns-netbird.
 # Builds and pushes ghcr.io/lazygeniusman/home-ops/infra/external-dns-netbird.
-# NOTE: GitHub only runs workflows from the repo-root .github/workflows/.
-# Until the planned per-project repo split (§6.2), the root wiring file
-# .github/workflows/external-dns-netbird.yml mirrors this job and is the
-# workflow that actually executes. Keep the two in sync.
+# Split-ready layout: paths assume the project directory is the repository root.
+# After the per-project repo split (§6.2) this file executes as-is (callable via
+# workflow_call); until then GitHub only executes the root wiring file
+# .github/workflows/external-dns-netbird.yml, which calls the same shared logic
+# in ../actions/publish with monorepo-relative paths.
 name: external-dns-netbird-publish
 
 on:
+  workflow_call:
+    inputs:
+      context:
+        description: 'Docker build context, relative to the repository root'
+        required: false
+        type: string
+        default: '.'
+      dockerfile:
+        description: 'Dockerfile path, relative to the repository root'
+        required: false
+        type: string
+        default: './Dockerfile'
   push:
     paths:
       - 'projects/external-dns-netbird/**'
@@ -29,9 +42,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-
       - name: Log in to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
@@ -39,23 +49,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+      - name: Publish image
+        uses: ./.github/actions/publish
         with:
-          images: ghcr.io/lazygeniusman/home-ops/infra/external-dns-netbird
-          flavor: |
-            latest=false
-          tags: |
-            type=raw,value=dev,enable=${{ github.ref_type == 'branch' }}
-            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
-            type=match,pattern=external-dns-netbird-v(.*),group=1,enable=${{ github.ref_type == 'tag' }}
-
-      - name: Build and push
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-        with:
-          context: projects/external-dns-netbird
-          file: projects/external-dns-netbird/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          context: ${{ inputs.context || '.' }}
+          dockerfile: ${{ inputs.dockerfile || './Dockerfile' }}

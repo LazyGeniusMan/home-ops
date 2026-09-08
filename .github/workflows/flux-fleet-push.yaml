@@ -1,8 +1,10 @@
 # Root wiring for fleet OCI delivery (main branch -> tag latest).
 # GitHub only executes workflows under the repo-root .github/workflows/,
-# so this file carries the triggers and mirrors the canonical job defined in
-# flux/fleet/.github/workflows/push.yaml (path "./" there maps to
-# "./flux/fleet" here).
+# so this file carries the triggers and calls the canonical job logic in
+# flux/fleet/.github/actions/oci-push via the area-local reusable workflow
+# flux/fleet/.github/workflows/push.yaml (workflow_call). Reusable workflows
+# cannot live in subdirectories, so the executable sharing layer is the
+# step-level composite action — the documented pattern for local shared logic.
 # On the future per-area repo split, replace this job's steps with:
 #   call: <new-repo>/.github/workflows/push.yaml@<ref>   # workflow_call
 # and keep the area-local push.yaml as the canonical definition.
@@ -28,25 +30,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Install flux
-        uses: controlplaneio-fluxcd/distribution/actions/setup@1eaaa7f67ad253af88d4fac2f349ed8e7d801b83 # main
-      - name: Install cosign
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push artifact
-        uses: controlplaneio-fluxcd/distribution/actions/push@1eaaa7f67ad253af88d4fac2f349ed8e7d801b83 # main
-        id: push
+      - name: Push fleet artifact
+        uses: ./flux/fleet/.github/actions/oci-push
         with:
           repository: ghcr.io/${{ github.repository }}/fleet
           path: "./flux/fleet"
           diff-tag: latest
-      - name: Sign artifact
-        if: steps.push.outputs.pushed == 'true'
-        run: cosign sign --yes $DIGEST_URL
-        env:
-          DIGEST_URL: ${{ steps.push.outputs.digest-url }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}

@@ -2,12 +2,15 @@
 # ImageUpdateAutomation (clusters/update/automation.yaml) pushes chart/image
 # bumps to image-updates-infra and image-updates-apps branches; this workflow
 # opens a PR to main for each.
-# Canonical definition: the root wiring file .github/workflows/flux-image-updates.yaml
-# mirrors this job.
+# Split-ready layout: after the per-area repo split this file executes as-is
+# (callable via workflow_call); until then GitHub only executes the root wiring
+# file .github/workflows/flux-image-updates.yaml, which calls the same shared
+# logic in ../actions/image-updates.
 name: image-updates
 
 on:
   workflow_dispatch:
+  workflow_call:
   create:
 
 jobs:
@@ -23,14 +26,6 @@ jobs:
         with:
           fetch-depth: 0
       - name: Create Pull Request
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPO: ${{ github.repository }}
-          GITHUB_REF: ${{ github.ref }}
-          HEAD_BRANCH: ${{ github.ref_name }}
-        run: |
-          gh pr create \
-            --repo="${GITHUB_REPO}" \
-            --head="${HEAD_BRANCH}" \
-            --base=main \
-            --fill-first
+        uses: ./.github/actions/image-updates
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}

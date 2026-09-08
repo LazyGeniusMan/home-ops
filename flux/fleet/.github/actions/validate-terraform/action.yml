@@ -1,0 +1,32 @@
+# Shared fleet Terraform bootstrap validation logic (no backend, no live apply).
+# Called by the root wiring workflow .github/workflows/flux-fleet-validate.yaml
+# (via `uses: ./flux/fleet/.github/actions/validate-terraform`) and by the
+# area-local flux/fleet/.github/workflows/validate.yaml. The default assumes
+# the area directory is the repository root (true after the per-area repo
+# split); the monorepo root caller overrides working-directory.
+name: fleet-validate-terraform
+description: Validate fleet Terraform bootstrap with OpenTofu.
+
+inputs:
+  working-directory:
+    description: 'Terraform directory, relative to the repository root'
+    required: false
+    default: 'terraform'
+
+runs:
+  using: composite
+  steps:
+    - name: Setup OpenTofu
+      uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1
+    - name: Init (no backend, no live apply)
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: tofu init -backend=false
+    - name: Validate
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: tofu validate
+    - name: Test single-source mapping
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: tofu test
