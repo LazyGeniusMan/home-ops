@@ -1,0 +1,136 @@
+# ExternalDNS (§9.4): two synced providers over home-ops.yansyah.my.id.
+# Chart mirror: oci://ghcr.io/controlplaneio-fluxcd/charts/external-dns
+# (verified tag 1.21.1); app image pinned to v0.22.0 per scope (chart default
+# is v0.21.0 — both tags verified present on registry.k8s.io).
+#  - external-dns-cloudflare: authoritative public DNS (CF_API_TOKEN from ESO).
+#  - external-dns-netbird: NetBird Custom Zones via the in-repo webhook
+#    sidecar (projects/external-dns-netbird, :dev), PAT via NETBIRD_PAT_FILE.
+# TXT ownership: distinct txtOwnerId/txtPrefix per instance so the two
+# registries never clobber each other. policy sync on both.
+# Sources include Gateway API routes so §8 Gateways/HTTPRoutes sync without
+# any file overlap; the *.home-ops.yansyah.my.id A record materializes from
+# the §8 Gateway LB target (192.168.1.199).
+# Telemetry: external-dns phones home nothing. Monitoring: ServiceMonitor
+# stays disabled until monitoring.coreos.com CRDs land (see README).
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: external-dns-chart
+spec:
+  interval: 1h
+  url: oci://ghcr.io/controlplaneio-fluxcd/charts/external-dns
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: "1.21.1" # {"$imagepolicy": "infra:external-dns:tag"}
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: external-dns-cloudflare
+spec:
+  interval: 1h
+  releaseName: external-dns-cloudflare
+  serviceAccountName: flux
+  chartRef:
+    kind: OCIRepository
+    name: external-dns-chart
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  # https://kubernetes-sigs.github.io/external-dns/latest/charts/external-dns/
+  values:
+    image:
+      tag: v0.22.0
+    provider:
+      name: cloudflare
+    sources:
+      - service
+      - ingress
+      - gateway-httproute
+      - gateway-grpcroute
+      - gateway-tlsroute
+      - crd
+    policy: sync
+    registry: txt
+    txtOwnerId: home-ops-prd-cloudflare
+    txtPrefix: extdns-cf-
+    domainFilters:
+      - home-ops.yansyah.my.id
+    env:
+      - name: CF_API_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: cloudflare-api-token
+            key: api-token
+    serviceMonitor:
+      enabled: false
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: external-dns-netbird
+spec:
+  interval: 1h
+  releaseName: external-dns-netbird
+  serviceAccountName: flux
+  chartRef:
+    kind: OCIRepository
+    name: external-dns-chart
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  values:
+    image:
+      tag: v0.22.0
+    provider:
+      name: webhook
+      webhook:
+        image:
+          repository: ghcr.io/lazygeniusman/home-ops/infra/external-dns-netbird
+          tag: dev # {"$imagepolicy": "infra:external-dns-netbird:tag"}
+        env:
+          - name: NETBIRD_PAT_FILE
+            value: /secrets/pat
+          - name: DOMAIN_FILTER
+            value: home-ops.yansyah.my.id
+        extraVolumeMounts:
+          - name: pat
+            mountPath: /secrets
+            readOnly: true
+    extraVolumes:
+      - name: pat
+        secret:
+          secretName: netbird-pat
+          items:
+            - key: pat
+              path: pat
+    extraArgs:
+      webhook-provider-url: http://localhost:8888
+    sources:
+      - service
+      - ingress
+      - gateway-httproute
+      - gateway-grpcroute
+      - gateway-tlsroute
+      - crd
+    policy: sync
+    registry: txt
+    txtOwnerId: home-ops-prd-netbird
+    txtPrefix: extdns-nb-
+    domainFilters:
+      - home-ops.yansyah.my.id
+    serviceMonitor:
+      enabled: false

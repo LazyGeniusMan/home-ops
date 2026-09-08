@@ -1,0 +1,43 @@
+# Update policy for the external-dns component (§9): tracks the OCI Helm chart, and the
+# ImageUpdateAutomation (update cluster) opens PRs via markers in
+# components/external-dns (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: external-dns
+spec:
+  image: "ghcr.io/controlplaneio-fluxcd/charts/external-dns"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: external-dns
+spec:
+  imageRepositoryRef:
+    name: external-dns
+  policy:
+    semver:
+      range: ">=1.21.1"
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: external-dns-netbird
+spec:
+  image: "ghcr.io/lazygeniusman/home-ops/infra/external-dns-netbird"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: external-dns-netbird
+spec:
+  imageRepositoryRef:
+    name: external-dns-netbird
+  policy:
+    semver:
+      range: ">=0.0.0"

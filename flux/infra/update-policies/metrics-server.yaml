@@ -1,0 +1,23 @@
+# Update policy for the metrics-server component (§9): tracks the OCI Helm chart, and the
+# ImageUpdateAutomation (update cluster) opens PRs via markers in
+# components/metrics-server (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: metrics-server
+spec:
+  image: "ghcr.io/controlplaneio-fluxcd/charts/metrics-server"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: metrics-server
+spec:
+  imageRepositoryRef:
+    name: metrics-server
+  policy:
+    semver:
+      range: ">=3.14.0"

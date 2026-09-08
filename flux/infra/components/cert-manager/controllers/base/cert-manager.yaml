@@ -1,0 +1,48 @@
+# cert-manager v1.21.1 (§9.3): ACME DNS-01 via Cloudflare for the
+# *.home-ops.yansyah.my.id wildcard. Chart: oci://quay.io/jetstack/charts/cert-manager
+# (verified tag v1.21.1; OCI is the upstream source of truth).
+# Telemetry: no usage reporting in the chart (only prometheus annotations).
+# Monitoring: prometheus.io annotations on (safe without a stack);
+# ServiceMonitor stays disabled until monitoring.coreos.com CRDs land.
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: cert-manager-chart
+spec:
+  interval: 1h
+  url: oci://quay.io/jetstack/charts/cert-manager
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: v1.21.1 # {"$imagepolicy": "infra:cert-manager:tag"}
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cert-manager
+spec:
+  interval: 1h
+  releaseName: cert-manager
+  serviceAccountName: flux
+  chartRef:
+    kind: OCIRepository
+    name: cert-manager-chart
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  # https://cert-manager.io/docs/installation/helm/
+  values:
+    crds:
+      enabled: true
+      keep: false
+    prometheus:
+      enabled: true
+      servicemonitor:
+        enabled: false

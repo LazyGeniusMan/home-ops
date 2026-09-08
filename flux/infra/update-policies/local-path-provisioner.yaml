@@ -1,0 +1,23 @@
+# Update policy for the local-path-provisioner component (§9): tracks the OCI Helm chart, and the
+# ImageUpdateAutomation (update cluster) opens PRs via markers in
+# components/local-path-provisioner (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: local-path-provisioner
+spec:
+  image: "ghcr.io/rancher/local-path-provisioner/charts/local-path-provisioner"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: local-path-provisioner
+spec:
+  imageRepositoryRef:
+    name: local-path-provisioner
+  policy:
+    semver:
+      range: ">=0.0.37"

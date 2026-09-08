@@ -1,0 +1,96 @@
+# eso-proton-pass: in-cluster ESO generic-webhook provider for Proton Pass
+# (projects/eso-proton-pass, pull-only). Registered implicitly: the
+# ClusterSecretStore above addresses it by Service DNS; no ESO chart values
+# change is needed. Liveness /metrics come from the app itself.
+# Secret bootstrap (one-time, out-of-band — values never committed):
+#   pass show --field=pat 'acme-prd-bdo1-talos-apps-01/external-secrets/proton-pass-pat' \
+#     | kubectl -n external-secrets create secret generic proton-pass-pat --from-file=pat=/dev/stdin
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-proton-pass
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eso-proton-pass
+  labels:
+    app.kubernetes.io/name: eso-proton-pass
+spec:
+  selector:
+    app.kubernetes.io/name: eso-proton-pass
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eso-proton-pass
+  labels:
+    app.kubernetes.io/name: eso-proton-pass
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eso-proton-pass
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: eso-proton-pass
+    spec:
+      serviceAccountName: eso-proton-pass
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: eso-proton-pass
+          image: ghcr.io/lazygeniusman/home-ops/infra/eso-proton-pass:dev # {"$imagepolicy": "infra:eso-proton-pass"}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: LISTEN_ADDR
+              value: ":8080"
+            - name: PROTON_PASS_PAT_FILE
+              value: /secrets/pat
+          volumeMounts:
+            - name: pat
+              mountPath: /secrets
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+      volumes:
+        - name: pat
+          secret:
+            secretName: proton-pass-pat
+            items:
+              - key: pat
+                path: pat

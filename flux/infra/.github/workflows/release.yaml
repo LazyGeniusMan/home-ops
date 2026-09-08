@@ -20,7 +20,11 @@ jobs:
       fail-fast: false
       matrix:
         component:
-          - placeholder
+          - external-secrets
+          - metrics-server
+          - cert-manager
+          - external-dns
+          - local-path-provisioner
     runs-on: ubuntu-latest
     permissions:
       contents: read
