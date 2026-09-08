@@ -1,0 +1,40 @@
+# Base HTTPRoutes (§8.1): HTTP→HTTPS redirects for the shared Gateway. EVERY
+# route here carries a RequestRedirect filter — port 80 exists only as a
+# redirect source; real backends attach via per-service HTTPRoutes (§§11-13).
+# Hostname shapes: the apex record, plus the `*.home-ops.yansyah.my.id`
+# wildcard. Per the Gateway API spec a `*.` hostname matches dots to the
+# left, so the wildcard covers BOTH `<service>.home-ops.yansyah.my.id` and
+# nested `<subservice>.<service>.home-ops.yansyah.my.id` shapes.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: redirect-apex
+spec:
+  parentRefs:
+    - name: main
+      sectionName: http
+  hostnames:
+    - home-ops.yansyah.my.id
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: redirect-services
+spec:
+  parentRefs:
+    - name: main
+      sectionName: http
+  hostnames:
+    - "*.home-ops.yansyah.my.id"
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301

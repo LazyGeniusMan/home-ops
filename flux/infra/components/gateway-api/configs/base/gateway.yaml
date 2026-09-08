@@ -1,0 +1,30 @@
+# Shared Gateway (§8.1) for home-ops.yansyah.my.id. Listens on HTTP 80 (plain —
+# only a redirect source, see httproutes.yaml) and HTTPS 443 (terminated with
+# the in-namespace wildcard Secret from wildcard-certificate.yaml). Listeners
+# accept routes from all namespaces so per-service HTTPRoutes (§§11-13) can
+# attach from their app namespaces later. Lands in the gateway-api namespace
+# via the Flux Kustomization targetNamespace (no explicit namespace, like the
+# cert-manager component).
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: main
+spec:
+  gatewayClassName: cilium
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: wildcard-home-ops-tls
+      allowedRoutes:
+        namespaces:
+          from: All

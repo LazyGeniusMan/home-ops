@@ -1,0 +1,23 @@
+# Update policy for the gateway-api component (§8.1): tracks the upstream Gateway API
+# release, and the ImageUpdateAutomation (update cluster) opens PRs via markers in
+# components/gateway-api (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: gateway-api
+spec:
+  image: "sigs.k8s.io/gateway-api"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: gateway-api
+spec:
+  imageRepositoryRef:
+    name: gateway-api
+  policy:
+    semver:
+      range: ">=1.6.1"
