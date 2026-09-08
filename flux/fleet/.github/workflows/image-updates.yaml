@@ -1,0 +1,36 @@
+# Canonical PR automation for Git-based image updates: the update cluster's
+# ImageUpdateAutomation (clusters/update/automation.yaml) pushes chart/image
+# bumps to image-updates-infra and image-updates-apps branches; this workflow
+# opens a PR to main for each.
+# Canonical definition: the root wiring file .github/workflows/flux-image-updates.yaml
+# mirrors this job.
+name: image-updates
+
+on:
+  workflow_dispatch:
+  create:
+
+jobs:
+  pull-request:
+    if: github.event_name != 'create' || github.ref_name == 'image-updates-infra' || github.ref_name == 'image-updates-apps'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Create Pull Request
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+          GITHUB_REF: ${{ github.ref }}
+          HEAD_BRANCH: ${{ github.ref_name }}
+        run: |
+          gh pr create \
+            --repo="${GITHUB_REPO}" \
+            --head="${HEAD_BRANCH}" \
+            --base=main \
+            --fill-first

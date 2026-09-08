@@ -1,0 +1,24 @@
+# Placeholder HelmRelease documenting the per-component D2 contract.
+# Removed with this directory when the first real component lands (§§8-14).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: placeholder
+spec:
+  interval: 1h
+  releaseName: placeholder
+  chartRef:
+    kind: OCIRepository
+    name: placeholder-chart
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  # Telemetry-off default: components must not enable usage reporting.
+  values:
+    telemetry:
+      enabled: false

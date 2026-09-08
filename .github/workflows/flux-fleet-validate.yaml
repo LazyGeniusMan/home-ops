@@ -1,0 +1,48 @@
+# Root wiring for fleet validation (manifests + Terraform bootstrap).
+# Mirrors the canonical job in flux/fleet/.github/workflows/validate.yaml.
+name: flux-fleet-validate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'flux/fleet/**'
+  push:
+    branches: [ 'main' ]
+    paths:
+      - 'flux/fleet/**'
+
+permissions:
+  contents: read
+
+jobs:
+  manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Setup yq
+        uses: fluxcd/pkg/actions/yq@6d8d5d9e03f8da11e9685652e205f20aeb99c4ba # main
+      - name: Setup kubeconform
+        uses: fluxcd/pkg/actions/kubeconform@6d8d5d9e03f8da11e9685652e205f20aeb99c4ba # main
+      - name: Setup kustomize
+        uses: fluxcd/pkg/actions/kustomize@6d8d5d9e03f8da11e9685652e205f20aeb99c4ba # main
+      - name: Validate manifests
+        run: ./flux/scripts/validate.sh -d flux/fleet
+
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flux/fleet/terraform
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1
+      - name: Init (no backend, no live apply)
+        run: tofu init -backend=false
+      - name: Validate
+        run: tofu validate
+      - name: Test single-source mapping
+        run: tofu test

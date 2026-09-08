@@ -1,0 +1,58 @@
+# Canonical per-component apps OCI delivery (main -> tag latest).
+# Canonical definition: the root wiring file .github/workflows/flux-apps-push.yaml
+# mirrors this job (path "./components/<name>" here maps to
+# "./flux/apps/components/<name>" there; the components matrix is duplicated
+# and must be kept in sync).
+# To onboard an app (§§8-14): add its directory name to the matrix here AND
+# in the root wiring file AND add a matching tenant input in
+# ../../fleet/tenants/apps.yaml.
+# Unchanged components are no-ops (push action only pushes on diff).
+name: push-artifact
+
+# OCI: oci://ghcr.io/<owner>/home-ops/apps/<component>:latest.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'components/**'
+
+jobs:
+  flux-push:
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+          - placeholder
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # for pushing
+      id-token: write # for signing
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install flux
+        uses: controlplaneio-fluxcd/distribution/actions/setup@1eaaa7f67ad253af88d4fac2f349ed8e7d801b83 # main
+      - name: Install cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push artifact
+        uses: controlplaneio-fluxcd/distribution/actions/push@1eaaa7f67ad253af88d4fac2f349ed8e7d801b83 # main
+        id: push
+        with:
+          repository: ghcr.io/${{ github.repository }}/apps/${{ matrix.component }}
+          path: "./components/${{ matrix.component }}"
+          diff-tag: latest
+      - name: Sign artifact
+        if: steps.push.outputs.pushed == 'true'
+        run: cosign sign --yes $DIGEST_URL
+        env:
+          DIGEST_URL: ${{ steps.push.outputs.digest-url }}

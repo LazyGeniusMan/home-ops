@@ -12,3 +12,14 @@
 !**/*.tfvars.example
 **/.env*
 !**/.env.example
+# Terraform / OpenTofu (provider binaries + module checkouts must never be committed)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+.terraformrc
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

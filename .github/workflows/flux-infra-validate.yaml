@@ -1,0 +1,33 @@
+# Root wiring for infra validation. Mirrors the canonical job in
+# flux/infra/.github/workflows/validate.yaml.
+name: flux-infra-validate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'flux/infra/**'
+      - 'flux/fleet/tenants/infra.yaml'
+  push:
+    branches: [ 'main' ]
+    paths:
+      - 'flux/infra/**'
+      - 'flux/fleet/tenants/infra.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Setup yq
+        uses: fluxcd/pkg/actions/yq@6d8d5d9e03f8da11e9685652e205f20aeb99c4ba # main
+      - name: Setup kubeconform
+        uses: fluxcd/pkg/actions/kubeconform@6d8d5d9e03f8da11e9685652e205f20aeb99c4ba # main
+      - name: Setup kustomize
+        uses: fluxcd/pkg/actions/kustomize@6d8d5d9e03f8da11e9685652e205f20aeb99c4ba # main
+      - name: Validate manifests
+        run: ./flux/scripts/validate.sh -d flux/infra
