@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+patches:
+  # Dev Talos K8s API VIP (Layer2VIP .248 on eth0) — NOT the prd .198, NOT
+  # the LB pool VIP (.249). See talos/clusters/acme-dev-bdo1-talos-apps-01.
+  - patch: |
+      - op: replace
+        path: /spec/values/k8sServiceHost
+        value: 192.168.1.248
+    target:
+      kind: HelmRelease
+      name: cilium
