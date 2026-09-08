@@ -3,11 +3,12 @@
 Kubernetes web UI, image `ghcr.io/headlamp-k8s/headlamp:v0.45.0`, with native
 OIDC login via Zitadel (§11.1) plus the locked plugin set.
 
-## Layout (mirrors cert-manager §9 pattern, apps area)
+## Layout (environment-direct, apps area)
 
-`controllers/base/headlamp.yaml` (HelmRepository + HelmRelease) +
-`controllers/{production,staging}` and `configs/{base,production,staging}`
-overlays; tenant is `apps/headlamp` via
+`base/` holds every manifest (`headlamp.yaml` HelmRepository + HelmRelease,
+secrets, RBAC, wildcard certificate, HTTPRoute); env overlays
+`{dev,staging,production}/` patch hostnames, vault refs, and OIDC issuer via
+`resources: [../base]`. Tenant is `apps/headlamp` via
 `flux/apps/update-policies/headlamp.yaml`.
 
 ## Chart source
@@ -76,7 +77,7 @@ Headlamp forwards the user's OIDC token to the API server — it has NO
 claims-mapping knob (the chart exposes only
 `clusterRoleBinding.clusterRoleName` for the pod's own in-cluster `main`
 context, left at `cluster-admin`). So the mapping is explicit bindings in
-`configs/base/headlamp-rbac.yaml` against the `groups` claim
+`base/headlamp-rbac.yaml` against the `groups` claim
 (`OIDC_SCOPES` includes `groups`):
 
 - `admin` group → `cluster-admin` (`headlamp-admins` ClusterRoleBinding).
@@ -91,7 +92,7 @@ prefix); the claim the API server must assert is the same `groups` claim
 
 ## Routing / TLS (§8.1 pattern)
 
-`configs/base/headlamp-httproute.yaml`: `headlamp.home-ops.yansyah.my.id`,
+`base/headlamp-httproute.yaml`: `headlamp.home-ops.yansyah.my.id`,
 catch-all `/` (covers app + `/oidc-callback`) → `headlamp:80` on the shared
 `main` Gateway (cross-namespace parentRef). TLS terminates at the Gateway
 via the in-namespace wildcard `Certificate` (`wildcard-certificate.yaml`,

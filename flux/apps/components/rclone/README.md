@@ -3,11 +3,11 @@
 Scheduled vault sync: SeaweedFS S3 bucket → Proton Drive, image
 `rclone/rclone:1.75.1`, as a customizable CronJob template.
 
-## Layout (mirrors cert-manager §9 pattern, apps area)
+## Layout (environment-direct, apps area)
 
-`controllers/base/cronjob.yaml` (CronJob `rclone-vault-sync`) +
-`controllers/{production,staging}` and `configs/{base,production,staging}`
-overlays; tenant is `apps/rclone` via
+`base/` holds every manifest (CronJob `rclone-vault-sync` + secrets
+ExternalSecret); env overlays `{dev,staging,production}/` patch vault refs
+and the S3 endpoint via `resources: [../base]`. Tenant is `apps/rclone` via
 `flux/apps/update-policies/rclone.yaml`.
 
 ## Job shape (parameterized knobs)

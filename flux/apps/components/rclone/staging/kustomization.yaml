@@ -1,0 +1,61 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+patches:
+  # Staging (prd values) Proton Pass vault (pass://acme-prd-bdo1-talos-apps-01).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/rclone/sw-access-key
+    target:
+      kind: ExternalSecret
+      name: rclone-credentials
+  - patch: |
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/rclone/sw-secret-key
+    target:
+      kind: ExternalSecret
+      name: rclone-credentials
+  - patch: |
+      - op: replace
+        path: /spec/data/2/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/rclone/drive-username
+    target:
+      kind: ExternalSecret
+      name: rclone-credentials
+  - patch: |
+      - op: replace
+        path: /spec/data/3/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/rclone/drive-password
+    target:
+      kind: ExternalSecret
+      name: rclone-credentials
+  - patch: |
+      - op: replace
+        path: /spec/data/4/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/rclone/drive-token
+    target:
+      kind: ExternalSecret
+      name: rclone-credentials
+  # Staging stays suspended (manual drill only: un-suspend + trigger) and
+  # keeps the base dry-run flags, so it never writes to Proton Drive.
+  # Endpoint is the prd SeaweedFS S3 (base holds a placeholder).
+  - patch: |
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: rclone-vault-sync
+      spec:
+        schedule: "0 * * * *"
+        suspend: true
+        jobTemplate:
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: rclone
+                    env:
+                      - name: RCLONE_CONFIG_SW_ENDPOINT
+                        value: "https://s3.seaweedfs.home-ops.yansyah.my.id"

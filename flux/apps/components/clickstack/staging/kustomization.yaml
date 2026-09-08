@@ -1,0 +1,146 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+patches:
+  # Staging (prd values) secrets vault (pass://acme-prd-bdo1-talos-apps-01).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/clickstack/oauth2-proxy-client-secret
+    target:
+      kind: ExternalSecret
+      name: oauth2-proxy
+  - patch: |
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/clickstack/oauth2-proxy-cookie-secret
+    target:
+      kind: ExternalSecret
+      name: oauth2-proxy
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/clickstack/hyperdx-api-key
+    target:
+      kind: ExternalSecret
+      name: clickstack-hyperdx
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/clickstack/s3-access-key-id
+    target:
+      kind: ExternalSecret
+      name: clickhouse-s3-backup
+  - patch: |
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/clickstack/s3-secret-access-key
+    target:
+      kind: ExternalSecret
+      name: clickhouse-s3-backup
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/clickstack/ferretdb-db-password
+    target:
+      kind: ExternalSecret
+      name: ferretdb-app-secret
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+    target:
+      kind: ExternalSecret
+      name: cloudflare-api-token
+  # Staging (prd values) CNPG S3 refs + endpoint.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/cnpg/s3-access-key-id
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/cnpg/s3-secret-access-key
+    target:
+      kind: ExternalSecret
+      name: cnpg-s3-credentials
+  - patch: |
+      - op: replace
+        path: /spec/backup/barmanObjectStore/endpointURL
+        value: https://s3.seaweedfs.home-ops.yansyah.my.id
+    target:
+      kind: Cluster
+      name: ferretdb
+  # Staging (prd values) S3 backup endpoint.
+  - patch: |
+      - op: replace
+        path: /spec/configuration/files/storage.xml
+        value: |
+          <yandex>
+            <storage_configuration>
+              <disks>
+                <backups_s3>
+                  <type>s3</type>
+                  <endpoint>https://s3.seaweedfs.home-ops.yansyah.my.id/clickhouse/clickstack/</endpoint>
+                  <access_key_id from_env="CLICKHOUSE_S3_ACCESS_KEY_ID"/>
+                  <secret_access_key from_env="CLICKHOUSE_S3_SECRET_ACCESS_KEY"/>
+                </backups_s3>
+              </disks>
+            </storage_configuration>
+          </yandex>
+    target:
+      kind: ClickHouseInstallation
+      name: clickstack
+
+  # Staging (prd values) route hostname (clickstack.home-ops.yansyah.my.id).
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: clickstack.home-ops.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: clickstack
+  # Staging (prd values) wildcard Certificate.
+  - patch: |
+      - op: replace
+        path: /metadata/name
+        value: wildcard-home-ops
+    target:
+      kind: Certificate
+      name: __WILDCARD_CERT_NAME__
+  - patch: |
+      - op: replace
+        path: /spec/secretName
+        value: wildcard-home-ops-tls
+    target:
+      kind: Certificate
+      name: wildcard-home-ops
+  - patch: |
+      - op: replace
+        path: /spec/dnsNames/0
+        value: "*.home-ops.yansyah.my.id"
+    target:
+      kind: Certificate
+      name: wildcard-home-ops
+  # Staging (prd values) app URL (FRONTEND_URL).
+  - patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/2/value
+        value: "https://clickstack.home-ops.yansyah.my.id"
+    target:
+      kind: Deployment
+      name: clickstack
+  # Staging (prd values) proxy: Zitadel issuer, cookie domain, callback.
+  - patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/args/3
+        value: --oidc-issuer-url=https://zitadel.home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/template/spec/containers/0/args/7
+        value: --cookie-domain=.home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/template/spec/containers/0/args/16
+        value: --redirect-url=https://clickstack.home-ops.yansyah.my.id/oauth2/callback
+    target:
+      kind: Deployment
+      name: oauth2-proxy

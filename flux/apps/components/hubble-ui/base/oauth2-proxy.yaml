@@ -1,0 +1,108 @@
+# Per-instance oauth2-proxy (§11.3, locked proxy contract): fronts hubble-ui,
+# authenticates against Zitadel (issuer __ZITADEL_ISSUER_URL__,
+# client oauth2-proxy-shared), gates on the `admin` group. Image
+# quay.io/oauth2-proxy/oauth2-proxy:v7.6.0. ESO secret below holds refs only.
+# Callback https://__SERVICE_HOST__/oauth2/callback is covered by
+# the registered wildcard redirect https://*/oauth2/callback. HTTPRoute
+# backend (base/hubble-httproute.yaml) points at this proxy Service (:4180);
+# the proxy upstreams to http://hubble-ui.<ns>.svc:80 (namespace patched per
+# env via the hubble-ui namespace default).
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+  labels:
+    app.kubernetes.io/name: oauth2-proxy
+    app.kubernetes.io/part-of: hubble-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: oauth2-proxy
+        app.kubernetes.io/part-of: hubble-ui
+    spec:
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0 # {"$imagepolicy": "apps:oauth2-proxy:tag"}
+          imagePullPolicy: IfNotPresent
+          args:
+            - --http-address=0.0.0.0:4180
+            - --upstream=http://hubble-ui.hubble-ui.svc:80
+            - --provider=oidc
+            - --oidc-issuer-url=__ZITADEL_ISSUER_URL__
+            - --client-id=oauth2-proxy-shared
+            - --client-secret-file=/etc/oauth2-proxy/client-secret
+            - --cookie-secret-file=/etc/oauth2-proxy/cookie-secret
+            - --cookie-domain=.__BASE_DOMAIN__
+            - --cookie-secure=true
+            - --cookie-samesite=lax
+            - --email-domain=*
+            - --scope=openid profile email groups
+            - --oidc-groups-claim=groups
+            - --allowed-group=admin
+            - --reverse-proxy=true
+            - --skip-provider-button=true
+            - --redirect-url=https://__SERVICE_HOST__/oauth2/callback
+          env:
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy
+                  key: client-secret
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy
+                  key: cookie-secret
+          ports:
+            - name: http
+              containerPort: 4180
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          volumeMounts:
+            - name: oauth2-proxy
+              mountPath: /etc/oauth2-proxy
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: oauth2-proxy
+          secret:
+            secretName: oauth2-proxy
+            defaultMode: 420
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-proxy
+  labels:
+    app.kubernetes.io/name: oauth2-proxy
+    app.kubernetes.io/part-of: hubble-ui
+spec:
+  selector:
+    app.kubernetes.io/name: oauth2-proxy
+  ports:
+    - name: http
+      port: 4180
+      targetPort: 4180

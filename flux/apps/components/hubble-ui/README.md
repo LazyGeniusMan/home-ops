@@ -3,12 +3,12 @@
 Standalone Hubble UI (service map) backed by the §8.2 Hubble Relay — the
 Relay itself ships in the cilium component, NOT here (no duplication).
 
-## Layout (mirrors §9/cert-manager, apps area)
+## Layout (environment-direct, apps area)
 
-`controllers/{base,production,staging}` (workload: `hubble-ui.yaml` +
-`oauth2-proxy.yaml`; env overlays inherit base unchanged) and
-`configs/{base,production,staging}` (secrets, wildcard certificate,
-HTTPRoute). Tenant is `apps/hubble-ui` via
+`base/` holds every manifest (`hubble-ui.yaml` + `oauth2-proxy.yaml`
+workload, plus secrets, wildcard certificate, HTTPRoute); env overlays
+`{dev,staging,production}/` patch hostnames, vault refs, and proxy args via
+`resources: [../base]`. Tenant is `apps/hubble-ui` via
 `flux/apps/update-policies/hubble-ui.yaml`.
 
 ## Relay backend (by DNS name)
@@ -56,7 +56,7 @@ vault entries with pass-cli. The Zitadel `hubble` client is already declared
 
 ## Routing
 
-`configs/base/hubble-httproute.yaml` — HTTPRoute on the shared §8.1 Gateway
+`base/hubble-httproute.yaml` — HTTPRoute on the shared §8.1 Gateway
 (`main`, cross-namespace parentRef, `https` section): hostname
 `hubble.home-ops.yansyah.my.id`, `/` → `oauth2-proxy:4180`. TLS terminates
 at the Gateway via the in-namespace wildcard `Certificate`

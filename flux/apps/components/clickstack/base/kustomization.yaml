@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - clickstack-secrets.yaml
+  - clickstack-clickhouse.yaml
+  - ferretdb-postgres.yaml
+  - wildcard-certificate.yaml
+  - clickstack-httproute.yaml
+  - clickstack.yaml
+  - ferretdb.yaml
+  - oauth2-proxy.yaml

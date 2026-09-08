@@ -10,12 +10,13 @@ component). Default upstream templates first — no custom workspace
 template is authored here (`coder-templates`/`coder-modules` skills apply
 only when a custom template is required; none is).
 
-## Layout (mirrors cert-manager §9 pattern, apps area)
+## Layout (environment-direct, apps area)
 
-`controllers/base/coder.yaml` (HelmRepository + HelmRelease) +
-`controllers/{production,staging}` and `configs/{base,production,staging}`
-overlays; tenant is `apps/coder` (wired by the fleet tenant file, not here
-— no tenant/workflow edits in this change).
+`base/` holds every manifest (`coder.yaml` HelmRepository + HelmRelease,
+secrets, CNPG Cluster, wildcard certificates, HTTPRoutes); env overlays
+`{dev,staging,production}/` patch hostnames, vault refs, and chart values
+via `resources: [../base]`. Tenant is `apps/coder` (wired by the fleet tenant
+file, not here — no tenant/workflow edits in this change).
 
 ## OIDC (direct — NO oauth2-proxy)
 
@@ -88,7 +89,7 @@ listener addition) so workspace hostnames terminate correctly.
 
 ## Database
 
-`configs/base/coder-db.yaml` — namespace-local instantiation of the
+`base/coder-db.yaml` — namespace-local instantiation of the
 §10.1 `cluster-base` template (3 instances, sync quorum 1,
 `local-ssd-nvme`, continuous WAL + daily base backup to SeaweedFS S3 under
 `s3://cnpg-backups/coder/`). Adjusted: dbname/owner `coder`.

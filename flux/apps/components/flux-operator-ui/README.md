@@ -4,13 +4,13 @@ Standalone Flux Web UI (serverOnly) in the apps tenant, auth-fronted by a
 per-instance oauth2-proxy. UI only — bootstrap, fleet sync, and Managed
 resources are never touched here (see "Update automation" below).
 
-## Layout (mirrors cert-manager §9 pattern, apps area)
+## Layout (environment-direct, apps area)
 
-`controllers/base/flux-operator-ui.yaml` (OCIRepository + HelmRelease) +
-`controllers/base/oauth2-proxy.yaml` (Deployment + Service) with
-`controllers/{production,staging}` overlays (inherit base unchanged), and
-`configs/{base,production,staging}` (proxy credentials, wildcard certificate,
-HTTPRoutes). Tenant is `apps/flux-operator-ui` via
+`base/` holds every manifest (`flux-operator-ui.yaml` OCIRepository +
+HelmRelease, `oauth2-proxy.yaml` Deployment + Service, proxy credentials,
+wildcard certificate, HTTPRoutes); env overlays `{dev,staging,production}/`
+patch hostnames, vault refs, and proxy args via `resources: [../base]`.
+Tenant is `apps/flux-operator-ui` via
 `flux/apps/update-policies/flux-operator-ui.yaml`.
 
 ## Version choice

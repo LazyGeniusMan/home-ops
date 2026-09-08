@@ -4,14 +4,14 @@ HyperDX v2 (logs/traces/metrics UI) + OTel Collector, backed by a
 namespace-local ClickHouse (replicated) and FerretDB on a namespace-local CNPG
 Cluster (Mongo-wire, no embedded DBs in Git).
 
-## Layout (mirrors §9/cert-manager, apps area)
+## Layout (environment-direct, apps area)
 
-`controllers/{base,production,staging}` (workload: `clickstack.yaml` (HyperDX
-app + OTel Collector) + `ferretdb.yaml` + `oauth2-proxy.yaml`; env overlays
-inherit base unchanged) and `configs/{base,production,staging}` (secrets,
+`base/` holds every manifest (`clickstack.yaml` (HyperDX app + OTel
+Collector) + `ferretdb.yaml` + `oauth2-proxy.yaml` workload, plus secrets,
 ClickHouseInstallation, FerretDB CNPG Cluster, wildcard certificate,
-HTTPRoute). Tenant is `apps/clickstack` via
-`flux/apps/update-policies/clickstack.yaml`.
+HTTPRoute); env overlays `{dev,staging,production}/` patch hostnames, vault
+refs, and endpoints via `resources: [../base]`. Tenant is `apps/clickstack`
+via `flux/apps/update-policies/clickstack.yaml`.
 
 ## Images (locked at authoring)
 
@@ -37,7 +37,7 @@ credential as a `secretKeyRef` to ESO-synced Secrets.
 
 ## ClickHouse backend (namespace-local CHI)
 
-`configs/base/clickstack-clickhouse.yaml` — namespace-local instantiation of
+`base/clickstack-clickhouse.yaml` — namespace-local instantiation of
 the §10.2 `installation-base` template (same shape, adjusted: 1 shard x 2
 replicas, own S3 prefix `s3://.../clickhouse/clickstack/`, own app/otel
 passwords). The component-local keeper is NOT duplicated: the CHI references
@@ -50,7 +50,7 @@ tables with ReplicatedMergeTree + ON CLUSTER DDL (same §10.2 rule).
 
 ## FerretDB backend (Mongo-wire over CNPG)
 
-`configs/base/ferretdb-postgres.yaml` — namespace-local instantiation of the
+`base/ferretdb-postgres.yaml` — namespace-local instantiation of the
 §10.1 `cluster-base` template (same shape: 3 instances, sync quorum 1,
 `local-ssd-nvme`, continuous WAL + daily base backup to SeaweedFS S3 under
 `s3://cnpg-backups/ferretdb/`). Adjusted: dbname/owner `ferretdb`, own S3
@@ -94,7 +94,7 @@ vault entries with pass-cli. The Zitadel `clickstack` client is already declared
 
 ## Routing
 
-`configs/base/clickstack-httproute.yaml` — HTTPRoute on the shared §8.1 Gateway
+`base/clickstack-httproute.yaml` — HTTPRoute on the shared §8.1 Gateway
 (`main`, cross-namespace parentRef, `https` section): hostname
 `clickstack.home-ops.yansyah.my.id`, `/` → `oauth2-proxy:4180`. TLS terminates
 at the Gateway via the in-namespace wildcard `Certificate`

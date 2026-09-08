@@ -1,0 +1,95 @@
+# Coder HTTPRoutes (§13.6): attach to the shared §8.1 Gateway (listeners
+# accept routes from all namespaces — cross-namespace parentRef, no
+# targetNamespace override needed). Chart-native httproute templating stays
+# OFF (we own the §8.1 pattern explicitly rather than through chart values).
+# - Dashboard route (hostname __SERVICE_HOST__, path /) → the
+#   coder Service (port 80 → coderd 8080). Covers the UI, API, and the OIDC
+#   callback /api/v2/users/oidc/callback.
+# - Workspace route (hostname __WILDCARD_SERVICE_HOST__, path /) → the
+#   same coder Service. Workspace agents and workspace apps dial
+#   <workspace>.__SERVICE_DOMAIN__, which coderd multiplexes by
+#   subdomain (CODER_WILDCARD_ACCESS_URL in base/coder.yaml) —
+#   one route covers every workspace, no per-workspace objects. Per the
+#   Gateway API spec a `*.coder.…` hostname matches dots to the left, so
+#   nested app subdomains under a workspace stay on this route too.
+# - Redirect routes (coder-redirect, coder-workspaces-redirect): HTTP→HTTPS
+#   RequestRedirect on the `http` listener for both hostnames — port 80 exists
+#   only as a redirect source (same shape as the §8.1 redirect-services
+#   route, owned explicitly per component).
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: coder-redirect
+spec:
+  parentRefs:
+    - name: main
+      namespace: gateway-api
+      sectionName: http
+  hostnames:
+    - __SERVICE_HOST__
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: coder
+spec:
+  parentRefs:
+    - name: main
+      namespace: gateway-api
+      sectionName: https
+  hostnames:
+    - __SERVICE_HOST__
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: coder
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: coder-workspaces
+spec:
+  parentRefs:
+    - name: main
+      namespace: gateway-api
+      sectionName: https
+  hostnames:
+    - "*.coder.__BASE_DOMAIN__"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: coder
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: coder-workspaces-redirect
+spec:
+  parentRefs:
+    - name: main
+      namespace: gateway-api
+      sectionName: http
+  hostnames:
+    - "*.coder.__BASE_DOMAIN__"
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+
