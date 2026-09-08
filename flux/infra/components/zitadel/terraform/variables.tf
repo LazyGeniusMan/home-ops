@@ -27,3 +27,10 @@ variable "user_initial_password" {
   type        = string
   sensitive   = true
 }
+
+variable "jwt_profile_json" {
+  description = "JWT profile key JSON for the IAM_OWNER service user (controller injects via varsFrom; manual runs pass -var, never commit)"
+  type        = string
+  sensitive   = true
+  default     = null
+}

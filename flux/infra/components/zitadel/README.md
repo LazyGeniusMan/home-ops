@@ -33,7 +33,7 @@ OCI is the upstream source of truth, verified by pull:
 Mirrors §9/cert-manager file-for-file: `controllers/{base,prd,stg}`
 (OCIRepository + HelmRelease, env overlays inherit base unchanged) and
 `configs/{base,prd,stg}` (secrets, DB, cache, certificate, routes,
-static identity intent).
+identity intent + Terraform bootstrap CR).
 
 ## Dependencies (§§8–10)
 
@@ -100,28 +100,41 @@ App writers build against THIS table — do not deviate.
 
 Post-logout redirects point at each app's root (`https://<app>…/`).
 
-## Identity-as-code (Tofu)
+## Identity-as-code (Tofu Controller)
 
-No Tofu Controller exists in this repo (bounded one-look check at authoring:
-d2-infra ships only `cert-manager` + `monitoring`; no tf/tofu-controller in
-the committed tree), so nothing here is machine-applied — do NOT invent a
-controller component (out of scope). Instead:
+Machine-applied by Tofu Controller (`terraforms.infra.contrib.fluxcd.io`
+v1alpha2, chart 0.16.5 — see the `tofu-controller` component):
 
-- `configs/base/org-users.yaml` — documented static intent (org, users,
-  groups, roles/grants, clients) mirroring the modules below.
-- `terraform/` — provider-ready modules (`zitadel/zitadel ~> 3.3`, `tofu
-  validate` passes; the provider ships no `zitadel_user_group` resources, so
-  groups map to `zitadel_org_member` + `zitadel_project` roles +
-  `zitadel_user_grant`: `zitadel_org`, `zitadel_human_user` × 2,
-  `zitadel_org_member` × 2, `zitadel_project` + roles + grants,
-  `zitadel_application_oidc` × 6). Single source of truth for the contract
-  table above.
+- `configs/base/terraform-bootstrap.yaml` — `zitadel-bootstrap-identity`
+  Terraform CR (`approvePlan: auto`, in-cluster state backend) applying the
+  bootstrap slice of `terraform/`: `zitadel_org`, `zitadel_human_user` × 2,
+  `zitadel_org_member` × 2, `zitadel_project` + roles + grants. OIDC clients
+  (`zitadel_application_oidc` × 6) still live in `terraform/` for now — a
+  per-app task moves them out (scope guard).
+- `terraform/` — the modules (`zitadel/zitadel ~> 3.3`, `tofu validate`
+  passes; the provider ships no `zitadel_user_group` resources, so groups map
+  to `zitadel_org_member` + `zitadel_project` roles + `zitadel_user_grant`).
+  Single source of truth for the contract table above.
+- `configs/base/org-users.yaml` — human-readable mirror of the intent (kept
+  in sync with `terraform/` + the CR `vars` on contract changes).
+- Secrets (`admin_initial_password`, `user_initial_password`,
+  `jwt_profile_json`) flow via the ESO `zitadel-terraform-vars` ExternalSecret
+  (Proton Pass `pass://<env-vault>/zitadel/terraform-*`, never Git); per-env
+  vault paths + `domain`/email `vars` land in the `dev`/`prd`/`stg` overlays.
+  Rotate by updating the vault entries — ESO syncs and the next reconcile
+  picks them up.
+- Outputs: `org_id` + `project_id` land in `zitadel-bootstrap-outputs` for
+  the later per-app Terraform task.
 
-Runbook: provision a service user with IAM_OWNER (FirstInstance machine user),
-export its key JSON, then `terraform init && terraform apply` from
-`terraform/`. Read client secrets from state into Proton Pass (never Git).
-Keep `org-users.yaml` and `terraform/` in sync by hand until a controller
-lands.
+One-time prerequisite (manual): the chart has NO FirstInstance bootstrap
+stanza, so before the first reconcile provision the IAM_OWNER service user
+via the FirstInstance machine user, download its key JSON, and seed the
+vault entries above (initial passwords + `terraform-jwt-profile-json`).
+Without the key the runner fails auth and retries on interval.
+
+Manual fallback: `terraform init && terraform apply` from `terraform/` with
+`-var jwt_profile_json="$(cat <key>.json)"` (+ domain/email `-var`s for dev).
+Read client secrets from state into Proton Pass (never Git).
 
 ## Telemetry-off / monitoring / updates
 

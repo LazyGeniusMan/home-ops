@@ -1,11 +1,10 @@
 # Static identity intent (§11.1): org, users, groups, OIDC clients.
-# NO Tofu Controller exists in this repo (bounded one-look check at authoring:
-# d2-infra ships only cert-manager + monitoring; the committed tree has no
-# tf-controller/tofu-controller and no Terraform HelmRelease) — so this intent
-# is NOT machine-applied. Apply it once via the provider-ready modules in
-# terraform/ (README runbook), which is the single source of truth for the
-# OIDC contract below. Keep this file and terraform/ in sync by hand until a
-# controller lands — do NOT invent a controller component (out of scope).
+# Machine-applied: the `zitadel-bootstrap-identity` Terraform CR
+# (terraform-bootstrap.yaml, Tofu Controller) applies the bootstrap slice
+# (org, users, membership, project/roles/grants) from terraform/; OIDC
+# clients still live in terraform/ until the per-app task moves them. This
+# ConfigMap is the human-readable mirror of that intent — keep it in sync
+# with terraform/ + the Terraform CR vars when the contract changes.
 #
 # Org: home-ops
 # Users (human, email-verified, initial passwords rotated after first login):
@@ -32,7 +31,7 @@ kind: ConfigMap
 metadata:
   name: zitadel-identity-intent
   annotations:
-    __ZITADEL_HOST__/managed-by: terraform-runbook
+    __ZITADEL_HOST__/managed-by: tofu-controller
 data:
   org: home-ops
   users: |

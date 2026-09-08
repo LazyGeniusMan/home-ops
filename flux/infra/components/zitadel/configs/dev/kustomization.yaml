@@ -114,13 +114,41 @@ patches:
     target:
       kind: HTTPRoute
       name: zitadel-login
+  # Dev Terraform bootstrap secrets: vault refs (same dev vault as above).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/zitadel/terraform-admin-initial-password
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/zitadel/terraform-user-initial-password
+      - op: replace
+        path: /spec/data/2/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/zitadel/terraform-jwt-profile-json
+    target:
+      kind: ExternalSecret
+      name: zitadel-terraform-vars
+  # Dev Terraform bootstrap vars: dev issuer host + dev user emails.
+  - patch: |
+      - op: replace
+        path: /spec/vars/0/value
+        value: zitadel.homelab-dev.yansyah.my.id
+      - op: replace
+        path: /spec/vars/1/value
+        value: admin@homelab-dev.yansyah.my.id
+      - op: replace
+        path: /spec/vars/2/value
+        value: user@homelab-dev.yansyah.my.id
+    target:
+      kind: Terraform
+      name: zitadel-bootstrap-identity
   # Dev identity intent: annotation key, users, clients.
   - patch: |
       - op: remove
         path: /metadata/annotations/__ZITADEL_HOST__~1managed-by
       - op: add
         path: /metadata/annotations/zitadel.homelab-dev.yansyah.my.id~1managed-by
-        value: terraform-runbook
+        value: tofu-controller
     target:
       kind: ConfigMap
       name: zitadel-identity-intent

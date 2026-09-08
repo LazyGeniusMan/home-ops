@@ -7,3 +7,4 @@ resources:
   - wildcard-certificate.yaml
   - zitadel-httproute.yaml
   - org-users.yaml
+  - terraform-bootstrap.yaml

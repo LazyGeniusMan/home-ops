@@ -20,6 +20,7 @@ spec:
           oci://ghcr.io/lazygeniusman/
           oci://ghcr.io/controlplaneio-fluxcd/
           oci://ghcr.io/fluxcd/
+          oci://ghcr.io/flux-iac/
           oci://ghcr.io/stefanprodan/charts/
           oci://quay.io/jetstack/charts/
           oci://registry-1.docker.io/bitnamicharts/

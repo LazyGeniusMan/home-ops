@@ -1,10 +1,13 @@
-# Identity-as-code for §11.1 (provider-ready, manually applied — see README
-# runbook; no Tofu Controller exists in this repo). Single source of truth
-# for the OIDC contract table in the component README. Provider auth: a
-# service user with IAM_OWNER (FirstInstance machine user) via JWT profile —
-# export ZITADEL_DOMAIN + the key JSON before running.
+# Identity-as-code for §11.1, machine-applied by the
+# `zitadel-bootstrap-identity` Terraform CR (configs/base, Tofu Controller) —
+# the single source of truth for the OIDC contract table in the component
+# README. Provider auth: a service user with IAM_OWNER (FirstInstance machine
+# user) via JWT profile — the controller injects var.jwt_profile_json from the
+# ESO-synced `zitadel-terraform-vars` Secret (Proton Pass, never Git); for
+# manual runs pass -var jwt_profile_json="$(cat <key>.json)" instead.
 provider "zitadel" {
-  domain = var.domain
+  domain           = var.domain
+  jwt_profile_json = var.jwt_profile_json
 }
 
 resource "zitadel_org" "home_ops" {

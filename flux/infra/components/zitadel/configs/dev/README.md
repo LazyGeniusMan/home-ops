@@ -16,7 +16,8 @@ namespace-local CNPG Cluster + ScheduledBackup (dev S3 endpoint),
 namespace-local Dragonfly + snapshot credentials (dev S3 host),
 in-namespace `wildcard-homelab-dev-tls`, HTTPRoutes (`/` → zitadel:8080,
 `/ui/v2/login` → zitadel-login:3000 on the shared §14 DEV Gateway),
-`org-users.yaml` intent (static identity, NOT machine-applied).
+`org-users.yaml` intent (human-readable mirror) + `terraform-bootstrap.yaml`
+(Terraform CR + ESO vars, machine-applied).
 Controllers live in `controllers/dev` (`../base` + patch setting
 `ExternalDomain: zitadel.homelab-dev.yansyah.my.id`).
 
@@ -41,19 +42,17 @@ App writers build against THIS table — do not deviate.
 
 Post-logout redirects point at each app's root (`https://<app>…/`).
 
-## Identity-as-code (Tofu) — DEV note
+## Identity-as-code (Tofu Controller) — DEV note
 
-Same discipline as the base: nothing here is machine-applied (no Tofu
-Controller in this repo). The `org-users.yaml` intent patched in by
-`kustomization.yaml` mirrors the modules below; keep them in sync by hand. The provider-ready modules in
-`terraform/` are the single source of truth — apply for DEV with these
-overrides (runbook: provision a service user with IAM_OWNER via the
-FirstInstance machine user, export its key JSON, then apply from
-`terraform/`):
+Machine-applied like base: the `zitadel-bootstrap-identity` Terraform CR
+(applied from the same `configs/base/terraform-bootstrap.yaml`) carries the
+DEV overrides via this overlay's `kustomization.yaml` patches — DEV vault
+refs (`pass://acme-dev-bdo1-talos-apps-01/zitadel/terraform-*`) plus CR
+`vars`:
 
-- `-var 'domain=zitadel.homelab-dev.yansyah.my.id'`
-- `-var 'admin_email=admin@homelab-dev.yansyah.my.id'`
-- `-var 'user_email=user@homelab-dev.yansyah.my.id'`
+- `domain=zitadel.homelab-dev.yansyah.my.id`
+- `admin_email=admin@homelab-dev.yansyah.my.id`
+- `user_email=user@homelab-dev.yansyah.my.id`
 - Client `redirect_uris`/`post_logout_redirect_uris` locals: replace the
   prd domain with `homelab-dev.yansyah.my.id` (same shapes as the table
   above); `oauth2-proxy-shared` stays `https://*/oauth2/callback`.
