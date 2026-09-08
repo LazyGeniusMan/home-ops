@@ -1,14 +1,15 @@
 # Per-component apps OCI delivery (main -> tags dev + dev-<sha>).
 # Owner: flux/apps
 # Future repo: home-ops-apps
+# Self-contained: all steps are inline in this file; no local composite
+# actions are referenced (only pinned external owner/repo@sha actions).
 # To onboard an app (§§8-14): add its directory name to the components matrix
 # here AND add a matching tenant input in flux/fleet/tenants/apps.yaml.
 # Unchanged components are no-ops (push action only pushes on diff).
 # Migration to the dedicated repo (home-ops-apps):
-#   1. Copy .github/workflows/flux-apps-push.yaml -> <new-repo>/.github/workflows/push.yaml
-#      and .github/actions/flux-apps-oci-push/ -> <new-repo>/.github/actions/oci-push/.
-#   2. Flip the monorepo path input to the split value:
-#      `source-prefix: flux/apps/components` -> `components`.
+#   1. Copy this file -> <new-repo>/.github/workflows/push.yaml (only file needed).
+#   2. Flip the monorepo path value to the split value:
+#      `path: flux/apps/components/<component>` -> `components/<component>`.
 #   3. Broaden the trigger path filter: `paths: ['flux/apps/**']` -> `['components/**']`
 #      (or `['**']`, or drop the paths filter entirely).
 #   4. Optionally restore the split-ready `workflow_call` inputs
@@ -48,10 +49,30 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Push component artifact
-        uses: ./.github/actions/flux-apps-oci-push
+      - name: Install flux
+        uses: controlplaneio-fluxcd/distribution/actions/setup@1eaaa7f67ad253af88d4fac2f349ed8e7d801b83 # main
+      - name: Install cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
-          component: ${{ matrix.component }}
-          repository-prefix: ghcr.io/${{ github.repository }}/apps
-          source-prefix: flux/apps/components
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Compute short SHA
+        shell: bash
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+      - name: Push artifact
+        uses: controlplaneio-fluxcd/distribution/actions/push@1eaaa7f67ad253af88d4fac2f349ed8e7d801b83 # main
+        id: push
+        with:
+          repository: ghcr.io/${{ github.repository }}/apps/${{ matrix.component }}
+          path: flux/apps/components/${{ matrix.component }}
+          diff-tag: dev
+          tags: dev-${{ env.SHORT_SHA }}
+      - name: Sign artifact
+        if: steps.push.outputs.pushed == 'true'
+        shell: bash
+        run: cosign sign --yes $DIGEST_URL
+        env:
+          DIGEST_URL: ${{ steps.push.outputs.digest-url }}

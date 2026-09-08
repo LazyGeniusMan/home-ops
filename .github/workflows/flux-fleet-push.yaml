@@ -1,10 +1,11 @@
 # Fleet OCI delivery (main branch -> tags dev + dev-<sha>).
 # Owner: flux/fleet
 # Future repo: home-ops-fleet
+# Self-contained: all steps are inline in this file; no local composite
+# actions are referenced (only pinned external owner/repo@sha actions).
 # Migration to the dedicated repo (home-ops-fleet):
-#   1. Copy .github/workflows/flux-fleet-push.yaml -> <new-repo>/.github/workflows/push.yaml
-#      and .github/actions/flux-fleet-oci-push/ -> <new-repo>/.github/actions/oci-push/.
-#   2. Flip the monorepo path input to the split value: `path: "./flux/fleet"` -> `"./"`.
+#   1. Copy this file -> <new-repo>/.github/workflows/push.yaml (only file needed).
+#   2. Flip the monorepo path value to the split value: `path: "./flux/fleet"` -> `"./"`.
 #   3. Broaden the trigger path filter: `paths: ['flux/fleet/**']` -> `['**']`
 #      (or drop the paths filter entirely).
 #   4. Optionally restore the split-ready `workflow_call` inputs (repository,
@@ -32,9 +33,30 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Push fleet artifact
-        uses: ./.github/actions/flux-fleet-oci-push
+      - name: Install flux
+        uses: controlplaneio-fluxcd/distribution/actions/setup@1eaaa7f67ad253af88d4fac2f349ed8e7d801b83 # main
+      - name: Install cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Compute short SHA
+        shell: bash
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+      - name: Push artifact
+        uses: controlplaneio-fluxcd/distribution/actions/push@1eaaa7f67ad253af88d4fac2f349ed8e7d801b83 # main
+        id: push
         with:
           repository: ghcr.io/${{ github.repository }}/fleet
           path: "./flux/fleet"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          diff-tag: dev
+          tags: dev-${{ env.SHORT_SHA }}
+      - name: Sign artifact
+        if: steps.push.outputs.pushed == 'true'
+        shell: bash
+        run: cosign sign --yes $DIGEST_URL
+        env:
+          DIGEST_URL: ${{ steps.push.outputs.digest-url }}

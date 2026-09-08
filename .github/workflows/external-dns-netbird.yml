@@ -1,12 +1,13 @@
 # external-dns-netbird publish (§6.2).
 # Owner: projects/external-dns-netbird
 # Future repo: external-dns-netbird
+# Self-contained: all steps are inline in this file; no local composite
+# actions are referenced (only pinned external owner/repo@sha actions).
 # Migration to the dedicated repo (external-dns-netbird):
-#   1. Copy .github/workflows/external-dns-netbird.yml -> <new-repo>/.github/workflows/publish.yml
-#      and .github/actions/external-dns-netbird-publish/ -> <new-repo>/.github/actions/publish/.
-#   2. Flip the monorepo path inputs to the split values:
+#   1. Copy this file -> <new-repo>/.github/workflows/publish.yml (only file needed).
+#   2. Flip the monorepo path values to the split values:
 #      `context: projects/external-dns-netbird` -> `.`,
-#      `dockerfile: projects/external-dns-netbird/Dockerfile` -> `./Dockerfile`.
+#      `file: projects/external-dns-netbird/Dockerfile` -> `./Dockerfile`.
 #   3. Broaden the trigger path filter: `paths: ['projects/external-dns-netbird/**']` -> `['**']`
 #      (or drop the paths filter; keep the `external-dns-netbird-v*` tag filter).
 #   4. Optionally restore the split-ready `workflow_call` inputs (context,
@@ -44,8 +45,26 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish image
-        uses: ./.github/actions/external-dns-netbird-publish
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ghcr.io/lazygeniusman/home-ops/infra/external-dns-netbird
+          flavor: |
+            latest=false
+          tags: |
+            type=raw,value=dev,enable=${{ github.ref_type == 'branch' }}
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
+            type=match,pattern=external-dns-netbird-v(.*),group=1,enable=${{ github.ref_type == 'tag' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: projects/external-dns-netbird
-          dockerfile: projects/external-dns-netbird/Dockerfile
+          file: projects/external-dns-netbird/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

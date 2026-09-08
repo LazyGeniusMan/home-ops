@@ -1,12 +1,13 @@
 # eso-proton-pass publish.
 # Owner: projects/eso-proton-pass
 # Future repo: eso-proton-pass
+# Self-contained: all steps are inline in this file; no local composite
+# actions are referenced (only pinned external owner/repo@sha actions).
 # Migration to the dedicated repo (eso-proton-pass):
-#   1. Copy .github/workflows/eso-proton-pass.yml -> <new-repo>/.github/workflows/publish.yml
-#      and .github/actions/eso-proton-pass-publish/ -> <new-repo>/.github/actions/publish/.
-#   2. Flip the monorepo path inputs to the split values:
+#   1. Copy this file -> <new-repo>/.github/workflows/publish.yml (only file needed).
+#   2. Flip the monorepo path values to the split values:
 #      `context: projects/eso-proton-pass` -> `.`,
-#      `dockerfile: projects/eso-proton-pass/Dockerfile` -> `./Dockerfile`.
+#      `file: projects/eso-proton-pass/Dockerfile` -> `./Dockerfile`.
 #   3. Broaden the trigger path filter: `paths: ['projects/eso-proton-pass/**']` -> `['**']`
 #      (or drop the paths filter; keep the `eso-proton-pass-v*` tag filter).
 #   4. Optionally restore the split-ready `workflow_call` inputs (context,
@@ -44,8 +45,26 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish image
-        uses: ./.github/actions/eso-proton-pass-publish
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ghcr.io/lazygeniusman/home-ops/infra/eso-proton-pass
+          flavor: |
+            latest=false
+          tags: |
+            type=raw,value=dev,enable=${{ github.ref_type == 'branch' }}
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
+            type=match,pattern=eso-proton-pass-v(.*),group=1,enable=${{ github.ref_type == 'tag' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: projects/eso-proton-pass
-          dockerfile: projects/eso-proton-pass/Dockerfile
+          file: projects/eso-proton-pass/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

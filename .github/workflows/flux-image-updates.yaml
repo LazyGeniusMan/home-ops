@@ -5,11 +5,13 @@
 # promotes the bump through the push/release pipelines above.
 # Owner: flux/fleet
 # Future repo: home-ops-fleet
+# Self-contained: all steps are inline in this file; no local composite
+# actions are referenced (only pinned external owner/repo@sha actions,
+# plus the gh CLI which is preinstalled on ubuntu-latest runners).
 # Migration to the dedicated repo (home-ops-fleet):
-#   1. Copy .github/workflows/flux-image-updates.yaml -> <new-repo>/.github/workflows/image-updates.yaml
-#      and .github/actions/flux-fleet-image-updates/ -> <new-repo>/.github/actions/image-updates/.
+#   1. Copy this file -> <new-repo>/.github/workflows/image-updates.yaml (only file needed).
 #   2. Keep the `create` trigger + branch guard (`image-updates-infra`,
-#      `image-updates-apps`) as-is; no path inputs to flip (no path inputs).
+#      `image-updates-apps`) as-is; no path values to flip (no path inputs).
 
 name: flux-image-updates
 
@@ -30,6 +32,15 @@ jobs:
         with:
           fetch-depth: 0
       - name: Create Pull Request
-        uses: ./.github/actions/flux-fleet-image-updates
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+          GITHUB_REF: ${{ github.ref }}
+          HEAD_BRANCH: ${{ github.ref_name }}
+        run: |
+          gh pr create \
+            --repo="${GITHUB_REPO}" \
+            --head="${HEAD_BRANCH}" \
+            --base=main \
+            --fill-first
