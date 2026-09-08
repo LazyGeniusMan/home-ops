@@ -1,0 +1,27 @@
+# Tiered CSI StorageClasses dev (§14): identical to the base (§12.1) —
+# provisioner seaweedfs-csi-driver, same collections/replication. Keep in
+# sync with ../base/storageclasses.yaml (no §14 deltas here).
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: seaweedfs-ssd-nvme
+provisioner: seaweedfs-csi-driver
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+reclaimPolicy: Delete
+parameters:
+  collection: "ssd-nvme"
+  replication: "000"
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: seaweedfs-ssd-sata
+provisioner: seaweedfs-csi-driver
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+reclaimPolicy: Delete
+parameters:
+  collection: "ssd-sata"
+  replication: "000"

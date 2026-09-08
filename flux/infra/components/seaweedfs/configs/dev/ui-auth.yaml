@@ -1,0 +1,127 @@
+# SeaweedFS filer-UI auth dev (§14): admin-only Zitadel OIDC via a
+# namespace-local oauth2-proxy (reverse-proxy mode) in front of the filer.
+# The dev S3 API route stays DIRECT (SigV4-gated machine endpoint); only
+# ui.seaweedfs.homelab-dev.… flows through this proxy. Credentials sync from
+# the DEV Proton Pass vault (pass://acme-dev-bdo1-talos-apps-01/seaweedfs/*).
+#
+# Locked contract (flux/infra/components/zitadel/README.md — do not deviate):
+# - issuer https://zitadel.homelab-dev.yansyah.my.id, shared client
+#   `oauth2-proxy-shared` (redirect https://*/oauth2/callback covers the
+#   --redirect-url below), scopes `openid profile email groups`.
+# - Admin-only via --allowed-group=admin against the `groups` claim.
+# - Cookie domain .homelab-dev.yansyah.my.id (shared with sibling proxies).
+#
+# Image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0 (verified real on Quay;
+# hand-bumped — no ImageRepository/ImagePolicy tracks it yet, unlike the
+# seaweedfs images in flux/infra/update-policies/seaweedfs.yaml).
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: ui-auth-credentials
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: ui-auth-credentials
+    template:
+      data:
+        OAUTH2_PROXY_CLIENT_ID: "{{ .clientId }}"
+        OAUTH2_PROXY_CLIENT_SECRET: "{{ .clientSecret }}"
+        OAUTH2_PROXY_COOKIE_SECRET: "{{ .cookieSecret }}"
+  data:
+    - secretKey: clientId
+      remoteRef:
+        key: pass://acme-dev-bdo1-talos-apps-01/seaweedfs/oauth2-proxy-client-id
+    - secretKey: clientSecret
+      remoteRef:
+        key: pass://acme-dev-bdo1-talos-apps-01/seaweedfs/oauth2-proxy-client-secret
+    - secretKey: cookieSecret
+      remoteRef:
+        key: pass://acme-dev-bdo1-talos-apps-01/seaweedfs/oauth2-proxy-cookie-secret
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ui-auth
+  labels:
+    app.kubernetes.io/name: seaweedfs-ui-auth
+    app.kubernetes.io/component: oauth2-proxy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: seaweedfs-ui-auth
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: seaweedfs-ui-auth
+        app.kubernetes.io/component: oauth2-proxy
+    spec:
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --provider=oidc
+            - --provider-display-name=Zitadel
+            - --oidc-issuer-url=https://zitadel.homelab-dev.yansyah.my.id
+            - --redirect-url=https://ui.seaweedfs.homelab-dev.yansyah.my.id/oauth2/callback
+            - --scope=openid profile email groups
+            - --oidc-groups-claim=groups
+            - --allowed-group=admin
+            - --email-domain=*
+            - --cookie-domain=.homelab-dev.yansyah.my.id
+            - --cookie-name=_seaweedfs_ui_auth
+            - --cookie-secure=true
+            - --cookie-samesite=lax
+            - --cookie-expire=12h
+            - --cookie-refresh=1h
+            - --reverse-proxy=true
+            - --upstream=http://seaweed-main-filer:8888
+            - --http-address=0.0.0.0:4180
+            - --skip-provider-button=true
+          envFrom:
+            - secretRef:
+                name: ui-auth-credentials
+          ports:
+            - name: http
+              containerPort: 4180
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ui-auth
+  labels:
+    app.kubernetes.io/name: seaweedfs-ui-auth
+    app.kubernetes.io/component: oauth2-proxy
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: seaweedfs-ui-auth
+  ports:
+    - name: http
+      port: 4180
+      targetPort: http

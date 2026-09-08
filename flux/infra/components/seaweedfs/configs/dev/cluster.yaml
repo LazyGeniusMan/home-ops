@@ -1,0 +1,57 @@
+# SeaweedFS cluster dev (§14): identical to the base (§12.1) — same
+# Enterprise v4.45 image ($imagepolicy marker intact), same volume classes
+# (nvme PINNED to nvme, bulk to sata), same masters/filer sizing. Dev gets
+# its own Seaweed resource so data never mixes with prd; keep in sync with
+# ../base/cluster.yaml except for intentional §14 deltas (none here).
+---
+apiVersion: seaweed.seaweedfs.com/v1
+kind: Seaweed
+metadata:
+  name: seaweed-main
+spec:
+  version: "4.45" # {"$imagepolicy": "infra:seaweedfs:tag"}
+  volumeServerDiskCount: 1
+  master:
+    replicas: 3
+    volumeSizeLimitMB: 1024
+    persistence:
+      enabled: true
+      storageClassName: local-ssd-nvme
+      resources:
+        requests:
+          storage: 4Gi
+  volume:
+    replicas: 3
+    requests:
+      storage: 100Gi
+    storageClassName: local-ssd-nvme
+    rack: nvme
+    dataCenter: dc1
+  volumeTopology:
+    sata-bulk:
+      replicas: 3
+      requests:
+        storage: 500Gi
+      storageClassName: local-ssd-sata
+      rack: sata
+      dataCenter: dc1
+  filer:
+    replicas: 2
+    persistence:
+      enabled: true
+      storageClassName: local-ssd-nvme
+      resources:
+        requests:
+          storage: 10Gi
+    config: |
+      [leveldb2]
+      enabled = true
+      dir = "/data/filerldb2"
+    s3:
+      enabled: true
+    service:
+      type: ClusterIP
+  s3:
+    replicas: 2
+    service:
+      type: ClusterIP

@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+patches:
+  # Dev stays suspended (manual drill only: un-suspend + trigger) against
+  # the DEV SeaweedFS S3 endpoint, and keeps the base dry-run flags, so it
+  # never writes to Proton Drive.
+  - patch: |
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: rclone-vault-sync
+      spec:
+        schedule: "0 * * * *"
+        suspend: true
+        jobTemplate:
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: rclone
+                    env:
+                      - name: RCLONE_CONFIG_SW_ENDPOINT
+                        value: "https://s3.seaweedfs.homelab-dev.yansyah.my.id"
