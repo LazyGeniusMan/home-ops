@@ -7,10 +7,11 @@ mock_provider "kubernetes" {}
 mock_provider "helm" {}
 
 variables {
-  oci_token          = "test-token"
-  cluster_name       = "acme-prd-bdo1-talos-apps-01"
-  cluster_region     = "home-lab"
-  bootstrap_revision = 1
+  oci_token               = "test-token"
+  cluster_name            = "acme-prd-bdo1-talos-apps-01"
+  cluster_region          = "home-lab"
+  bootstrap_revision      = 1
+  cilium_k8s_service_host = "192.168.1.198"
 }
 
 run "operator_versions_match_gitops" {

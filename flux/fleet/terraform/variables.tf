@@ -23,3 +23,14 @@ variable "bootstrap_revision" {
   default     = 1
   nullable    = false
 }
+
+variable "cilium_k8s_service_host" {
+  description = "Talos K8s API VIP (Layer2VIP) for the Cilium prerequisite chart values (k8sServiceHost). Per environment: prd/stg 192.168.1.198, dev 192.168.1.248 — the same values the controllers/<env>/ kustomizations patch into the Flux-reconciled HelmRelease. NOT the LB pool VIP (.199 prd / .249 dev)."
+  type        = string
+  nullable    = false
+
+  validation {
+    condition     = var.cilium_k8s_service_host == "192.168.1.198" || var.cilium_k8s_service_host == "192.168.1.248"
+    error_message = "cilium_k8s_service_host must be the Talos API VIP for the target cluster: 192.168.1.198 (prd/stg) or 192.168.1.248 (dev)."
+  }
+}

@@ -35,6 +35,20 @@ flux/fleet/
 
 Envs are `dev` / `stg` / `prd` (component overlays are `{base,dev,stg,prd}/`).
 
+## Bootstrap on barebone Talos
+
+Talos ships barebone (no CNI, no CoreDNS, no kube-proxy — see
+`talos/clusters/_base/patches.yml`), so `terraform/` runs a host-networked
+bootstrap Job (`job.host_network = true`) that installs the Cilium chart
+from the module's `prerequisites` slot **before** the Flux Operator; Cilium
++ CoreDNS then reconcile as infra tenants (`tenants/infra.yaml`, inputs
+#1/#2), with Flux adopting the bootstrap-installed Cilium release. Only
+Cilium is a prerequisite — CoreDNS follows via Flux once the Job's host
+DNS (Talos `ResolverConfig` upstreams) has done the registry pulls. The
+only per-cluster bootstrap difference is the Talos API VIP passed as
+`var.cilium_k8s_service_host` (prd `.198`, dev `.248`). Details in
+`terraform/README.md`.
+
 ## Artifacts
 
 `oci://ghcr.io/lazygeniusman/home-ops/fleet`, tagged `dev` (+ `dev-<sha>`,
