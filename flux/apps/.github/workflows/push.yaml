@@ -28,6 +28,11 @@ jobs:
           - rclone
           - win11-vm
           - talos-vm
+          - clickstack
+          - hubble-ui
+          - flux-operator-ui
+          - headlamp
+          - coder
     runs-on: ubuntu-latest
     permissions:
       contents: read
