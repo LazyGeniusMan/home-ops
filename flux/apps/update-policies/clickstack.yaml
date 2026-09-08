@@ -1,0 +1,88 @@
+# Update policy for the clickstack app (§11.2): tracks the HyperDX + OTel
+# Collector images (both on the hdx-oss-v2 appVersion line), the FerretDB
+# image, and the locked oauth2-proxy line, and the ImageUpdateAutomation
+# (update cluster) opens PRs via markers in components/clickstack (see
+# README). Follows the §7 update-policy contract (ImageRepository +
+# ImagePolicy + $imagepolicy markers). Note the proxy marker namespace
+# (apps:oauth2-proxy) is shared with hubble-ui by design — the locked
+# contract pins every per-instance proxy to the same version line.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: hyperdx
+spec:
+  image: "docker.hyperdx.io/hyperdx/hyperdx"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: hyperdx
+spec:
+  imageRepositoryRef:
+    name: hyperdx
+  policy:
+    semver:
+      range: ">=2.7.1"
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: hyperdx-otel-collector
+spec:
+  image: "docker.hyperdx.io/hyperdx/hyperdx-otel-collector"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: hyperdx-otel-collector
+spec:
+  imageRepositoryRef:
+    name: hyperdx-otel-collector
+  policy:
+    semver:
+      range: ">=2.7.1"
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: ferretdb
+spec:
+  image: "ghcr.io/ferretdb/ferretdb"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: ferretdb
+spec:
+  imageRepositoryRef:
+    name: ferretdb
+  policy:
+    semver:
+      range: ">=2.7.0"
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: oauth2-proxy
+spec:
+  image: "quay.io/oauth2-proxy/oauth2-proxy"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: oauth2-proxy
+spec:
+  imageRepositoryRef:
+    name: oauth2-proxy
+  policy:
+    semver:
+      range: ">=7.6.0"

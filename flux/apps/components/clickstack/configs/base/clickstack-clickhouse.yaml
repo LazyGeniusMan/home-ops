@@ -1,0 +1,100 @@
+# Clickstack ClickHouse (§11.2): namespace-local instantiation of the §10.2
+# installation-base template (reference/instantiate pattern — same shape,
+# adjusted: single-shard layout, own S3 prefix, own credentials).
+# - Layout: 1 shard x 2 replicas against the shared 3-replica Keeper ensemble
+#   (CHI references the infra-namespace CHK by name; the operator resolves
+#   keeper endpoints automatically). 2 replicas keep quorum on a node loss.
+# - Keeper: reuses clickhouse-keeper in the infra clickhouse namespace — NOT
+#   duplicated here. If the Keeper Service is not resolvable cross-namespace,
+#   create the component's own CHK from the §10.2 base shape first.
+# - Storage: local-ssd-nvme (the §9 default class).
+# - Backup: S3 backups go to SeaweedFS (§12, DNS name only, no file
+#   dependency) under s3://.../clickhouse/clickstack/. Credentials come from
+#   the clickhouse-s3-backup Secret synced by clickstack-secrets.yaml.
+# - Users: NONE — mirrors the §10.2 base (operator defaults: the `default`
+#   user, empty password, intra-cluster only). Committing placeholder
+#   passwords would put real credentials in Git, violating the ESO-only
+#   posture, so app + collector authenticate as `default` until the hardening
+#   follow-up (dedicated app/otel users with ESO-managed passwords) lands.
+# - Per-table replication: create tables with ReplicatedMergeTree +
+#   ON CLUSTER DDL (same rule as §10.2); keeper path defaults to
+#   /clickhouse/backups.
+---
+apiVersion: clickhouse.altinity.com/v1
+kind: ClickHouseInstallation
+metadata:
+  # Name `clickstack` (not clickhouse-clickstack): the operator exposes the
+  # cluster as Service `clickhouse-<chi-name>`, so this yields
+  # `clickhouse-clickstack` — the host every client below dials.
+  name: clickstack
+spec:
+  defaults:
+    templates:
+      dataVolumeClaimTemplate: clickhouse-data
+      logVolumeClaimTemplate: clickhouse-log
+      podTemplate: clickhouse-server
+  configuration:
+    zookeeper:
+      keeper:
+        name: clickhouse-keeper
+        # Assumes the operator resolves the shared infra-namespace ensemble
+        # cross-namespace (same "references the CHK by name" rule as §10.2).
+        # If the CHI stays Pending on keeper resolution, stand up a
+        # component-local CHK from the §10.2 base shape and point here.
+        namespace: clickhouse
+    clusters:
+      - name: main
+        layout:
+          shardsCount: 1
+          replicasCount: 2
+    settings:
+      backups/allowed_disk: backups_s3
+    files:
+      storage.xml: |
+        <yandex>
+          <storage_configuration>
+            <disks>
+              <backups_s3>
+                <type>s3</type>
+                <endpoint>https://s3.seaweedfs.home-ops.yansyah.my.id/clickhouse/clickstack/</endpoint>
+                <access_key_id from_env="CLICKHOUSE_S3_ACCESS_KEY_ID"/>
+                <secret_access_key from_env="CLICKHOUSE_S3_SECRET_ACCESS_KEY"/>
+              </backups_s3>
+            </disks>
+          </storage_configuration>
+        </yandex>
+  templates:
+    podTemplates:
+      - name: clickhouse-server
+        spec:
+          containers:
+            - name: clickhouse-pod
+              image: clickhouse/clickhouse-server:25.9.7.56
+              env:
+                - name: CLICKHOUSE_S3_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: clickhouse-s3-backup
+                      key: access-key-id
+                - name: CLICKHOUSE_S3_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: clickhouse-s3-backup
+                      key: secret-access-key
+    volumeClaimTemplates:
+      - name: clickhouse-data
+        spec:
+          storageClassName: local-ssd-nvme
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 50Gi
+      - name: clickhouse-log
+        spec:
+          storageClassName: local-ssd-nvme
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi

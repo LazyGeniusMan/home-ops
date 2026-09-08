@@ -1,0 +1,103 @@
+# FerretDB PostgreSQL HA Cluster (§11.2): namespace-local instantiation of the
+# §10.1 cluster-base template (reference/instantiate pattern — same shape,
+# adjusted: dbname ferretdb, single-purpose S3 prefix). Live cluster, not a
+# template: spec.bootstrap.initdb creates database+owner ferretdb, with the app
+# password from ferretdb-app-secret (ESO, see clickstack-secrets.yaml — the
+# secret's username MUST equal spec.bootstrap.initdb.owner per upstream).
+# - HA: 3 instances, sync quorum 1, pod anti-affinity (copied from the base).
+# - Storage: local-ssd-nvme (the §9 default class).
+# - Backup: continuous WAL + daily base backup to the SeaweedFS S3 endpoint
+#   (§12, DNS name only, no file dependency) under s3://cnpg-backups/ferretdb/.
+#   The bucket prefix must exist before the first Cluster starts (CNPG never
+#   creates buckets). Credentials: cnpg-s3-credentials ExternalSecret copied
+#   from §10.1 (same Proton Pass remoteRefs) so the Barman object store has a
+#   same-namespace secret.
+# - PITR/restore: same runbook as §10.1 — apply a NEW Cluster with
+#   bootstrap.recovery (example stanza commented out below) instead of initdb.
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: cnpg-s3-credentials
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: cnpg-s3-credentials
+    template:
+      data:
+        ACCESS_KEY_ID: "{{ .accessKeyId }}"
+        ACCESS_SECRET_KEY: "{{ .secretAccessKey }}"
+  data:
+    - secretKey: accessKeyId
+      remoteRef:
+        key: pass://acme-prd-bdo1-talos-apps-01/cnpg/s3-access-key-id
+    - secretKey: secretAccessKey
+      remoteRef:
+        key: pass://acme-prd-bdo1-talos-apps-01/cnpg/s3-secret-access-key
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: ferretdb
+spec:
+  instances: 3
+
+  postgresql:
+    synchronous:
+      standbyNames: ["*"]
+      number: 1
+
+  bootstrap:
+    initdb:
+      database: ferretdb
+      owner: ferretdb
+      secret:
+        name: ferretdb-app-secret
+  # Point-in-time recovery: create a NEW Cluster bootstrapping from an
+  # existing backup instead of initdb (uncomment, set the Backup/ScheduledBackup
+  # object name and the target timestamp). WAL replay reaches any instant
+  # covered by the retained WAL archive.
+  # bootstrap:
+  #   recovery:
+  #     backup:
+  #       name: ferretdb-backup
+  #     recoveryTarget:
+  #       targetTime: "2026-09-08 00:00:00.00000+00"
+
+  storage:
+    storageClass: local-ssd-nvme
+    size: 20Gi
+
+  affinity:
+    enablePodAntiAffinity: true
+
+  backup:
+    barmanObjectStore:
+      destinationPath: s3://cnpg-backups/ferretdb/
+      endpointURL: https://s3.seaweedfs.home-ops.yansyah.my.id
+      s3Credentials:
+        accessKeyId:
+          name: cnpg-s3-credentials
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: cnpg-s3-credentials
+          key: ACCESS_SECRET_KEY
+      wal:
+        compression: gzip
+      data:
+        compression: gzip
+    retentionPolicy: "30d"
+---
+# Daily base backup to the same Barman object store (streaming method).
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: ferretdb-backup
+spec:
+  schedule: "0 0 0 * * *" # midnight daily (CNPG uses 6-field cron)
+  backupOwnerReference: self
+  cluster:
+    name: ferretdb

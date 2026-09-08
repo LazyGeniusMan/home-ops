@@ -1,0 +1,88 @@
+# FerretDB (§11.2): Mongo-wire proxy over the namespace-local CNPG Cluster
+# (configs/base/ferretdb-postgres.yaml, dbname ferretdb). Image pinned to the
+# v2.7.0 line (verified via Docker Hub tags at authoring: 2.7.0 is the newest
+# non-`latest` tag under the 2.x major); bumps via
+# update-policies/clickstack.yaml.
+# Connection contract (documented for app writers, see README):
+# - HyperDX MONGO_URI=mongodb://ferretdb.clickstack.svc:27017/hyperdx.
+# - FerretDB reaches Postgres at ferretdb-rw.clickstack.svc:5432/ferretdb
+#   (CNPG -rw Service, user ferretdb, password from ferretdb-app-secret).
+# - sslmode=require: CNPG serves TLS with a self-signed cert FerretDB cannot
+#   verify, so verify-full is impossible; require still encrypts in transit
+#   (same trade-off as the §11.1 Zitadel DSN).
+# Monitoring: no ServiceMonitor until monitoring.coreos.com CRDs land.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ferretdb
+  labels:
+    app.kubernetes.io/name: ferretdb
+    app.kubernetes.io/part-of: clickstack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ferretdb
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ferretdb
+        app.kubernetes.io/part-of: clickstack
+    spec:
+      containers:
+        - name: ferretdb
+          image: ghcr.io/ferretdb/ferretdb:2.7.0 # {"$imagepolicy": "apps:ferretdb:tag"}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: FERRETDB_POSTGRESQL_URL
+              value: "postgres://ferretdb@ferretdb-rw.clickstack.svc:5432/ferretdb?sslmode=require"
+            - name: FERRETDB_POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ferretdb-app-secret
+                  key: password
+          ports:
+            - name: mongo
+              containerPort: 27017
+          livenessProbe:
+            tcpSocket:
+              port: mongo
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: mongo
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ferretdb
+  labels:
+    app.kubernetes.io/name: ferretdb
+    app.kubernetes.io/part-of: clickstack
+spec:
+  selector:
+    app.kubernetes.io/name: ferretdb
+  ports:
+    - name: mongo
+      port: 27017
+      targetPort: 27017
