@@ -2,3 +2,13 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../base
+patches:
+  # Prd Talos K8s API VIP (Layer2VIP .198) — see base/cilium.yaml
+  # placeholder __TALOS_API_VIP__.
+  - patch: |
+      - op: replace
+        path: /spec/values/k8sServiceHost
+        value: 192.168.1.198
+    target:
+      kind: HelmRelease
+      name: cilium

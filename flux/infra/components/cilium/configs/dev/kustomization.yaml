@@ -1,4 +1,27 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - lb-pool.yaml
+  - ../base
+patches:
+  # Dev Talos LB VIP (.249, single-IP pool) + dev node NIC (eth0,
+  # QEMU/KVM virtio) — see base/lb-pool.yaml placeholders
+  # __LB_VIP__ / __NODE_NIC__. The dev Talos API VIP (.248, Layer2VIP) is
+  # NOT in this pool — see talos/clusters/acme-dev-bdo1-talos-apps-01
+  # (endpoint .248, link eth0).
+  - patch: |
+      - op: replace
+        path: /spec/blocks/0/start
+        value: 192.168.1.249
+      - op: replace
+        path: /spec/blocks/0/stop
+        value: 192.168.1.249
+    target:
+      kind: CiliumLoadBalancerIPPool
+      name: default
+  - patch: |
+      - op: replace
+        path: /spec/interfaces/0
+        value: eth0
+    target:
+      kind: CiliumL2AnnouncementPolicy
+      name: default

@@ -44,8 +44,10 @@ spec:
   values:
     # Strict kube-proxy replacement: Talos runs with kube-proxy disabled.
     kubeProxyReplacement: true
-    # Talos K8s API VIP (Layer2VIP) — NOT the LB pool VIP (.199), see README.
-    k8sServiceHost: 192.168.1.198
+    # Talos K8s API VIP (Layer2VIP) — NOT the LB pool VIP (__LB_VIP__),
+    # see README. Placeholder patched per environment: prd 192.168.1.198,
+    # dev 192.168.1.248.
+    k8sServiceHost: __TALOS_API_VIP__
     k8sServicePort: 6443
     gatewayAPI:
       enabled: true

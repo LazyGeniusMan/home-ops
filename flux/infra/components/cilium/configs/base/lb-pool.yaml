@@ -1,6 +1,10 @@
-# Cilium LB IP pool + L2 announcement (§8.2). .199 is the single
-# LoadBalancer VIP; .198 is the Talos API VIP (Layer2VIP) — see README.
-# L2 announcements go out on the Talos NIC enp45s0.
+# Cilium LB IP pool + L2 announcement (§8.2). Base holds placeholders —
+# per-environment kustomizations patch them (see
+# configs/{production,staging,dev}/kustomization.yaml):
+#   __LB_VIP__: the single LoadBalancer VIP (prd 192.168.1.199, dev 192.168.1.249).
+#   __NODE_NIC__: L2 announcement NIC (prd enp45s0, dev eth0/QEMU virtio).
+# The Talos API VIP (__TALOS_API_VIP__: prd .198, dev .248 Layer2VIP) is NOT in
+# this pool — see controllers/base/cilium.yaml (spec.values.k8sServiceHost).
 ---
 apiVersion: cilium.io/v2
 kind: CiliumLoadBalancerIPPool
@@ -8,8 +12,8 @@ metadata:
   name: default
 spec:
   blocks:
-    - start: 192.168.1.199
-      stop: 192.168.1.199
+    - start: __LB_VIP__
+      stop: __LB_VIP__
 ---
 apiVersion: cilium.io/v2alpha1
 kind: CiliumL2AnnouncementPolicy
@@ -19,4 +23,4 @@ spec:
   externalIPs: true
   loadBalancerIPs: true
   interfaces:
-    - enp45s0
+    - __NODE_NIC__
