@@ -1,0 +1,26 @@
+# Update policy for the cnpg component (§10): tracks the OCI Helm chart, and the
+# ImageUpdateAutomation (update cluster) opens PRs via markers in
+# components/cnpg (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+# Chart-to-operator mapping: chart 0.29.x embeds operator 1.30.x, so the
+# semver floor below is the CHART version; the operator stays >=1.30 while the
+# chart stays on its 0.29 line.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: cnpg
+spec:
+  image: "ghcr.io/cloudnative-pg/charts/cloudnative-pg"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: cnpg
+spec:
+  imageRepositoryRef:
+    name: cnpg
+  policy:
+    semver:
+      range: ">=0.29.0"

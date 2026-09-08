@@ -1,0 +1,76 @@
+# Reusable PostgreSQL HA Cluster base template (§10.1). Copy this stanza into a
+# namespace-local Cluster; it is a template, not a live cluster.
+# - HA: 3 instances, streaming replication (synchronous quorum example below),
+#   pod anti-affinity so replicas spread across nodes.
+# - Storage: storageClassName local-ssd-nvme (the §9 default class).
+# - Backup: continuous WAL archive + daily base backup to the SeaweedFS S3
+#   endpoint (s3.seaweedfs.home-ops.yansyah.my.id, §12 — same wave, referenced
+#   by DNS name only, no file dependency). Credentials come from the
+#   s3-credentials ExternalSecret in this directory.
+# - PITR/restore: see README runbook; an example bootstrap.recovery stanza with
+#   recoveryTarget.targetTime is included commented out.
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgres-base
+spec:
+  instances: 3
+
+  # Streaming replication: synchronous commit across a quorum of standbys so
+  # a failover never loses acknowledged writes. number specifies the standby
+  # count that must acknowledge (1 of the 2 standbys here).
+  postgresql:
+    synchronous:
+      standbyNames: ["*"]
+      number: 1
+
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+  # Point-in-time recovery: create a NEW Cluster bootstrapping from an
+  # existing backup instead of initdb (uncomment, set the Backup/ScheduledBackup
+  # object name and the target timestamp). WAL replay reaches any instant
+  # covered by the retained WAL archive.
+  # bootstrap:
+  #   recovery:
+  #     backup:
+  #       name: postgres-base-backup
+  #     recoveryTarget:
+  #       targetTime: "2026-09-08 00:00:00.00000+00"
+
+  storage:
+    storageClass: local-ssd-nvme
+    size: 20Gi
+
+  affinity:
+    enablePodAntiAffinity: true
+
+  backup:
+    barmanObjectStore:
+      destinationPath: s3://cnpg-backups/postgres/
+      endpointURL: https://s3.seaweedfs.home-ops.yansyah.my.id
+      s3Credentials:
+        accessKeyId:
+          name: cnpg-s3-credentials
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: cnpg-s3-credentials
+          key: ACCESS_SECRET_KEY
+      wal:
+        compression: gzip
+      data:
+        compression: gzip
+    retentionPolicy: "30d"
+---
+# Daily base backup to the same Barman object store (streaming method).
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: postgres-base-backup
+spec:
+  schedule: "0 0 0 * * *" # midnight daily (CNPG uses 6-field cron)
+  backupOwnerReference: self
+  cluster:
+    name: postgres-base

@@ -1,0 +1,22 @@
+# Wildcard certificate for PostgreSQL TLS (§10.1). Lives in the same namespace
+# as the Cluster so the operator-managed TLS secret stays namespace-local
+# (same pattern as the §8.1 gateway-api namespace-local TLS reference).
+# DNS: no DNSEndpoint CR — the §9 external-dns chart ships the external-dns
+# binary without enabling the CRD source for this zone, and a nested
+# *.postgres wildcard rides on the existing *.home-ops wildcard A automation
+# (§9.4: the zone apex wildcard materializes from the Gateway LB target).
+# The per-host A records that Postgres clients actually dial (e.g.
+# primary.postgres.home-ops.yansyah.my.id) must resolve via that same wildcard
+# automation; verify with dig before cutting traffic over.
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-postgres
+spec:
+  secretName: wildcard-postgres-tls
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.postgres.home-ops.yansyah.my.id"
