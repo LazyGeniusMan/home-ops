@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # Shared GatewayClass is domain-agnostic (cilium controller); copy the base
+  # file into dev so each env overlay stays self-contained (kustomize forbids
+  # cross-directory file refs). Keep in sync with ../base/gatewayclass.yaml.
+  - gatewayclass.yaml
+  - gateway.yaml
+  - httproutes.yaml
+  - wildcard-certificate.yaml

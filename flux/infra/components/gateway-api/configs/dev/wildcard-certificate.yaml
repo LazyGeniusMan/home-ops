@@ -1,0 +1,38 @@
+# In-namespace dev wildcard Certificate (§14). cert-manager Secrets are
+# namespace-local, so the dev §9 Certificate cannot feed this component's
+# Gateway listener — this duplicate Certificate mints
+# wildcard-homelab-dev-tls HERE via the same ClusterIssuer/letsencrypt and
+# dev dnsNames. The token ExternalSecret mirrors the dev cluster-issuer
+# (same dev Proton Pass remoteRef) so the DNS-01 solver credential exists in
+# this namespace too.
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: cloudflare-api-token
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: cloudflare-api-token
+    template:
+      data:
+        api-token: "{{ .apiToken }}"
+  data:
+    - secretKey: apiToken
+      remoteRef:
+        key: pass://acme-dev-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-homelab-dev
+spec:
+  secretName: wildcard-homelab-dev-tls
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.homelab-dev.yansyah.my.id"

@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - cluster-issuer.yaml
+  - wildcard-certificate.yaml
+patches:
+  # Dev ACME server: LE prod (real dev certs, same as prd — §14 locked delta).
+  - patch: |
+      - op: add
+        path: /spec/acme/server
+        value: https://acme-v02.api.letsencrypt.org/directory
+    target:
+      kind: ClusterIssuer
+      name: letsencrypt

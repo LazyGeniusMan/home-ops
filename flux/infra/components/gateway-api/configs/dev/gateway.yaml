@@ -1,0 +1,29 @@
+# Shared Gateway (§14 dev) for homelab-dev.yansyah.my.id. Mirrors
+# configs/base/gateway.yaml with the dev-domain TLS Secret
+# (wildcard-homelab-dev-tls). Listens on HTTP 80 (redirect source only) and
+# HTTPS 443 (terminated with the in-namespace dev wildcard Secret).
+# Listeners accept routes from all namespaces so per-service dev HTTPRoutes
+# (§§11-13 dev overlays) can attach from their app namespaces later.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: main
+spec:
+  gatewayClassName: cilium
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: wildcard-homelab-dev-tls
+      allowedRoutes:
+        namespaces:
+          from: All
