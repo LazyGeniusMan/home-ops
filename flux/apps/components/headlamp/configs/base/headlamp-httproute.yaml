@@ -7,7 +7,7 @@
 # Secrets are namespace-local, same duplicate pattern as §§8.1/11.1).
 # Catch-all `/` covers the app plus the OIDC callback path /oidc-callback
 # (Headlamp builds it as <URL>/oidc-callback; the locked Zitadel redirect is
-# https://headlamp.home-ops.yansyah.my.id/*).
+# (https://__SERVICE_HOST__/*).
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -19,7 +19,7 @@ spec:
       namespace: gateway-api
       sectionName: https
   hostnames:
-    - headlamp.home-ops.yansyah.my.id
+    - __SERVICE_HOST__
   rules:
     - matches:
         - path:

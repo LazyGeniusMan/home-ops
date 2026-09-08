@@ -18,7 +18,7 @@ spec:
       namespace: gateway-api
       sectionName: http
   hostnames:
-    - flux-operator.home-ops.yansyah.my.id
+    - __SERVICE_HOST__
   rules:
     - filters:
         - type: RequestRedirect
@@ -36,7 +36,7 @@ spec:
       namespace: gateway-api
       sectionName: https
   hostnames:
-    - flux-operator.home-ops.yansyah.my.id
+    - __SERVICE_HOST__
   rules:
     - backendRefs:
         - name: oauth2-proxy

@@ -2,3 +2,15 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../base
+patches:
+  # Staging (prd values) proxy issuer + callback.
+  - patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/args/2
+        value: --oidc-issuer-url=https://zitadel.home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/template/spec/containers/0/args/3
+        value: --redirect-url=https://flux-operator.home-ops.yansyah.my.id/oauth2/callback
+    target:
+      kind: Deployment
+      name: oauth2-proxy

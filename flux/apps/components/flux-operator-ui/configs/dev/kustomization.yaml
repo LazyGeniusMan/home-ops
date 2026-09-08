@@ -1,6 +1,63 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - oauth2-proxy-credentials.yaml
-  - wildcard-certificate.yaml
-  - httproute.yaml
+  - ../base
+patches:
+  # Dev route hostnames (flux-operator.homelab-dev.yansyah.my.id).
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: flux-operator.homelab-dev.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: flux-operator
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: flux-operator.homelab-dev.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: flux-operator-tls
+  # Dev proxy credential vault refs.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/flux-operator-ui/oauth2-proxy-client-id
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/flux-operator-ui/oauth2-proxy-client-secret
+      - op: replace
+        path: /spec/data/2/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/flux-operator-ui/oauth2-proxy-cookie-secret
+    target:
+      kind: ExternalSecret
+      name: oauth2-proxy-credentials
+  # Dev wildcard Certificate (wildcard-homelab-dev).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+    target:
+      kind: ExternalSecret
+      name: cloudflare-api-token
+  - patch: |
+      - op: replace
+        path: /metadata/name
+        value: wildcard-homelab-dev
+    target:
+      kind: Certificate
+      name: __WILDCARD_CERT_NAME__
+  - patch: |
+      - op: replace
+        path: /spec/secretName
+        value: wildcard-homelab-dev-tls
+    target:
+      kind: Certificate
+      name: wildcard-homelab-dev
+  - patch: |
+      - op: replace
+        path: /spec/dnsNames/0
+        value: "*.homelab-dev.yansyah.my.id"
+    target:
+      kind: Certificate
+      name: wildcard-homelab-dev

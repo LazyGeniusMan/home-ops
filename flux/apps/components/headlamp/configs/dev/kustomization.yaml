@@ -1,7 +1,53 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - headlamp-secrets.yaml
-  - wildcard-certificate.yaml
-  - headlamp-rbac.yaml
-  - headlamp-httproute.yaml
+  - ../base
+patches:
+  # Dev route hostname (headlamp.homelab-dev.yansyah.my.id).
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: headlamp.homelab-dev.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: headlamp
+  # Dev OIDC issuer + client-secret vault ref.
+  - patch: |
+      - op: replace
+        path: /spec/target/template/data/OIDC_ISSUER_URL
+        value: https://zitadel.homelab-dev.yansyah.my.id
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/headlamp/oidc-client-secret
+    target:
+      kind: ExternalSecret
+      name: headlamp-oidc
+  # Dev wildcard Certificate (wildcard-homelab-dev).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+    target:
+      kind: ExternalSecret
+      name: cloudflare-api-token
+  - patch: |
+      - op: replace
+        path: /metadata/name
+        value: wildcard-homelab-dev
+    target:
+      kind: Certificate
+      name: __WILDCARD_CERT_NAME__
+  - patch: |
+      - op: replace
+        path: /spec/secretName
+        value: wildcard-homelab-dev-tls
+    target:
+      kind: Certificate
+      name: wildcard-homelab-dev
+  - patch: |
+      - op: replace
+        path: /spec/dnsNames/0
+        value: "*.homelab-dev.yansyah.my.id"
+    target:
+      kind: Certificate
+      name: wildcard-homelab-dev
