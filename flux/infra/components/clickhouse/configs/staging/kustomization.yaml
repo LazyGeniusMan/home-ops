@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+patches:
+  - patch: |
+      - op: replace
+        path: /spec/configuration/clusters/0/layout/shardsCount
+        value: 1
+      - op: replace
+        path: /spec/configuration/clusters/0/layout/replicasCount
+        value: 1
+      - op: replace
+        path: /spec/templates/volumeClaimTemplates/0/spec/resources/requests/storage
+        value: 20Gi
+    target:
+      kind: ClickHouseInstallation
+      name: clickhouse
+  - patch: |
+      - op: add
+        path: /spec/suspend
+        value: true
+    target:
+      kind: CronJob
+      name: clickhouse-backup

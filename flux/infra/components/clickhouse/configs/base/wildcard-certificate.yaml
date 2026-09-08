@@ -1,0 +1,17 @@
+# Wildcard certificate for the clickhouse subdomain (§10.2). Lives in the
+# clickhouse namespace (own-namespace, via the Flux Kustomization
+# targetNamespace — no explicit namespace, like the gateway-api precedent) so
+# Ready status is observable next to the CHI; HTTPRoutes/Gateway listeners in
+# this namespace reference `wildcard-clickhouse-tls` directly.
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-clickhouse
+spec:
+  secretName: wildcard-clickhouse-tls
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.clickhouse.home-ops.yansyah.my.id"

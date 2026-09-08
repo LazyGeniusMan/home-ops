@@ -1,0 +1,23 @@
+# Update policy for the clickhouse component (§10): tracks the OCI Helm chart, and the
+# ImageUpdateAutomation (update cluster) opens PRs via markers in
+# components/clickhouse (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: clickhouse
+spec:
+  image: "registry-1.docker.io/altinity/clickhouse-operator"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: clickhouse
+spec:
+  imageRepositoryRef:
+    name: clickhouse
+  policy:
+    semver:
+      range: ">=0.27.3"

@@ -1,0 +1,133 @@
+# Reusable ClickHouseInstallation base (§10.2): 2 shards x 2 replicas against
+# a 3-replica Keeper ensemble (CHI references the CHK by name; the operator
+# resolves keeper endpoints automatically). All data volumes on
+# local-ssd-nvme (default StorageClass); S3 backups go to SeaweedFS via the
+# `backups_s3` disk (credentials from the clickhouse-s3-backup Secret synced
+# by s3-credentials.yaml — never committed). Server/keeper images pinned to
+# the 25.9 line (tags verified live on Docker Hub).
+# Per-table replication: create tables with ReplicatedMergeTree +
+# ON CLUSTER DDL (see README); keeper path defaults to /clickhouse/backups.
+---
+apiVersion: clickhouse-keeper.altinity.com/v1
+kind: ClickHouseKeeperInstallation
+metadata:
+  name: clickhouse-keeper
+spec:
+  configuration:
+    clusters:
+      - name: keeper
+        layout:
+          replicasCount: 3
+    settings:
+      listen_host: "0.0.0.0"
+      keeper_server/four_letter_word_white_list: "*"
+      prometheus/endpoint: "/metrics"
+      prometheus/port: "7000"
+      prometheus/metrics: "true"
+      prometheus/events: "true"
+      prometheus/asynchronous_metrics: "true"
+      prometheus/status_info: "false"
+  defaults:
+    templates:
+      podTemplate: keeper
+      dataVolumeClaimTemplate: keeper-data
+  templates:
+    podTemplates:
+      - name: keeper
+        metadata:
+          annotations:
+            prometheus.io/scrape: "true"
+            prometheus.io/port: "7000"
+        spec:
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app: clickhouse-keeper
+                  topologyKey: "kubernetes.io/hostname"
+          containers:
+            - name: clickhouse-keeper
+              image: clickhouse/clickhouse-keeper:25.9.7.56
+    volumeClaimTemplates:
+      - name: keeper-data
+        provisioner: Operator
+        reclaimPolicy: Retain
+        spec:
+          storageClassName: local-ssd-nvme
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+---
+apiVersion: clickhouse.altinity.com/v1
+kind: ClickHouseInstallation
+metadata:
+  name: clickhouse
+spec:
+  defaults:
+    templates:
+      dataVolumeClaimTemplate: clickhouse-data
+      logVolumeClaimTemplate: clickhouse-log
+      podTemplate: clickhouse-server
+  configuration:
+    zookeeper:
+      keeper:
+        name: clickhouse-keeper
+    clusters:
+      - name: main
+        layout:
+          shardsCount: 2
+          replicasCount: 2
+    settings:
+      backups/allowed_disk: backups_s3
+    files:
+      storage.xml: |
+        <yandex>
+          <storage_configuration>
+            <disks>
+              <backups_s3>
+                <type>s3</type>
+                <endpoint>https://s3.seaweedfs.home-ops.yansyah.my.id/clickhouse/</endpoint>
+                <access_key_id from_env="CLICKHOUSE_S3_ACCESS_KEY_ID"/>
+                <secret_access_key from_env="CLICKHOUSE_S3_SECRET_ACCESS_KEY"/>
+              </backups_s3>
+            </disks>
+          </storage_configuration>
+        </yandex>
+  templates:
+    podTemplates:
+      - name: clickhouse-server
+        spec:
+          containers:
+            - name: clickhouse-pod
+              image: clickhouse/clickhouse-server:25.9.7.56
+              env:
+                - name: CLICKHOUSE_S3_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: clickhouse-s3-backup
+                      key: access-key-id
+                - name: CLICKHOUSE_S3_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: clickhouse-s3-backup
+                      key: secret-access-key
+    volumeClaimTemplates:
+      - name: clickhouse-data
+        spec:
+          storageClassName: local-ssd-nvme
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 50Gi
+      - name: clickhouse-log
+        spec:
+          storageClassName: local-ssd-nvme
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
