@@ -1,0 +1,43 @@
+# Cluster patch: acme-dev-bdo1-talos-apps-01 (Talos v1.14, single control-plane).
+# Dev cluster addressing (node .201, VIP .248) with its own Proton Pass vault.
+# No cross-environment vault references anywhere in this tree.
+# Applied after ../_base/patches.yml (same --config-patch ordering as prd).
+# Secrets: double-brace refs rendered via pass-cli inject into gitignored build/:
+#   export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_...
+#   pass-cli inject --in-file patches.yml --out-file ../../ansible/build/acme-dev-bdo1-talos-apps-01/patches.yml
+---
+cluster:
+  controlPlane:
+    endpoint: https://192.168.1.248:6443
+  proxy:
+    disabled: true # Cilium replaces kube-proxy
+  allowSchedulingOnControlPlanes: true # single-node: permit workloads on the control-plane
+---
+apiVersion: v1alpha1
+kind: Layer2VIPConfig
+name: 192.168.1.248 # K8s API VIP, advertised from the control-plane node
+link: eth0 # QEMU/KVM virtio NIC; day-0 verifies via `talosctl get links`
+---
+apiVersion: v1alpha1
+kind: RegistryAuthConfig
+name: docker.io
+username: "{{ pass://acme-dev-bdo1-talos-apps-01/talos/docker-username }}"
+password: "{{ pass://acme-dev-bdo1-talos-apps-01/talos/docker-password }}"
+---
+apiVersion: v1alpha1
+kind: RegistryAuthConfig
+name: dhi.io
+username: "{{ pass://acme-dev-bdo1-talos-apps-01/talos/docker-username }}"
+password: "{{ pass://acme-dev-bdo1-talos-apps-01/talos/docker-password }}"
+---
+apiVersion: v1alpha1
+kind: RegistryAuthConfig
+name: ghcr.io
+username: "{{ pass://acme-dev-bdo1-talos-apps-01/talos/ghcr-username }}"
+password: "{{ pass://acme-dev-bdo1-talos-apps-01/talos/ghcr-password }}"
+---
+apiVersion: v1alpha1
+kind: ResolverConfig
+nameservers:
+  - address: 1.1.1.1
+  - address: 8.8.8.8

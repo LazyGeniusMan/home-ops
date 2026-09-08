@@ -1,0 +1,51 @@
+---
+# Day-1: install, bootstrap etcd, fetch kubeconfig, apply node config.
+- name: Apply installer config to maintenance nodes (insecure first boot)
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_bootstrap_talosctl }} apply-config
+      --insecure -n {{ item.ip }}
+      -f {{ talos_build_dir }}/{{ talos_cluster }}/controlplane.yaml
+      --mode {{ talos_bootstrap_mode }}
+    creates: "{{ talos_build_dir }}/{{ talos_cluster }}/.installed-{{ item.name }}"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: true
+
+- name: Mark nodes installed
+  ansible.builtin.file:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/.installed-{{ item.name }}"
+    state: touch
+    mode: "0600"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: false
+
+- name: Bootstrap etcd on the first control-plane node
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_bootstrap_talosctl }} bootstrap
+      -n {{ talos_clusters[talos_cluster].nodes[0].ip }}
+      -e {{ talos_clusters[talos_cluster].nodes[0].ip }}
+    creates: "{{ talos_build_dir }}/{{ talos_cluster }}/.bootstrapped"
+  changed_when: true
+
+- name: Mark cluster bootstrapped
+  ansible.builtin.file:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/.bootstrapped"
+    state: touch
+    mode: "0600"
+  changed_when: false
+
+- name: Fetch admin kubeconfig
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_bootstrap_talosctl }} kubeconfig
+      {{ talos_build_dir }}/{{ talos_cluster }}/kubeconfig
+      -n {{ talos_clusters[talos_cluster].nodes[0].ip }}
+      -e {{ talos_clusters[talos_cluster].nodes[0].ip }}
+      -f
+    creates: "{{ talos_build_dir }}/{{ talos_cluster }}/kubeconfig"
+  changed_when: true

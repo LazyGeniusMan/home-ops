@@ -1,0 +1,12 @@
+# Opt-in override: disable kube-proxy where Cilium replaces it.
+# Apply AFTER _base/patches.yml so this fragment wins the merge:
+#   --config-patch @clusters/_base/patches.yml \
+#   --config-patch @clusters/_base/kube-proxy-override.yml
+# ProxyConfig evidence: config.schema.json v1alpha1.ProxyConfig
+# {disabled: "Disable kube-proxy deployment on cluster bootstrap."}.
+# (The split-doc kind KubeProxyConfig uses `enabled`; in a v1alpha1 fragment
+# the field is `disabled: true`.)
+---
+cluster:
+  proxy:
+    disabled: true

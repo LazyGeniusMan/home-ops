@@ -1,0 +1,63 @@
+# Node patch: bdo-r01-cp-001 — acme-prd-bdo1-talos-apps-01 (Talos v1.14).
+# Applied last: --config-patch @nodes/bdo-r01-cp-001/patches.yml
+# Static IP 192.168.1.101/24 on the RTL8125 link; Proxmox lshw logical names
+# (nic0/nic1) do not survive into Talos — systemd predictable name for PCI
+# 0000:2d:00.0 is enp45s0 (0x2d = 45). Day-0 verifies with
+# `talosctl get links --insecure -n 192.168.1.101` before first apply.
+# Field evidence (config.schema.json + reference/configuration):
+#   HostnameConfig{hostname}, LinkConfig{name, addresses[]:{address}, routes[]:{gateway}},
+#   UnattendedInstallConfig{installer.image, provisioning.diskSelector.match, wipe},
+#   UserVolumeConfig{name, provisioning.diskSelector.match/filesystem.type},
+#   KubeNodeConfig{nodeIP.validSubnets, labels}.
+# Disk CEL: disk.dev_path / disk.transport (sata evidenced in
+# disk-management/layout.mdx) / !system_disk (system.mdx:46,83).
+# sata-data provisions when a SATA disk is present; the host AHCI controller is
+# currently vfio-pci passthrough, so this volume waits for a disk.
+---
+apiVersion: v1alpha1
+kind: HostnameConfig
+hostname: bdo-r01-cp-001
+---
+apiVersion: v1alpha1
+kind: LinkConfig
+name: enp45s0
+addresses:
+  - address: 192.168.1.101/24
+routes:
+  - gateway: 192.168.1.1
+---
+apiVersion: v1alpha1
+kind: UnattendedInstallConfig
+installer:
+  image: factory.talos.dev/metal-installer/PLACEHOLDER_SCHEMATIC_ID:v1.14.0 # set from schematic upload
+provisioning:
+  diskSelector:
+    match: disk.dev_path == "/dev/nvme0n1" # 512 GB KPART NVMe (only disk on host)
+  wipe: true
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: nvme-data
+provisioning:
+  diskSelector:
+    match: disk.transport == "nvme" && !system_disk
+filesystem:
+  type: xfs
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: sata-data
+provisioning:
+  diskSelector:
+    match: disk.transport == "sata" && !system_disk
+filesystem:
+  type: xfs
+---
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+nodeIP:
+  validSubnets:
+    - 192.168.1.0/24
+labels:
+  topology.kubernetes.io/zone: bdo1
+  node-role.acme.io/tier: apps

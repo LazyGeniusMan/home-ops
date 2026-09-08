@@ -1,0 +1,20 @@
+---
+# Shared vars: PAT arrives via env only; cluster map selects vault + nodes.
+proton_pass_pat_env: PROTON_PASS_PERSONAL_ACCESS_TOKEN
+talos_version: v1.14.0
+talos_build_dir: "{{ playbook_dir }}/../build"
+talos_clusters:
+  acme-prd-bdo1-talos-apps-01:
+    vault: acme-prd-bdo1-talos-apps-01
+    endpoint: https://192.168.1.198:6443
+    nodes:
+      - name: bdo-r01-cp-001
+        ip: 192.168.1.101
+        role: controlplane
+  acme-dev-bdo1-talos-apps-01:
+    vault: acme-dev-bdo1-talos-apps-01
+    endpoint: https://192.168.1.248:6443
+    nodes:
+      - name: bdo-d01-cp-001
+        ip: 192.168.1.201
+        role: controlplane

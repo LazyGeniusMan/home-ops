@@ -1,0 +1,9 @@
+---
+# Render via: pass-cli inject --in-file vault.template.yml \
+#   --out-file ../build/vault.yml --force
+# Double-brace refs ONLY. Never commit rendered values.
+# Authenticate: export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_...
+talos_docker_username: "{{ pass://acme-prd-bdo1-talos-apps-01/talos/docker-username }}"
+talos_docker_password: "{{ pass://acme-prd-bdo1-talos-apps-01/talos/docker-password }}"
+talos_ghcr_username: "{{ pass://acme-prd-bdo1-talos-apps-01/talos/ghcr-username }}"
+talos_ghcr_password: "{{ pass://acme-prd-bdo1-talos-apps-01/talos/ghcr-password }}"

@@ -1,0 +1,10 @@
+# Vanilla Image Factory schematic shared by all clusters.
+# Bare `siderolabs/<name>` entries only — the factory pins extension versions
+# to the Talos release (see boot-assets.mdx bare-metal example).
+# Upload: curl -X POST --data-binary @schematics.yml
+#   https://factory.talos.dev/schematics  -> {"id":"..."}
+# Vanilla (no extensions) schematic ID for v1.14 installers:
+#   factory.talos.dev/metal-installer/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba
+# Kernel args live here (customization.extraKernelArgs); machine.kernel.args
+# does not exist in v1alpha1 (zero hits in config.schema.json).
+customization: {}

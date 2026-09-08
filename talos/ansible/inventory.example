@@ -1,0 +1,14 @@
+# Example inventory — copy to inventory/bdo1.yml (gitignored) and adjust.
+# Covers prd single-node bdo-r01-cp-001 and the dev node.
+all:
+  children:
+    talos_prd:
+      hosts:
+        bdo-r01-cp-001:
+          ansible_host: 192.168.1.101
+          talos_role: controlplane
+    talos_dev:
+      hosts:
+        bdo-d01-cp-001:
+          ansible_host: 192.168.1.201
+          talos_role: controlplane

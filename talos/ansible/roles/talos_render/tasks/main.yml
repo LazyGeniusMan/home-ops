@@ -1,0 +1,71 @@
+---
+# Day-0 render: inject secrets, generate machine configs, validate.
+- name: Ensure build directory exists
+  ansible.builtin.file:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}"
+    state: directory
+    mode: "0700"
+
+- name: Check pass-cli PAT is present in the environment
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', proton_pass_pat_env) | length > 0
+    fail_msg: "Set {{ proton_pass_pat_env }} (pass-cli login) before rendering secrets."
+    success_msg: "Proton Pass credential available via {{ proton_pass_pat_env }}."
+
+- name: Render cluster patches.yml via pass-cli inject
+  ansible.builtin.command:
+    cmd: >-
+      pass-cli inject
+      --in-file {{ playbook_dir }}/../../clusters/{{ talos_cluster }}/patches.yml
+      --out-file {{ talos_build_dir }}/{{ talos_cluster }}/patches.yml
+      --force --file-mode 0600
+    creates: "{{ talos_build_dir }}/{{ talos_cluster }}/patches.yml"
+  no_log: true
+  changed_when: true
+
+- name: Render node patches via pass-cli inject
+  ansible.builtin.command:
+    cmd: >-
+      pass-cli inject
+      --in-file {{ playbook_dir }}/../../clusters/{{ talos_cluster }}/nodes/{{ item.name }}/patches.yml
+      --out-file {{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml
+      --force --file-mode 0600
+    creates: "{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+  changed_when: true
+
+- name: Generate Talos secrets bundle when missing
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_render_talosctl }} gen secrets
+      -o {{ talos_build_dir }}/{{ talos_cluster }}/secrets.bundle.yml
+    creates: "{{ talos_build_dir }}/{{ talos_cluster }}/secrets.bundle.yml"
+  no_log: true
+  changed_when: true
+
+- name: Generate machine configs from rendered patches
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_render_talosctl }} gen config {{ talos_cluster }}
+      {{ talos_clusters[talos_cluster].endpoint }}
+      --with-secrets {{ talos_build_dir }}/{{ talos_cluster }}/secrets.bundle.yml
+      --config-patch @{{ playbook_dir }}/../../clusters/_base/patches.yml
+      --config-patch @{{ talos_build_dir }}/{{ talos_cluster }}/patches.yml
+      {% for node in talos_clusters[talos_cluster].nodes %}
+      --config-patch @{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ node.name }}-patches.yml
+      {% endfor %}
+      --talos-version {{ talos_render_version }}
+      -o {{ talos_build_dir }}/{{ talos_cluster }}
+  changed_when: true
+
+- name: Validate generated controlplane config
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_render_talosctl }} validate
+      -c {{ talos_build_dir }}/{{ talos_cluster }}/controlplane.yaml
+      -m metal
+  changed_when: false

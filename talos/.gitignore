@@ -1,0 +1,6 @@
+ansible/build/
+clusters/*/secrets.bundle.yml
+clusters/*/talosconfig
+clusters/*/kubeconfig
+clusters/*/controlplane.yaml
+clusters/*/worker.yaml

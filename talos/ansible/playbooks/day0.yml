@@ -1,0 +1,12 @@
+---
+# Day-0 single-node: render secrets + generate + validate machine configs.
+# Usage: ansible-playbook playbooks/day0.yml -i inventory/bdo1.yml
+#   -e talos_cluster=acme-dev-bdo1-talos-apps-01 [--check --diff]
+- name: Day-0 render and generate Talos configs
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    talos_cluster: acme-dev-bdo1-talos-apps-01
+  roles:
+    - role: talos_render

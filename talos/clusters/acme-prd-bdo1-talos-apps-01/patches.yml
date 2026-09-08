@@ -1,0 +1,50 @@
+# Cluster patch: acme-prd-bdo1-talos-apps-01 (Talos v1.14, single control-plane).
+# Applied after ../_base/patches.yml:
+#   talosctl gen config acme-prd-bdo1-talos-apps-01 https://192.168.1.198:6443 \
+#     --config-patch @../_base/patches.yml \
+#     --config-patch @patches.yml \
+#     --config-patch @nodes/<node>/patches.yml
+#
+# Secrets: registry credentials are double-brace Proton Pass references.
+# Render before generating configs (gitignored build/ holds the result):
+#   export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_...
+#   pass-cli inject --in-file patches.yml --out-file ../../ansible/build/acme-prd-bdo1-talos-apps-01/patches.yml
+# Field evidence: ClusterConfig{controlPlane.endpoint, proxy.disabled,
+# allowSchedulingOnControlPlanes}, Layer2VIPConfig{name, link},
+# RegistryAuthConfig{name, username, password}, ResolverConfig{nameservers[]:{address}}.
+---
+cluster:
+  controlPlane:
+    endpoint: https://192.168.1.198:6443
+  proxy:
+    disabled: true # Cilium replaces kube-proxy (same as _base/kube-proxy-override.yml)
+  allowSchedulingOnControlPlanes: true # single-node: permit workloads on the control-plane
+---
+apiVersion: v1alpha1
+kind: Layer2VIPConfig
+name: 192.168.1.198 # K8s API VIP, advertised from the control-plane node
+link: enp45s0 # RTL8125 2.5GbE (PCI 0000:2d:00.0 -> enp45s0); day-0 verifies via `talosctl get links`
+---
+apiVersion: v1alpha1
+kind: RegistryAuthConfig
+name: docker.io
+username: "{{ pass://acme-prd-bdo1-talos-apps-01/talos/docker-username }}"
+password: "{{ pass://acme-prd-bdo1-talos-apps-01/talos/docker-password }}"
+---
+apiVersion: v1alpha1
+kind: RegistryAuthConfig
+name: dhi.io
+username: "{{ pass://acme-prd-bdo1-talos-apps-01/talos/docker-username }}"
+password: "{{ pass://acme-prd-bdo1-talos-apps-01/talos/docker-password }}"
+---
+apiVersion: v1alpha1
+kind: RegistryAuthConfig
+name: ghcr.io
+username: "{{ pass://acme-prd-bdo1-talos-apps-01/talos/ghcr-username }}"
+password: "{{ pass://acme-prd-bdo1-talos-apps-01/talos/ghcr-password }}"
+---
+apiVersion: v1alpha1
+kind: ResolverConfig
+nameservers:
+  - address: 1.1.1.1
+  - address: 8.8.8.8

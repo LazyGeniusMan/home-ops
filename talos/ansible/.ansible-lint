@@ -1,0 +1,6 @@
+---
+profile: moderate
+exclude_paths:
+  - build/
+warn_list:
+  - experimental

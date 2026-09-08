@@ -1,0 +1,45 @@
+# Node patch: bdo-d01-cp-001 — acme-dev-bdo1-talos-apps-01 (Talos v1.14).
+# QEMU/KVM VM: virtio NIC (eth0), /dev/sda 32 GB install target,
+# /dev/sdb 64 GB data disk. Install selector pins the OS disk by size so the
+# data disk is never picked; app-data XFS volume provisions on the 64 GB disk.
+# Day-0 verifies link name + sizes with `talosctl get links/disks --insecure`.
+---
+apiVersion: v1alpha1
+kind: HostnameConfig
+hostname: bdo-d01-cp-001
+---
+apiVersion: v1alpha1
+kind: LinkConfig
+name: eth0
+addresses:
+  - address: 192.168.1.201/24
+routes:
+  - gateway: 192.168.1.1
+---
+apiVersion: v1alpha1
+kind: UnattendedInstallConfig
+installer:
+  image: factory.talos.dev/metal-installer/PLACEHOLDER_SCHEMATIC_ID:v1.14.0 # set from schematic upload
+provisioning:
+  diskSelector:
+    match: disk.dev_path == "/dev/sda" && disk.size == 32u * GiB # 32 GB OS disk
+  wipe: true
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: app-data
+provisioning:
+  diskSelector:
+    match: disk.dev_path == "/dev/sdb" && disk.size == 64u * GiB # 64 GB data disk
+filesystem:
+  type: xfs
+---
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+nodeIP:
+  validSubnets:
+    - 192.168.1.0/24
+labels:
+  topology.kubernetes.io/zone: bdo1
+  node-role.acme.io/tier: apps
+  node-role.acme.io/env: dev
