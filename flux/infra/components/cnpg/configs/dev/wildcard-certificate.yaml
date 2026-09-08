@@ -1,0 +1,42 @@
+# In-namespace dev wildcard Certificate for PostgreSQL TLS (§14). Lives in
+# the same namespace as the Cluster so the operator-managed TLS secret stays
+# namespace-local (same pattern as the gateway-api namespace-local TLS
+# reference). Mints *.postgres.homelab-dev.yansyah.my.id via
+# ClusterIssuer/letsencrypt. The token ExternalSecret mirrors the dev
+# cluster-issuer (same dev Proton Pass remoteRef) so the DNS-01 solver
+# credential exists in this namespace too.
+# DNS: no DNSEndpoint CR — like the base, the nested *.postgres wildcard
+# rides on the existing zone wildcard A automation; the per-host A records
+# Postgres clients actually dial must resolve via that same automation;
+# verify with dig before cutting traffic over.
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: cloudflare-api-token
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: cloudflare-api-token
+    template:
+      data:
+        api-token: "{{ .apiToken }}"
+  data:
+    - secretKey: apiToken
+      remoteRef:
+        key: pass://acme-dev-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-postgres
+spec:
+  secretName: wildcard-postgres-tls
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.postgres.homelab-dev.yansyah.my.id"

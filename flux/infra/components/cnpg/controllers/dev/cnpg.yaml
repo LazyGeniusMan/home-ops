@@ -1,0 +1,47 @@
+# CNPG operator 1.30.0 (§14 dev): self-contained copy of
+# controllers/base/cnpg.yaml so the dev overlay has no cross-directory file
+# refs. Chart: oci://ghcr.io/cloudnative-pg/charts/cloudnative-pg (chart 0.29.0
+# embeds operator 1.30.0 — chart version and operator version differ;
+# OCI on GHCR is the upstream source of truth, see README).
+# Telemetry: no phone-home/usage-reporting knobs in the chart values.
+# Monitoring: the operator metrics endpoint stays on; podMonitorEnabled is
+# false until monitoring.coreos.com CRDs land (same deviation as §9).
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: cnpg-chart
+spec:
+  interval: 1h
+  url: oci://ghcr.io/cloudnative-pg/charts/cloudnative-pg
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: "0.29.0" # {"$imagepolicy": "infra:cnpg:tag"}
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cnpg
+spec:
+  interval: 1h
+  releaseName: cnpg
+  serviceAccountName: flux
+  chartRef:
+    kind: OCIRepository
+    name: cnpg-chart
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  # https://github.com/cloudnative-pg/charts/tree/main/charts/cloudnative-pg
+  values:
+    crds:
+      create: true
+    monitoring:
+      podMonitorEnabled: false

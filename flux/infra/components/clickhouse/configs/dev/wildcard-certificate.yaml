@@ -1,0 +1,40 @@
+# In-namespace dev wildcard Certificate for the clickhouse subdomain (§14).
+# Lives in the clickhouse namespace (own-namespace, via the Flux
+# Kustomization targetNamespace — no explicit namespace, like the gateway-api
+# precedent) so Ready status is observable next to the CHI; HTTPRoutes/Gateway
+# listeners in this namespace reference `wildcard-clickhouse-tls` directly.
+# Mints *.clickhouse.homelab-dev.yansyah.my.id via
+# ClusterIssuer/letsencrypt. The token ExternalSecret mirrors the dev
+# cluster-issuer (same dev Proton Pass remoteRef) so the DNS-01 solver
+# credential exists in this namespace too.
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: cloudflare-api-token
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: cloudflare-api-token
+    template:
+      data:
+        api-token: "{{ .apiToken }}"
+  data:
+    - secretKey: apiToken
+      remoteRef:
+        key: pass://acme-dev-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-clickhouse
+spec:
+  secretName: wildcard-clickhouse-tls
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.clickhouse.homelab-dev.yansyah.my.id"

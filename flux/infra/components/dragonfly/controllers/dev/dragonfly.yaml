@@ -1,0 +1,53 @@
+# Dragonfly operator 1.6.1 (§14 dev): self-contained copy of
+# controllers/base/dragonfly.yaml so the dev overlay has no cross-directory
+# file refs. Chart:
+# oci://ghcr.io/dragonflydb/dragonfly-operator/helm/dragonfly-operator
+# (verified tag v1.6.1 == app v1.6.1; OCI on GHCR is the upstream source of
+# truth — the operator CI pushes the chart there on every release, see README).
+# Telemetry: no phone-home/usage-reporting knobs in the chart values.
+# Monitoring: ServiceMonitor + Grafana dashboard stay disabled until
+# monitoring.coreos.com CRDs land (same deviation as §9); flip notes in README.
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: dragonfly-chart
+spec:
+  interval: 1h
+  url: oci://ghcr.io/dragonflydb/dragonfly-operator/helm/dragonfly-operator
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: "v1.6.1" # {"$imagepolicy": "infra:dragonfly:tag"}
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: dragonfly
+spec:
+  interval: 1h
+  releaseName: dragonfly
+  serviceAccountName: flux
+  chartRef:
+    kind: OCIRepository
+    name: dragonfly-chart
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+    crds: CreateReplace
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+    crds: CreateReplace
+  # https://github.com/dragonflydb/dragonfly-operator/tree/v1.6.1/charts/dragonfly-operator
+  values:
+    crds:
+      install: true
+      keep: true
+    serviceMonitor:
+      enabled: false
+    grafanaDashboard:
+      enabled: false
