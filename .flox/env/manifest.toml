@@ -36,6 +36,7 @@ python3.version = "3.14.7"
 opentofu.pkg-path = "opentofu"
 opentofu.version = "1.12.6"
 golangci-lint.pkg-path = "golangci-lint"
+ansible-lint.pkg-path = "ansible-lint"
 ### TEMPORARY
 # talosctl.pkg-path = "talosctl"
 # talosctl.version = "1.13.9"

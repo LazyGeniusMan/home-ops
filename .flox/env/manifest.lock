@@ -7,6 +7,9 @@
         "pkg-path": "ansible",
         "version": "2.21.3"
       },
+      "ansible-lint": {
+        "pkg-path": "ansible-lint"
+      },
       "cilium-cli": {
         "pkg-path": "cilium-cli",
         "version": "0.19.7"
@@ -169,6 +172,96 @@
       "outputs": {
         "dist": "/nix/store/c11dlhkm01rvg8xwdfi6y08c6la42gk0-python3.14-ansible-core-2.21.3-dist",
         "out": "/nix/store/khvfvdk8r3qqp4smfx6k9nj1igf302ax-python3.14-ansible-core-2.21.3"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "ansible-lint",
+      "broken": false,
+      "derivation": "/nix/store/pgnqx51fw2k6aks2kdqmzlvflxsb1aqd-ansible-lint-25.8.2.drv",
+      "description": "Best practices checker for Ansible",
+      "install_id": "ansible-lint",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "name": "ansible-lint-25.8.2",
+      "pname": "ansible-lint",
+      "rev": "0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "rev_count": 1066703,
+      "rev_date": "2026-09-03T03:08:44Z",
+      "scrape_date": "2026-09-05T04:57:23.402318Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "25.8.2",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dist": "/nix/store/069ijfga307qjvmcamndwkj7j6k2wffs-ansible-lint-25.8.2-dist",
+        "out": "/nix/store/bgl9wyzw3if5fav0b2alcskqk7757jna-ansible-lint-25.8.2"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "ansible-lint",
+      "broken": false,
+      "derivation": "/nix/store/x488nz58lg3ikp63dkyypspd07w2s4si-ansible-lint-25.8.2.drv",
+      "description": "Best practices checker for Ansible",
+      "install_id": "ansible-lint",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "name": "ansible-lint-25.8.2",
+      "pname": "ansible-lint",
+      "rev": "0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "rev_count": 1066703,
+      "rev_date": "2026-09-03T03:08:44Z",
+      "scrape_date": "2026-09-05T05:26:44.870505Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "25.8.2",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dist": "/nix/store/cda0424qfsxa2yjkd42g7ww42h5arq6l-ansible-lint-25.8.2-dist",
+        "out": "/nix/store/adl0vp00msv6x73jmfz2f7qs4f1wi4ww-ansible-lint-25.8.2"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "ansible-lint",
+      "broken": false,
+      "derivation": "/nix/store/d57xyjjybvlpcl6wf0xhz0gh95l1wvpi-ansible-lint-25.8.2.drv",
+      "description": "Best practices checker for Ansible",
+      "install_id": "ansible-lint",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "name": "ansible-lint-25.8.2",
+      "pname": "ansible-lint",
+      "rev": "0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "rev_count": 1066703,
+      "rev_date": "2026-09-03T03:08:44Z",
+      "scrape_date": "2026-09-05T06:03:31.710595Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "25.8.2",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dist": "/nix/store/c44pfck2ckiak1r2z0fwn4p45wsg47gc-ansible-lint-25.8.2-dist",
+        "out": "/nix/store/7j7xcjjpmcwpmdm2wp3k9d5hzd6r1s20-ansible-lint-25.8.2"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
