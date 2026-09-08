@@ -1,0 +1,23 @@
+# Update policy for the cilium component (§8): tracks the OCI Helm chart, and the
+# ImageUpdateAutomation (update cluster) opens PRs via markers in
+# components/cilium (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: cilium
+spec:
+  image: "quay.io/cilium/charts/cilium"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: cilium
+spec:
+  imageRepositoryRef:
+    name: cilium
+  policy:
+    semver:
+      range: ">=1.20.1"
