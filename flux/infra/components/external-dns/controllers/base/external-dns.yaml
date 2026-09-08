@@ -1,4 +1,4 @@
-# ExternalDNS (§9.4): two synced providers over home-ops.yansyah.my.id.
+# ExternalDNS (§9.4): two synced providers over __BASE_DOMAIN__.
 # Chart mirror: oci://ghcr.io/controlplaneio-fluxcd/charts/external-dns
 # (verified tag 1.21.1); app image pinned to v0.22.0 per scope (chart default
 # is v0.21.0 — both tags verified present on registry.k8s.io).
@@ -8,8 +8,8 @@
 # TXT ownership: distinct txtOwnerId/txtPrefix per instance so the two
 # registries never clobber each other. policy sync on both.
 # Sources include Gateway API routes so §8 Gateways/HTTPRoutes sync without
-# any file overlap; the *.home-ops.yansyah.my.id A record materializes from
-# the §8 Gateway LB target (192.168.1.199).
+# any file overlap; the wildcard A record materializes from
+# the section 8 Gateway LB target (__LB_VIP__).
 # Telemetry: external-dns phones home nothing. Monitoring: ServiceMonitor
 # stays disabled until monitoring.coreos.com CRDs land (see README).
 ---
@@ -60,10 +60,10 @@ spec:
       - crd
     policy: sync
     registry: txt
-    txtOwnerId: home-ops-prd-cloudflare
+    txtOwnerId: __TXT_OWNER_CF__
     txtPrefix: extdns-cf-
     domainFilters:
-      - home-ops.yansyah.my.id
+      - __BASE_DOMAIN__
     env:
       - name: CF_API_TOKEN
         valueFrom:
@@ -105,7 +105,7 @@ spec:
           - name: NETBIRD_PAT_FILE
             value: /secrets/pat
           - name: DOMAIN_FILTER
-            value: home-ops.yansyah.my.id
+            value: __BASE_DOMAIN__
         extraVolumeMounts:
           - name: pat
             mountPath: /secrets
@@ -128,9 +128,9 @@ spec:
       - crd
     policy: sync
     registry: txt
-    txtOwnerId: home-ops-prd-netbird
+    txtOwnerId: __TXT_OWNER_NB__
     txtPrefix: extdns-nb-
     domainFilters:
-      - home-ops.yansyah.my.id
+      - __BASE_DOMAIN__
     serviceMonitor:
       enabled: false

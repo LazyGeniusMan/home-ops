@@ -1,4 +1,29 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - external-dns.yaml
+  - ../base
+patches:
+  # Dev DNS scope: homelab-dev.yansyah.my.id (home-ops-dev-cloudflare / home-ops-dev-netbird).
+  - patch: |
+      - op: replace
+        path: /spec/values/txtOwnerId
+        value: home-ops-dev-cloudflare
+      - op: replace
+        path: /spec/values/domainFilters/0
+        value: homelab-dev.yansyah.my.id
+    target:
+      kind: HelmRelease
+      name: external-dns-cloudflare
+  - patch: |
+      - op: replace
+        path: /spec/values/txtOwnerId
+        value: home-ops-dev-netbird
+      - op: replace
+        path: /spec/values/provider/webhook/env/1/value
+        value: homelab-dev.yansyah.my.id
+      - op: replace
+        path: /spec/values/domainFilters/0
+        value: homelab-dev.yansyah.my.id
+    target:
+      kind: HelmRelease
+      name: external-dns-netbird
