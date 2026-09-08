@@ -33,10 +33,10 @@ spec:
   data:
     - secretKey: accessKeyId
       remoteRef:
-        key: pass://acme-prd-bdo1-talos-apps-01/dragonfly/s3-access-key-id
+        key: __PROTON_PASS_BASE__/dragonfly/s3-access-key-id
     - secretKey: secretAccessKey
       remoteRef:
-        key: pass://acme-prd-bdo1-talos-apps-01/dragonfly/s3-secret-access-key
+        key: __PROTON_PASS_BASE__/dragonfly/s3-secret-access-key
 ---
 apiVersion: dragonflydb.io/v1alpha1
 kind: Dragonfly
@@ -74,7 +74,7 @@ spec:
       value: us-east-1
 
   args:
-    - --s3_endpoint=s3.seaweedfs.home-ops.yansyah.my.id
+    - --s3_endpoint=__S3_HOST__
     - --dbfilename=dump-{timestamp}
 
   affinity:

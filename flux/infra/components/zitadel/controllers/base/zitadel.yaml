@@ -1,5 +1,5 @@
 # Zitadel v4.17.1 identity provider (§11.1): OIDC issuer for
-# zitadel.home-ops.yansyah.my.id plus the wave-3c app client contract (see README).
+# __ZITADEL_HOST__ plus the wave-3c app client contract (see README).
 # Chart: oci://ghcr.io/zitadel/zitadel-charts/zitadel, tag 10.0.4
 # (digest sha256:9afa657fad65079857339f7d7fd296c73e577f6c8ec4e4a103093be35964b50c,
 # verified by pull; OCI on GHCR is the upstream source of truth).
@@ -73,7 +73,7 @@ spec:
       # must exist before install — see ordering note in the header.
       masterkeySecretName: zitadel-masterkey
       configmapConfig:
-        ExternalDomain: zitadel.home-ops.yansyah.my.id
+        ExternalDomain: __ZITADEL_HOST__
         ExternalPort: 443
         ExternalSecure: true
         TLS:

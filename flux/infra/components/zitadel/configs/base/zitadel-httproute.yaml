@@ -2,7 +2,7 @@
 # accept routes from all namespaces — cross-namespace parentRef, no
 # targetNamespace override needed). Chart-native gateway templating stays OFF
 # (we own the §8.1 pattern explicitly rather than through chart values).
-# - API route (hostname zitadel.home-ops.yansyah.my.id, path /) → the
+# - API route (hostname __SERVICE_HOST__, path /) → the
 #   zitadel Service (port 8080, h2c — see the console HTTP/2 note in README).
 #   The backend serves both the console UI and the OIDC endpoints, so a single
 #   catch-all rule covers issuer + client redirects.
@@ -19,7 +19,7 @@ spec:
       namespace: gateway-api
       sectionName: https
   hostnames:
-    - zitadel.home-ops.yansyah.my.id
+    - __SERVICE_HOST__
   rules:
     - matches:
         - path:
@@ -39,7 +39,7 @@ spec:
       namespace: gateway-api
       sectionName: https
   hostnames:
-    - zitadel.home-ops.yansyah.my.id
+    - __SERVICE_HOST__
   rules:
     - matches:
         - path:

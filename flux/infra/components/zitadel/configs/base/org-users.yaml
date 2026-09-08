@@ -32,16 +32,16 @@ kind: ConfigMap
 metadata:
   name: zitadel-identity-intent
   annotations:
-    zitadel.home-ops.yansyah.my.id/managed-by: terraform-runbook
+    __ZITADEL_HOST__/managed-by: terraform-runbook
 data:
   org: home-ops
   users: |
-    - email: admin@home-ops.yansyah.my.id
+    - email: admin@__BASE_DOMAIN__
       firstName: Home-Ops
       lastName: Admin
       groups: [admin]
       roles: [admin]
-    - email: user@home-ops.yansyah.my.id
+    - email: user@__BASE_DOMAIN__
       firstName: Home-Ops
       lastName: User
       groups: [users]
@@ -50,10 +50,10 @@ data:
     - admin
     - users
   clients: |
-    - clickstack: https://clickstack.home-ops.yansyah.my.id/*
-    - hubble: https://hubble.home-ops.yansyah.my.id/*
-    - flux-operator-ui: https://flux-operator.home-ops.yansyah.my.id/*
-    - headlamp: https://headlamp.home-ops.yansyah.my.id/*
-    - coder: https://coder.home-ops.yansyah.my.id/*
+    - clickstack: https://clickstack.__BASE_DOMAIN__/*
+    - hubble: https://hubble.__BASE_DOMAIN__/*
+    - flux-operator-ui: https://flux-operator.__BASE_DOMAIN__/*
+    - headlamp: https://headlamp.__BASE_DOMAIN__/*
+    - coder: https://coder.__BASE_DOMAIN__/*
     - oauth2-proxy-shared: https://*/oauth2/callback
   scopes: openid profile email groups

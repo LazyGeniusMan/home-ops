@@ -2,3 +2,155 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../base
+patches:
+  # Staging (prd values) DB/cache S3 + vault refs.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/cnpg/s3-access-key-id
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/cnpg/s3-secret-access-key
+    target:
+      kind: ExternalSecret
+      name: cnpg-s3-credentials
+  - patch: |
+      - op: replace
+        path: /spec/backup/barmanObjectStore/endpointURL
+        value: https://s3.seaweedfs.home-ops.yansyah.my.id
+    target:
+      kind: Cluster
+      name: zitadel-db
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/dragonfly/s3-access-key-id
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/dragonfly/s3-secret-access-key
+    target:
+      kind: ExternalSecret
+      name: dragonfly-s3-credentials
+  - patch: |
+      - op: replace
+        path: /spec/args/0
+        value: --s3_endpoint=s3.seaweedfs.home-ops.yansyah.my.id
+    target:
+      kind: Dragonfly
+      name: zitadel-cache
+  # Staging (prd values) identity secrets vault refs.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/zitadel/masterkey
+    target:
+      kind: ExternalSecret
+      name: zitadel-masterkey
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/zitadel/db-dsn
+    target:
+      kind: ExternalSecret
+      name: zitadel-db-credentials
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/zitadel/smtp-username
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/zitadel/smtp-password
+    target:
+      kind: ExternalSecret
+      name: zitadel-smtp-credentials
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/zitadel/db-password
+    target:
+      kind: ExternalSecret
+      name: zitadel-db-app-secret
+  # Staging (prd values) token vault + cert rename + wildcard DNS.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+    target:
+      kind: ExternalSecret
+      name: cloudflare-api-token
+  - patch: |
+      - op: replace
+        path: /metadata/name
+        value: wildcard-home-ops
+    target:
+      kind: Certificate
+      name: __WILDCARD_CERT_NAME__
+  - patch: |
+      - op: replace
+        path: /spec/secretName
+        value: wildcard-home-ops-tls
+    target:
+      kind: Certificate
+      name: wildcard-home-ops
+  - patch: |
+      - op: replace
+        path: /spec/dnsNames/0
+        value: "*.home-ops.yansyah.my.id"
+    target:
+      kind: Certificate
+      name: wildcard-home-ops
+  # Staging (prd values) route hostnames (zitadel.home-ops.yansyah.my.id).
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: zitadel.home-ops.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: zitadel
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: zitadel.home-ops.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: zitadel-login
+  # Staging (prd values) identity intent: annotation key, users, clients.
+  - patch: |
+      - op: remove
+        path: /metadata/annotations/__ZITADEL_HOST__~1managed-by
+      - op: add
+        path: /metadata/annotations/zitadel.home-ops.yansyah.my.id~1managed-by
+        value: terraform-runbook
+    target:
+      kind: ConfigMap
+      name: zitadel-identity-intent
+  - patch: |
+      - op: replace
+        path: /data/users
+        value: |
+          - email: admin@home-ops.yansyah.my.id
+            firstName: Home-Ops
+            lastName: Admin
+            groups: [admin]
+            roles: [admin]
+          - email: user@home-ops.yansyah.my.id
+            firstName: Home-Ops
+            lastName: User
+            groups: [users]
+            roles: [user]
+    target:
+      kind: ConfigMap
+      name: zitadel-identity-intent
+  - patch: |
+      - op: replace
+        path: /data/clients
+        value: |
+          - clickstack: https://clickstack.home-ops.yansyah.my.id/*
+          - hubble: https://hubble.home-ops.yansyah.my.id/*
+          - flux-operator-ui: https://flux-operator.home-ops.yansyah.my.id/*
+          - headlamp: https://headlamp.home-ops.yansyah.my.id/*
+          - coder: https://coder.home-ops.yansyah.my.id/*
+          - oauth2-proxy-shared: https://*/oauth2/callback
+    target:
+      kind: ConfigMap
+      name: zitadel-identity-intent

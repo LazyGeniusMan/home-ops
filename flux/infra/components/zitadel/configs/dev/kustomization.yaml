@@ -1,9 +1,156 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - zitadel-secrets.yaml
-  - zitadel-db.yaml
-  - zitadel-cache.yaml
-  - wildcard-certificate.yaml
-  - zitadel-httproute.yaml
-  - org-users.yaml
+  - ../base
+patches:
+  # Dev DB/cache S3 + vault refs.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/cnpg/s3-access-key-id
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/cnpg/s3-secret-access-key
+    target:
+      kind: ExternalSecret
+      name: cnpg-s3-credentials
+  - patch: |
+      - op: replace
+        path: /spec/backup/barmanObjectStore/endpointURL
+        value: https://s3.seaweedfs.homelab-dev.yansyah.my.id
+    target:
+      kind: Cluster
+      name: zitadel-db
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/dragonfly/s3-access-key-id
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/dragonfly/s3-secret-access-key
+    target:
+      kind: ExternalSecret
+      name: dragonfly-s3-credentials
+  - patch: |
+      - op: replace
+        path: /spec/args/0
+        value: --s3_endpoint=s3.seaweedfs.homelab-dev.yansyah.my.id
+    target:
+      kind: Dragonfly
+      name: zitadel-cache
+  # Dev identity secrets vault refs.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/zitadel/masterkey
+    target:
+      kind: ExternalSecret
+      name: zitadel-masterkey
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/zitadel/db-dsn
+    target:
+      kind: ExternalSecret
+      name: zitadel-db-credentials
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/zitadel/smtp-username
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/zitadel/smtp-password
+    target:
+      kind: ExternalSecret
+      name: zitadel-smtp-credentials
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/zitadel/db-password
+    target:
+      kind: ExternalSecret
+      name: zitadel-db-app-secret
+  # Dev token vault + cert rename + wildcard DNS.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+    target:
+      kind: ExternalSecret
+      name: cloudflare-api-token
+  - patch: |
+      - op: replace
+        path: /metadata/name
+        value: wildcard-homelab-dev
+    target:
+      kind: Certificate
+      name: __WILDCARD_CERT_NAME__
+  - patch: |
+      - op: replace
+        path: /spec/secretName
+        value: wildcard-homelab-dev-tls
+    target:
+      kind: Certificate
+      name: wildcard-homelab-dev
+  - patch: |
+      - op: replace
+        path: /spec/dnsNames/0
+        value: "*.homelab-dev.yansyah.my.id"
+    target:
+      kind: Certificate
+      name: wildcard-homelab-dev
+  # Dev route hostnames (zitadel.homelab-dev.yansyah.my.id).
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: zitadel.homelab-dev.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: zitadel
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: zitadel.homelab-dev.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: zitadel-login
+  # Dev identity intent: annotation key, users, clients.
+  - patch: |
+      - op: remove
+        path: /metadata/annotations/__ZITADEL_HOST__~1managed-by
+      - op: add
+        path: /metadata/annotations/zitadel.homelab-dev.yansyah.my.id~1managed-by
+        value: terraform-runbook
+    target:
+      kind: ConfigMap
+      name: zitadel-identity-intent
+  - patch: |
+      - op: replace
+        path: /data/users
+        value: |
+          - email: admin@homelab-dev.yansyah.my.id
+            firstName: Home-Ops
+            lastName: Admin
+            groups: [admin]
+            roles: [admin]
+          - email: user@homelab-dev.yansyah.my.id
+            firstName: Home-Ops
+            lastName: User
+            groups: [users]
+            roles: [user]
+    target:
+      kind: ConfigMap
+      name: zitadel-identity-intent
+  - patch: |
+      - op: replace
+        path: /data/clients
+        value: |
+          - clickstack: https://clickstack.homelab-dev.yansyah.my.id/*
+          - hubble: https://hubble.homelab-dev.yansyah.my.id/*
+          - flux-operator-ui: https://flux-operator.homelab-dev.yansyah.my.id/*
+          - headlamp: https://headlamp.homelab-dev.yansyah.my.id/*
+          - coder: https://coder.homelab-dev.yansyah.my.id/*
+          - oauth2-proxy-shared: https://*/oauth2/callback
+    target:
+      kind: ConfigMap
+      name: zitadel-identity-intent

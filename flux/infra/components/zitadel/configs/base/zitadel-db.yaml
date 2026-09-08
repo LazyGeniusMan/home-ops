@@ -33,10 +33,10 @@ spec:
   data:
     - secretKey: accessKeyId
       remoteRef:
-        key: pass://acme-prd-bdo1-talos-apps-01/cnpg/s3-access-key-id
+        key: __PROTON_PASS_BASE__/cnpg/s3-access-key-id
     - secretKey: secretAccessKey
       remoteRef:
-        key: pass://acme-prd-bdo1-talos-apps-01/cnpg/s3-secret-access-key
+        key: __PROTON_PASS_BASE__/cnpg/s3-secret-access-key
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
@@ -77,7 +77,7 @@ spec:
   backup:
     barmanObjectStore:
       destinationPath: s3://cnpg-backups/zitadel/
-      endpointURL: https://s3.seaweedfs.home-ops.yansyah.my.id
+      endpointURL: __S3_ENDPOINT_URL__
       s3Credentials:
         accessKeyId:
           name: cnpg-s3-credentials
