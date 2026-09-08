@@ -3,7 +3,8 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Production syncs nightly for real: 03:00, live flags (no --dry-run).
+  # Production syncs nightly for real: 03:00, live flags (no --dry-run),
+  # against the prd SeaweedFS S3 endpoint.
   - patch: |
       apiVersion: batch/v1
       kind: CronJob
@@ -20,3 +21,5 @@ patches:
                     env:
                       - name: SYNC_FLAGS
                         value: "--verbose --transfers=4 --checkers=8"
+                      - name: RCLONE_CONFIG_SW_ENDPOINT
+                        value: "https://s3.seaweedfs.home-ops.yansyah.my.id"

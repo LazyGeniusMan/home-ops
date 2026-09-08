@@ -46,13 +46,13 @@ spec:
                   value: "--dry-run --verbose"
                 - name: RETENTION_DAYS
                   value: "30"
-                # SeaweedFS S3 remote (the §12.1 contract endpoint).
+                # SeaweedFS S3 remote (the section 12.1 contract endpoint, __S3_ENDPOINT_URL__).
                 - name: RCLONE_CONFIG_SW_TYPE
                   value: "s3"
                 - name: RCLONE_CONFIG_SW_PROVIDER
                   value: "Other"
                 - name: RCLONE_CONFIG_SW_ENDPOINT
-                  value: "https://s3.seaweedfs.home-ops.yansyah.my.id"
+                  value: "__S3_ENDPOINT_URL__"
                 - name: RCLONE_CONFIG_SW_FORCE_PATH_STYLE
                   value: "true"
                 - name: RCLONE_CONFIG_SW_REGION
