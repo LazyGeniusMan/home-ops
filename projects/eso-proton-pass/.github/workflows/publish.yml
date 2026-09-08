@@ -1,0 +1,61 @@
+# Canonical publish workflow for eso-proton-pass.
+# Builds and pushes ghcr.io/lazygeniusman/home-ops/infra/eso-proton-pass.
+# NOTE: GitHub only runs workflows from the repo-root .github/workflows/.
+# Until the planned per-project repo split, the root wiring file
+# .github/workflows/eso-proton-pass.yml mirrors this job and is the
+# workflow that actually executes. Keep the two in sync.
+name: eso-proton-pass-publish
+
+on:
+  push:
+    paths:
+      - 'projects/eso-proton-pass/**'
+    tags:
+      - 'eso-proton-pass-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: eso-proton-pass-publish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ghcr.io/lazygeniusman/home-ops/infra/eso-proton-pass
+          flavor: |
+            latest=false
+          tags: |
+            type=raw,value=dev,enable=${{ github.ref_type == 'branch' }}
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
+            type=match,pattern=eso-proton-pass-v(.*),group=1,enable=${{ github.ref_type == 'tag' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: projects/eso-proton-pass
+          file: projects/eso-proton-pass/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
