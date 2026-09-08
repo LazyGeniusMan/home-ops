@@ -1,0 +1,29 @@
+# Update policy for the flux-operator-ui component (§11.4): tracks the Flux
+# Operator OCI Helm chart, and the ImageUpdateAutomation (update cluster) opens
+# PRs via markers in components/flux-operator-ui (see README). Follows the §7
+# update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+# Tracks the OPERATOR release line (same chart+version as bootstrap): on bumps
+# set the chart tag here AND operator_chart_version in
+# flux/fleet/terraform/versions.yaml together. Bootstrap/Managed sync are NEVER
+# touched by this policy — the UI is serverOnly with installCRDs: false, so it
+# cannot own CRDs or the fleet sync path.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: flux-operator-ui
+spec:
+  image: "ghcr.io/controlplaneio-fluxcd/charts/flux-operator"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: flux-operator-ui
+spec:
+  imageRepositoryRef:
+    name: flux-operator-ui
+  policy:
+    semver:
+      range: ">=0.59.0"
