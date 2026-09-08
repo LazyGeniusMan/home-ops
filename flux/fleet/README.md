@@ -28,7 +28,7 @@ flux/fleet/
 ## Artifacts
 
 `oci://ghcr.io/lazygeniusman/home-ops/fleet`, tagged `latest` (main commits)
-and `latest-stable` (`fleet-v*` release tags). The `home` cluster pins
+and `latest-stable` (`flux-fleet-v*` release tags). The `home` cluster pins
 `latest-stable` with cosign verification against the release workflow and tag;
 the `update` cluster tracks `latest` mirrored from main.
 

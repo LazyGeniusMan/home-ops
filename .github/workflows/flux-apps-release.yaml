@@ -1,17 +1,17 @@
-# Root wiring for apps area releases: tag apps-vX.Y.Z to publish every matrix
+# Root wiring for apps area releases: tag flux-cluster-vX.Y.Z to publish every matrix
 # component as oci://ghcr.io/<owner>/home-ops/apps/<component> with diff-tag
-# apps-vX.Y.Z and move latest-stable. The home cluster verifies this workflow
+# flux-cluster-vX.Y.Z and move latest-stable. The home cluster verifies this workflow
 # + tag via the cosign subject pinned in flux/fleet/tenants/apps.yaml
-# (refs/tags/apps-v\d+\.\d+\.\d+).
+# (refs/tags/flux-cluster-v\d+\.\d+\.\d+).
 # Mirrors the canonical job in flux/apps/.github/workflows/release.yaml.
 name: flux-apps-release
 
-# OCI: oci://ghcr.io/<owner>/home-ops/apps/<component>:<apps-vX.Y.Z> + latest-stable.
+# OCI: oci://ghcr.io/<owner>/home-ops/apps/<component>:<flux-cluster-vX.Y.Z> + latest-stable.
 
 on:
   push:
     tags:
-      - 'apps-v*'
+      - 'flux-cluster-v*'
 
 jobs:
   flux-push:

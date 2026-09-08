@@ -19,7 +19,7 @@ flux/infra/
 
 `oci://ghcr.io/lazygeniusman/home-ops/infra/<component>`, tagged `latest`
 (main commits touching the component dir) and `latest-stable` (area releases
-tagged `infra-v*`, which publish every matrix component). The `home` cluster consumes
+tagged `flux-infra-v*`, which publish every matrix component). The `home` cluster consumes
 `${ARTIFACT_TAG}` (`latest-stable`) with cosign verification against the
 release workflow subject.
 

@@ -1,5 +1,5 @@
-# Root wiring for fleet release delivery: tag fleet-vX.Y.Z to publish
-# oci://ghcr.io/<owner>/home-ops/fleet:fleet-vX.Y.Z and move latest-stable.
+# Root wiring for fleet release delivery: tag flux-fleet-vX.Y.Z to publish
+# oci://ghcr.io/<owner>/home-ops/fleet:flux-fleet-vX.Y.Z and move latest-stable.
 # The home cluster verifies this workflow + tag via the cosign subject pinned
 # in flux/fleet/clusters/home/flux-system/flux-instance.yaml.
 # Mirrors the canonical job in flux/fleet/.github/workflows/release.yaml
@@ -9,12 +9,12 @@
 # and keep the area-local release.yaml as the canonical definition.
 name: flux-fleet-release
 
-# OCI: oci://ghcr.io/<owner>/home-ops/fleet:<fleet-vX.Y.Z> + latest-stable.
+# OCI: oci://ghcr.io/<owner>/home-ops/fleet:<flux-fleet-vX.Y.Z> + latest-stable.
 
 on:
   push:
     tags:
-      - 'fleet-v*'
+      - 'flux-fleet-v*'
 
 jobs:
   flux-push:

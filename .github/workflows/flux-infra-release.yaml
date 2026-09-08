@@ -1,17 +1,17 @@
-# Root wiring for infra area releases: tag infra-vX.Y.Z to publish every
+# Root wiring for infra area releases: tag flux-infra-vX.Y.Z to publish every
 # matrix component as oci://ghcr.io/<owner>/home-ops/infra/<component> with
-# diff-tag infra-vX.Y.Z and move latest-stable. The home cluster verifies this
+# diff-tag flux-infra-vX.Y.Z and move latest-stable. The home cluster verifies this
 # workflow + tag via the cosign subject pinned in
-# flux/fleet/tenants/infra.yaml (refs/tags/infra-v\d+\.\d+\.\d+).
+# flux/fleet/tenants/infra.yaml (refs/tags/flux-infra-v\d+\.\d+\.\d+).
 # Mirrors the canonical job in flux/infra/.github/workflows/release.yaml.
 name: flux-infra-release
 
-# OCI: oci://ghcr.io/<owner>/home-ops/infra/<component>:<infra-vX.Y.Z> + latest-stable.
+# OCI: oci://ghcr.io/<owner>/home-ops/infra/<component>:<flux-infra-vX.Y.Z> + latest-stable.
 
 on:
   push:
     tags:
-      - 'infra-v*'
+      - 'flux-infra-v*'
 
 jobs:
   flux-push:

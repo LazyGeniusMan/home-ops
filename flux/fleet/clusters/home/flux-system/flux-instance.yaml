@@ -39,4 +39,4 @@ spec:
               provider: cosign
               matchOIDCIdentity:
               - issuer: ^https://token\.actions\.githubusercontent\.com$
-                subject: ^https://github\.com/LazyGeniusMan/home-ops/\.github/workflows/flux-fleet-release\.yaml@refs/tags/fleet-v\d+\.\d+\.\d+$
+                subject: ^https://github\.com/LazyGeniusMan/home-ops/\.github/workflows/flux-fleet-release\.yaml@refs/tags/flux-fleet-v\d+\.\d+\.\d+$
