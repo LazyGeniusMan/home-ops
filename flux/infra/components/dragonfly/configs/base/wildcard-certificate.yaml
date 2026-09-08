@@ -20,4 +20,4 @@ spec:
     name: letsencrypt
     kind: ClusterIssuer
   dnsNames:
-    - "*.dragonfly.home-ops.yansyah.my.id"
+    - "*.dragonfly.__BASE_DOMAIN__"

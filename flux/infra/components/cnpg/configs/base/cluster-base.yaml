@@ -50,7 +50,7 @@ spec:
   backup:
     barmanObjectStore:
       destinationPath: s3://cnpg-backups/postgres/
-      endpointURL: https://s3.seaweedfs.home-ops.yansyah.my.id
+      endpointURL: __S3_ENDPOINT_URL__
       s3Credentials:
         accessKeyId:
           name: cnpg-s3-credentials

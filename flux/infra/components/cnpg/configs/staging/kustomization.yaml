@@ -2,3 +2,29 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../base
+patches:
+  # Staging (prd values) S3 endpoint + vault refs + wildcard DNS.
+  - patch: |
+      - op: replace
+        path: /spec/backup/barmanObjectStore/endpointURL
+        value: https://s3.seaweedfs.home-ops.yansyah.my.id
+    target:
+      kind: Cluster
+      name: postgres-base
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/cnpg/s3-access-key-id
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/cnpg/s3-secret-access-key
+    target:
+      kind: ExternalSecret
+      name: cnpg-s3-credentials
+  - patch: |
+      - op: replace
+        path: /spec/dnsNames/0
+        value: "*.postgres.home-ops.yansyah.my.id"
+    target:
+      kind: Certificate
+      name: wildcard-postgres

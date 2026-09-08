@@ -19,4 +19,4 @@ spec:
     name: letsencrypt
     kind: ClusterIssuer
   dnsNames:
-    - "*.postgres.home-ops.yansyah.my.id"
+    - "*.postgres.__BASE_DOMAIN__"

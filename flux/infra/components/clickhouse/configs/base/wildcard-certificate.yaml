@@ -14,4 +14,4 @@ spec:
     name: letsencrypt
     kind: ClusterIssuer
   dnsNames:
-    - "*.clickhouse.home-ops.yansyah.my.id"
+    - "*.clickhouse.__BASE_DOMAIN__"

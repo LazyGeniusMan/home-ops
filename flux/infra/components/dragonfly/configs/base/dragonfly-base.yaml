@@ -61,7 +61,7 @@ spec:
       value: us-east-1
 
   args:
-    - --s3_endpoint=s3.seaweedfs.home-ops.yansyah.my.id
+    - --s3_endpoint=__S3_HOST__
     - --dbfilename=dump-{timestamp}
 
   affinity:
