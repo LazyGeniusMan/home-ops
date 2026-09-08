@@ -88,6 +88,11 @@ spec:
       environment: "${ENVIRONMENT}"
       artifactSubjectWorkflow: "flux-infra-release"
       artifactSubjectGitRef: "refs/tags/infra-v\\d+\\.\\d+\\.\\d+"
+    - tenant: "zitadel"
+      tag: "${ARTIFACT_TAG}"
+      environment: "${ENVIRONMENT}"
+      artifactSubjectWorkflow: "flux-infra-release"
+      artifactSubjectGitRef: "refs/tags/infra-v\\d+\\.\\d+\\.\\d+"
   resources:
     - apiVersion: v1
       kind: Namespace

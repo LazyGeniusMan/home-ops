@@ -33,6 +33,7 @@ jobs:
           - seaweedfs
           - multus
           - kubevirt
+          - zitadel
     runs-on: ubuntu-latest
     permissions:
       contents: read
