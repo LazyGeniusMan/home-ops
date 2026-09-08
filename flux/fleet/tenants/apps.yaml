@@ -1,6 +1,9 @@
 # Apps tenants: one entry per component directory under flux/apps/components.
+# `layout` is "split" for components with configs/ + controllers/ overlays
+# (controllers reconcile first via dependsOn) and "single" for single-track
+# components with only top-level env overlays (talos-vm, win11-vm).
 # To onboard a new application (§§8-14): add its directory as a new input
-# tenant here AND add it to the components matrix in
+# tenant here (with the matching layout) AND add it to the components matrix in
 # .github/workflows/flux-apps-push.yaml so its OCI artifact is published.
 apiVersion: fluxcd.controlplane.io/v1
 kind: ResourceSet
@@ -19,41 +22,49 @@ spec:
       readyExpr: status.observedGeneration >= 0
   inputs:
     - tenant: "rclone"
+      layout: "split"
       tag: "${ARTIFACT_TAG}"
       environment: "${ENVIRONMENT}"
       artifactSubjectWorkflow: "flux-apps-release"
       artifactSubjectGitRef: "refs/tags/flux-apps-v\\d+\\.\\d+\\.\\d+"
     - tenant: "win11-vm"
+      layout: "single"
       tag: "${ARTIFACT_TAG}"
       environment: "${ENVIRONMENT}"
       artifactSubjectWorkflow: "flux-apps-release"
       artifactSubjectGitRef: "refs/tags/flux-apps-v\\d+\\.\\d+\\.\\d+"
     - tenant: "talos-vm"
+      layout: "single"
       tag: "${ARTIFACT_TAG}"
       environment: "${ENVIRONMENT}"
       artifactSubjectWorkflow: "flux-apps-release"
       artifactSubjectGitRef: "refs/tags/flux-apps-v\\d+\\.\\d+\\.\\d+"
     - tenant: "clickstack"
+      layout: "split"
       tag: "${ARTIFACT_TAG}"
       environment: "${ENVIRONMENT}"
       artifactSubjectWorkflow: "flux-apps-release"
       artifactSubjectGitRef: "refs/tags/flux-apps-v\\d+\\.\\d+\\.\\d+"
     - tenant: "hubble-ui"
+      layout: "split"
       tag: "${ARTIFACT_TAG}"
       environment: "${ENVIRONMENT}"
       artifactSubjectWorkflow: "flux-apps-release"
       artifactSubjectGitRef: "refs/tags/flux-apps-v\\d+\\.\\d+\\.\\d+"
     - tenant: "flux-operator-ui"
+      layout: "split"
       tag: "${ARTIFACT_TAG}"
       environment: "${ENVIRONMENT}"
       artifactSubjectWorkflow: "flux-apps-release"
       artifactSubjectGitRef: "refs/tags/flux-apps-v\\d+\\.\\d+\\.\\d+"
     - tenant: "headlamp"
+      layout: "split"
       tag: "${ARTIFACT_TAG}"
       environment: "${ENVIRONMENT}"
       artifactSubjectWorkflow: "flux-apps-release"
       artifactSubjectGitRef: "refs/tags/flux-apps-v\\d+\\.\\d+\\.\\d+"
     - tenant: "coder"
+      layout: "split"
       tag: "${ARTIFACT_TAG}"
       environment: "${ENVIRONMENT}"
       artifactSubjectWorkflow: "flux-apps-release"
@@ -121,8 +132,69 @@ spec:
     - apiVersion: kustomize.toolkit.fluxcd.io/v1
       kind: Kustomization
       metadata:
+        name: apps-controllers
+        namespace: << inputs.tenant >>
+        annotations:
+          # Split-layout components (configs/ + controllers/) reconcile their
+          # controllers overlay here; single-track VM components (talos-vm,
+          # win11-vm) have no controllers/ dir, so this Kustomization is
+          # disabled for them (mirrors infra.yaml two-Kustomization shape).
+          fluxcd.controlplane.io/reconcile: << if eq inputs.layout "split" >>enabled<< else >>disabled<< end >>
+      spec:
+        targetNamespace: << inputs.tenant >>
+        serviceAccountName: flux
+        interval: 30m
+        retryInterval: 5m
+        wait: true
+        timeout: 5m
+        sourceRef:
+          kind: OCIRepository
+          name: apps
+        path: "./controllers/<< inputs.environment >>"
+        prune: true
+        postBuild:
+          substituteFrom:
+            - kind: ConfigMap
+              name: flux-runtime-info
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      metadata:
+        name: apps-configs
+        namespace: << inputs.tenant >>
+        annotations:
+          # Split-layout components reconcile their configs overlay here,
+          # after controllers (dependsOn); single-track components have no
+          # configs/ dir, so this Kustomization is disabled for them.
+          fluxcd.controlplane.io/reconcile: << if eq inputs.layout "split" >>enabled<< else >>disabled<< end >>
+      spec:
+        dependsOn:
+          - name: apps-controllers
+        targetNamespace: << inputs.tenant >>
+        serviceAccountName: flux
+        interval: 30m
+        retryInterval: 5m
+        wait: true
+        timeout: 5m
+        sourceRef:
+          kind: OCIRepository
+          name: apps
+        path: "./configs/<< inputs.environment >>"
+        prune: true
+        postBuild:
+          substituteFrom:
+            - kind: ConfigMap
+              name: flux-runtime-info
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      metadata:
         name: apps
         namespace: << inputs.tenant >>
+        annotations:
+          # Single-track components (talos-vm, win11-vm) keep their natural
+          # top-level ./{base,dev,staging,production} overlays and reconcile
+          # them here; split-layout components use apps-controllers +
+          # apps-configs above, so this Kustomization is disabled for them.
+          fluxcd.controlplane.io/reconcile: << if eq inputs.layout "single" >>enabled<< else >>disabled<< end >>
       spec:
         targetNamespace: << inputs.tenant >>
         serviceAccountName: flux

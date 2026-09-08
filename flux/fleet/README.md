@@ -21,7 +21,7 @@ flux/fleet/
 ├── tenants/
 │   ├── policies.yaml    # source allowlist + ValidatingAdmissionPolicy
 │   ├── infra.yaml       # ResourceSet: per-component namespace + OCIRepository + Kustomizations
-│   └── apps.yaml        # ResourceSet: per-component namespace + OCIRepository + Kustomization
+│   └── apps.yaml        # ResourceSet: per-component namespace + OCIRepository + Kustomizations
 └── terraform/           # OpenTofu bootstrap of the Flux Operator (no live apply in CI)
 ```
 
