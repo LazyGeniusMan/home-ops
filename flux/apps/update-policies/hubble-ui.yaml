@@ -1,0 +1,64 @@
+# Update policy for the hubble-ui app (§11.3): tracks the Hubble UI images,
+# and the ImageUpdateAutomation (update cluster) opens PRs via markers in
+# components/hubble-ui (see README). Follows the §7 update-policy contract
+# (ImageRepository + ImagePolicy + $imagepolicy markers).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: hubble-ui
+spec:
+  image: "quay.io/cilium/hubble-ui"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: hubble-ui
+spec:
+  imageRepositoryRef:
+    name: hubble-ui
+  policy:
+    semver:
+      range: ">=0.13.5"
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: hubble-ui-backend
+spec:
+  image: "quay.io/cilium/hubble-ui-backend"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: hubble-ui-backend
+spec:
+  imageRepositoryRef:
+    name: hubble-ui-backend
+  policy:
+    semver:
+      range: ">=0.13.5"
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: oauth2-proxy
+spec:
+  image: "quay.io/oauth2-proxy/oauth2-proxy"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: oauth2-proxy
+spec:
+  imageRepositoryRef:
+    name: oauth2-proxy
+  policy:
+    semver:
+      range: ">=7.6.0"

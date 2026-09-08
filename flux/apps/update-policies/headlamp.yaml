@@ -1,0 +1,27 @@
+# Update policy for the headlamp component (§13.3): tracks the headlamp image
+# (and, by lockstep, the chart — chart 0.45.0 carries app 0.45.0, unlike the
+# §11.1 Zitadel divergence), and the ImageUpdateAutomation (update cluster)
+# opens PRs via markers in components/headlamp (see README). Follows the §7
+# update-policy contract (ImageRepository + ImagePolicy + $imagepolicy
+# markers). Plugin pins (ai-assistant, flux, kubevirt in the HelmRelease
+# configContent) are bumped by hand in the same PR — see README.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: headlamp
+spec:
+  image: "ghcr.io/headlamp-k8s/headlamp"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: headlamp
+spec:
+  imageRepositoryRef:
+    name: headlamp
+  policy:
+    semver:
+      range: ">=0.45.0"

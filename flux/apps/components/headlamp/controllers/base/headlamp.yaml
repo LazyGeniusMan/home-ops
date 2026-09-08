@@ -1,0 +1,91 @@
+# Headlamp v0.45.0 (§13.3): Kubernetes web UI with native OIDC login via
+# Zitadel (§11.1) plus the locked plugin set (ai-assistant, flux, kubevirt).
+# Chart: classic HelmRepository https://kubernetes-sigs.github.io/headlamp/
+# (chart 0.45.0 carries app 0.45.0 — NO chart↔app divergence, unlike §11.1
+# Zitadel; on bumps set chart version AND image.tag to the new version
+# together). OCI-first justification: no OCI artifact is published for this
+# chart (helm pull oci://ghcr.io/headlamp-k8s/charts/headlamp → 403 denied at
+# authoring time); the classic repo is the upstream source of truth (same
+# OCI-first deviation as §8.3 CoreDNS). App image verified live on GHCR
+# (ghcr.io/headlamp-k8s/headlamp:v0.45.0 tag listed at authoring time).
+# Telemetry: chart values carry no phone-home/analytics/usage-reporting knobs
+# (checked at authoring time); bundled static plugins stay on (pure UI, no
+# reporting). No ServiceMonitor is shipped until monitoring.coreos.com CRDs
+# land (same §9 deviation).
+# Ordering: the headlamp-oidc ExternalSecret lives in configs (applied AFTER
+# controllers), so the first install attempt pends until ESO syncs it and
+# Flux retries (RetryOnFailure below).
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: headlamp
+spec:
+  interval: 1h
+  url: https://kubernetes-sigs.github.io/headlamp/
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: headlamp
+spec:
+  interval: 1h
+  releaseName: headlamp
+  serviceAccountName: flux
+  chart:
+    spec:
+      chart: headlamp
+      version: 0.45.0
+      sourceRef:
+        kind: HelmRepository
+        name: headlamp
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  # https://github.com/kubernetes-sigs/headlamp/tree/main/charts/headlamp
+  values:
+    # Chart 0.45.0 = app 0.45.0 (lockstep); image.tag defaults to
+    # v<appVersion>, pinned explicitly so update automation owns it via
+    # update-policies/headlamp.yaml (marker below). On automation PRs bump
+    # the chart version above to match.
+    image:
+      tag: v0.45.0 # {"$imagepolicy": "apps:headlamp:tag"}
+    config:
+      # Hot-reload plugins the manager installs without recreating the Pod.
+      watchPlugins: true
+      oidc:
+        # No chart-managed Secret — credentials come from the ESO-synced
+        # headlamp-oidc Secret (see configs/base/headlamp-secrets.yaml).
+        secret:
+          create: false
+        externalSecret:
+          enabled: true
+          name: headlamp-oidc
+          # The synced Secret carries OIDC_SCOPES, so pass -oidc-scopes.
+          hasScopes: true
+    # Chart-owned ClusterRoleBinding (pod SA → cluster-admin) stays on: it
+    # authorizes the in-cluster `main` context only. Per-USER authorization
+    # is the hand-written bindings in configs/base/headlamp-rbac.yaml.
+    # Chart-native httpRoute stays OFF — the §8.1 route is owned explicitly
+    # in configs (same split as §11.1 Zitadel).
+    pluginsManager:
+      enabled: true
+      configContent: |
+        plugins:
+          - name: headlamp_ai_assistant
+            source: https://artifacthub.io/packages/headlamp/headlamp-plugins/headlamp_ai_assistant
+            version: 0.4.0-alpha
+          - name: headlamp_flux
+            source: https://artifacthub.io/packages/headlamp/headlamp-plugins/headlamp_flux
+            version: 0.7.0
+          - name: headlamp_kubevirt
+            source: https://artifacthub.io/packages/headlamp/headlamp-kubevirt/headlamp_kubevirt
+            version: 0.3.1
+        installOptions:
+          parallel: true
+          maxConcurrent: 3
