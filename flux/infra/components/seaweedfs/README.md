@@ -60,10 +60,9 @@ consumer needs an IAM identity:
   ClusterIP Service `ui-auth:4180`) in reverse-proxy mode in front of
   the filer. Locked contract per
   `flux/infra/components/zitadel/README.md`: issuer
-  `https://zitadel.home-ops.yansyah.my.id`, shared client
-  `oauth2-proxy-shared` (redirect
-  `https://ui.seaweedfs.home-ops.yansyah.my.id/oauth2/callback`, covered
-  by the client's `https://*/oauth2/callback` rule), scopes `openid
+  `https://zitadel.home-ops.yansyah.my.id`, own `seaweedfs` client
+  (redirect `https://<ui_host>/oauth2/callback`, per-app `ui_host`
+  wiring in this component's `terraform/`), scopes `openid
   profile email groups`, cookie domain `.home-ops.yansyah.my.id`.
   Admin-only via `--allowed-group=admin` against the `groups` claim
   (`admin@home-ops.yansyah.my.id` is the sole `admin` member).

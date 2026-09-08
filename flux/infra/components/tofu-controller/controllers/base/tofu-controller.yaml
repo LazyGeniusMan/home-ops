@@ -104,6 +104,7 @@ spec:
           - flux-operator-ui
           - headlamp
           - coder
+          - seaweedfs
     metrics:
       enabled: false
       serviceMonitor:

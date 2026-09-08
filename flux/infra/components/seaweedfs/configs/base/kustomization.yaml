@@ -6,3 +6,4 @@ resources:
   - s3-ui-routes.yaml
   - ui-auth.yaml
   - wildcard-certificate.yaml
+  - terraform.yaml

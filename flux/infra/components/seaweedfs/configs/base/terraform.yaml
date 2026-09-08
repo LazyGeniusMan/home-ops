@@ -1,0 +1,77 @@
+# SeaweedFS filer-UI SSO identity (§12 follow-up), machine-applied by Tofu
+# Controller. Owns ONLY this component's slice: the `seaweedfs` Zitadel
+# project + project-scoped roles (seaweedfs-admin/seaweedfs-user) + user
+# grants + the `seaweedfs` OIDC client for the oauth2-proxy UI gate.
+# Project-scoped means seaweedfs-admin NEVER implies org admin.
+#
+# Ordering: this object ships in configs/ (fleet `infra-configs`
+# Kustomization dependsOn `infra-controllers`), so it only reconciles after
+# the Zitadel HelmRelease is Ready. Terraform `dependsOn` is Terraform-CR-only
+# upstream (checkDependencies resolves every entry as kind Terraform), so NO
+# dependsOn entry here — the fleet ordering above is the mechanism. Same
+# shape as flux/infra/components/zitadel/configs/base/terraform-bootstrap.yaml.
+# First-run prerequisite (one-time, manual): the Zitadel bootstrap must have
+# applied first (org + users exist), and the IAM_OWNER service-user key JSON
+# must be seeded at pass://<env-vault>/zitadel/terraform-jwt-profile-json
+# (shared instance key, mirrored into this namespace — same pattern as the
+# cloudflare-api-token mirror). org_id is a one-time manual fill from the
+# `zitadel-bootstrap-outputs` Secret (zitadel ns); until then the name lookup
+# (var.org_name) resolves the org and the CR still converges once users exist.
+# Backend: in-cluster Kubernetes default (state Secrets in the seaweedfs
+# namespace) — no backendConfig needed. Drift detection stays on (default).
+# Outputs: client_id lands in `seaweedfs-sso-outputs`; read the client SECRET
+# from state and seed pass://<env-vault>/seaweedfs/oauth2-proxy-client-secret
+# (+ oauth2-proxy-client-id from the outputs) — never Git.
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: seaweedfs-terraform-vars
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: seaweedfs-terraform-vars
+    template:
+      data:
+        jwt_profile_json: "{{ .jwt_profile_json }}"
+  data:
+    - secretKey: jwt_profile_json
+      remoteRef:
+        key: __PROTON_PASS_BASE__/zitadel/terraform-jwt-profile-json
+---
+apiVersion: infra.contrib.fluxcd.io/v1alpha2
+kind: Terraform
+metadata:
+  name: seaweedfs-sso
+spec:
+  interval: 30m
+  approvePlan: auto
+  # Component OCI artifact (same namespace, in-tenant `infra` OCIRepository):
+  # the artifact packs the whole component dir, terraform/ included.
+  sourceRef:
+    kind: OCIRepository
+    name: infra
+  path: ./terraform
+  # Plain (non-sensitive) per-env values; secrets come from varsFrom below.
+  # varsFrom overrides vars on key collision (upstream GenerateVarsForTF).
+  vars:
+    - name: domain
+      value: __ZITADEL_HOST__
+    - name: org_id
+      value: __ZITADEL_ORG_ID__
+    - name: admin_email
+      value: admin@__BASE_DOMAIN__
+    - name: user_email
+      value: user@__BASE_DOMAIN__
+    - name: ui_host
+      value: __SEAWEEDFS_UI_HOST__
+  varsFrom:
+    - kind: Secret
+      name: seaweedfs-terraform-vars
+  writeOutputsToSecret:
+    name: seaweedfs-sso-outputs
+    outputs:
+      - client_id

@@ -59,6 +59,35 @@ patches:
     target:
       kind: Deployment
       name: ui-auth
+  # Prd SeaweedFS SSO Terraform identity: vault ref for the shared instance
+  # JWT key + CR vars (prd issuer host, prd emails, prd UI host). org_id is a
+  # one-time manual fill from `zitadel-bootstrap-outputs` (zitadel ns).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/zitadel/terraform-jwt-profile-json
+    target:
+      kind: ExternalSecret
+      name: seaweedfs-terraform-vars
+  - patch: |
+      - op: replace
+        path: /spec/vars/0/value
+        value: zitadel.home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/vars/1/value
+        value: REPLACE-ME-WITH-ORG-ID-FROM-zitadel-bootstrap-outputs
+      - op: replace
+        path: /spec/vars/2/value
+        value: admin@home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/vars/3/value
+        value: user@home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/vars/4/value
+        value: ui.seaweedfs.home-ops.yansyah.my.id
+    target:
+      kind: Terraform
+      name: seaweedfs-sso
   # Prd token vault + wildcard DNS.
   - patch: |
       - op: replace

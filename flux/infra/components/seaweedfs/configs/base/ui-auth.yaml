@@ -1,15 +1,19 @@
-# SeaweedFS filer-UI auth (§12 follow-up): admin-only Zitadel OIDC via a
+# SeaweedFS filer-UI auth (SSO decoupling): admin-only Zitadel OIDC via a
 # namespace-local oauth2-proxy (reverse-proxy mode) in front of the filer.
 # The public S3 API route stays DIRECT (SigV4-gated machine endpoint — see
 # README); only ui.seaweedfs.… flows through this proxy.
 #
-# Locked contract (flux/infra/components/zitadel/README.md — do not deviate):
-# - issuer __ZITADEL_ISSUER_URL__, shared client
-#   `oauth2-proxy-shared` (redirect https://*/oauth2/callback covers the
+# Own client (managed by the `seaweedfs-sso` Terraform CR in terraform.yaml):
+# - issuer __ZITADEL_ISSUER_URL__, OWN client `seaweedfs`
+#   (redirect https://__SEAWEEDFS_UI_HOST__/oauth2/callback — the
 #   --redirect-url below), scopes `openid profile email groups`.
-# - Admin-only via --allowed-group=admin against the `groups` claim
-#   (admin@__BASE_DOMAIN__ is the sole `admin` member).
+# - Admin-only via --allowed-group=seaweedfs-admin against the `groups`
+#   claim (admin@__BASE_DOMAIN__ holds the seaweedfs-admin grant; see
+#   README role matrix).
 # - Cookie domain .__BASE_DOMAIN__ (shared with sibling proxies).
+#
+# Seed the generated client id/secret into Proton Pass after the CR applies
+# (see terraform.yaml handoff) — the ExternalSecret keys below stay put.
 #
 # Image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0 (verified real on Quay;
 # hand-bumped — no ImageRepository/ImagePolicy tracks it yet, unlike the
@@ -71,7 +75,7 @@ spec:
             - --redirect-url=https://__SEAWEEDFS_UI_HOST__/oauth2/callback
             - --scope=openid profile email groups
             - --oidc-groups-claim=groups
-            - --allowed-group=admin
+            - --allowed-group=seaweedfs-admin
             - --email-domain=*
             - --cookie-domain=.__BASE_DOMAIN__
             - --cookie-name=_seaweedfs_ui_auth
