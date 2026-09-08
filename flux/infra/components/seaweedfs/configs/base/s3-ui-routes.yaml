@@ -3,7 +3,7 @@
 # S3 API DIRECT to the S3 Service. Port 80 carries only the RequestRedirect
 # filter (mirrors the §8.1 httproutes.yaml discipline); TLS terminates on
 # 443 with the in-namespace wildcard Secret. The S3 endpoint
-# https://s3.seaweedfs.home-ops.yansyah.my.id is THE contract other
+# https://__SEAWEEDFS_S3_HOST__ is THE contract other
 # components use (see README) and stays proxy-free on purpose: it is a
 # SigV4-gated machine endpoint (rclone + CNPG/clickhouse/dragonfly backup
 # writers address it directly), and browser-cookie OIDC would break them.
@@ -18,7 +18,7 @@ spec:
       namespace: gateway-api
       sectionName: http
   hostnames:
-    - ui.seaweedfs.home-ops.yansyah.my.id
+    - __SEAWEEDFS_UI_HOST__
   rules:
     - filters:
         - type: RequestRedirect
@@ -36,7 +36,7 @@ spec:
       namespace: gateway-api
       sectionName: https
   hostnames:
-    - ui.seaweedfs.home-ops.yansyah.my.id
+    - __SEAWEEDFS_UI_HOST__
   rules:
     - backendRefs:
         - name: ui-auth
@@ -52,7 +52,7 @@ spec:
       namespace: gateway-api
       sectionName: http
   hostnames:
-    - s3.seaweedfs.home-ops.yansyah.my.id
+    - __SEAWEEDFS_S3_HOST__
   rules:
     - filters:
         - type: RequestRedirect
@@ -70,7 +70,7 @@ spec:
       namespace: gateway-api
       sectionName: https
   hostnames:
-    - s3.seaweedfs.home-ops.yansyah.my.id
+    - __SEAWEEDFS_S3_HOST__
   rules:
     - backendRefs:
         - name: seaweed-main-s3

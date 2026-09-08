@@ -1,4 +1,4 @@
-# *.seaweedfs.home-ops.yansyah.my.id wildcard Certificate (§12.1). Mirrors
+# __WILDCARD_DNS__ wildcard Certificate (section 12.1). Mirrors
 # the gateway-api/configs/base/wildcard-certificate.yaml discipline:
 # cert-manager Secrets are namespace-local, so this duplicate Certificate
 # mints seaweedfs-wildcard-tls HERE via ClusterIssuer/letsencrypt. The token
@@ -23,7 +23,7 @@ spec:
   data:
     - secretKey: apiToken
       remoteRef:
-        key: pass://acme-prd-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+        key: __PROTON_PASS_BASE__/cert-manager/cloudflare-api-token
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -35,4 +35,4 @@ spec:
     name: letsencrypt
     kind: ClusterIssuer
   dnsNames:
-    - "*.seaweedfs.home-ops.yansyah.my.id"
+    - "*.seaweedfs.__BASE_DOMAIN__"

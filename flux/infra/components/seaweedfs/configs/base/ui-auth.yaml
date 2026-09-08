@@ -4,12 +4,12 @@
 # README); only ui.seaweedfs.… flows through this proxy.
 #
 # Locked contract (flux/infra/components/zitadel/README.md — do not deviate):
-# - issuer https://zitadel.home-ops.yansyah.my.id, shared client
+# - issuer __ZITADEL_ISSUER_URL__, shared client
 #   `oauth2-proxy-shared` (redirect https://*/oauth2/callback covers the
 #   --redirect-url below), scopes `openid profile email groups`.
 # - Admin-only via --allowed-group=admin against the `groups` claim
-#   (admin@home-ops.yansyah.my.id is the sole `admin` member).
-# - Cookie domain .home-ops.yansyah.my.id (shared with sibling proxies).
+#   (admin@__BASE_DOMAIN__ is the sole `admin` member).
+# - Cookie domain .__BASE_DOMAIN__ (shared with sibling proxies).
 #
 # Image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0 (verified real on Quay;
 # hand-bumped — no ImageRepository/ImagePolicy tracks it yet, unlike the
@@ -34,13 +34,13 @@ spec:
   data:
     - secretKey: clientId
       remoteRef:
-        key: pass://acme-prd-bdo1-talos-apps-01/seaweedfs/oauth2-proxy-client-id
+        key: __PROTON_PASS_BASE__/seaweedfs/oauth2-proxy-client-id
     - secretKey: clientSecret
       remoteRef:
-        key: pass://acme-prd-bdo1-talos-apps-01/seaweedfs/oauth2-proxy-client-secret
+        key: __PROTON_PASS_BASE__/seaweedfs/oauth2-proxy-client-secret
     - secretKey: cookieSecret
       remoteRef:
-        key: pass://acme-prd-bdo1-talos-apps-01/seaweedfs/oauth2-proxy-cookie-secret
+        key: __PROTON_PASS_BASE__/seaweedfs/oauth2-proxy-cookie-secret
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -67,13 +67,13 @@ spec:
           args:
             - --provider=oidc
             - --provider-display-name=Zitadel
-            - --oidc-issuer-url=https://zitadel.home-ops.yansyah.my.id
-            - --redirect-url=https://ui.seaweedfs.home-ops.yansyah.my.id/oauth2/callback
+            - --oidc-issuer-url=__ZITADEL_ISSUER_URL__
+            - --redirect-url=https://__SEAWEEDFS_UI_HOST__/oauth2/callback
             - --scope=openid profile email groups
             - --oidc-groups-claim=groups
             - --allowed-group=admin
             - --email-domain=*
-            - --cookie-domain=.home-ops.yansyah.my.id
+            - --cookie-domain=.__BASE_DOMAIN__
             - --cookie-name=_seaweedfs_ui_auth
             - --cookie-secure=true
             - --cookie-samesite=lax

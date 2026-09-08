@@ -2,3 +2,75 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../base
+patches:
+  # Staging (prd values) UI/S3 hostnames (ui.seaweedfs.home-ops.yansyah.my.id / s3.seaweedfs.home-ops.yansyah.my.id).
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: ui.seaweedfs.home-ops.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: seaweedfs-ui
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: ui.seaweedfs.home-ops.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: seaweedfs-ui-tls
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: s3.seaweedfs.home-ops.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: seaweedfs-s3
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: s3.seaweedfs.home-ops.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: seaweedfs-s3-tls
+  # Staging (prd values) proxy vault refs + issuer/callback/cookie-domain.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/seaweedfs/oauth2-proxy-client-id
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/seaweedfs/oauth2-proxy-client-secret
+      - op: replace
+        path: /spec/data/2/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/seaweedfs/oauth2-proxy-cookie-secret
+    target:
+      kind: ExternalSecret
+      name: ui-auth-credentials
+  - patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/args/2
+        value: --oidc-issuer-url=https://zitadel.home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/template/spec/containers/0/args/3
+        value: --redirect-url=https://ui.seaweedfs.home-ops.yansyah.my.id/oauth2/callback
+      - op: replace
+        path: /spec/template/spec/containers/0/args/8
+        value: --cookie-domain=.home-ops.yansyah.my.id
+    target:
+      kind: Deployment
+      name: ui-auth
+  # Staging (prd values) token vault + wildcard DNS.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+    target:
+      kind: ExternalSecret
+      name: cloudflare-api-token
+  - patch: |
+      - op: replace
+        path: /spec/dnsNames/0
+        value: "*.seaweedfs.home-ops.yansyah.my.id"
+    target:
+      kind: Certificate
+      name: wildcard-seaweedfs
