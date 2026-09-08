@@ -1,10 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - cluster-issuer.yaml
-  - wildcard-certificate.yaml
+  - ../base
 patches:
-  # Dev ACME server: LE prod (real dev certs, same as prd — §14 locked delta).
+  # Dev (real dev certs from LE prod, same as prd - section 14 locked delta): LE ACME server.
   - patch: |
       - op: add
         path: /spec/acme/server
@@ -12,3 +11,39 @@ patches:
     target:
       kind: ClusterIssuer
       name: letsencrypt
+  # Env values: vault pass://acme-dev-bdo1-talos-apps-01, ACME email hostmaster@homelab-dev.yansyah.my.id, cert wildcard-homelab-dev.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+    target:
+      kind: ExternalSecret
+      name: cloudflare-api-token
+  - patch: |
+      - op: replace
+        path: /spec/acme/email
+        value: hostmaster@homelab-dev.yansyah.my.id
+    target:
+      kind: ClusterIssuer
+      name: letsencrypt
+  - patch: |
+      - op: replace
+        path: /metadata/name
+        value: wildcard-homelab-dev
+    target:
+      kind: Certificate
+      name: __WILDCARD_CERT_NAME__
+  - patch: |
+      - op: replace
+        path: /spec/secretName
+        value: wildcard-homelab-dev-tls
+    target:
+      kind: Certificate
+      name: wildcard-homelab-dev
+  - patch: |
+      - op: replace
+        path: /spec/dnsNames/0
+        value: "*.homelab-dev.yansyah.my.id"
+    target:
+      kind: Certificate
+      name: wildcard-homelab-dev

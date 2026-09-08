@@ -1,6 +1,6 @@
 # Cloudflare DNS-01 ClusterIssuer (§9.3). The API token is synced by ESO from
-# Proton Pass (pass://acme-prd-bdo1-talos-apps-01/cert-manager/cloudflare-api-token);
-# the token needs Zone:Read + DNS:Edit on the home-ops.yansyah.my.id zone.
+# Proton Pass (__PROTON_PASS_BASE__/cert-manager/cloudflare-api-token);
+# the token needs Zone:Read + DNS:Edit on the __BASE_DOMAIN__ zone.
 # ACME server is set per environment (production/staging overlays); the base
 # intentionally leaves it unset like the upstream D2 reference.
 # Renewal: cert-manager renews at 2/3 of the issued lifetime automatically;
@@ -23,7 +23,7 @@ spec:
   data:
     - secretKey: apiToken
       remoteRef:
-        key: pass://acme-prd-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+        key: __PROTON_PASS_BASE__/cert-manager/cloudflare-api-token
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -31,7 +31,7 @@ metadata:
   name: letsencrypt
 spec:
   acme:
-    email: hostmaster@home-ops.yansyah.my.id
+    email: __ACME_EMAIL__
     privateKeySecretRef:
       name: letsencrypt-account-key
     solvers:

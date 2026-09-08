@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
+  # Staging: LE ACME server.
   - patch: |
       - op: add
         path: /spec/acme/server
@@ -10,3 +11,39 @@ patches:
     target:
       kind: ClusterIssuer
       name: letsencrypt
+  # Env values: vault pass://acme-prd-bdo1-talos-apps-01, ACME email hostmaster@home-ops.yansyah.my.id, cert wildcard-home-ops.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+    target:
+      kind: ExternalSecret
+      name: cloudflare-api-token
+  - patch: |
+      - op: replace
+        path: /spec/acme/email
+        value: hostmaster@home-ops.yansyah.my.id
+    target:
+      kind: ClusterIssuer
+      name: letsencrypt
+  - patch: |
+      - op: replace
+        path: /metadata/name
+        value: wildcard-home-ops
+    target:
+      kind: Certificate
+      name: __WILDCARD_CERT_NAME__
+  - patch: |
+      - op: replace
+        path: /spec/secretName
+        value: wildcard-home-ops-tls
+    target:
+      kind: Certificate
+      name: wildcard-home-ops
+  - patch: |
+      - op: replace
+        path: /spec/dnsNames/0
+        value: "*.home-ops.yansyah.my.id"
+    target:
+      kind: Certificate
+      name: wildcard-home-ops

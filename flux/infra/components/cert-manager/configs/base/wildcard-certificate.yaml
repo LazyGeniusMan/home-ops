@@ -1,4 +1,4 @@
-# Wildcard certificate for the prd ingress domain (§9.3). Lives in the
+# Wildcard certificate for the ingress domain (§9.3, __BASE_DOMAIN__). Lives in the
 # cert-manager namespace so Ready status is observable next to the issuer;
 # the §8 Gateway references TLS in its own namespace — either copy this
 # Secret there (documented in the README) or move this Certificate once the
@@ -7,11 +7,11 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: wildcard-home-ops
+  name: __WILDCARD_CERT_NAME__
 spec:
-  secretName: wildcard-home-ops-tls
+  secretName: __WILDCARD_TLS_SECRET__
   issuerRef:
     name: letsencrypt
     kind: ClusterIssuer
   dnsNames:
-    - "*.home-ops.yansyah.my.id"
+    - "*.__BASE_DOMAIN__"
