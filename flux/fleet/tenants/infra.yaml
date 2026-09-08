@@ -18,6 +18,21 @@ spec:
       ready: true
       readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
   inputs:
+    - tenant: "cilium"
+      tag: "${ARTIFACT_TAG}"
+      environment: "${ENVIRONMENT}"
+      artifactSubjectWorkflow: "flux-infra-release"
+      artifactSubjectGitRef: "refs/tags/infra-v\\d+\\.\\d+\\.\\d+"
+    - tenant: "coredns"
+      tag: "${ARTIFACT_TAG}"
+      environment: "${ENVIRONMENT}"
+      artifactSubjectWorkflow: "flux-infra-release"
+      artifactSubjectGitRef: "refs/tags/infra-v\\d+\\.\\d+\\.\\d+"
+    - tenant: "gateway-api"
+      tag: "${ARTIFACT_TAG}"
+      environment: "${ENVIRONMENT}"
+      artifactSubjectWorkflow: "flux-infra-release"
+      artifactSubjectGitRef: "refs/tags/infra-v\\d+\\.\\d+\\.\\d+"
     - tenant: "external-secrets"
       tag: "${ARTIFACT_TAG}"
       environment: "${ENVIRONMENT}"

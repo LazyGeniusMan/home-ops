@@ -19,6 +19,9 @@ jobs:
       fail-fast: false
       matrix:
         component:
+          - cilium
+          - coredns
+          - gateway-api
           - external-secrets
           - metrics-server
           - cert-manager
