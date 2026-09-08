@@ -1,8 +1,8 @@
-# Canonical apps area releases: tag flux-cluster-vX.Y.Z to publish every matrix
+# Canonical apps area releases: tag flux-apps-vX.Y.Z to publish every matrix
 # component as oci://ghcr.io/<owner>/home-ops/apps/<component> with diff-tag
-# flux-cluster-vX.Y.Z and move latest-stable. The home cluster verifies this workflow
+# flux-apps-vX.Y.Z and move latest-stable. The home cluster verifies this workflow
 # + tag via the cosign subject pinned in ../../fleet/tenants/apps.yaml
-# (refs/tags/flux-cluster-v\d+\.\d+\.\d+).
+# (refs/tags/flux-apps-v\d+\.\d+\.\d+).
 # Split-ready layout: paths assume the area directory is the repository root.
 # After the per-area repo split this file executes as-is (callable via
 # workflow_call); until then GitHub only executes the root wiring file
@@ -10,7 +10,7 @@
 # in ../actions/oci-release with monorepo-relative paths.
 name: release-artifact
 
-# OCI: oci://ghcr.io/<owner>/home-ops/apps/<component>:<flux-cluster-vX.Y.Z> + latest-stable.
+# OCI: oci://ghcr.io/<owner>/home-ops/apps/<component>:<flux-apps-vX.Y.Z> + latest-stable.
 
 on:
   workflow_call:
@@ -32,7 +32,7 @@ on:
         default: ''
   push:
     tags:
-      - 'flux-cluster-v*'
+      - 'flux-apps-v*'
 
 jobs:
   flux-push:
