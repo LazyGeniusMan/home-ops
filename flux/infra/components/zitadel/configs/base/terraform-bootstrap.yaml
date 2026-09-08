@@ -24,9 +24,11 @@
 # Rotation: update the Proton Pass entries; ESO syncs the Secret and the next
 # reconcile picks the new values up (password rotation takes effect on next
 # user-resource change; JWT rotation is immediate).
-# Outputs: org_id + project_id land in `zitadel-bootstrap-outputs` for the
-# later per-app Terraform task (data zitadel_org needs id; data
-# zitadel_project needs project_id).
+# Outputs: org_id + project_id + admin_user_id + user_user_id land in
+# `zitadel-bootstrap-outputs` for the later per-app Terraform task (plain IDs,
+# non-sensitive — consumed via CR varsFrom, never ESO; only JWT/passwords stay
+# in ESO). Per-app slices read the four IDs from that Secret into their CR
+# `vars` (literal, non-sensitive) instead of looking users up by email.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -85,3 +87,5 @@ spec:
     outputs:
       - org_id
       - project_id
+      - admin_user_id
+      - user_user_id

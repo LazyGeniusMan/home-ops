@@ -126,8 +126,14 @@ v1alpha2, chart 0.16.5 — see the `tofu-controller` component):
   vault paths + `domain`/email `vars` land in the `dev`/`prd`/`stg` overlays.
   Rotate by updating the vault entries — ESO syncs and the next reconcile
   picks them up.
-- Outputs: `org_id` + `project_id` land in `zitadel-bootstrap-outputs` for
-  the later per-app Terraform task.
+- Outputs: `org_id` + `project_id` + `admin_user_id` + `user_user_id` land
+  in the `zitadel-bootstrap-outputs` Secret (same `zitadel` namespace) for
+  the later per-app Terraform task. All four are plain IDs (non-sensitive)
+  — per-app slices consume them via CR `varsFrom` (Secret → literal `vars`),
+  never via ESO/`pass://`. Only JWT/passwords stay in ESO. Consumer pattern:
+  read the four IDs out of `zitadel-bootstrap-outputs` into the per-app CR
+  `vars` (`org_id`, `admin_user_id`, `user_user_id`, …) instead of looking
+  users up by email data source.
 
 One-time prerequisite (manual): the chart has NO FirstInstance bootstrap
 stanza, so before the first reconcile provision the IAM_OWNER service user
