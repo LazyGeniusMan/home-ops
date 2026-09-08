@@ -23,6 +23,6 @@ talos_clusters:
     vault: acme-dev-bdo1-talos-apps-01
     endpoint: https://192.168.1.248:6443
     nodes:
-      - name: bdo-d01-cp-001
+      - name: bdo-r01-cp-002
         ip: 192.168.1.201
         role: controlplane

@@ -1,4 +1,4 @@
-# AUTHORITATIVE Image Factory schematic for bdo-d01-cp-001 (Talos v1.14).
+# AUTHORITATIVE Image Factory schematic for bdo-r01-cp-002 (Talos v1.14).
 # Node: QEMU/KVM VM (evidence: /tmp/lshw-log/lshw.vm.log) — 2 vCPU, virtio NIC,
 # virtio-scsi disks (/dev/sda 20 GiB OS, /dev/sdb 960 GB Samsung passthrough),
 # bochs display. No intel-ucode/i915/realtek-firmware (vCPU microcode, display
