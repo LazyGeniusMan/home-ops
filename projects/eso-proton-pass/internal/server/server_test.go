@@ -36,7 +36,8 @@ func testServer(f *fakeProvider) *Server {
 }
 
 func TestGetPullPath(t *testing.T) {
-	srv := testServer(&fakeProvider{value: "s3cret"}).Handler()
+	f := &fakeProvider{value: "s3cret"}
+	srv := testServer(f).Handler()
 	req := httptest.NewRequest(http.MethodGet, "/get?key=pass://vault/item/password", nil)
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
@@ -49,6 +50,9 @@ func TestGetPullPath(t *testing.T) {
 	}
 	if got.Value != "s3cret" {
 		t.Errorf("value = %q", got.Value)
+	}
+	if f.last != "pass://vault/item/password" {
+		t.Errorf("provider got key %q", f.last)
 	}
 }
 

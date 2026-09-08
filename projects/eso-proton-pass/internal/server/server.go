@@ -183,15 +183,15 @@ func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 // handleMetrics serves minimal Prometheus-format counters plus uptime.
 func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
-	fmt.Fprintf(w, "# HELP eso_proton_pass_requests_total Total webhook requests handled.\n")
-	fmt.Fprintf(w, "# TYPE eso_proton_pass_requests_total counter\n")
-	fmt.Fprintf(w, "eso_proton_pass_requests_total %d\n", s.requestsTotal.Load())
-	fmt.Fprintf(w, "# HELP eso_proton_pass_requests_failed_total Total failed webhook requests.\n")
-	fmt.Fprintf(w, "# TYPE eso_proton_pass_requests_failed_total counter\n")
-	fmt.Fprintf(w, "eso_proton_pass_requests_failed_total %d\n", s.requestsFailed.Load())
-	fmt.Fprintf(w, "# HELP eso_proton_pass_uptime_seconds Seconds since process start.\n")
-	fmt.Fprintf(w, "# TYPE eso_proton_pass_uptime_seconds gauge\n")
-	fmt.Fprintf(w, "eso_proton_pass_uptime_seconds %d\n", int64(time.Since(s.started).Seconds()))
+	_, _ = fmt.Fprintf(w, "# HELP eso_proton_pass_requests_total Total webhook requests handled.\n")
+	_, _ = fmt.Fprintf(w, "# TYPE eso_proton_pass_requests_total counter\n")
+	_, _ = fmt.Fprintf(w, "eso_proton_pass_requests_total %d\n", s.requestsTotal.Load())
+	_, _ = fmt.Fprintf(w, "# HELP eso_proton_pass_requests_failed_total Total failed webhook requests.\n")
+	_, _ = fmt.Fprintf(w, "# TYPE eso_proton_pass_requests_failed_total counter\n")
+	_, _ = fmt.Fprintf(w, "eso_proton_pass_requests_failed_total %d\n", s.requestsFailed.Load())
+	_, _ = fmt.Fprintf(w, "# HELP eso_proton_pass_uptime_seconds Seconds since process start.\n")
+	_, _ = fmt.Fprintf(w, "# TYPE eso_proton_pass_uptime_seconds gauge\n")
+	_, _ = fmt.Fprintf(w, "eso_proton_pass_uptime_seconds %d\n", int64(time.Since(s.started).Seconds()))
 }
 
 // handlePush rejects pushes: pull-only provider (TODO).
