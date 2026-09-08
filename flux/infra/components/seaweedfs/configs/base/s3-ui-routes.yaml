@@ -1,10 +1,12 @@
-# SeaweedFS Gateway HTTPRoutes (§§8.1/12.1): filer UI + standalone S3 API
-# behind the shared Gateway. Port 80 carries only the RequestRedirect
+# SeaweedFS Gateway HTTPRoutes (§§8.1/12.1): filer UI behind the admin-only
+# oauth2-proxy (ui-auth, reverse-proxy mode — see ui-auth.yaml) + standalone
+# S3 API DIRECT to the S3 Service. Port 80 carries only the RequestRedirect
 # filter (mirrors the §8.1 httproutes.yaml discipline); TLS terminates on
 # 443 with the in-namespace wildcard Secret. The S3 endpoint
 # https://s3.seaweedfs.home-ops.yansyah.my.id is THE contract other
-# components use (see README). Names leave room for wave 3c to add
-# ExternalAuth (Zitadel/OIDC) without renaming routes.
+# components use (see README) and stays proxy-free on purpose: it is a
+# SigV4-gated machine endpoint (rclone + CNPG/clickhouse/dragonfly backup
+# writers address it directly), and browser-cookie OIDC would break them.
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -37,8 +39,8 @@ spec:
     - ui.seaweedfs.home-ops.yansyah.my.id
   rules:
     - backendRefs:
-        - name: seaweed-main-filer
-          port: 8888
+        - name: ui-auth
+          port: 4180
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

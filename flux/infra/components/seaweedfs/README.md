@@ -53,14 +53,44 @@ consumer needs an IAM identity:
   `ExternalSecret` in their own namespace (same pattern as the rclone
   component). Never commit keys.
 
+## Auth (Zitadel OIDC, admin-only UI)
+
+- `ui-auth.yaml`: namespace-local oauth2-proxy
+  (`quay.io/oauth2-proxy/oauth2-proxy:v7.6.0`, Deployment 2 replicas +
+  ClusterIP Service `ui-auth:4180`) in reverse-proxy mode in front of
+  the filer. Locked contract per
+  `flux/infra/components/zitadel/README.md`: issuer
+  `https://zitadel.home-ops.yansyah.my.id`, shared client
+  `oauth2-proxy-shared` (redirect
+  `https://ui.seaweedfs.home-ops.yansyah.my.id/oauth2/callback`, covered
+  by the client's `https://*/oauth2/callback` rule), scopes `openid
+  profile email groups`, cookie domain `.home-ops.yansyah.my.id`.
+  Admin-only via `--allowed-group=admin` against the `groups` claim
+  (`admin@home-ops.yansyah.my.id` is the sole `admin` member).
+  Credentials (client id/secret + cookie secret) sync from Proton Pass
+  via the `ui-auth-credentials` ExternalSecret — seed with pass-cli:
+  `pass://acme-prd-bdo1-talos-apps-01/seaweedfs/oauth2-proxy-client-id`,
+  `-client-secret`, `-cookie-secret` (cookie secret: 32 random bytes,
+  e.g. `openssl rand -base64 32`). Image is hand-bumped (no
+  ImageRepository/ImagePolicy tracks it yet).
+- `s3-ui-routes.yaml`: `seaweedfs-ui-tls` points at the `ui-auth`
+  Service — the filer UI is reachable ONLY through the proxy. The S3
+  API route (`seaweedfs-s3-tls`) stays DIRECT to `seaweed-main-s3:8333`
+  on purpose: S3 is a SigV4-gated machine endpoint (access/secret keys
+  distributed via ESO from Proton Pass), and browser-cookie OIDC would
+  break SigV4 clients (rclone + the CNPG/clickhouse/dragonfly backup
+  writers address the public S3 hostname directly). Admin-only on S3 is
+  enforced by credential distribution, not by the Gateway.
+- In-cluster clients SHOULD use the direct Services
+  (`seaweed-main-filer:8888`, `seaweed-main-s3:8333`) and never hairpin
+  through the public hostnames.
+
 ## Gateway + DNS (§8 coordination)
 
-- `s3-ui-routes.yaml`: `ui.seaweedfs.…` (filer UI) +
-  `s3.seaweedfs.…` (S3 API), each HTTP→HTTPS 301 + TLS route on the
-  shared `Gateway/main`, `RequestRedirect` filters included so port 80
-  stays a redirect source. Route names are stable: wave 3c adds
-  Zitadel/OIDC `ExternalAuth` filters in place — **no OIDC wiring in
-  this component** (routes ship without it).
+- `s3-ui-routes.yaml`: `ui.seaweedfs.…` (filer UI via `ui-auth`) +
+  `s3.seaweedfs.…` (S3 API direct), each HTTP→HTTPS 301 + TLS route on
+  the shared `Gateway/main`, `RequestRedirect` filters included so port
+  80 stays a redirect source.
 - `wildcard-certificate.yaml`: `Certificate/wildcard-seaweedfs` mints
   `seaweedfs-wildcard-tls` (`*.seaweedfs.home-ops.yansyah.my.id`) via
   `ClusterIssuer/letsencrypt`; same in-namespace-credential discipline as
