@@ -36,6 +36,7 @@ jobs:
           - cilium
           - coredns
           - gateway-api
+          - tofu-controller
           - external-secrets
           - metrics-server
           - cert-manager

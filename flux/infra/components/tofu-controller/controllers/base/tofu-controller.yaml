@@ -1,0 +1,110 @@
+# Tofu Controller v0.16.5: Flux-native Terraform/OpenTofu reconciler. Installs
+# the cluster-scoped `terraforms.infra.contrib.fluxcd.io` CRD (v1alpha2 current,
+# v1alpha1 deprecated) so later tasks can ship `kind: Terraform` objects that
+# machine-apply the provider-ready modules under flux/infra/components/zitadel/terraform/.
+# Chart: oci://ghcr.io/flux-iac/charts/tofu-controller (verified tag 0.16.5 ==
+# app v0.16.5; pulled digest
+# sha256:336e9a2690b868781422165bf20550dc7e7093abeb841c498d8bd1dd594fbd27 —
+# OCI on GHCR is the upstream source of truth, helm pull + helm template pass
+# locally, so no classic HelmRepository fallback is needed).
+# Namespace: runs in its tenant namespace (tofu-controller), NOT flux-system.
+# The chart parameterises everything on .Release.Namespace (controller +
+# tf-runner ServiceAccounts/Secrets land there via the allowedNamespaces
+# helper) and reaches the Flux controllers over cluster DNS
+# (source-controller tar.gz downloads + notification-controller events on
+# port 80 via --events-addr), so no flux-system co-location is required.
+# Telemetry: chart values carry no phone-home/analytics/usage-reporting knobs
+# (verified: grep for telemetry|usageReport|phoneHome|analytics|tracking|
+# segment|sentry returns nothing); metrics + ServiceMonitor stay off, see below.
+# Monitoring: metrics.enabled stays false and no ServiceMonitor is shipped
+# until monitoring.coreos.com CRDs land (same §9 deviation as cert-manager —
+# an unconditional render would wedge the release). Flip: set
+# metrics.enabled: true plus metrics.serviceMonitor.enabled: true once the
+# monitoring stack exists.
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: tofu-controller-chart
+spec:
+  interval: 1h
+  url: oci://ghcr.io/flux-iac/charts/tofu-controller
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: "0.16.5" # {"$imagepolicy": "infra:tofu-controller:tag"}
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: tofu-controller
+spec:
+  interval: 1h
+  releaseName: tofu-controller
+  serviceAccountName: flux
+  chartRef:
+    kind: OCIRepository
+    name: tofu-controller-chart
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+    # CRD policy mirrors upstream docs/release.yaml (chart ships crds/crds.yaml).
+    crds: Create
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+    crds: CreateReplace
+  # https://github.com/flux-iac/tofu-controller (chart 0.16.5, app v0.16.5)
+  values:
+    # Chart default (upstream release.yaml uses 3). The controller is stateless
+    # and leader-elected, so raising this to 2-3 is safe once multi-node HA is
+    # wanted; 1 keeps the footprint small on the current clusters.
+    replicaCount: 1
+    concurrency: 24
+    # Resource envelope mirrors upstream docs/release.yaml (chart defaults are
+    # 1000m/1Gi limits, 200m/64Mi requests).
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 400m
+        memory: 64Mi
+    caCertValidityDuration: 24h
+    certRotationCheckFrequency: 30m
+    image:
+      tag: v0.16.5
+    # Watch Terraform CRs in every namespace (default true, stated explicitly:
+    # Terraform objects will live in tenant namespaces, not beside the controller).
+    watchAllNamespaces: true
+    # AWS primitive-modules package (Tofu-Jet) is irrelevant outside AWS; skip
+    # its OCIRepository rather than polling ghcr.io/flux-iac/aws-primitive-modules.
+    awsPackage:
+      install: false
+    runner:
+      image:
+        tag: v0.16.5
+      grpc:
+        maxMessageSize: 30
+      serviceAccount:
+        # Namespaces the chart creates tf-runner ServiceAccounts (+ token
+        # Secrets) in and the controller may spawn runner Pods in (the release
+        # namespace itself is appended automatically by the chart helper).
+        # flux-system: chart default (kept). zitadel + the SSO app namespaces:
+        # where the first Terraform CRs will live (identity-as-code + app
+        # clients). Extend this list when Terraform CRs land anywhere new.
+        allowedNamespaces:
+          - flux-system
+          - zitadel
+          - clickstack
+          - hubble-ui
+          - flux-operator-ui
+          - headlamp
+          - coder
+    metrics:
+      enabled: false
+      serviceMonitor:
+        enabled: false
