@@ -1,13 +1,13 @@
-# oauth2-proxy (§11.4): per-instance auth front for the UI — SAME locked
-# contract as the other ExternalAuth apps (see zitadel README OIDC table):
-# Zitadel issuer, oauth2-proxy-shared client, ESO secret from
-# base/oauth2-proxy-credentials.yaml, upstream the UI Service,
-# admin-only via the `admin` group. The Gateway HTTPRoute backends to THIS
-# proxy (port 4180), never to the UI directly. Callback
-# https://__SERVICE_HOST__/oauth2/callback is covered by
-# the oauth2-proxy-shared wildcard redirect (https://*/oauth2/callback), so no
-# per-instance client change is needed. Image pinned (no $imagepolicy marker:
-# update-policies/flux-operator-ui.yaml tracks the UI chart line only).
+# oauth2-proxy (§11.4): per-instance auth front for the UI — Zitadel issuer,
+# OWN `flux-operator-ui` client (declared in terraform/, applied by the
+# `flux-operator-ui-sso` Terraform CR — decoupled from the central zitadel
+# module), ESO secret from base/oauth2-proxy-credentials.yaml, upstream the
+# UI Service, admin-only via the `flux-operator-ui-admin` group. The Gateway
+# HTTPRoute backends to THIS proxy (port 4180), never to the UI directly.
+# Callback https://__SERVICE_HOST__/oauth2/callback is covered by the own
+# client's redirect (https://__SERVICE_HOST__/*). Image pinned (no
+# $imagepolicy marker: update-policies/flux-operator-ui.yaml tracks the UI
+# chart line only).
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -57,7 +57,7 @@ spec:
             - --upstream=http://flux-operator-ui.$(POD_NAMESPACE).svc.cluster.local:9080
             - --scope=openid profile email groups
             - --oidc-groups-claim=groups
-            - --allowed-group=admin
+            - --allowed-group=flux-operator-ui-admin
             - --email-domain=*
             - --cookie-secure=true
             - --cookie-samesite=lax

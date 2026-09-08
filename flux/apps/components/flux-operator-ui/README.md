@@ -66,7 +66,7 @@ do not deviate):
 | Item | Value |
 | --- | --- |
 | Issuer | `https://zitadel.home-ops.yansyah.my.id` |
-| Client | `oauth2-proxy-shared` (declared in `flux/infra/components/zitadel/terraform` — reference only) |
+| Client | `flux-operator-ui` (declared in this component's `terraform/` — reference only) |
 | Scopes | `openid profile email groups` (groups claim enforced, `admin` group only) |
 | Secrets (ESO) | `pass://acme-prd-bdo1-talos-apps-01/flux-operator-ui/oauth2-proxy-*` (client-id, client-secret, cookie-secret) |
 | Upstream | `http://flux-operator-ui.<ns>.svc:9080` (namespace-agnostic via `POD_NAMESPACE` env) |
