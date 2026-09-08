@@ -1,8 +1,16 @@
 ---
 # Shared vars: PAT arrives via env only; cluster map selects vault + nodes.
+#
+# Local-only execution: playbooks run on localhost (connection: local) and
+# reach nodes via `talosctl` over the Talos API — there is no SSH inventory.
+# `talos_clusters` is the single source of truth for node IPs; they are data
+# for `talosctl -n/-e` flags only, never Ansible connection targets.
 proton_pass_pat_env: PROTON_PASS_PERSONAL_ACCESS_TOKEN
 talos_version: v1.14.0
 talos_build_dir: "{{ playbook_dir }}/../build"
+# Explicit talosctl auth: bootstrap/operate pass this via --talosconfig
+# instead of relying on an ambient TALOSCONFIG or ~/.talos/config.
+talos_talosconfig: "{{ talos_build_dir }}/{{ talos_cluster }}/talosconfig"
 talos_clusters:
   acme-prd-bdo1-talos-apps-01:
     vault: acme-prd-bdo1-talos-apps-01

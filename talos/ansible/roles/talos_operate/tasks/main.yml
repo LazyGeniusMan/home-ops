@@ -4,6 +4,7 @@
   ansible.builtin.command:
     cmd: >-
       {{ talos_operate_talosctl }} health
+      --talosconfig {{ talos_talosconfig }}
       --control-plane-nodes {{ talos_clusters[talos_cluster].nodes | selectattr('role', 'equalto', 'controlplane') | map(attribute='ip') | join(',') }}
       --init-node {{ talos_clusters[talos_cluster].nodes[0].ip }}
     creates: "{{ talos_build_dir }}/{{ talos_cluster }}/.healthy"
@@ -19,6 +20,7 @@
   ansible.builtin.command:
     cmd: >-
       {{ talos_operate_talosctl }} etcd members
+      --talosconfig {{ talos_talosconfig }}
       -n {{ talos_clusters[talos_cluster].nodes[0].ip }}
       -e {{ talos_clusters[talos_cluster].nodes[0].ip }}
   changed_when: false
@@ -33,6 +35,7 @@
   ansible.builtin.command:
     cmd: >-
       {{ talos_operate_talosctl }} upgrade
+      --talosconfig {{ talos_talosconfig }}
       -n {{ item.ip }} -i {{ talos_operate_upgrade_image }}
   loop: "{{ talos_clusters[talos_cluster].nodes }}"
   loop_control:

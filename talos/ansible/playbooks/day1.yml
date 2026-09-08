@@ -1,6 +1,6 @@
 ---
 # Day-1 single-node: install, bootstrap etcd, fetch kubeconfig.
-# Usage: ansible-playbook playbooks/day1.yml -i inventory/bdo1.yml
+# Local-only: ansible-playbook playbooks/day1.yml -i localhost,
 #   -e talos_cluster=acme-dev-bdo1-talos-apps-01
 - name: Day-1 install and bootstrap Talos cluster
   hosts: localhost

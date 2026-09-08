@@ -1,6 +1,6 @@
 ---
 # Day-2 operate: health + etcd status; optional upgrade via -e upgrade_image=....
-# Usage: ansible-playbook playbooks/day2.yml -i inventory/bdo1.yml
+# Local-only: ansible-playbook playbooks/day2.yml -i localhost,
 #   -e talos_cluster=acme-dev-bdo1-talos-apps-01 [-e upgrade_image=<installer>]
 - name: Day-2 operate Talos cluster
   hosts: localhost

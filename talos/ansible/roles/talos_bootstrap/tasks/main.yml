@@ -4,6 +4,7 @@
   ansible.builtin.command:
     cmd: >-
       {{ talos_bootstrap_talosctl }} apply-config
+      --talosconfig {{ talos_talosconfig }}
       --insecure -n {{ item.ip }}
       -f {{ talos_build_dir }}/{{ talos_cluster }}/controlplane.yaml
       --mode {{ talos_bootstrap_mode }}
@@ -27,6 +28,7 @@
   ansible.builtin.command:
     cmd: >-
       {{ talos_bootstrap_talosctl }} bootstrap
+      --talosconfig {{ talos_talosconfig }}
       -n {{ talos_clusters[talos_cluster].nodes[0].ip }}
       -e {{ talos_clusters[talos_cluster].nodes[0].ip }}
     creates: "{{ talos_build_dir }}/{{ talos_cluster }}/.bootstrapped"
@@ -43,6 +45,7 @@
   ansible.builtin.command:
     cmd: >-
       {{ talos_bootstrap_talosctl }} kubeconfig
+      --talosconfig {{ talos_talosconfig }}
       {{ talos_build_dir }}/{{ talos_cluster }}/kubeconfig
       -n {{ talos_clusters[talos_cluster].nodes[0].ip }}
       -e {{ talos_clusters[talos_cluster].nodes[0].ip }}

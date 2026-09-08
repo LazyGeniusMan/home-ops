@@ -1,14 +1,14 @@
-# Example inventory — copy to inventory/bdo1.yml (gitignored) and adjust.
-# Covers prd single-node bdo-r01-cp-001 and the dev node.
+# Local-only stub — this tree never connects to inventory hosts.
+#
+# Every playbook runs on `hosts: localhost` with `connection: local` (plus
+# `transport = local` in ansible.cfg); all node contact is `talosctl` over
+# the Talos API — no SSH. Node names/IPs live ONLY in group_vars/all.yml
+# (`talos_clusters` map) as data for `talosctl -n/-e` flags — do NOT add
+# node entries here.
+#
+# Run with an inline localhost inventory; no inventory files are needed:
+#   ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=acme-dev-bdo1-talos-apps-01 --check --diff
 all:
-  children:
-    talos_prd:
-      hosts:
-        bdo-r01-cp-001:
-          ansible_host: 192.168.1.101
-          talos_role: controlplane
-    talos_dev:
-      hosts:
-        bdo-d01-cp-001:
-          ansible_host: 192.168.1.201
-          talos_role: controlplane
+  hosts:
+    localhost:
+      ansible_connection: local

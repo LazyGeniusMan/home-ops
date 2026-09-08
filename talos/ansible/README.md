@@ -9,10 +9,9 @@ Talos API — no SSH, no kubectl in this tree.
 
 ```text
 ansible/
-  ansible.cfg                  # roles_path, no cows, diff output
+  ansible.cfg                  # roles_path, transport=local, diff output
   requirements.yml             # collections (community.general for key-value lookups)
-  inventory.example            # COMMITTED example (bdo-r01-cp-001 + dev node)
-  inventory/                   # GITIGNORED real inventory (copy from the example)
+  inventory.example            # COMMITTED localhost-only stub (nodes live in group_vars, not inventory)
   group_vars/all.yml           # PAT env passthrough, talos version, per-cluster map
   group_vars/vault.template.yml# double-brace pass:// refs (render via pass-cli inject)
   playbooks/day0.yml           # render secrets/configs, gen + validate, install
@@ -31,16 +30,26 @@ ansible/
   `export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... ; pass-cli login`
 - `talos_cluster` — active cluster name (override with `-e talos_cluster=...`).
 - `talos_clusters.<name>` — per-cluster map: `vault` (Proton Pass vault),
-  `endpoint` (VIP URL), `nodes: [{name, ip, role}]`.
+  `endpoint` (VIP URL), `nodes: [{name, ip, role}]`. This map is the single
+  source of truth for node IPs — they are data for `talosctl -n/-e` flags
+  only, never Ansible connection targets.
+- `talos_talosconfig` — explicit `--talosconfig` path
+  (`build/<cluster>/talosconfig`) passed on every bootstrap/operate
+  `talosctl` call instead of an ambient `TALOSCONFIG` or `~/.talos/config`.
 - Secrets use `no_log: true` on every task that touches them and are only
   ever resolved through `pass-cli item view "pass://<vault>/talos/<field>"`
   or `pass-cli inject` on double-brace templates.
 
-## Inventory
+## Inventory (local-only — no node inventory)
+
+Every playbook runs on `hosts: localhost` with `connection: local` (plus
+`transport = local` in `ansible.cfg`); all node contact is `talosctl` over
+the Talos API — no SSH. There are no node entries in any inventory:
+`inventory.example` is an unused localhost-only stub, and
+`group_vars/all.yml` (`talos_clusters`) remains the single IP source.
 
 ```bash
-cp inventory.example inventory/bdo1.yml   # real inventory is gitignored
-ansible-playbook playbooks/day0.yml -i inventory/bdo1.yml -e talos_cluster=acme-dev-bdo1-talos-apps-01 --check --diff
+ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=acme-dev-bdo1-talos-apps-01 --check --diff
 ```
 
 FQCN (`ansible.builtin.*`, `community.general.*`) is enforced (ansible-lint
