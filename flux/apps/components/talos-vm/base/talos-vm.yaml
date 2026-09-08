@@ -1,0 +1,83 @@
+# talos-vm (§13.5): Talos Linux guest, 1 replica, manual power.
+# Same shape as win11-vm (§13.4) except: UEFI with SecureBoot DISABLED
+# (Talos nocloud image is not SecureBoot-signed — efi.secureBoot=false and NO
+# features.smm block) and the Talos nocloud ISO source (see README).
+# runStrategy: Manual is LOCKED — same runbook as win11-vm (suspend the
+# apps/talos-vm Flux Kustomization around manual virtctl power ops).
+# No `metadata.namespace`: the apps tenant applies . with targetNamespace=<tenant>.
+# Secondary net references NAD `multus/lan-dhcp` namespace-qualified (owned by
+# the multus infra component — single-writer; do not define a NAD here).
+# Storage: DataVolume on local-ssd-nvme.
+# {"$imagepolicy": "apps:talos-vm:tag"}
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: talos-vm
+  labels:
+    kubevirt.io/vm: talos-vm
+spec:
+  runStrategy: Manual
+  template:
+    metadata:
+      labels:
+        kubevirt.io/vm: talos-vm
+    spec:
+      domain:
+        cpu:
+          cores: 2
+        resources:
+          requests:
+            memory: 4Gi
+        devices:
+          disks:
+            - name: rootdisk
+              disk:
+                bus: virtio
+            - name: cloudinitdisk
+              disk:
+                bus: virtio
+          interfaces:
+            - name: default
+              masquerade: {}
+            - name: lan
+              bridge: {}
+        firmware:
+          bootloader:
+            efi:
+              secureBoot: false
+        machine:
+          type: q35
+      networks:
+        - name: default
+          pod: {}
+        - name: lan
+          multus:
+            networkName: multus/lan-dhcp
+      volumes:
+        - name: rootdisk
+          dataVolume:
+            name: talos-vm-rootdisk
+        - name: cloudinitdisk
+          cloudInitNoCloud:
+            userData: |
+              #cloud-config
+              hostname: talos-vm
+  dataVolumeTemplates:
+    - metadata:
+        name: talos-vm-rootdisk
+      spec:
+        storage:
+          storageClassName: local-ssd-nvme
+          resources:
+            requests:
+              storage: 20Gi
+        source:
+          # Talos v1.14 nocloud image, aligned with talos-docs v1.14
+          # (getting-started: Image factory https://factory.talos.dev/).
+          # Schematic extensions for a KVM guest: none beyond the base
+          # (virtio NIC/disk are in-tree; qemu-guest-agent extension optional
+          # — add via factory schematic if wanted, then refresh this URL).
+          # { talks to factory.talos.dev nocloud artifact }
+          http:
+            url: "https://factory.talos.dev/image/nocloud/amd64/v1.14/nocloud-amd64.iso"

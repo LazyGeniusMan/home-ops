@@ -1,0 +1,23 @@
+# lan-dhcp NetworkAttachmentDefinition (§13.1). SINGLE-WRITER: the multus
+# component owns this NAD; win11-vm/talos-vm reference it — they must not
+# define their own copy.
+# No `metadata.namespace` field: the infra tenant applies configs with
+# targetNamespace=multus, so this lands in `multus`. Consumers MUST reference
+# it namespace-qualified as `multus/lan-dhcp` (see multus README + VM READMEs).
+# L2: macvlan on the LAN uplink in bridge mode; guests DHCP directly against
+# the router at 192.168.1.1. Base targets production (enp45s0 = RTL8125);
+# the staging overlay repatches master to the dev virtio NIC.
+---
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: lan-dhcp
+spec:
+  config: '{
+      "cniVersion": "0.3.1",
+      "name": "lan-dhcp",
+      "type": "macvlan",
+      "master": "enp45s0",
+      "mode": "bridge",
+      "ipam": { "type": "dhcp" }
+    }'

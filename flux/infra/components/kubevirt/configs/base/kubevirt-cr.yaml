@@ -1,0 +1,51 @@
+# KubeVirt CR (§13.2): enables virt-operator/api/controller onto the pinned
+# v1.9.0 operator from controllers/base/kubevirt-operator.yaml.
+# Source shape: upstream kubevirt-cr.yaml at v1.9.0
+#   (https://github.com/kubevirt/kubevirt/releases/download/v1.9.0/kubevirt-cr.yaml),
+# extended per the Talos install guide
+# (talos-docs v1.14 advanced-guides/install-kubevirt.mdx) and §13.2 locks:
+#   - featureGates LiveMigration (shared live-migration path) +
+#     NetworkBindingPlugins (Multus secondary-net support);
+#   - smbios TalosCloud identity block from the upstream guide;
+#   - workloadUpdateStrategy LiveMigrate (guide default);
+#   - storage: local-path scratch via local-ssd-nvme (default class) — the
+#     guide's scratchSpaceStorageClass is CDI's field; the KubeVirt CRD has no
+#     top-level storage field (verified against the v1.9.0 CRD schema:
+#     no storageClass/storage/scratchSpace keys), so default-class
+#     local-ssd-nvme is used implicitly. Set explicitly if a future schema
+#     gains the knob.
+#   - metrics: left at upstream defaults (prometheus annotations on the
+#     operator/components, no ServiceMonitor namespace/account pinned) — safe
+#     without a stack; ServiceMonitors wait for the monitoring stack.
+#   - telemetry: upstream exposes no phone-home/telemetry flags (verified:
+#     no telemetry key in the v1.9.0 CRD) — nothing to disable.
+#   - unguarded monitors: monitorNamespace/monitorAccount/
+#     serviceMonitorNamespace stay UNSET (defaults point at openshift-monitor/
+#     prometheus-k8s, which do not exist here); flip note in README.
+# No `metadata.namespace`: infra-configs applies with targetNamespace=kubevirt.
+# {"$imagepolicy": "infra:kubevirt:tag"}
+---
+apiVersion: kubevirt.io/v1
+kind: KubeVirt
+metadata:
+  name: kubevirt
+spec:
+  certificateRotateStrategy: {}
+  configuration:
+    developerConfiguration:
+      featureGates:
+        - LiveMigration
+        - NetworkBindingPlugins
+      useEmulation: false
+    imagePullPolicy: IfNotPresent
+    smbios:
+      sku: "TalosCloud"
+      version: "v0.1.0"
+      manufacturer: "Talos Virtualization"
+      product: "talosvm"
+      family: "ccio"
+  customizeComponents: {}
+  imagePullPolicy: IfNotPresent
+  workloadUpdateStrategy:
+    workloadUpdateMethods:
+      - LiveMigrate

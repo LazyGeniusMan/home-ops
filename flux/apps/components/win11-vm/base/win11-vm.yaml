@@ -1,0 +1,88 @@
+# win11-vm (§13.4): Windows 11 guest, 1 replica, manual power.
+# runStrategy: Manual is LOCKED — manual power (virtctl start/stop) must
+# survive reconciliation; see README runbook (suspend the apps/win11-vm
+# Flux Kustomization around manual power ops).
+# No `metadata.namespace`: the apps tenant applies . with targetNamespace=<tenant>.
+# Secondary net references NAD `multus/lan-dhcp` namespace-qualified (owned by
+# the multus infra component — single-writer; do not define a NAD here).
+# UEFI + SecureBoot: features.smm.enabled (required for SecureBoot) +
+# firmware.bootloader.efi.secureBoot=true (KubeVirt enables SecureBoot with
+# EFI unless secureBoot=false — set explicitly here).
+# Storage: DataVolume on local-ssd-nvme. The Windows 11 ISO is a DOCUMENTED
+# PREREQUISITE — fill `spec.source` per the README import steps (placeholder
+# http source below); do not commit licensed ISO URLs.
+# {"$imagepolicy": "apps:win11-vm:tag"}
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: win11-vm
+  labels:
+    kubevirt.io/vm: win11-vm
+spec:
+  runStrategy: Manual
+  template:
+    metadata:
+      labels:
+        kubevirt.io/vm: win11-vm
+    spec:
+      domain:
+        cpu:
+          cores: 4
+        resources:
+          requests:
+            memory: 8Gi
+        devices:
+          disks:
+            - name: rootdisk
+              disk:
+                bus: virtio
+            - name: cloudinitdisk
+              disk:
+                bus: virtio
+          interfaces:
+            - name: default
+              masquerade: {}
+            - name: lan
+              bridge: {}
+          features:
+            acpi: {}
+            smm:
+              enabled: true
+        firmware:
+          bootloader:
+            efi:
+              secureBoot: true
+        machine:
+          type: q35
+      networks:
+        - name: default
+          pod: {}
+        - name: lan
+          multus:
+            networkName: multus/lan-dhcp
+      volumes:
+        - name: rootdisk
+          dataVolume:
+            name: win11-vm-rootdisk
+        - name: cloudinitdisk
+          cloudInitNoCloud:
+            userData: |
+              #cloud-config
+              hostname: win11-vm
+  dataVolumeTemplates:
+    - metadata:
+        name: win11-vm-rootdisk
+      spec:
+        storage:
+          storageClassName: local-ssd-nvme
+          resources:
+            requests:
+              storage: 80Gi
+        source:
+          # PLACEHOLDER — fill per README "Windows 11 ISO import" steps.
+          # Example once staged on local infra:
+          # http:
+          #   url: "https://files.home-ops.yansyah.my.id/iso/Win11_24H2_English_x64.iso"
+          http:
+            url: "https://REPLACE-ME/Win11_xxH2_x64.iso"

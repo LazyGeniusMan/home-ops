@@ -1,0 +1,24 @@
+# Update policy for the kubevirt component (§13.2): tracks the upstream KubeVirt
+# release, and the ImageUpdateAutomation (update cluster) opens PRs via markers
+# in components/kubevirt (see README). Follows the §7 update-policy contract
+# (ImageRepository + ImagePolicy + $imagepolicy markers).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: kubevirt
+spec:
+  image: "quay.io/kubevirt/virt-operator"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: kubevirt
+spec:
+  imageRepositoryRef:
+    name: kubevirt
+  policy:
+    semver:
+      range: ">=1.9.0"

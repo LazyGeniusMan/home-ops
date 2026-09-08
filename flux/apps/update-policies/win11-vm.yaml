@@ -1,0 +1,25 @@
+# Update policy for the win11-vm app (§13.4): tracks the staged Windows 11
+# base ISO, and the ImageUpdateAutomation (update cluster) opens PRs via the
+# marker in components/win11-vm (see README). Follows the §7 update-policy
+# contract (ImageRepository + ImagePolicy + $imagepolicy markers). Static
+# until the ISO refresh cadence is set — document bumps in the README.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: win11-vm
+spec:
+  image: "files.home-ops.yansyah.my.id/iso/win11"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: win11-vm
+spec:
+  imageRepositoryRef:
+    name: win11-vm
+  policy:
+    semver:
+      range: ">=24H2"

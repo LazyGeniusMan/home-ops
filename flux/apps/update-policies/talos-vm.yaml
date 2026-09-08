@@ -1,0 +1,24 @@
+# Update policy for the talos-vm app (§13.5): tracks the Talos nocloud base
+# ISO, and the ImageUpdateAutomation (update cluster) opens PRs via the marker
+# in components/talos-vm (see README). Follows the §7 update-policy contract
+# (ImageRepository + ImagePolicy + $imagepolicy markers).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: talos-vm
+spec:
+  image: "factory.talos.dev/image/nocloud/amd64"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: talos-vm
+spec:
+  imageRepositoryRef:
+    name: talos-vm
+  policy:
+    semver:
+      range: ">=1.14.0"
