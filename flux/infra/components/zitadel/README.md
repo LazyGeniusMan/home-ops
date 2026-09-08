@@ -91,14 +91,17 @@ App writers build against THIS table — do not deviate.
 | Groups | `admin` (admin@ member), `users` (user@ member) — asserted in the `groups` claim |
 | Scopes (all clients) | `openid profile email groups` |
 | Flow (all clients) | Authorization code + PKCE, refresh tokens on |
-| `clickstack` redirect | `https://clickstack.home-ops.yansyah.my.id/*` |
-| `hubble` redirect | `https://hubble.home-ops.yansyah.my.id/*` |
-| `flux-operator-ui` redirect | `https://flux-operator.home-ops.yansyah.my.id/*` |
-| `headlamp` redirect | `https://headlamp.home-ops.yansyah.my.id/*` |
-| `coder` redirect | `https://coder.home-ops.yansyah.my.id/*` |
-| `oauth2-proxy-shared` redirect | `https://*/oauth2/callback` (ExternalAuth routes: clickstack, hubble, flux-operator-ui) |
+| Owner: `coder` → client `coder` | `https://coder.home-ops.yansyah.my.id/*` (post-logout → `https://coder.home-ops.yansyah.my.id/`) |
+| Owner: `clickstack` → client `clickstack` | `https://clickstack.home-ops.yansyah.my.id/*` (covers the per-instance oauth2-proxy callback under `/oauth2/callback`) |
+| Owner: `hubble-ui` → client `hubble` | `https://hubble.home-ops.yansyah.my.id/*` (covers the per-instance oauth2-proxy callback under `/oauth2/callback`) |
+| Owner: `flux-operator-ui` → client `flux-operator-ui` | `https://flux-operator.home-ops.yansyah.my.id/*` (covers the per-instance oauth2-proxy callback under `/oauth2/callback`) |
+| Owner: `headlamp` → client `headlamp` | `https://headlamp.home-ops.yansyah.my.id/*` |
+| Owner: `seaweedfs` → client `seaweedfs` | `https://ui.seaweedfs.home-ops.yansyah.my.id/oauth2/callback` (serves the filer-UI proxy) |
 
-Post-logout redirects point at each app's root (`https://<app>…/`).
+Each app owns its own `zitadel_project` + `zitadel_application_oidc` client
+in its per-app `terraform/` slice (own project roles/grants assert the
+`groups` claim); the central bootstrap slice owns no clients. Post-logout
+redirects point at each app's root (`https://<app>…/`).
 
 ## Identity-as-code (Tofu Controller)
 
@@ -108,9 +111,9 @@ v1alpha2, chart 0.16.5 — see the `tofu-controller` component):
 - `configs/base/terraform-bootstrap.yaml` — `zitadel-bootstrap-identity`
   Terraform CR (`approvePlan: auto`, in-cluster state backend) applying the
   bootstrap slice of `terraform/`: `zitadel_org`, `zitadel_human_user` × 2,
-  `zitadel_org_member` × 2, `zitadel_project` + roles + grants. OIDC clients
-  (`zitadel_application_oidc` × 6) still live in `terraform/` for now — a
-  per-app task moves them out (scope guard).
+  `zitadel_org_member` × 2, legacy `zitadel_project` (`home-ops`) + roles +
+  grants. OIDC clients live in each app's own per-app `terraform/` slice —
+  this bootstrap slice owns none.
 - `terraform/` — the modules (`zitadel/zitadel ~> 3.3`, `tofu validate`
   passes; the provider ships no `zitadel_user_group` resources, so groups map
   to `zitadel_org_member` + `zitadel_project` roles + `zitadel_user_grant`).
@@ -134,7 +137,8 @@ Without the key the runner fails auth and retries on interval.
 
 Manual fallback: `terraform init && terraform apply` from `terraform/` with
 `-var jwt_profile_json="$(cat <key>.json)"` (+ domain/email `-var`s for dev).
-Read client secrets from state into Proton Pass (never Git).
+Client secrets live in each app's per-app `terraform/` state — read them into
+Proton Pass (never Git).
 
 ## Telemetry-off / monitoring / updates
 

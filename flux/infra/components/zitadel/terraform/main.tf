@@ -37,8 +37,8 @@ resource "zitadel_human_user" "user" {
 # Groups: the pinned provider (zitadel ~> 3.3) ships no zitadel_user_group
 # resources, so group membership is expressed with org/project membership:
 # admin ≡ ORG_OWNER + project admin grant; users ≡ plain org member + project
-# user grant. The `groups` claim on every client below still carries
-# admin/users via the project role assertion + grants.
+# user grant. The `groups` claim on every per-app OIDC client still carries
+# admin/users via that app's own project role assertion + grants.
 resource "zitadel_org_member" "admin_member" {
   org_id  = zitadel_org.home_ops.id
   user_id = zitadel_human_user.admin.id
@@ -90,45 +90,12 @@ resource "zitadel_user_grant" "user" {
   role_keys  = ["user"]
 }
 
-# OIDC clients (all: code flow + PKCE, refresh tokens; scopes openid profile
-# email groups). Client secrets are generated server-side — read them from
-# state after apply and store in Proton Pass (never in Git).
-# Parent domain derived from var.domain (issuer host zitadel.<parent>).
-# Passing -var domain=zitadel.homelab-dev.yansyah.my.id (+ admin/user emails)
-# switches every redirect to dev with no other edits (§14).
-locals {
-  parent_domain = replace(var.domain, "/^zitadel\\./", "")
-  clients = {
-    clickstack         = ["https://clickstack.${local.parent_domain}/*"]
-    hubble             = ["https://hubble.${local.parent_domain}/*"]
-    flux-operator-ui   = ["https://flux-operator.${local.parent_domain}/*"]
-    headlamp           = ["https://headlamp.${local.parent_domain}/*"]
-    coder              = ["https://coder.${local.parent_domain}/*"]
-    oauth2-proxy-shared = ["https://*/oauth2/callback"]
-  }
-  post_logout = {
-    clickstack         = ["https://clickstack.${local.parent_domain}/"]
-    hubble             = ["https://hubble.${local.parent_domain}/"]
-    flux-operator-ui   = ["https://flux-operator.${local.parent_domain}/"]
-    headlamp           = ["https://headlamp.${local.parent_domain}/"]
-    coder              = ["https://coder.${local.parent_domain}/"]
-    oauth2-proxy-shared = []
-  }
-}
-
-resource "zitadel_application_oidc" "clients" {
-  for_each                     = local.clients
-  org_id                       = zitadel_org.home_ops.id
-  project_id                   = zitadel_project.home_ops.id
-  name                         = each.key
-  redirect_uris                = each.value
-  post_logout_redirect_uris    = local.post_logout[each.key]
-  response_types               = ["OIDC_RESPONSE_TYPE_CODE"]
-  grant_types                  = ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE", "OIDC_GRANT_TYPE_REFRESH_TOKEN"]
-  app_type                     = "OIDC_APP_TYPE_WEB"
-  auth_method_type             = "OIDC_AUTH_METHOD_TYPE_BASIC"
-  access_token_type            = "OIDC_TOKEN_TYPE_BEARER"
-  access_token_role_assertion  = true
-  id_token_role_assertion      = true
-  id_token_userinfo_assertion  = true
-}
+# OIDC clients: none here — each app owns its own `zitadel_project` +
+# `zitadel_application_oidc` client in its per-app `terraform/` slice (coder,
+# clickstack, hubble-ui, flux-operator-ui, headlamp, seaweedfs). This
+# bootstrap slice keeps only org, users, membership, and the legacy
+# `home-ops` project + roles + grants (see the README contract table for the
+# per-app ownership map). Redirects ride each app's per-env `app_host` /
+# `ui_host` CR vars, so passing -var domain=zitadel.homelab-dev.yansyah.my.id
+# (+ admin/user emails) switches every redirect to dev with no other edits
+# (§14).

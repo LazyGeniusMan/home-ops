@@ -1,10 +1,10 @@
-# Static identity intent (§11.1): org, users, groups, OIDC clients.
+# Static identity intent (§11.1): org, users, groups, OIDC client ownership.
 # Machine-applied: the `zitadel-bootstrap-identity` Terraform CR
 # (terraform-bootstrap.yaml, Tofu Controller) applies the bootstrap slice
-# (org, users, membership, project/roles/grants) from terraform/; OIDC
-# clients still live in terraform/ until the per-app task moves them. This
-# ConfigMap is the human-readable mirror of that intent — keep it in sync
-# with terraform/ + the Terraform CR vars when the contract changes.
+# (org, users, membership, legacy home-ops project/roles/grants) from
+# terraform/; OIDC clients live in each app's own per-app `terraform/` slice.
+# This ConfigMap is the human-readable mirror of that intent — keep it in
+# sync with terraform/ + the Terraform CR vars when the contract changes.
 #
 # Org: home-ops
 # Users (human, email-verified, initial passwords rotated after first login):
@@ -19,11 +19,23 @@
 # each user to their role (drives id_token role assertion alongside the
 # groups claim above).
 # OIDC clients (all: code flow + PKCE, refresh tokens on; secrets via ESO,
-# never in Git — see the OIDC contract table in the README):
-# - clickstack, hubble, flux-operator-ui, headlamp, coder: per-app redirect
-#   https://<app>.home-ops.yansyah.my.id/*, post-logout → https://<app> root
-# - oauth2-proxy-shared: redirect https://*/oauth2/callback (wildcard covers
-#   the ExternalAuth routes clickstack, hubble, flux-operator-ui)
+# never in Git — see the OIDC contract table in the README). Each app owns
+# its own `zitadel_project` + `zitadel_application_oidc` client in its
+# per-app `terraform/` slice (own project roles/grants assert the `groups`
+# claim); this bootstrap slice owns no clients:
+# - coder → client `coder` (redirect https://coder.<parent>/*, post-logout →
+#   https://coder.<parent>/)
+# - clickstack → client `clickstack` (redirect
+#   https://clickstack.<parent>/*, covers the per-instance oauth2-proxy
+#   callback under /oauth2/callback)
+# - hubble-ui → client `hubble` (redirect https://hubble.<parent>/*, covers
+#   the per-instance oauth2-proxy callback under /oauth2/callback)
+# - flux-operator-ui → client `flux-operator-ui` (redirect
+#   https://flux-operator.<parent>/*, covers the per-instance oauth2-proxy
+#   callback under /oauth2/callback)
+# - headlamp → client `headlamp` (redirect https://headlamp.<parent>/*)
+# - seaweedfs → client `seaweedfs` (redirect
+#   https://ui.seaweedfs.<parent>/oauth2/callback, serves the filer-UI proxy)
 # Scopes for every client: openid profile email groups.
 ---
 apiVersion: v1
@@ -49,10 +61,11 @@ data:
     - admin
     - users
   clients: |
-    - clickstack: https://clickstack.__BASE_DOMAIN__/*
-    - hubble: https://hubble.__BASE_DOMAIN__/*
-    - flux-operator-ui: https://flux-operator.__BASE_DOMAIN__/*
-    - headlamp: https://headlamp.__BASE_DOMAIN__/*
-    - coder: https://coder.__BASE_DOMAIN__/*
-    - oauth2-proxy-shared: https://*/oauth2/callback
+    owned-by: per-app terraform slices (this bootstrap slice owns no clients)
+    - coder owns client `coder`: https://coder.__BASE_DOMAIN__/*
+    - clickstack owns client `clickstack`: https://clickstack.__BASE_DOMAIN__/*
+    - hubble-ui owns client `hubble`: https://hubble.__BASE_DOMAIN__/*
+    - flux-operator-ui owns client `flux-operator-ui`: https://flux-operator.__BASE_DOMAIN__/*
+    - headlamp owns client `headlamp`: https://headlamp.__BASE_DOMAIN__/*
+    - seaweedfs owns client `seaweedfs`: https://ui.seaweedfs.__BASE_DOMAIN__/oauth2/callback
   scopes: openid profile email groups

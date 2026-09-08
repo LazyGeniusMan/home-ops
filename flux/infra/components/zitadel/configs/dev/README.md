@@ -33,14 +33,17 @@ App writers build against THIS table — do not deviate.
 | Groups | `admin` (admin@ member), `users` (user@ member) — asserted in the `groups` claim |
 | Scopes (all clients) | `openid profile email groups` |
 | Flow (all clients) | Authorization code + PKCE, refresh tokens on |
-| `clickstack` redirect | `https://clickstack.homelab-dev.yansyah.my.id/*` |
-| `hubble` redirect | `https://hubble.homelab-dev.yansyah.my.id/*` |
-| `flux-operator-ui` redirect | `https://flux-operator.homelab-dev.yansyah.my.id/*` |
-| `headlamp` redirect | `https://headlamp.homelab-dev.yansyah.my.id/*` |
-| `coder` redirect | `https://coder.homelab-dev.yansyah.my.id/*` |
-| `oauth2-proxy-shared` redirect | `https://*/oauth2/callback` (ExternalAuth routes: clickstack, hubble, flux-operator-ui) |
+| Owner: `coder` → client `coder` | `https://coder.homelab-dev.yansyah.my.id/*` (post-logout → `https://coder.homelab-dev.yansyah.my.id/`) |
+| Owner: `clickstack` → client `clickstack` | `https://clickstack.homelab-dev.yansyah.my.id/*` (covers the per-instance oauth2-proxy callback under `/oauth2/callback`) |
+| Owner: `hubble-ui` → client `hubble` | `https://hubble.homelab-dev.yansyah.my.id/*` (covers the per-instance oauth2-proxy callback under `/oauth2/callback`) |
+| Owner: `flux-operator-ui` → client `flux-operator-ui` | `https://flux-operator.homelab-dev.yansyah.my.id/*` (covers the per-instance oauth2-proxy callback under `/oauth2/callback`) |
+| Owner: `headlamp` → client `headlamp` | `https://headlamp.homelab-dev.yansyah.my.id/*` |
+| Owner: `seaweedfs` → client `seaweedfs` | `https://ui.seaweedfs.homelab-dev.yansyah.my.id/oauth2/callback` (serves the filer-UI proxy) |
 
-Post-logout redirects point at each app's root (`https://<app>…/`).
+Each app owns its own `zitadel_project` + `zitadel_application_oidc` client
+in its per-app `terraform/` slice (own project roles/grants assert the
+`groups` claim); the central bootstrap slice owns no clients. Post-logout
+redirects point at each app's root (`https://<app>…/`).
 
 ## Identity-as-code (Tofu Controller) — DEV note
 
@@ -53,12 +56,13 @@ refs (`pass://acme-dev-bdo1-talos-apps-01/zitadel/terraform-*`) plus CR
 - `domain=zitadel.homelab-dev.yansyah.my.id`
 - `admin_email=admin@homelab-dev.yansyah.my.id`
 - `user_email=user@homelab-dev.yansyah.my.id`
-- Client `redirect_uris`/`post_logout_redirect_uris` locals: replace the
-  prd domain with `homelab-dev.yansyah.my.id` (same shapes as the table
-  above); `oauth2-proxy-shared` stays `https://*/oauth2/callback`.
-- Read the generated client secrets from state into the DEV Proton Pass
-  vault (`pass://acme-dev-bdo1-talos-apps-01/...`, never Git) — each §14
-  app's dev ESO secrets reference those entries.
+- Client `redirect_uris`/`post_logout_redirect_uris`: each per-app
+  `terraform/` slice rides its own `app_host`/`ui_host` CR vars (same shapes
+  as the table above) — no shared client remains.
+- Read each app's generated client secret from its own per-app state into
+  the DEV Proton Pass vault
+  (`pass://acme-dev-bdo1-talos-apps-01/...`, never Git) — each §14 app's dev
+  ESO secrets reference those entries.
 
 ## Credentials
 

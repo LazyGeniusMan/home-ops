@@ -1,7 +1,8 @@
 # Bootstrap identity (§11.1), machine-applied by Tofu Controller.
 # Manages ONLY the Zitadel-side bootstrap: org, 2 human users, org membership
-# (admin=ORG_OWNER), project + project roles + user grants. OIDC clients stay
-# in terraform/ for now (a per-app task moves them out).
+# (admin=ORG_OWNER), legacy home-ops project + project roles + user grants.
+# OIDC clients live in each app's own per-app terraform/ slice — this
+# bootstrap slice owns none.
 # The pinned provider (zitadel ~> 3.3) ships no zitadel_user_group resources —
 # groups are emulated via org membership + project grants (same pattern as
 # terraform/): admin ≡ ORG_OWNER + admin grant; user ≡ plain member + user

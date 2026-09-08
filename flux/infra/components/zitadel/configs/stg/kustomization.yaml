@@ -142,7 +142,7 @@ patches:
     target:
       kind: Terraform
       name: zitadel-bootstrap-identity
-  # Stg (prd values) identity intent: annotation key, users, clients.
+  # Stg (prd values) identity intent: annotation key, users, client ownership.
   - patch: |
       - op: remove
         path: /metadata/annotations/__ZITADEL_HOST__~1managed-by
@@ -173,12 +173,13 @@ patches:
       - op: replace
         path: /data/clients
         value: |
-          - clickstack: https://clickstack.home-ops.yansyah.my.id/*
-          - hubble: https://hubble.home-ops.yansyah.my.id/*
-          - flux-operator-ui: https://flux-operator.home-ops.yansyah.my.id/*
-          - headlamp: https://headlamp.home-ops.yansyah.my.id/*
-          - coder: https://coder.home-ops.yansyah.my.id/*
-          - oauth2-proxy-shared: https://*/oauth2/callback
+          owned-by: per-app terraform slices (this bootstrap slice owns no clients)
+          - coder owns client `coder`: https://coder.home-ops.yansyah.my.id/*
+          - clickstack owns client `clickstack`: https://clickstack.home-ops.yansyah.my.id/*
+          - hubble-ui owns client `hubble`: https://hubble.home-ops.yansyah.my.id/*
+          - flux-operator-ui owns client `flux-operator-ui`: https://flux-operator.home-ops.yansyah.my.id/*
+          - headlamp owns client `headlamp`: https://headlamp.home-ops.yansyah.my.id/*
+          - seaweedfs owns client `seaweedfs`: https://ui.seaweedfs.home-ops.yansyah.my.id/oauth2/callback
     target:
       kind: ConfigMap
       name: zitadel-identity-intent
