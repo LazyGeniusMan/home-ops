@@ -11,5 +11,5 @@ metadata:
 data:
   ARTIFACT_TAG: latest-stable
   ENVIRONMENT: dev
-  CLUSTER_NAME: dev-1
-  CLUSTER_DOMAIN: dev.example.com
+  CLUSTER_NAME: acme-dev-bdo1-talos-apps-01
+  CLUSTER_DOMAIN: homelab-dev.yansyah.my.id
