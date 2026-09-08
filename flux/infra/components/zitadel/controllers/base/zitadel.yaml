@@ -1,0 +1,111 @@
+# Zitadel v4.17.1 identity provider (§11.1): OIDC issuer for
+# zitadel.home-ops.yansyah.my.id plus the wave-3c app client contract (see README).
+# Chart: oci://ghcr.io/zitadel/zitadel-charts/zitadel, tag 10.0.4
+# (digest sha256:9afa657fad65079857339f7d7fd296c73e577f6c8ec4e4a103093be35964b50c,
+# verified by pull; OCI on GHCR is the upstream source of truth).
+# Chart-to-app mapping (cnpg-style divergence, see README): chart 10.0.4 embeds
+# app v4.15.3, but the app image is pinned separately below to v4.17.1
+# (ghcr.io/zitadel/zitadel:v4.17.1 + ghcr.io/zitadel/zitadel-login:v4.17.1
+# manifests verified on GHCR). On chart bumps set image.tag AND
+# login.image.tag to the new appVersion together.
+# Telemetry: pulled chart values.yaml carries no phone-home, analytics, or
+# usage-reporting knobs (checked at authoring time); metrics.enabled stays
+# false and no ServiceMonitor is shipped until monitoring.coreos.com CRDs land
+# (same §9 deviation — flip note in README).
+# Ordering: the masterkey/DSN ExternalSecrets live in configs (which the fleet
+# applies AFTER controllers), so the first install attempt pends until ESO
+# syncs them and Flux retries (RetryOnFailure below).
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: zitadel-chart
+spec:
+  interval: 1h
+  url: oci://ghcr.io/zitadel/zitadel-charts/zitadel
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: 10.0.4 # {"$imagepolicy": "infra:zitadel:tag"}
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: zitadel
+spec:
+  interval: 1h
+  releaseName: zitadel
+  serviceAccountName: flux
+  chartRef:
+    kind: OCIRepository
+    name: zitadel-chart
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  # https://zitadel.com/docs/self-hosting/deploy/kubernetes
+  values:
+    # Two API replicas survive a node loss; the login UI keeps one (stateless
+    # Next.js front for /ui/v2/login — scale with the first real load, not here).
+    replicaCount: 2
+    image:
+      repository: ghcr.io/zitadel/zitadel
+      tag: v4.17.1
+      pullPolicy: IfNotPresent
+    login:
+      replicaCount: 1
+      image:
+        repository: ghcr.io/zitadel/zitadel-login
+        tag: v4.17.1
+        pullPolicy: IfNotPresent
+      ingress:
+        enabled: false
+      gateway:
+        httpRoute:
+          enabled: false
+    zitadel:
+      # Existing secret synced by ESO (configs/base/zitadel-secrets.yaml);
+      # must exist before install — see ordering note in the header.
+      masterkeySecretName: zitadel-masterkey
+      configmapConfig:
+        ExternalDomain: zitadel.home-ops.yansyah.my.id
+        ExternalPort: 443
+        ExternalSecure: true
+        TLS:
+          Enabled: false # terminated at the §8 Gateway, not in-pod
+    env:
+      # DSN mode (recommended): discrete Database.Postgres.* fields stay unset
+      # and Zitadel reads the connection string from this secret key.
+      - name: ZITADEL_DATABASE_POSTGRES_DSN
+        valueFrom:
+          secretKeyRef:
+            name: zitadel-db-credentials
+            key: dsn
+      # Dragonfly cache (§10.3 base instance in configs/base/zitadel-cache.yaml):
+      # host <name>.<namespace>.svc.cluster.local, port 6379, no auth (base
+      # ships neither password nor TLS — same contract as the README).
+      - name: ZITADEL_CACHES_CONNECTORS_REDIS_URL
+        value: "redis://zitadel-cache.zitadel.svc.cluster.local:6379"
+      - name: ZITADEL_CACHES_CONNECTORS_REDIS_ENABLED
+        value: "true"
+    # No chart-managed routing or bundled Postgres: HTTPRoutes are hand-written
+    # in configs/base/zitadel-httproute.yaml (own the §8.1 pattern explicitly)
+    # and the database is the §10.1 CNPG instance in configs/base/zitadel-db.yaml.
+    ingress:
+      enabled: false
+    gateway:
+      httpRoute:
+        enabled: false
+      grpcRoute:
+        enabled: false
+    postgresql:
+      enabled: false
+    metrics:
+      enabled: false
+      serviceMonitor:
+        enabled: false

@@ -1,0 +1,59 @@
+# Static identity intent (§11.1): org, users, groups, OIDC clients.
+# NO Tofu Controller exists in this repo (bounded one-look check at authoring:
+# d2-infra ships only cert-manager + monitoring; the committed tree has no
+# tf-controller/tofu-controller and no Terraform HelmRelease) — so this intent
+# is NOT machine-applied. Apply it once via the provider-ready modules in
+# terraform/ (README runbook), which is the single source of truth for the
+# OIDC contract below. Keep this file and terraform/ in sync by hand until a
+# controller lands — do NOT invent a controller component (out of scope).
+#
+# Org: home-ops
+# Users (human, email-verified, initial passwords rotated after first login):
+# - admin@home-ops.yansyah.my.id — super-admin (instance IAM_OWNER via the
+#   chart's FirstInstance machine bootstrap, then org owner)
+# - user@home-ops.yansyah.my.id — normal member, no admin roles
+# Groups (provider zitadel ~> 3.3 ships no user_group resources — mapped to
+# org membership + project grants, asserted into the `groups` claim):
+# - admin: admin@ as ORG_OWNER + project admin grant
+# - users: user@ as plain org member + project user grant
+# Roles/grants: home-ops project with roles admin / user; user grants bind
+# each user to their role (drives id_token role assertion alongside the
+# groups claim above).
+# OIDC clients (all: code flow + PKCE, refresh tokens on; secrets via ESO,
+# never in Git — see the OIDC contract table in the README):
+# - clickstack, hubble, flux-operator-ui, headlamp, coder: per-app redirect
+#   https://<app>.home-ops.yansyah.my.id/*, post-logout → https://<app> root
+# - oauth2-proxy-shared: redirect https://*/oauth2/callback (wildcard covers
+#   the ExternalAuth routes clickstack, hubble, flux-operator-ui)
+# Scopes for every client: openid profile email groups.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zitadel-identity-intent
+  annotations:
+    zitadel.home-ops.yansyah.my.id/managed-by: terraform-runbook
+data:
+  org: home-ops
+  users: |
+    - email: admin@home-ops.yansyah.my.id
+      firstName: Home-Ops
+      lastName: Admin
+      groups: [admin]
+      roles: [admin]
+    - email: user@home-ops.yansyah.my.id
+      firstName: Home-Ops
+      lastName: User
+      groups: [users]
+      roles: [user]
+  groups: |
+    - admin
+    - users
+  clients: |
+    - clickstack: https://clickstack.home-ops.yansyah.my.id/*
+    - hubble: https://hubble.home-ops.yansyah.my.id/*
+    - flux-operator-ui: https://flux-operator.home-ops.yansyah.my.id/*
+    - headlamp: https://headlamp.home-ops.yansyah.my.id/*
+    - coder: https://coder.home-ops.yansyah.my.id/*
+    - oauth2-proxy-shared: https://*/oauth2/callback
+  scopes: openid profile email groups
