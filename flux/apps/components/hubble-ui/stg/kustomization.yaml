@@ -22,6 +22,47 @@ patches:
     target:
       kind: ExternalSecret
       name: oauth2-proxy
+  # Stg (prd values) proxy client-id vault ref (data/2 = clientId entry added
+  # for SSO decoupling — the generated ID synced from the hubble-ui-sso
+  # Terraform outputs; data/0 client-secret + data/1 cookie-secret patches
+  # above are unchanged).
+  - patch: |
+      - op: replace
+        path: /spec/data/2/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/hubble-ui/oidc-client-id
+    target:
+      kind: ExternalSecret
+      name: oauth2-proxy
+  # Stg (prd values) Hubble-ui SSO Terraform identity: vault ref for the
+  # shared instance JWT key + CR vars (prd issuer host, prd emails, prd app
+  # host). org_id is a one-time manual fill from `zitadel-bootstrap-outputs`
+  # (zitadel ns).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/zitadel/terraform-jwt-profile-json
+    target:
+      kind: ExternalSecret
+      name: hubble-ui-terraform-vars
+  - patch: |
+      - op: replace
+        path: /spec/vars/0/value
+        value: zitadel.home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/vars/1/value
+        value: REPLACE-ME-WITH-ORG-ID-FROM-zitadel-bootstrap-outputs
+      - op: replace
+        path: /spec/vars/2/value
+        value: admin@home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/vars/3/value
+        value: user@home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/vars/4/value
+        value: hubble.home-ops.yansyah.my.id
+    target:
+      kind: Terraform
+      name: hubble-ui-sso
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -58,16 +99,18 @@ patches:
     target:
       kind: Certificate
       name: wildcard-home-ops
-  # Stg (prd values) proxy: Zitadel issuer, cookie domain, callback.
+  # Stg (prd values) proxy: Zitadel issuer, cookie domain, callback (args/4
+  # --client-id flag dropped for the OAUTH2_PROXY_CLIENT_ID env — indices
+  # above it shift down one: cookie-domain 7→6, redirect-url 16→15).
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/args/3
         value: --oidc-issuer-url=https://zitadel.home-ops.yansyah.my.id
       - op: replace
-        path: /spec/template/spec/containers/0/args/7
+        path: /spec/template/spec/containers/0/args/6
         value: --cookie-domain=.home-ops.yansyah.my.id
       - op: replace
-        path: /spec/template/spec/containers/0/args/16
+        path: /spec/template/spec/containers/0/args/15
         value: --redirect-url=https://hubble.home-ops.yansyah.my.id/oauth2/callback
     target:
       kind: Deployment

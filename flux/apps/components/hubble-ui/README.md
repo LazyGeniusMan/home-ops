@@ -41,7 +41,7 @@ upstreams to `http://hubble-ui.hubble-ui.svc:80`:
 | Item | Value |
 |---|---|
 | Issuer | `https://zitadel.home-ops.yansyah.my.id` |
-| Client | `oauth2-proxy-shared` (secret via ESO, never Git) |
+| Client | `hubble` (secret via ESO, never Git) |
 | Redirect | `https://hubble.home-ops.yansyah.my.id/oauth2/callback` (covered by the registered wildcard `https://*/oauth2/callback`) |
 | Cookie domain | `.home-ops.yansyah.my.id` (secure, samesite=lax) |
 | Scopes | `openid profile email groups` (groups claim `groups`) |

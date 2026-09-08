@@ -6,3 +6,4 @@ resources:
   - hubble-httproute.yaml
   - hubble-ui.yaml
   - oauth2-proxy.yaml
+  - terraform.yaml

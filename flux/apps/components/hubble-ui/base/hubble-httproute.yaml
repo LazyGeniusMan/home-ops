@@ -1,8 +1,9 @@
 # Hubble HTTPRoute (§11.3): attaches to the shared §8.1 Gateway (listeners
 # accept routes from all namespaces — cross-namespace parentRef, no
 # targetNamespace override needed; same pattern as §11.1 zitadel). Hostname
-# __SERVICE_HOST__ (Zitadel hubble client already declared -
-# reference only) → oauth2-proxy Service (:4180), which upstreams to
+# __SERVICE_HOST__ (the `hubble` Zitadel client is owned by this app's
+# `hubble-ui-sso` Terraform CR — base/terraform.yaml) → oauth2-proxy Service
+# (:4180), which upstreams to
 # hubble-ui. TLS terminates at the Gateway via the in-namespace wildcard
 # Certificate (wildcard-certificate.yaml).
 ---
