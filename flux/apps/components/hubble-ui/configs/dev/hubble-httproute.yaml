@@ -1,0 +1,27 @@
+# Hubble HTTPRoute (§14 dev): attaches to the shared §14 DEV Gateway
+# (listeners accept routes from all namespaces — cross-namespace parentRef, no
+# targetNamespace override needed). Hostname hubble.homelab-dev.yansyah.my.id
+# (DEV Zitadel hubble client — reference only, see the §14 dev OIDC contract)
+# → oauth2-proxy Service (:4180), which upstreams to hubble-ui. TLS
+# terminates at the Gateway via the in-namespace wildcard Certificate
+# (wildcard-certificate.yaml).
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: hubble
+spec:
+  parentRefs:
+    - name: main
+      namespace: gateway-api
+      sectionName: https
+  hostnames:
+    - hubble.homelab-dev.yansyah.my.id
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: oauth2-proxy
+          port: 4180

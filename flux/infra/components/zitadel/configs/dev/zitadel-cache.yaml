@@ -1,0 +1,89 @@
+# Zitadel Dragonfly cache (§14 dev): namespace-local instantiation of the §14
+# DEV dragonfly template (flux/infra/components/dragonfly/configs/dev —
+# referenced by shape, no file dependency). Same classes as the base:
+# 3 replicas with automatic failover, tiered persistence on local-ssd-nvme
+# (20Gi), hourly S3 snapshots, S3 endpoint/region args.
+# - Connection contract: host zitadel-cache.zitadel.svc.cluster.local, port
+#   6379 (Redis-compatible). No password/TLS (the dev instance ships neither
+#   passwordFromSecret nor tlsSecretRef); Zitadel connects via
+#   ZITADEL_CACHES_CONNECTORS_REDIS_URL (see the HelmRelease). Zitadel owns
+#   its DB indexes and issues FLUSHDB, so this instance is Zitadel-dedicated —
+#   never share it with other apps.
+# - Snapshots land under s3://dragonfly-backups/zitadel-cache/ (own prefix).
+#   The bucket prefix must exist before the first object starts (Dragonfly
+#   never creates buckets). Credentials: dragonfly-s3-credentials
+#   ExternalSecret with DEV Proton Pass remoteRefs.
+# - Restore: same runbook as the base — delete pods for latest-snapshot
+#   reload, or point a NEW Dragonfly object at a pinned dump prefix.
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: dragonfly-s3-credentials
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: dragonfly-s3-credentials
+    template:
+      data:
+        ACCESS_KEY_ID: "{{ .accessKeyId }}"
+        SECRET_ACCESS_KEY: "{{ .secretAccessKey }}"
+  data:
+    - secretKey: accessKeyId
+      remoteRef:
+        key: pass://acme-dev-bdo1-talos-apps-01/dragonfly/s3-access-key-id
+    - secretKey: secretAccessKey
+      remoteRef:
+        key: pass://acme-dev-bdo1-talos-apps-01/dragonfly/s3-secret-access-key
+---
+apiVersion: dragonflydb.io/v1alpha1
+kind: Dragonfly
+metadata:
+  name: zitadel-cache
+spec:
+  replicas: 3
+
+  tiering:
+    persistentVolumeClaimSpec:
+      storageClassName: local-ssd-nvme
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 20Gi
+
+  snapshot:
+    dir: "s3://dragonfly-backups/zitadel-cache/"
+    cron: "0 * * * *"
+    enableOnMasterOnly: true
+
+  env:
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: dragonfly-s3-credentials
+          key: ACCESS_KEY_ID
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: dragonfly-s3-credentials
+          key: SECRET_ACCESS_KEY
+    - name: AWS_REGION
+      value: us-east-1
+
+  args:
+    - --s3_endpoint=s3.seaweedfs.homelab-dev.yansyah.my.id
+    - --dbfilename=dump-{timestamp}
+
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: dragonfly
+            topologyKey: kubernetes.io/hostname

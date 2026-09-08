@@ -1,0 +1,197 @@
+# Hubble UI standalone (§14 dev): Deployment + Service reaching Hubble Relay
+# BY DNS NAME (hubble-relay.cilium.svc:80 — Relay itself ships in the §14 DEV
+# cilium component, NOT here). Images pinned to the Cilium v1.20.1 chart
+# defaults (frontend + backend v0.13.5 + $imagepolicy markers); bumps via
+# update-policies/hubble-ui.yaml. Shape mirrors the chart's hubble-ui
+# templates (Deployment env, probes, nginx ConfigMap, Service 80→8081) minus
+# cluster-scoped RBAC (see Role below: the apps-tenant Flux SA cannot manage
+# cluster-scoped RBAC, so pods/services/endpoints read in-namespace only).
+# Telemetry: the chart exposes no usage-reporting keys, so there is nothing
+# to switch off. No ServiceMonitor (monitoring.coreos.com CRDs not present —
+# same §9 deviation).
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hubble-ui
+  labels:
+    app.kubernetes.io/name: hubble-ui
+    app.kubernetes.io/part-of: hubble-ui
+---
+# Namespaced read role: the chart ships a ClusterRole (componentstatuses,
+# namespaces, nodes, pods, services, CRDs) for cluster-wide service-map
+# listing, but the apps-tenant Flux SA cannot manage cluster-scoped RBAC, so
+# this grants pods/services/endpoints read in-namespace only. Cluster-wide
+# listing stays limited until a cluster-scoped grant lands out-of-band.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hubble-ui
+  labels:
+    app.kubernetes.io/name: hubble-ui
+    app.kubernetes.io/part-of: hubble-ui
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hubble-ui
+  labels:
+    app.kubernetes.io/name: hubble-ui
+    app.kubernetes.io/part-of: hubble-ui
+subjects:
+  - kind: ServiceAccount
+    name: hubble-ui
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hubble-ui
+---
+# Nginx front door, rendered from the chart's hubble-ui/_nginx.tpl with the
+# default baseUrl "/".
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hubble-ui-nginx
+  labels:
+    app.kubernetes.io/name: hubble-ui
+    app.kubernetes.io/part-of: hubble-ui
+data:
+  nginx.conf: |
+    server {
+        listen       8081;
+        listen       [::]:8081;
+        server_name  localhost;
+        root /app;
+        index index.html;
+        client_max_body_size 1G;
+
+        location / {
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+
+            location /api {
+                proxy_http_version 1.1;
+                proxy_pass_request_headers on;
+                proxy_pass http://127.0.0.1:8090;
+            }
+
+            location / {
+                if ($http_user_agent ~* "kube-probe") { access_log off; }
+                # double `/index.html` is required here
+                try_files $uri $uri/ /index.html /index.html;
+            }
+
+            # Liveness probe
+            location /healthz {
+                access_log off;
+                add_header Content-Type text/plain;
+                return 200 'ok';
+            }
+        }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hubble-ui
+  labels:
+    app.kubernetes.io/name: hubble-ui
+    app.kubernetes.io/part-of: hubble-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hubble-ui
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: hubble-ui
+        app.kubernetes.io/part-of: hubble-ui
+    spec:
+      serviceAccountName: hubble-ui
+      containers:
+        - name: frontend
+          image: quay.io/cilium/hubble-ui:v0.13.5 # {"$imagepolicy": "apps:hubble-ui:tag"}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8081
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: hubble-ui-nginx-conf
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: nginx.conf
+            - name: tmp-dir
+              mountPath: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+        - name: backend
+          image: quay.io/cilium/hubble-ui-backend:v0.13.5 # {"$imagepolicy": "apps:hubble-ui-backend:tag"}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: EVENTS_SERVER_PORT
+              value: "8090"
+            # Relay by DNS name: Service hubble-relay in the cilium namespace
+            # (see the §14 DEV cilium component). Port 80 = relay TLS server OFF,
+            # matching the §14 DEV values (no relay tls block set).
+            - name: FLOWS_API_ADDR
+              value: "hubble-relay.cilium.svc:80"
+          ports:
+            - name: grpc
+              containerPort: 8090
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: hubble-ui-nginx-conf
+          configMap:
+            defaultMode: 420
+            name: hubble-ui-nginx
+        - name: tmp-dir
+          emptyDir:
+            sizeLimit: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hubble-ui
+  labels:
+    app.kubernetes.io/name: hubble-ui
+    app.kubernetes.io/part-of: hubble-ui
+spec:
+  selector:
+    app.kubernetes.io/name: hubble-ui
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8081
