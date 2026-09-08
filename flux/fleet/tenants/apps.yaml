@@ -1,6 +1,6 @@
 # Apps tenants: one entry per component directory under flux/apps/components.
 # Every component uses the d2-apps environment-direct layout
-# ({base,dev,staging,production}/ with `resources: [../base]` env overlays)
+# ({base,dev,stg,prd}/ with `resources: [../base]` env overlays)
 # and reconciles through a SINGLE Kustomization at ./<<environment>>
 # (mirrors the upstream d2-fleet tenants/apps.yaml; infra keeps its
 # configs/controllers split in tenants/infra.yaml).

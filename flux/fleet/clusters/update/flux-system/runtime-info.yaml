@@ -8,6 +8,6 @@ metadata:
   annotations:
     kustomize.toolkit.fluxcd.io/ssa: "Merge"
 data:
-  ARTIFACT_TAG: "latest"
-  ENVIRONMENT: "staging"
+  ARTIFACT_TAG: "dev"
+  ENVIRONMENT: "stg"
   CLUSTER_NAME: "update-1"

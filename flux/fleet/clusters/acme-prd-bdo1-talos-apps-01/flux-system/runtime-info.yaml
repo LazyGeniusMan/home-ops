@@ -9,7 +9,7 @@ metadata:
   annotations:
     kustomize.toolkit.fluxcd.io/ssa: "Merge"
 data:
-  ARTIFACT_TAG: latest-stable
-  ENVIRONMENT: production
-  CLUSTER_NAME: home-1
-  CLUSTER_DOMAIN: home.example.com
+  ARTIFACT_TAG: stable
+  ENVIRONMENT: prd
+  CLUSTER_NAME: acme-prd-bdo1-talos-apps-01
+  CLUSTER_DOMAIN: home-ops.yansyah.my.id

@@ -1,4 +1,4 @@
-# Shared fleet OCI delivery logic (main branch -> tag latest).
+# Shared fleet OCI delivery logic (main branch -> tags dev + dev-<sha>).
 # Called by the root wiring workflow .github/workflows/flux-fleet-push.yaml
 # (via `uses: ./flux/fleet/.github/actions/oci-push`) and by the area-local
 # flux/fleet/.github/workflows/push.yaml. Step-level composite action: the
@@ -17,9 +17,6 @@ inputs:
     description: 'Artifact source directory, relative to the repository root'
     required: false
     default: '.'
-  diff-tag:
-    description: 'Diff tag for the push (e.g. latest)'
-    required: true
   github-token:
     description: 'Token used for GHCR login'
     required: true
@@ -37,13 +34,17 @@ runs:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ inputs.github-token }}
+    - name: Compute short SHA
+      shell: bash
+      run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
     - name: Push artifact
       uses: controlplaneio-fluxcd/distribution/actions/push@1eaaa7f67ad253af88d4fac2f349ed8e7d801b83 # main
       id: push
       with:
         repository: ${{ inputs.repository }}
         path: ${{ inputs.path }}
-        diff-tag: ${{ inputs.diff-tag }}
+        diff-tag: dev
+        tags: dev-${{ env.SHORT_SHA }}
     - name: Sign artifact
       if: steps.push.outputs.pushed == 'true'
       shell: bash

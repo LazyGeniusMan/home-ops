@@ -26,7 +26,7 @@ tofu validate
 tofu test
 tofu plan \
   -var oci_token="${GITHUB_TOKEN}" \
-  -var cluster_name="home" \
+  -var cluster_name="acme-prd-bdo1-talos-apps-01" \
   -var cluster_region="home-lab"
 ```
 

@@ -1,6 +1,6 @@
 # Root wiring for infra area releases: tag flux-infra-vX.Y.Z to publish every
 # matrix component as oci://ghcr.io/<owner>/home-ops/infra/<component> with
-# diff-tag flux-infra-vX.Y.Z and move latest-stable. The home cluster verifies this
+# tags stable + stable-X.Y.Z (version stripped from the git ref). The prd cluster verifies this
 # workflow + tag via the cosign subject pinned in
 # flux/fleet/tenants/infra.yaml (refs/tags/flux-infra-v\d+\.\d+\.\d+).
 # This file carries the triggers and calls the canonical job logic in
@@ -8,7 +8,7 @@
 # flux/infra/.github/workflows/release.yaml (workflow_call).
 name: flux-infra-release
 
-# OCI: oci://ghcr.io/<owner>/home-ops/infra/<component>:<flux-infra-vX.Y.Z> + latest-stable.
+# OCI: oci://ghcr.io/<owner>/home-ops/infra/<component>:stable + stable-<version>.
 
 on:
   push:
@@ -50,5 +50,4 @@ jobs:
           component: ${{ matrix.component }}
           repository-prefix: ghcr.io/${{ github.repository }}/infra
           source-prefix: flux/infra/components
-          diff-tag: ${{ github.ref_name }}
           github-token: ${{ secrets.GITHUB_TOKEN }}

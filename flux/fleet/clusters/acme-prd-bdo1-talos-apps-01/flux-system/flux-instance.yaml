@@ -24,8 +24,8 @@ spec:
   sync:
     kind: OCIRepository
     url: "oci://ghcr.io/lazygeniusman/home-ops/fleet"
-    ref: "latest-stable"
-    path: "clusters/home"
+    ref: "stable"
+    path: "clusters/acme-prd-bdo1-talos-apps-01"
     pullSecret: "ghcr-auth"
   kustomize:
     patches:

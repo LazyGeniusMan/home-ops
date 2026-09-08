@@ -9,7 +9,7 @@ metadata:
   annotations:
     kustomize.toolkit.fluxcd.io/ssa: "Merge"
 data:
-  ARTIFACT_TAG: latest-stable
+  ARTIFACT_TAG: dev
   ENVIRONMENT: dev
   CLUSTER_NAME: acme-dev-bdo1-talos-apps-01
   CLUSTER_DOMAIN: homelab-dev.yansyah.my.id

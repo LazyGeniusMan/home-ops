@@ -10,17 +10,18 @@ real components land in §§8-14.
 ```text
 flux/infra/
 ├── components/<name>/
-│   ├── controllers/{base,production,staging}/  # Helm OCI sources + HelmReleases
-│   └── configs/{base,production,staging}/      # component configuration overlays
+│   ├── controllers/{base,dev,stg,prd}/  # Helm OCI sources + HelmReleases
+│   └── configs/{base,dev,stg,prd}/      # component configuration overlays
 └── update-policies/<name>.yaml                 # ImageRepository + ImagePolicy per component
 ```
 
 ## Artifacts
 
-`oci://ghcr.io/lazygeniusman/home-ops/infra/<component>`, tagged `latest`
-(main commits touching the component dir) and `latest-stable` (area releases
-tagged `flux-infra-v*`, which publish every matrix component). The `home` cluster consumes
-`${ARTIFACT_TAG}` (`latest-stable`) with cosign verification against the
+`oci://ghcr.io/lazygeniusman/home-ops/infra/<component>`, tagged `dev`
+(+ `dev-<sha>`, main commits touching the component dir) and `stable`
+(+ `stable-<version>`, area releases tagged `flux-infra-v*`, which publish
+every matrix component). The `acme-prd-bdo1-talos-apps-01` cluster consumes
+`${ARTIFACT_TAG}` (`stable`) with cosign verification against the
 release workflow subject.
 
 ## Onboarding (§§8-14)

@@ -1,4 +1,4 @@
-# Canonical per-component apps OCI delivery (main -> tag latest).
+# Canonical per-component apps OCI delivery (main -> tags dev + dev-<sha>).
 # Split-ready layout: paths assume the area directory is the repository root.
 # After the per-area repo split this file executes as-is (callable via
 # workflow_call); until then GitHub only executes the root wiring file
@@ -10,7 +10,7 @@
 # Unchanged components are no-ops (push action only pushes on diff).
 name: push-artifact
 
-# OCI: oci://ghcr.io/<owner>/home-ops/apps/<component>:latest.
+# OCI: oci://ghcr.io/<owner>/home-ops/apps/<component>:dev + dev-<sha>.
 
 on:
   workflow_dispatch:
@@ -26,11 +26,6 @@ on:
         required: false
         type: string
         default: 'components'
-      diff-tag:
-        description: 'Diff tag for the push'
-        required: false
-        type: string
-        default: 'latest'
   push:
     branches:
       - 'main'
@@ -65,5 +60,4 @@ jobs:
           component: ${{ matrix.component }}
           repository-prefix: ${{ inputs.repository-prefix || format('ghcr.io/{0}/apps', github.repository) }}
           source-prefix: ${{ inputs.source-prefix || 'components' }}
-          diff-tag: ${{ inputs.diff-tag || 'latest' }}
           github-token: ${{ secrets.GITHUB_TOKEN }}

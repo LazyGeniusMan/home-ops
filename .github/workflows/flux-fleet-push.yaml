@@ -1,4 +1,4 @@
-# Root wiring for fleet OCI delivery (main branch -> tag latest).
+# Root wiring for fleet OCI delivery (main branch -> tags dev + dev-<sha>).
 # GitHub only executes workflows under the repo-root .github/workflows/,
 # so this file carries the triggers and calls the canonical job logic in
 # flux/fleet/.github/actions/oci-push via the area-local reusable workflow
@@ -10,7 +10,7 @@
 # and keep the area-local push.yaml as the canonical definition.
 name: flux-fleet-push
 
-# OCI: oci://ghcr.io/<owner>/home-ops/fleet:latest (main commits).
+# OCI: oci://ghcr.io/<owner>/home-ops/fleet:dev + dev-<sha> (main commits).
 
 on:
   workflow_dispatch:
@@ -35,5 +35,4 @@ jobs:
         with:
           repository: ghcr.io/${{ github.repository }}/fleet
           path: "./flux/fleet"
-          diff-tag: latest
           github-token: ${{ secrets.GITHUB_TOKEN }}

@@ -11,17 +11,19 @@ only — real applications land in §§8-14.
 flux/apps/
 ├── components/<name>/
 │   ├── base/                  # Helm OCI source + HelmRelease
-│   ├── production/            # kustomize patches over ../base
-│   └── staging/
+│   ├── prd/                   # kustomize patches over ../base
+│   ├── stg/
+│   └── dev/
 └── update-policies/<name>.yaml  # ImageRepository + ImagePolicy per app
 ```
 
 ## Artifacts
 
-`oci://ghcr.io/lazygeniusman/home-ops/apps/<component>`, tagged `latest`
-(main commits touching the component dir) and `latest-stable` (area releases
-tagged `flux-apps-v*`, which publish every matrix component). The `home` cluster consumes
-`${ARTIFACT_TAG}` (`latest-stable`) with cosign verification against the
+`oci://ghcr.io/lazygeniusman/home-ops/apps/<component>`, tagged `dev`
+(+ `dev-<sha>`, main commits touching the component dir) and `stable`
+(+ `stable-<version>`, area releases tagged `flux-apps-v*`, which publish
+every matrix component). The `acme-prd-bdo1-talos-apps-01` cluster consumes
+`${ARTIFACT_TAG}` (`stable`) with cosign verification against the
 release workflow subject.
 
 ## Onboarding (§§8-14)

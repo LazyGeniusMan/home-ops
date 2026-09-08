@@ -1,4 +1,4 @@
-# Root wiring for per-component infra OCI delivery (main -> tag latest).
+# Root wiring for per-component infra OCI delivery (main -> tags dev + dev-<sha>).
 # This file carries the triggers and calls the canonical job logic in
 # flux/infra/.github/actions/oci-push via the area-local reusable workflow
 # flux/infra/.github/workflows/push.yaml (workflow_call).
@@ -11,7 +11,7 @@
 # and keep the area-local push.yaml as the canonical definition.
 name: flux-infra-push
 
-# OCI: oci://ghcr.io/<owner>/home-ops/infra/<component>:latest.
+# OCI: oci://ghcr.io/<owner>/home-ops/infra/<component>:dev + dev-<sha>.
 
 on:
   workflow_dispatch:
@@ -56,5 +56,4 @@ jobs:
           component: ${{ matrix.component }}
           repository-prefix: ghcr.io/${{ github.repository }}/infra
           source-prefix: flux/infra/components
-          diff-tag: latest
           github-token: ${{ secrets.GITHUB_TOKEN }}

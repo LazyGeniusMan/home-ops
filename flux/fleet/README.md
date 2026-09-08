@@ -4,18 +4,22 @@ D2 fleet layer for the home-ops monorepo. Defines the clusters, the Flux
 Operator lifecycle, tenant delivery (`tenants/`), and the Terraform bootstrap
 (`terraform/`). Adapted from the upstream
 [d2-fleet](https://github.com/controlplaneio-fluxcd/d2-fleet) reference
-(single `home` cluster replaces the upstream staging/prod fleet; components
-are onboarded per-directory in §§8-14).
+(clusters match the Talos clusters in `talos/clusters/`; components are
+onboarded per-directory in §§8-14).
 
 ## Layout
 
 ```text
 flux/fleet/
 ├── clusters/
-│   ├── home/            # production cluster (syncs OCI tag latest-stable)
+│   ├── acme-prd-bdo1-talos-apps-01/  # prd cluster (ENVIRONMENT=prd, syncs OCI tag stable)
 │   │   ├── flux-system/ # FluxInstance + operator ResourceSet + values + runtime-info
 │   │   └── tenants.yaml # tenants Kustomization (renders ../tenants with runtime substitution)
-│   └── update/          # image-automation cluster (syncs OCI tag latest)
+│   ├── acme-dev-bdo1-talos-apps-01/  # dev cluster (ENVIRONMENT=dev, syncs OCI tag dev)
+│   │   ├── flux-system/
+│   │   └── tenants.yaml
+│   └── update/          # image-automation cluster, NOT a Talos cluster
+│                        # (ENVIRONMENT=stg, syncs OCI tag dev)
 │       ├── flux-system/
 │       └── automation.yaml  # ImageUpdateAutomation ResourceSet for infra + apps areas
 ├── tenants/
@@ -25,12 +29,15 @@ flux/fleet/
 └── terraform/           # OpenTofu bootstrap of the Flux Operator (no live apply in CI)
 ```
 
+Envs are `dev` / `stg` / `prd` (component overlays are `{base,dev,stg,prd}/`).
+
 ## Artifacts
 
-`oci://ghcr.io/lazygeniusman/home-ops/fleet`, tagged `latest` (main commits)
-and `latest-stable` (`flux-fleet-v*` release tags). The `home` cluster pins
-`latest-stable` with cosign verification against the release workflow and tag;
-the `update` cluster tracks `latest` mirrored from main.
+`oci://ghcr.io/lazygeniusman/home-ops/fleet`, tagged `dev` (+ `dev-<sha>`,
+main commits) and `stable` (+ `stable-<version>`, `flux-fleet-v*` release
+tags). The `acme-prd-bdo1-talos-apps-01` cluster pins `stable` with cosign
+verification against the release workflow and tag; the `update` automation
+cluster tracks `dev` mirrored from main.
 
 ## Onboarding a component
 

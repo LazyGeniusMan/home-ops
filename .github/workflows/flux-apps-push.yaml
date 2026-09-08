@@ -1,4 +1,4 @@
-# Root wiring for per-component apps OCI delivery (main -> tag latest).
+# Root wiring for per-component apps OCI delivery (main -> tags dev + dev-<sha>).
 # This file carries the triggers and calls the canonical job logic in
 # flux/apps/.github/actions/oci-push via the area-local reusable workflow
 # flux/apps/.github/workflows/push.yaml (workflow_call).
@@ -11,7 +11,7 @@
 # and keep the area-local push.yaml as the canonical definition.
 name: flux-apps-push
 
-# OCI: oci://ghcr.io/<owner>/home-ops/apps/<component>:latest.
+# OCI: oci://ghcr.io/<owner>/home-ops/apps/<component>:dev + dev-<sha>.
 
 on:
   workflow_dispatch:
@@ -49,5 +49,4 @@ jobs:
           component: ${{ matrix.component }}
           repository-prefix: ghcr.io/${{ github.repository }}/apps
           source-prefix: flux/apps/components
-          diff-tag: latest
           github-token: ${{ secrets.GITHUB_TOKEN }}

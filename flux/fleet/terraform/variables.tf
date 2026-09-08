@@ -6,7 +6,7 @@ variable "oci_token" {
 }
 
 variable "cluster_name" {
-  description = "Name of the cluster directory under clusters/ (e.g. home, update)."
+  description = "Name of the cluster directory under clusters/ (e.g. acme-prd-bdo1-talos-apps-01, update)."
   type        = string
   nullable    = false
 }

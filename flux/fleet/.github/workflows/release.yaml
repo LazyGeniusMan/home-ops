@@ -1,7 +1,8 @@
 # Canonical fleet release delivery: tag flux-fleet-vX.Y.Z to publish
-# oci://ghcr.io/<owner>/home-ops/fleet:flux-fleet-vX.Y.Z and move latest-stable.
-# The home cluster verifies this workflow + tag via the cosign subject pinned
-# in clusters/home/flux-system/flux-instance.yaml.
+# oci://ghcr.io/<owner>/home-ops/fleet with tags stable + stable-X.Y.Z
+# (version stripped from the git ref).
+# The prd cluster verifies this workflow + tag via the cosign subject pinned
+# in clusters/acme-prd-bdo1-talos-apps-01/flux-system/flux-instance.yaml.
 # Split-ready layout: paths assume the area directory is the repository root.
 # After the per-area repo split this file executes as-is (callable via
 # workflow_call); until then GitHub only executes the root wiring file
@@ -9,7 +10,7 @@
 # in ../actions/oci-release with monorepo-relative paths.
 name: release-artifact
 
-# OCI: oci://ghcr.io/<owner>/home-ops/fleet:<flux-fleet-vX.Y.Z> + latest-stable.
+# OCI: oci://ghcr.io/<owner>/home-ops/fleet:stable + stable-<version>.
 
 on:
   workflow_call:
@@ -24,11 +25,6 @@ on:
         required: false
         type: string
         default: './'
-      diff-tag:
-        description: 'Diff tag for the push (the release tag)'
-        required: false
-        type: string
-        default: ''
   push:
     tags:
       - 'flux-fleet-v*'
@@ -48,5 +44,4 @@ jobs:
         with:
           repository: ${{ inputs.repository || format('ghcr.io/{0}/fleet', github.repository) }}
           path: ${{ inputs.path || './' }}
-          diff-tag: ${{ inputs.diff-tag || github.ref_name }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
