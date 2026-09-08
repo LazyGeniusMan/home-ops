@@ -20,15 +20,58 @@ file, not here — no tenant/workflow edits in this change).
 
 ## OIDC (direct — NO oauth2-proxy)
 
-Coder speaks OIDC natively against the §11.1 issuer:
+Coder speaks OIDC natively against the §11.1 issuer. SSO is owned by THIS
+app (per-app decoupling — the central zitadel module owns no clients):
+
+- `terraform/` — owns the `coder` Zitadel project + project-scoped roles
+  `coder-admin` / `coder-user` + user grants (admin@ gets coder-admin,
+  user@ gets coder-user) + the `coder` OIDC client. Machine-applied by the
+  `coder-sso` Terraform CR in `base/terraform.yaml` (same shape as the
+  zitadel bootstrap CR: OCI `apps` source, `./terraform` path, plain
+  per-env `vars` + ESO `coder-terraform-vars` varsFrom, in-cluster state
+  backend, `client_id` in `coder-sso-outputs`). No `dependsOn` — fleet
+  ordering (`apps` after `infra-configs`) is the mechanism.
+- `coder-admin` is project-scoped: it NEVER implies org admin (ORG_OWNER
+  stays with the bootstrap org membership only).
 
 | Item | Value |
 |---|---|
 | Issuer | `https://zitadel.home-ops.yansyah.my.id` |
-| Client ID | `coder` (locked redirect `https://coder.home-ops.yansyah.my.id/*` covers the callback `/api/v2/users/oidc/callback`) |
+| Client | `coder` (owned here; `client_id` is generated server-side — synced via ESO, never the literal name) |
+| Redirect | `https://coder.home-ops.yansyah.my.id/*` (covers the callback `/api/v2/users/oidc/callback`) |
 | Scopes | `openid,profile,email,groups` |
 | Email domain | `home-ops.yansyah.my.id` |
-| Group allowlist | `admin,users` (`CODER_OIDC_ALLOWED_GROUPS`; the `groups` claim needs no `groupField` override) |
+| Group allowlist | `coder-admin,coder-user` (`CODER_OIDC_ALLOWED_GROUPS`; the `groups` claim needs no `groupField` override) |
+
+Role matrix:
+
+| Zitadel SSO identity | Coder role mapping | Groups claim |
+|---|---|---|
+| `admin@home-ops.yansyah.my.id` (super-admin) | instance owner (first login claims ownership) | `coder-admin` |
+| `user@home-ops.yansyah.my.id` (normal) | regular user | `coder-user` |
+
+Both groups sign in; Coder-side ownership/RBAC distinguishes them (first
+OIDC login claims instance ownership — perform it as admin@ before
+inviting anyone else).
+
+Secret handoff (established pass:// seeding runbook): after the first
+`coder-sso` apply, read the generated `client_id` (CR output Secret
+`coder-sso-outputs`, or tofu state) + `client_secret` (tofu state only)
+into `pass://<env-vault>/coder/oidc-client-id` +
+`pass://<env-vault>/coder/oidc-client-secret` (dev vault
+`acme-dev-bdo1-talos-apps-01`, prd/stg vault `acme-prd-bdo1-talos-apps-01`;
+never Git). ESO `coder-oidc` syncs both keys; the HelmRelease consumes
+them via `secretKeyRef` (`CODER_OIDC_CLIENT_ID` ← `client-id`,
+`CODER_OIDC_CLIENT_SECRET` ← `client-secret`).
+
+JWT prerequisite (one-time, manual): the `coder-terraform-vars`
+ExternalSecret mirrors the shared instance key
+`pass://<env-vault>/zitadel/terraform-jwt-profile-json` (same IAM_OWNER
+service-user key the zitadel bootstrap uses — mirrored per namespace like
+the cloudflare-api-token mirrors), and the per-env `coder-sso` CR `vars`
+need `org_id` filled once from the `zitadel-bootstrap-outputs` Secret
+(zitadel namespace; literal, non-sensitive) after the bootstrap first
+applies. Without the key/org the CR retries on interval.
 
 ## SSO identity → operator mapping (LOCKED)
 
@@ -38,8 +81,8 @@ from their OIDC claims (email prefix → username when no
 
 | Zitadel SSO identity | Operator identity | Coder username | Groups |
 |---|---|---|---|
-| `admin@home-ops.yansyah.my.id` | `git@yansyah.my.id` | `admin` | `admin` (+users) |
-| `user@home-ops.yansyah.my.id` | `git@lazygeniusman.my.id` | `user` | `users` |
+| `admin@home-ops.yansyah.my.id` | `git@yansyah.my.id` | `admin` | `coder-admin` |
+| `user@home-ops.yansyah.my.id` | `git@lazygeniusman.my.id` | `user` | `coder-user` |
 
 First OIDC login claims instance ownership — perform it as
 `admin@home-ops.yansyah.my.id` before inviting anyone else.
@@ -98,10 +141,11 @@ listener addition) so workspace hostnames terminate correctly.
 
 ## Credentials
 
-`ExternalSecret/coder-oidc` (Zitadel client secret, read from terraform
-state into `pass://acme-prd-bdo1-talos-apps-01/coder/oidc-client-secret`),
-`coder-db-credentials` + `coder-db-app-secret` (same-password pair, see
-`coder-secrets.yaml`), `cnpg-s3-credentials` + `cloudflare-api-token`
+`ExternalSecret/coder-oidc` (Zitadel client id + secret — see the OIDC
+secret-handoff runbook above; `coder-terraform-vars` mirrors the shared
+instance JWT key), `coder-db-credentials` + `coder-db-app-secret`
+(same-password pair, see `coder-secrets.yaml`), `cnpg-s3-credentials` +
+`cloudflare-api-token`
 (same vault paths as §§9–10, copied so Barman/DNS-01 secrets exist in
 this namespace too). Seed each vault entry with pass-cli.
 

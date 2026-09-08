@@ -11,6 +11,45 @@ patches:
     target:
       kind: ExternalSecret
       name: coder-oidc
+  # Dev coder-oidc client-id vault ref (data/1 = clientId entry added for SSO
+  # decoupling — the generated ID synced from the coder-sso Terraform
+  # outputs; data/0 client-secret patch above is unchanged).
+  - patch: |
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/coder/oidc-client-id
+    target:
+      kind: ExternalSecret
+      name: coder-oidc
+  # Dev Coder SSO Terraform identity: vault ref for the shared instance JWT
+  # key + CR vars (dev issuer host, dev emails, dev app host). org_id is a
+  # one-time manual fill from `zitadel-bootstrap-outputs` (zitadel ns).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/zitadel/terraform-jwt-profile-json
+    target:
+      kind: ExternalSecret
+      name: coder-terraform-vars
+  - patch: |
+      - op: replace
+        path: /spec/vars/0/value
+        value: zitadel.homelab-dev.yansyah.my.id
+      - op: replace
+        path: /spec/vars/1/value
+        value: REPLACE-ME-WITH-ORG-ID-FROM-zitadel-bootstrap-outputs
+      - op: replace
+        path: /spec/vars/2/value
+        value: admin@homelab-dev.yansyah.my.id
+      - op: replace
+        path: /spec/vars/3/value
+        value: user@homelab-dev.yansyah.my.id
+      - op: replace
+        path: /spec/vars/4/value
+        value: coder.homelab-dev.yansyah.my.id
+    target:
+      kind: Terraform
+      name: coder-sso
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key

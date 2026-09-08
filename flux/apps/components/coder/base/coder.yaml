@@ -84,13 +84,18 @@ spec:
               key: connection-url
         # Direct OIDC against Zitadel (§11.1, NO oauth2-proxy — Coder speaks
         # OIDC natively). Issuer/client/scopes per the locked contract; the
-        # client secret comes from ESO (base/coder-secrets.yaml).
+        # client id + secret come from ESO (base/coder-secrets.yaml — the
+        # client_id is generated server-side by this app's `coder-sso`
+        # Terraform CR, never the literal name).
         # Callback https://__SERVICE_HOST__/api/v2/users/oidc/callback
         # is covered by the locked redirect https://__SERVICE_HOST__/*.
         - name: CODER_OIDC_ISSUER_URL
           value: __ZITADEL_ISSUER_URL__
         - name: CODER_OIDC_CLIENT_ID
-          value: coder
+          valueFrom:
+            secretKeyRef:
+              name: coder-oidc
+              key: client-id
         - name: CODER_OIDC_CLIENT_SECRET
           valueFrom:
             secretKeyRef:
@@ -100,10 +105,12 @@ spec:
           value: openid,profile,email,groups
         - name: CODER_OIDC_EMAIL_DOMAIN
           value: __EMAIL_DOMAIN__
-        # Group allowlist (locked): only Zitadel `admin` + `users` members may
-        # sign in. The `groups` claim needs no groupField override (the scope
-        # and the claim share the name `groups` — upstream default applies).
+        # Group allowlist (locked): only Zitadel `coder-admin` + `coder-user`
+        # role members may sign in (project-scoped roles owned by this app's
+        # `coder-sso` Terraform CR). The `groups` claim needs no groupField
+        # override (the scope and the claim share the name `groups` —
+        # upstream default applies).
         - name: CODER_OIDC_ALLOWED_GROUPS
-          value: admin,users
+          value: coder-admin,coder-user
         - name: CODER_OIDC_SIGN_IN_TEXT
           value: __SSO_SIGN_IN_TEXT__

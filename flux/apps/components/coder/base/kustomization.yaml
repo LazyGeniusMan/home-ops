@@ -6,3 +6,4 @@ resources:
   - wildcard-certificates.yaml
   - coder-httproutes.yaml
   - coder.yaml
+  - terraform.yaml
