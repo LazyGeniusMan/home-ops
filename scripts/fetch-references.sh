@@ -37,6 +37,9 @@ git clone https://github.com/controlplaneio-fluxcd/flux-operator -b main --depth
 # /tmp/home-ops-docs/flux-operator-bootstrap-terraform-docs/README.md
 git clone https://github.com/controlplaneio-fluxcd/terraform-kubernetes-flux-operator-bootstrap -b main --depth 1 flux-operator-bootstrap-terraform-docs
 
+# /tmp/home-ops-docs/flux-tofu-controller-docs/docs/index.md
+git clone https://github.com/flux-iac/tofu-controller -b main --depth 1 flux-tofu-controller-docs
+
 # /tmp/home-ops-docs/k8s-gateway-api-docs/site/hugo.toml + /tmp/home-ops-docs/k8s-gateway-api-docs/site/content/en
 git clone https://github.com/kubernetes-sigs/gateway-api -b main --depth 1 k8s-gateway-api-docs
 
