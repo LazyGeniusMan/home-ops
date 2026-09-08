@@ -1,0 +1,105 @@
+# SeaweedFS operator + CSI driver (§12.1). Charts are classic HelmRepository
+# sources: OCI pulls 403 on both seaweedfs repos (verified 2026-09-08; they
+# publish only a classic index.yaml), so chart versions below are bumped
+# manually (see README) while container images track
+# flux/infra/update-policies/seaweedfs.yaml via $imagepolicy markers.
+# Telemetry: operator serviceMonitor + grafanaDashboard stay disabled
+# (unguarded monitors OFF); no usage-reporting knobs exist upstream.
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta1
+kind: HelmRepository
+metadata:
+  name: seaweedfs-operator
+spec:
+  interval: 1h
+  url: https://seaweedfs.github.io/seaweedfs-operator/
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta1
+kind: HelmRepository
+metadata:
+  name: seaweedfs-csi-driver
+spec:
+  interval: 1h
+  url: https://seaweedfs.github.io/seaweedfs-csi-driver/helm
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: seaweedfs-operator
+spec:
+  interval: 1h
+  releaseName: seaweedfs-operator
+  serviceAccountName: flux
+  chart:
+    spec:
+      chart: seaweedfs-operator
+      version: 0.1.40
+      sourceRef:
+        kind: HelmRepository
+        name: seaweedfs-operator
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  # https://github.com/seaweedfs/seaweedfs-operator/tree/master/deploy/helm
+  values:
+    crds:
+      create: true
+    csiDriver:
+      # The CSI driver ships as the HelmRelease below (chart-pinned). The
+      # operator's SeaweedCSIDriver controller would add cluster-wide RBAC
+      # for a second deployment path we do not use, so it stays off.
+      enabled: false
+    serviceMonitor:
+      enabled: false
+    grafanaDashboard:
+      enabled: false
+    webhook:
+      enabled: true
+      certManager:
+        # §9 cert-manager mints the webhook cert; skips the certgen Jobs.
+        enabled: true
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: seaweedfs-csi-driver
+spec:
+  interval: 1h
+  releaseName: seaweedfs-csi-driver
+  serviceAccountName: flux
+  dependsOn:
+    - name: seaweedfs-operator
+  chart:
+    spec:
+      chart: seaweedfs-csi-driver
+      version: 0.2.36
+      sourceRef:
+        kind: HelmRepository
+        name: seaweedfs-csi-driver
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  # https://github.com/seaweedfs/seaweedfs-csi-driver/tree/master/deploy/helm/seaweedfs-csi-driver
+  values:
+    driverName: seaweedfs-csi-driver
+    seaweedfsFiler: "seaweed-main-filer.seaweedfs:8888"
+    # Empty disables the chart's single built-in class; the tiered
+    # seaweedfs-ssd-* classes live in configs/base/storageclasses.yaml.
+    storageClassName: ""
+    seaweedfsCsiPlugin:
+      image: chrislusf/seaweedfs-csi-driver
+      tag: "v1.4.30" # {"$imagepolicy": "infra:seaweedfs-csi:tag"}
+    mountService:
+      enabled: true
+      image: chrislusf/seaweedfs-mount
+      tag: "v1.4.30" # {"$imagepolicy": "infra:seaweedfs-csi:tag"}

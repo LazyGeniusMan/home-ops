@@ -1,0 +1,23 @@
+# Update policy for the rclone component (§12.2): tracks the rclone image, and the
+# ImageUpdateAutomation (update cluster) opens PRs via markers in
+# components/rclone (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: rclone
+spec:
+  image: "rclone/rclone"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: rclone
+spec:
+  imageRepositoryRef:
+    name: rclone
+  policy:
+    semver:
+      range: ">=1.75.1"

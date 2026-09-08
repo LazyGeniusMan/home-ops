@@ -1,0 +1,45 @@
+# Update policy for the seaweedfs component (§12.1): tracks the Enterprise + CSI
+# container images, and the ImageUpdateAutomation (update cluster) opens PRs via
+# markers in components/seaweedfs (see README). Chart versions are pinned in the
+# HelmReleases (classic HelmRepository — no OCI index exists upstream), so only
+# image tags automate here. Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: seaweedfs
+spec:
+  image: "chrislusf/seaweedfs"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: seaweedfs
+spec:
+  imageRepositoryRef:
+    name: seaweedfs
+  policy:
+    semver:
+      range: ">=4.45"
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: seaweedfs-csi
+spec:
+  image: "chrislusf/seaweedfs-csi-driver"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: seaweedfs-csi
+spec:
+  imageRepositoryRef:
+    name: seaweedfs-csi
+  policy:
+    semver:
+      range: ">=1.4.30"

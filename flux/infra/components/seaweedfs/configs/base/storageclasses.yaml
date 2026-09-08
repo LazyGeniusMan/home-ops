@@ -1,0 +1,28 @@
+# Tiered CSI StorageClasses (§12.1): provisioner seaweedfs-csi-driver
+# (deployed by the operator). collections separate the tiers on the filer;
+# replication "000" = single copy (local disks already pin each tier;
+# raise per-workload via claim parameters when real replicas land).
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: seaweedfs-ssd-nvme
+provisioner: seaweedfs-csi-driver
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+reclaimPolicy: Delete
+parameters:
+  collection: "ssd-nvme"
+  replication: "000"
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: seaweedfs-ssd-sata
+provisioner: seaweedfs-csi-driver
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+reclaimPolicy: Delete
+parameters:
+  collection: "ssd-sata"
+  replication: "000"

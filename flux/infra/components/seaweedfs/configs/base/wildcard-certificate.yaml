@@ -1,0 +1,38 @@
+# *.seaweedfs.home-ops.yansyah.my.id wildcard Certificate (§12.1). Mirrors
+# the gateway-api/configs/base/wildcard-certificate.yaml discipline:
+# cert-manager Secrets are namespace-local, so this duplicate Certificate
+# mints seaweedfs-wildcard-tls HERE via ClusterIssuer/letsencrypt. The token
+# ExternalSecret mirrors cert-manager/configs/base/cluster-issuer.yaml
+# (same Proton Pass remoteRef) so the DNS-01 solver credential exists in
+# this namespace too.
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: cloudflare-api-token
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: cloudflare-api-token
+    template:
+      data:
+        api-token: "{{ .apiToken }}"
+  data:
+    - secretKey: apiToken
+      remoteRef:
+        key: pass://acme-prd-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-seaweedfs
+spec:
+  secretName: seaweedfs-wildcard-tls
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.seaweedfs.home-ops.yansyah.my.id"
