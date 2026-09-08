@@ -6,3 +6,4 @@ resources:
   - headlamp-rbac.yaml
   - headlamp-httproute.yaml
   - headlamp.yaml
+  - terraform.yaml
