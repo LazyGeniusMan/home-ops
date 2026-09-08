@@ -1,0 +1,8 @@
+# Dev is a passthrough of ../base: VM keeps the production name (win11-vm)
+# — dev and prd are separate clusters, so no name clash is possible and the
+# NAS-backed ISO/preseed docs stay valid as-is. runStrategy Manual, NAD
+# multus/lan-dhcp and local-ssd-nvme storage are unchanged (§14 batch 3c).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
