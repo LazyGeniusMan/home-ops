@@ -1,8 +1,8 @@
 # In-namespace wildcard Certificate (§§8.1/9.3). cert-manager Secrets are
 # namespace-local, so the §9 Certificate (cert-manager namespace) cannot feed
 # this component's Gateway listener — this duplicate Certificate mints
-# wildcard-home-ops-tls HERE via the same ClusterIssuer/letsencrypt and
-# dnsNames. Let's Encrypt permits duplicate wildcard orders, so both
+# __WILDCARD_TLS_SECRET__ HERE via the same ClusterIssuer/letsencrypt and
+# dnsNames (prd wildcard-home-ops-tls, dev wildcard-homelab-dev-tls). Let's Encrypt permits duplicate wildcard orders, so both
 # Certificates stay valid. The token ExternalSecret mirrors
 # cert-manager/configs/base/cluster-issuer.yaml (same Proton Pass remoteRef)
 # so the DNS-01 solver credential exists in this namespace too.
@@ -24,16 +24,16 @@ spec:
   data:
     - secretKey: apiToken
       remoteRef:
-        key: pass://acme-prd-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+        key: __PROTON_PASS_BASE__/cert-manager/cloudflare-api-token
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: wildcard-home-ops
+  name: __WILDCARD_CERT_NAME__
 spec:
-  secretName: wildcard-home-ops-tls
+  secretName: __WILDCARD_TLS_SECRET__
   issuerRef:
     name: letsencrypt
     kind: ClusterIssuer
   dnsNames:
-    - "*.home-ops.yansyah.my.id"
+    - "*.__BASE_DOMAIN__"

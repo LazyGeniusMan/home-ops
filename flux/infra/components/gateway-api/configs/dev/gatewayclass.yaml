@@ -1,9 +1,0 @@
-# Shared GatewayClass (§8.1): served by the Cilium gateway controller (§8.2 runs
-# Cilium with Gateway API enabled). One class for the whole fleet; the shared
-# Gateway (gateway.yaml) and per-service routes (§§11-13) bind to it.
-apiVersion: gateway.networking.k8s.io/v1
-kind: GatewayClass
-metadata:
-  name: cilium
-spec:
-  controllerName: io.cilium/gateway-controller

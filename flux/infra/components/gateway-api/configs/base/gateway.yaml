@@ -1,10 +1,11 @@
-# Shared Gateway (§8.1) for home-ops.yansyah.my.id. Listens on HTTP 80 (plain —
+# Shared Gateway (§8.1) for __BASE_DOMAIN__. Listens on HTTP 80 (plain —
 # only a redirect source, see httproutes.yaml) and HTTPS 443 (terminated with
 # the in-namespace wildcard Secret from wildcard-certificate.yaml). Listeners
 # accept routes from all namespaces so per-service HTTPRoutes (§§11-13) can
 # attach from their app namespaces later. Lands in the gateway-api namespace
 # via the Flux Kustomization targetNamespace (no explicit namespace, like the
-# cert-manager component).
+# cert-manager component). Base holds the __WILDCARD_TLS_SECRET__ placeholder
+# (prd wildcard-home-ops-tls, dev wildcard-homelab-dev-tls).
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
@@ -24,7 +25,7 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: wildcard-home-ops-tls
+          - name: __WILDCARD_TLS_SECRET__
       allowedRoutes:
         namespaces:
           from: All

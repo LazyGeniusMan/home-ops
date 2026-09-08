@@ -2,3 +2,56 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../base
+patches:
+  # Staging (prd values) Gateway TLS secret (wildcard-home-ops-tls).
+  - patch: |
+      - op: replace
+        path: /spec/listeners/1/tls/certificateRefs/0/name
+        value: wildcard-home-ops-tls
+    target:
+      kind: Gateway
+      name: main
+  # Staging (prd values) hostnames (home-ops.yansyah.my.id).
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: home-ops.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: redirect-apex
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: "*.home-ops.yansyah.my.id"
+    target:
+      kind: HTTPRoute
+      name: redirect-services
+  # Staging (prd values) wildcard Certificate (wildcard-home-ops).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+    target:
+      kind: ExternalSecret
+      name: cloudflare-api-token
+  - patch: |
+      - op: replace
+        path: /metadata/name
+        value: wildcard-home-ops
+    target:
+      kind: Certificate
+      name: __WILDCARD_CERT_NAME__
+  - patch: |
+      - op: replace
+        path: /spec/secretName
+        value: wildcard-home-ops-tls
+    target:
+      kind: Certificate
+      name: wildcard-home-ops
+  - patch: |
+      - op: replace
+        path: /spec/dnsNames/0
+        value: "*.home-ops.yansyah.my.id"
+    target:
+      kind: Certificate
+      name: wildcard-home-ops

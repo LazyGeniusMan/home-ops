@@ -1,10 +1,12 @@
 # Base HTTPRoutes (§8.1): HTTP→HTTPS redirects for the shared Gateway. EVERY
 # route here carries a RequestRedirect filter — port 80 exists only as a
 # redirect source; real backends attach via per-service HTTPRoutes (§§11-13).
-# Hostname shapes: the apex record, plus the `*.home-ops.yansyah.my.id`
+# Hostname shapes: the apex record, plus the `*.__BASE_DOMAIN__`
 # wildcard. Per the Gateway API spec a `*.` hostname matches dots to the
-# left, so the wildcard covers BOTH `<service>.home-ops.yansyah.my.id` and
-# nested `<subservice>.<service>.home-ops.yansyah.my.id` shapes.
+# left, so the wildcard covers BOTH `<service>.__BASE_DOMAIN__` and
+# nested `<subservice>.<service>.__BASE_DOMAIN__` shapes.
+# Base holds the __BASE_DOMAIN__ placeholder (prd home-ops.yansyah.my.id,
+# dev homelab-dev.yansyah.my.id) — patched per environment.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -14,7 +16,7 @@ spec:
     - name: main
       sectionName: http
   hostnames:
-    - home-ops.yansyah.my.id
+    - __BASE_DOMAIN__
   rules:
     - filters:
         - type: RequestRedirect
@@ -31,7 +33,7 @@ spec:
     - name: main
       sectionName: http
   hostnames:
-    - "*.home-ops.yansyah.my.id"
+    - "*.__BASE_DOMAIN__"
   rules:
     - filters:
         - type: RequestRedirect
