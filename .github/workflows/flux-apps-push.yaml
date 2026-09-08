@@ -27,7 +27,9 @@ jobs:
       fail-fast: false
       matrix:
         component:
-          - placeholder
+          - rclone
+          - win11-vm
+          - talos-vm
     runs-on: ubuntu-latest
     permissions:
       contents: read

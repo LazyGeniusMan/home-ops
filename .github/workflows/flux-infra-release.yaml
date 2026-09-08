@@ -27,6 +27,12 @@ jobs:
           - cert-manager
           - external-dns
           - local-path-provisioner
+          - cnpg
+          - clickhouse
+          - dragonfly
+          - seaweedfs
+          - multus
+          - kubevirt
     runs-on: ubuntu-latest
     permissions:
       contents: read
