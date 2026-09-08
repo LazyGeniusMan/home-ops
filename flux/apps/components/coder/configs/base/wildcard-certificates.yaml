@@ -1,0 +1,56 @@
+# In-namespace Certificates (§§8.1/9.3/13.6). cert-manager Secrets are
+# namespace-local, so the §9 Certificate (cert-manager namespace) cannot feed
+# this component's Gateway listeners — these Certificates mint coder-tls
+# (coder.home-ops.yansyah.my.id) and coder-wildcard-tls
+# (*.coder.home-ops.yansyah.my.id) HERE via the same
+# ClusterIssuer/letsencrypt DNS-01 flow (same duplicate pattern as §8.1
+# gateway-api). Two Certificates because one TLS wildcard matches a single
+# label only: *.home-ops.yansyah.my.id covers the dashboard root but NOT
+# nested <workspace>.coder.home-ops.yansyah.my.id agents/apps. The token
+# ExternalSecret mirrors cert-manager/configs/base/cluster-issuer.yaml (same
+# Proton Pass remoteRef) so the DNS-01 solver credential exists in this
+# namespace too. No manual DNS: issuance uses DNS-01 TXT records, and the A
+# records ride on the §9.4 external-dns automation (see README).
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: cloudflare-api-token
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: cloudflare-api-token
+    template:
+      data:
+        api-token: "{{ .apiToken }}"
+  data:
+    - secretKey: apiToken
+      remoteRef:
+        key: pass://acme-prd-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: coder-root
+spec:
+  secretName: coder-tls
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+  dnsNames:
+    - "coder.home-ops.yansyah.my.id"
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: coder-wildcard
+spec:
+  secretName: coder-wildcard-tls
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.coder.home-ops.yansyah.my.id"

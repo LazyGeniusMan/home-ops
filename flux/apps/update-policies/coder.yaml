@@ -1,0 +1,25 @@
+# Update policy for the coder component (§13.6): tracks the Coder app
+# container image, and the ImageUpdateAutomation (update cluster) opens PRs via
+# the marker in components/coder (see README). Chart versions are pinned in the
+# HelmRelease (classic HelmRepository — no OCI index exists upstream), so only
+# the image tag automates here. Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: coder
+spec:
+  image: "ghcr.io/coder/coder"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: coder
+spec:
+  imageRepositoryRef:
+    name: coder
+  policy:
+    semver:
+      range: ">=2.37.0"
