@@ -1,14 +1,20 @@
-# Root wiring for fleet release delivery: tag flux-fleet-vX.Y.Z to publish
+# Fleet release delivery: tag flux-fleet-vX.Y.Z to publish
 # oci://ghcr.io/<owner>/home-ops/fleet with tags stable + stable-X.Y.Z
 # (version stripped from the git ref).
+# Owner: flux/fleet
+# Future repo: home-ops-fleet
 # The prd cluster verifies this workflow + tag via the cosign subject pinned
 # in flux/fleet/clusters/acme-prd-bdo1-talos-apps-01/flux-system/flux-instance.yaml.
-# This file carries the triggers and calls the canonical job logic in
-# flux/fleet/.github/actions/oci-release via the area-local reusable workflow
-# flux/fleet/.github/workflows/release.yaml (workflow_call).
-# On the future per-area repo split, replace this job's steps with:
-#   call: <new-repo>/.github/workflows/release.yaml@<ref>   # workflow_call
-# and keep the area-local release.yaml as the canonical definition.
+# Migration to the dedicated repo (home-ops-fleet):
+#   1. Copy .github/workflows/flux-fleet-release.yaml -> <new-repo>/.github/workflows/release.yaml
+#      and .github/actions/flux-fleet-oci-release/ -> <new-repo>/.github/actions/oci-release/.
+#   2. Flip the monorepo path input to the split value: `path: "./flux/fleet"` -> `"./"`.
+#   3. Update the cosign subject path: the flux-instance.yaml pin moves with
+#      flux/fleet, so the subject stays `clusters/acme-prd-bdo1-talos-apps-01/...`
+#      (drop the `flux/fleet/` prefix) after the split.
+#   4. Optionally restore the split-ready `workflow_call` inputs (repository,
+#      path; defaults `''`/`'./'`) that the old area-local
+#      area-local release.yaml carried (removed in consolidation) for cross-repo calls.
 name: flux-fleet-release
 
 # OCI: oci://ghcr.io/<owner>/home-ops/fleet:stable + stable-<version>.
@@ -29,7 +35,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Publish fleet release
-        uses: ./flux/fleet/.github/actions/oci-release
+        uses: ./.github/actions/flux-fleet-oci-release
         with:
           repository: ghcr.io/${{ github.repository }}/fleet
           path: "./flux/fleet"

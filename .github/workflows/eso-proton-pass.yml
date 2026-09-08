@@ -1,12 +1,17 @@
-# Root wiring for eso-proton-pass publish.
-# GitHub only executes workflows under the repo-root .github/workflows/,
-# so this file carries the triggers and calls the canonical job logic in
-# projects/eso-proton-pass/.github/actions/publish via the project-local
-# reusable workflow projects/eso-proton-pass/.github/workflows/publish.yml
-# (workflow_call).
-# On the future per-project repo split, replace this job's steps with:
-#   uses: <new-repo>/.github/workflows/publish.yml@<ref>   # workflow_call
-# and keep the project-local publish.yml as the canonical definition.
+# eso-proton-pass publish.
+# Owner: projects/eso-proton-pass
+# Future repo: eso-proton-pass
+# Migration to the dedicated repo (eso-proton-pass):
+#   1. Copy .github/workflows/eso-proton-pass.yml -> <new-repo>/.github/workflows/publish.yml
+#      and .github/actions/eso-proton-pass-publish/ -> <new-repo>/.github/actions/publish/.
+#   2. Flip the monorepo path inputs to the split values:
+#      `context: projects/eso-proton-pass` -> `.`,
+#      `dockerfile: projects/eso-proton-pass/Dockerfile` -> `./Dockerfile`.
+#   3. Broaden the trigger path filter: `paths: ['projects/eso-proton-pass/**']` -> `['**']`
+#      (or drop the paths filter; keep the `eso-proton-pass-v*` tag filter).
+#   4. Optionally restore the split-ready `workflow_call` inputs (context,
+#      dockerfile; defaults `'.'`/`'./Dockerfile'`) that the old project-local
+#      project-local publish.yml carried (removed in consolidation) for cross-repo calls.
 name: eso-proton-pass
 
 on:
@@ -40,7 +45,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish image
-        uses: ./projects/eso-proton-pass/.github/actions/publish
+        uses: ./.github/actions/eso-proton-pass-publish
         with:
           context: projects/eso-proton-pass
           dockerfile: projects/eso-proton-pass/Dockerfile

@@ -1,8 +1,17 @@
-# Root wiring for fleet validation (manifests + Terraform bootstrap).
-# This file carries the triggers and calls the canonical job logic in
-# flux/fleet/.github/actions/{validate-manifests,validate-terraform} via the
-# area-local reusable workflow flux/fleet/.github/workflows/validate.yaml
-# (workflow_call).
+# Fleet validation (manifests + Terraform bootstrap).
+# Owner: flux/fleet
+# Future repo: home-ops-fleet
+# Migration to the dedicated repo (home-ops-fleet):
+#   1. Copy .github/workflows/flux-fleet-validate.yaml -> <new-repo>/.github/workflows/validate.yaml
+#      and .github/actions/flux-fleet-validate-{manifests,terraform}/ ->
+#      <new-repo>/.github/actions/validate-{manifests,terraform}/.
+#   2. Flip the monorepo path inputs to the split values:
+#      `script: ./flux/scripts/validate.sh` -> `./scripts/validate.sh`
+#      (copy flux/scripts/validate.sh -> <new-repo>/scripts/validate.sh),
+#      `validate-dir: flux/fleet` -> `.`,
+#      `working-directory: flux/fleet/terraform` -> `terraform`.
+#   3. Broaden the trigger path filters: `paths: ['flux/fleet/**']` -> `['**']`
+#      (or drop the paths filters entirely).
 name: flux-fleet-validate
 
 on:
@@ -25,7 +34,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Validate manifests
-        uses: ./flux/fleet/.github/actions/validate-manifests
+        uses: ./.github/actions/flux-fleet-validate-manifests
         with:
           script: ./flux/scripts/validate.sh
           validate-dir: flux/fleet
@@ -36,6 +45,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Validate bootstrap
-        uses: ./flux/fleet/.github/actions/validate-terraform
+        uses: ./.github/actions/flux-fleet-validate-terraform
         with:
           working-directory: flux/fleet/terraform

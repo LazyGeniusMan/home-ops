@@ -1,0 +1,33 @@
+# Shared PR automation for Git-based image updates: the update cluster's
+# ImageUpdateAutomation (clusters/update/automation.yaml) pushes chart/image
+# bumps to image-updates-infra and image-updates-apps branches; this opens a
+# PR to main for each.
+# Owner: flux/fleet. Called by .github/workflows/flux-image-updates.yaml
+# (via `uses: ./.github/actions/flux-fleet-image-updates`). The caller
+# performs the checkout (fetch-depth 0) so this local action resolves.
+# On the per-area repo split (future repo: home-ops-fleet) this directory
+# moves to <new-repo>/.github/actions/image-updates/.
+name: fleet-image-updates
+description: Open a PR to main for an image-updates branch.
+
+inputs:
+  github-token:
+    description: 'Token used for creating the pull request'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Create Pull Request
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_REPO: ${{ github.repository }}
+        GITHUB_REF: ${{ github.ref }}
+        HEAD_BRANCH: ${{ github.ref_name }}
+      run: |
+        gh pr create \
+          --repo="${GITHUB_REPO}" \
+          --head="${HEAD_BRANCH}" \
+          --base=main \
+          --fill-first

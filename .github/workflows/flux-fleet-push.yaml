@@ -1,13 +1,15 @@
-# Root wiring for fleet OCI delivery (main branch -> tags dev + dev-<sha>).
-# GitHub only executes workflows under the repo-root .github/workflows/,
-# so this file carries the triggers and calls the canonical job logic in
-# flux/fleet/.github/actions/oci-push via the area-local reusable workflow
-# flux/fleet/.github/workflows/push.yaml (workflow_call). Reusable workflows
-# cannot live in subdirectories, so the executable sharing layer is the
-# step-level composite action — the documented pattern for local shared logic.
-# On the future per-area repo split, replace this job's steps with:
-#   call: <new-repo>/.github/workflows/push.yaml@<ref>   # workflow_call
-# and keep the area-local push.yaml as the canonical definition.
+# Fleet OCI delivery (main branch -> tags dev + dev-<sha>).
+# Owner: flux/fleet
+# Future repo: home-ops-fleet
+# Migration to the dedicated repo (home-ops-fleet):
+#   1. Copy .github/workflows/flux-fleet-push.yaml -> <new-repo>/.github/workflows/push.yaml
+#      and .github/actions/flux-fleet-oci-push/ -> <new-repo>/.github/actions/oci-push/.
+#   2. Flip the monorepo path input to the split value: `path: "./flux/fleet"` -> `"./"`.
+#   3. Broaden the trigger path filter: `paths: ['flux/fleet/**']` -> `['**']`
+#      (or drop the paths filter entirely).
+#   4. Optionally restore the split-ready `workflow_call` inputs (repository,
+#      path; defaults `''`/`'./'`) that the old area-local
+#      area-local push.yaml carried (removed in consolidation) for cross-repo calls.
 name: flux-fleet-push
 
 # OCI: oci://ghcr.io/<owner>/home-ops/fleet:dev + dev-<sha> (main commits).
@@ -31,7 +33,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Push fleet artifact
-        uses: ./flux/fleet/.github/actions/oci-push
+        uses: ./.github/actions/flux-fleet-oci-push
         with:
           repository: ghcr.io/${{ github.repository }}/fleet
           path: "./flux/fleet"

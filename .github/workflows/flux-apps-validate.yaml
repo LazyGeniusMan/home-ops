@@ -1,7 +1,17 @@
-# Root wiring for apps validation. This file carries the triggers and calls
-# the canonical job logic in flux/apps/.github/actions/validate-manifests via
-# the area-local reusable workflow flux/apps/.github/workflows/validate.yaml
-# (workflow_call).
+# Apps validation.
+# Owner: flux/apps
+# Future repo: home-ops-apps
+# Migration to the dedicated repo (home-ops-apps):
+#   1. Copy .github/workflows/flux-apps-validate.yaml -> <new-repo>/.github/workflows/validate.yaml
+#      and .github/actions/flux-apps-validate-manifests/ ->
+#      <new-repo>/.github/actions/validate-manifests/.
+#   2. Flip the monorepo path inputs to the split values:
+#      `script: ./flux/scripts/validate.sh` -> `./scripts/validate.sh`
+#      (copy flux/scripts/validate.sh -> <new-repo>/scripts/validate.sh),
+#      `validate-dir: flux/apps` -> `.`.
+#   3. Broaden the trigger path filters: `paths: ['flux/apps/**',
+#      'flux/fleet/tenants/apps.yaml']` -> `['components/**', 'tenants/apps.yaml']`
+#      (after copying the tenants file) or drop the paths filters entirely.
 name: flux-apps-validate
 
 on:
@@ -26,7 +36,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Validate manifests
-        uses: ./flux/apps/.github/actions/validate-manifests
+        uses: ./.github/actions/flux-apps-validate-manifests
         with:
           script: ./flux/scripts/validate.sh
           validate-dir: flux/apps

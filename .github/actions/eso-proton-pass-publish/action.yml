@@ -1,0 +1,47 @@
+# Shared publish logic for eso-proton-pass.
+# Builds and pushes ghcr.io/lazygeniusman/home-ops/infra/eso-proton-pass.
+# Owner: projects/eso-proton-pass. Called by .github/workflows/eso-proton-pass.yml
+# (via `uses: ./.github/actions/eso-proton-pass-publish`).
+# Step-level composite action: the executable sharing layer for this monorepo.
+# The caller performs the checkout so this local action resolves.
+# On the per-project repo split (future repo: eso-proton-pass) this directory
+# moves to <new-repo>/.github/actions/publish/.
+name: eso-proton-pass-publish
+description: Build and push the eso-proton-pass image.
+
+inputs:
+  context:
+    description: 'Docker build context, relative to the repository root'
+    required: false
+    default: '.'
+  dockerfile:
+    description: 'Dockerfile path, relative to the repository root'
+    required: false
+    default: './Dockerfile'
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+      with:
+        images: ghcr.io/lazygeniusman/home-ops/infra/eso-proton-pass
+        flavor: |
+          latest=false
+        tags: |
+          type=raw,value=dev,enable=${{ github.ref_type == 'branch' }}
+          type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
+          type=match,pattern=eso-proton-pass-v(.*),group=1,enable=${{ github.ref_type == 'tag' }}
+
+    - name: Build and push
+      uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.dockerfile }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}

@@ -3,9 +3,13 @@
 # chart/image bumps to image-updates-infra and image-updates-apps branches;
 # this workflow opens a PR to main for each. Review + merge per branch
 # promotes the bump through the push/release pipelines above.
-# This file carries the triggers and calls the canonical job logic in
-# flux/fleet/.github/actions/image-updates via the area-local reusable workflow
-# flux/fleet/.github/workflows/image-updates.yaml (workflow_call).
+# Owner: flux/fleet
+# Future repo: home-ops-fleet
+# Migration to the dedicated repo (home-ops-fleet):
+#   1. Copy .github/workflows/flux-image-updates.yaml -> <new-repo>/.github/workflows/image-updates.yaml
+#      and .github/actions/flux-fleet-image-updates/ -> <new-repo>/.github/actions/image-updates/.
+#   2. Keep the `create` trigger + branch guard (`image-updates-infra`,
+#      `image-updates-apps`) as-is; no path inputs to flip (no path inputs).
 
 name: flux-image-updates
 
@@ -26,6 +30,6 @@ jobs:
         with:
           fetch-depth: 0
       - name: Create Pull Request
-        uses: ./flux/fleet/.github/actions/image-updates
+        uses: ./.github/actions/flux-fleet-image-updates
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}

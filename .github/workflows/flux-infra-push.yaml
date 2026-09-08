@@ -1,14 +1,19 @@
-# Root wiring for per-component infra OCI delivery (main -> tags dev + dev-<sha>).
-# This file carries the triggers and calls the canonical job logic in
-# flux/infra/.github/actions/oci-push via the area-local reusable workflow
-# flux/infra/.github/workflows/push.yaml (workflow_call).
+# Per-component infra OCI delivery (main -> tags dev + dev-<sha>).
+# Owner: flux/infra
+# Future repo: home-ops-infra
 # To onboard a component (§§8-14): add its directory name to the components
-# input here AND in flux/infra/.github/workflows/push.yaml AND add a matching
-# tenant input in flux/fleet/tenants/infra.yaml.
+# matrix here AND add a matching tenant input in flux/fleet/tenants/infra.yaml.
 # Unchanged components are no-ops (push action only pushes on diff).
-# On the future per-area repo split, replace this job's steps with:
-#   call: <new-repo>/.github/workflows/push.yaml@<ref>   # workflow_call
-# and keep the area-local push.yaml as the canonical definition.
+# Migration to the dedicated repo (home-ops-infra):
+#   1. Copy .github/workflows/flux-infra-push.yaml -> <new-repo>/.github/workflows/push.yaml
+#      and .github/actions/flux-infra-oci-push/ -> <new-repo>/.github/actions/oci-push/.
+#   2. Flip the monorepo path input to the split value:
+#      `source-prefix: flux/infra/components` -> `components`.
+#   3. Broaden the trigger path filter: `paths: ['flux/infra/**']` -> `['components/**']`
+#      (or `['**']`, or drop the paths filter entirely).
+#   4. Optionally restore the split-ready `workflow_call` inputs
+#      (repository-prefix, source-prefix; defaults `''`/`'components'`) that the
+#      old area-local push.yaml carried (removed in consolidation) for cross-repo calls.
 name: flux-infra-push
 
 # OCI: oci://ghcr.io/<owner>/home-ops/infra/<component>:dev + dev-<sha>.
@@ -51,7 +56,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Push component artifact
-        uses: ./flux/infra/.github/actions/oci-push
+        uses: ./.github/actions/flux-infra-oci-push
         with:
           component: ${{ matrix.component }}
           repository-prefix: ghcr.io/${{ github.repository }}/infra

@@ -84,8 +84,8 @@ Three independent layers, all asserting `PROTON_PASS_DISABLE_TELEMETRY=1`:
 ## Image
 
 Published to `ghcr.io/lazygeniusman/home-ops/infra/eso-proton-pass` by
-`.github/workflows/eso-proton-pass.yml` (canonical job definition in
-`.github/workflows/publish.yml` next to the sources):
+`.github/workflows/eso-proton-pass.yml` (shared steps in
+`.github/actions/eso-proton-pass-publish/`):
 
 - branch push → `:dev`
 - tag `eso-proton-pass-v*` → `:latest` plus the stripped version
