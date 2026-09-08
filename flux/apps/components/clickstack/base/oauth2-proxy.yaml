@@ -1,12 +1,15 @@
 # Per-instance oauth2-proxy (§11.2, locked proxy contract): fronts clickstack,
-# authenticates against Zitadel (issuer __ZITADEL_ISSUER_URL__,
-# client oauth2-proxy-shared), gates on the `admin` group. Image
+# authenticates against Zitadel (issuer __ZITADEL_ISSUER_URL__, own
+# `clickstack` client managed by this app's `clickstack-sso` Terraform CR),
+# gates on the `clickstack-admin` group. Image
 # quay.io/oauth2-proxy/oauth2-proxy:v7.6.0. ESO secret below holds refs only.
-# Callback https://__SERVICE_HOST__/oauth2/callback is covered
-# by the registered wildcard redirect https://*/oauth2/callback. HTTPRoute
-# backend (base/clickstack-httproute.yaml) points at this proxy Service
-# (:4180); the proxy upstreams to http://clickstack.<ns>.svc:3000 (namespace
-# patched per env via the clickstack namespace default).
+# The generated client ID comes from the vault (ESO-synced, never Git, never
+# a literal flag — see OAUTH2_PROXY_CLIENT_ID below). Callback
+# https://__SERVICE_HOST__/oauth2/callback is covered by the registered
+# redirect https://__SERVICE_HOST__/*. HTTPRoute backend
+# (base/clickstack-httproute.yaml) points at this proxy Service (:4180); the
+# proxy upstreams to http://clickstack.<ns>.svc:3000 (namespace patched per
+# env via the clickstack namespace default).
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -35,7 +38,6 @@ spec:
             - --upstream=http://clickstack.clickstack.svc:3000
             - --provider=oidc
             - --oidc-issuer-url=__ZITADEL_ISSUER_URL__
-            - --client-id=oauth2-proxy-shared
             - --client-secret-file=/etc/oauth2-proxy/client-secret
             - --cookie-secret-file=/etc/oauth2-proxy/cookie-secret
             - --cookie-domain=.__BASE_DOMAIN__
@@ -44,11 +46,18 @@ spec:
             - --email-domain=*
             - --scope=openid profile email groups
             - --oidc-groups-claim=groups
-            - --allowed-group=admin
+            - --allowed-group=clickstack-admin
             - --reverse-proxy=true
             - --skip-provider-button=true
             - --redirect-url=https://__SERVICE_HOST__/oauth2/callback
           env:
+            # Client ID is generated server-side by the `clickstack-sso`
+            # Terraform CR — synced from the vault (never a literal flag).
+            - name: OAUTH2_PROXY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy
+                  key: client-id
             - name: OAUTH2_PROXY_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:

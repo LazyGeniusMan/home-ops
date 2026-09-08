@@ -131,16 +131,56 @@ patches:
       kind: Deployment
       name: clickstack
   # Stg (prd values) proxy: Zitadel issuer, cookie domain, callback.
+  # (args shifted by one after the --client-id flag moved to
+  # OAUTH2_PROXY_CLIENT_ID env: cookie-domain args/7 -> args/6,
+  # redirect args/16 -> args/15.)
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/args/3
         value: --oidc-issuer-url=https://zitadel.home-ops.yansyah.my.id
       - op: replace
-        path: /spec/template/spec/containers/0/args/7
+        path: /spec/template/spec/containers/0/args/6
         value: --cookie-domain=.home-ops.yansyah.my.id
       - op: replace
-        path: /spec/template/spec/containers/0/args/16
+        path: /spec/template/spec/containers/0/args/15
         value: --redirect-url=https://clickstack.home-ops.yansyah.my.id/oauth2/callback
     target:
       kind: Deployment
       name: oauth2-proxy
+  # Stg (prd values) Clickstack SSO Terraform identity: vault ref for the
+  # shared instance JWT key + CR vars (prd issuer host, prd emails, prd app
+  # host). org_id is a one-time manual fill from `zitadel-bootstrap-outputs`
+  # (zitadel ns).
+  - patch: |
+      - op: replace
+        path: /spec/data/2/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/clickstack/oauth2-proxy-client-id
+    target:
+      kind: ExternalSecret
+      name: oauth2-proxy
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/zitadel/terraform-jwt-profile-json
+    target:
+      kind: ExternalSecret
+      name: clickstack-terraform-vars
+  - patch: |
+      - op: replace
+        path: /spec/vars/0/value
+        value: zitadel.home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/vars/1/value
+        value: REPLACE-ME-WITH-ORG-ID-FROM-zitadel-bootstrap-outputs
+      - op: replace
+        path: /spec/vars/2/value
+        value: admin@home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/vars/3/value
+        value: user@home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/vars/4/value
+        value: clickstack.home-ops.yansyah.my.id
+    target:
+      kind: Terraform
+      name: clickstack-sso

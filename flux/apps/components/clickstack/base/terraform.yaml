@@ -1,0 +1,78 @@
+# Clickstack SSO identity (§11.2), machine-applied by Tofu Controller.
+# Owns ONLY this app's slice: the `clickstack` Zitadel project +
+# project-scoped roles (clickstack-admin/clickstack-user) + user grants + the
+# `clickstack` OIDC client. Project-scoped means clickstack-admin NEVER
+# implies org admin.
+#
+# Ordering: this object ships in the app Kustomization (fleet `apps`
+# Kustomization dependsOn `infra-configs`), so it only reconciles after the
+# Zitadel HelmRelease + bootstrap identity are Ready. Terraform `dependsOn`
+# is Terraform-CR-only upstream (checkDependencies resolves every entry as
+# kind Terraform), so NO dependsOn entry here — the fleet ordering above is
+# the mechanism. Same shapes as
+# flux/infra/components/zitadel/configs/base/terraform-bootstrap.yaml.
+# First-run prerequisite (one-time, manual): the Zitadel bootstrap must have
+# applied first (org + users exist), and the IAM_OWNER service-user key JSON
+# must be seeded at pass://<env-vault>/zitadel/terraform-jwt-profile-json
+# (shared instance key, mirrored into this namespace — same pattern as the
+# cloudflare-api-token mirrors). Read org_id from the
+# `zitadel-bootstrap-outputs` Secret (zitadel namespace) into the per-env
+# overlay CR vars (literal, non-sensitive) — until then the CR retries.
+# Backend: in-cluster Kubernetes default (state Secrets in the clickstack
+# namespace) — no backendConfig needed. Drift detection stays on (default).
+# Outputs: client_id lands in `clickstack-sso-outputs`; read the client SECRET
+# from state and seed pass://<env-vault>/clickstack/oauth2-proxy-client-id (+
+# oauth2-proxy-client-secret) — never Git.
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: clickstack-terraform-vars
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: clickstack-terraform-vars
+    template:
+      data:
+        jwt_profile_json: "{{ .jwt_profile_json }}"
+  data:
+    - secretKey: jwt_profile_json
+      remoteRef:
+        key: __PROTON_PASS_BASE__/zitadel/terraform-jwt-profile-json
+---
+apiVersion: infra.contrib.fluxcd.io/v1alpha2
+kind: Terraform
+metadata:
+  name: clickstack-sso
+spec:
+  interval: 30m
+  approvePlan: auto
+  # App OCI artifact (same namespace, in-tenant `apps` OCIRepository):
+  # the artifact packs the whole component dir, terraform/ included.
+  sourceRef:
+    kind: OCIRepository
+    name: apps
+  path: ./terraform
+  # Plain (non-sensitive) per-env values; secrets come from varsFrom below.
+  # varsFrom overrides vars on key collision (upstream GenerateVarsForTF).
+  vars:
+    - name: domain
+      value: __ZITADEL_HOST__
+    - name: org_id
+      value: __ZITADEL_ORG_ID__
+    - name: admin_email
+      value: admin@__BASE_DOMAIN__
+    - name: user_email
+      value: user@__BASE_DOMAIN__
+    - name: app_host
+      value: __SERVICE_HOST__
+  varsFrom:
+    - kind: Secret
+      name: clickstack-terraform-vars
+  writeOutputsToSecret:
+    name: clickstack-sso-outputs
+    outputs:
+      - client_id

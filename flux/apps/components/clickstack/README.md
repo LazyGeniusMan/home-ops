@@ -79,7 +79,7 @@ upstreams to `http://clickstack.clickstack.svc:3000`:
 | Item | Value |
 |---|---|
 | Issuer | `https://zitadel.home-ops.yansyah.my.id` |
-| Client | `oauth2-proxy-shared` (secret via ESO, never Git) |
+| Client | `clickstack` (secret via ESO, never Git) |
 | Redirect | `https://clickstack.home-ops.yansyah.my.id/oauth2/callback` (covered by the registered wildcard `https://*/oauth2/callback`) |
 | Cookie domain | `.home-ops.yansyah.my.id` (secure, samesite=lax) |
 | Scopes | `openid profile email groups` (groups claim `groups`) |

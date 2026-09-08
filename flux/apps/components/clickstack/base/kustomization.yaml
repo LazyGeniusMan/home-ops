@@ -9,3 +9,4 @@ resources:
   - clickstack.yaml
   - ferretdb.yaml
   - oauth2-proxy.yaml
+  - terraform.yaml
