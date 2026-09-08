@@ -1,6 +1,7 @@
 # Diff-verifiable single source: the operator chart coordinates in
 # versions.yaml must match the OCIRepository consumed by Flux in
-# clusters/home/flux-system/flux-operator.yaml and clusters/update/flux-system/flux-operator.yaml.
+# clusters/home, clusters/update, AND clusters/dev flux-operator.yaml
+# (§14: dev bootstrap reuses the same single source).
 mock_provider "kubernetes" {}
 mock_provider "helm" {}
 
@@ -19,7 +20,7 @@ run "operator_versions_match_gitops" {
   # instead of decoding nested YAML.
   assert {
     condition = alltrue([
-      for f in ["home", "update"] :
+      for f in ["home", "update", "dev"] :
       strcontains(
         file("${path.root}/../clusters/${f}/flux-system/flux-operator.yaml"),
         yamldecode(file("${path.root}/versions.yaml"))["operator_chart_repository"]

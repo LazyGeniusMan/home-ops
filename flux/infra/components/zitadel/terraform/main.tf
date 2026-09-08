@@ -90,21 +90,25 @@ resource "zitadel_user_grant" "user" {
 # OIDC clients (all: code flow + PKCE, refresh tokens; scopes openid profile
 # email groups). Client secrets are generated server-side — read them from
 # state after apply and store in Proton Pass (never in Git).
+# Parent domain derived from var.domain (issuer host zitadel.<parent>).
+# Passing -var domain=zitadel.homelab-dev.yansyah.my.id (+ admin/user emails)
+# switches every redirect to dev with no other edits (§14).
 locals {
+  parent_domain = replace(var.domain, "/^zitadel\\./", "")
   clients = {
-    clickstack         = ["https://clickstack.home-ops.yansyah.my.id/*"]
-    hubble             = ["https://hubble.home-ops.yansyah.my.id/*"]
-    flux-operator-ui   = ["https://flux-operator.home-ops.yansyah.my.id/*"]
-    headlamp           = ["https://headlamp.home-ops.yansyah.my.id/*"]
-    coder              = ["https://coder.home-ops.yansyah.my.id/*"]
+    clickstack         = ["https://clickstack.${local.parent_domain}/*"]
+    hubble             = ["https://hubble.${local.parent_domain}/*"]
+    flux-operator-ui   = ["https://flux-operator.${local.parent_domain}/*"]
+    headlamp           = ["https://headlamp.${local.parent_domain}/*"]
+    coder              = ["https://coder.${local.parent_domain}/*"]
     oauth2-proxy-shared = ["https://*/oauth2/callback"]
   }
   post_logout = {
-    clickstack         = ["https://clickstack.home-ops.yansyah.my.id/"]
-    hubble             = ["https://hubble.home-ops.yansyah.my.id/"]
-    flux-operator-ui   = ["https://flux-operator.home-ops.yansyah.my.id/"]
-    headlamp           = ["https://headlamp.home-ops.yansyah.my.id/"]
-    coder              = ["https://coder.home-ops.yansyah.my.id/"]
+    clickstack         = ["https://clickstack.${local.parent_domain}/"]
+    hubble             = ["https://hubble.${local.parent_domain}/"]
+    flux-operator-ui   = ["https://flux-operator.${local.parent_domain}/"]
+    headlamp           = ["https://headlamp.${local.parent_domain}/"]
+    coder              = ["https://coder.${local.parent_domain}/"]
     oauth2-proxy-shared = []
   }
 }
