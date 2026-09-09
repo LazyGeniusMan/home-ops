@@ -100,6 +100,12 @@ git clone https://github.com/seaweedfs/seaweedfs.wiki.git --depth 1 seaweedfs-do
 # /tmp/home-ops-docs/seaweedfs-csi-docs/README.md
 git clone https://github.com/seaweedfs/seaweedfs-csi-driver -b master --depth 1 seaweedfs-csi-docs
 
+# /tmp/home-ops-docs/k8s-cosi-docs/docs/src
+git clone https://github.com/kubernetes-sigs/container-object-storage-interface -b main --depth 1 k8s-cosi-docs
+
+# /tmp/home-ops-docs/seaweedfs-cosi-docs/README.md
+git clone https://github.com/seaweedfs/seaweedfs-cosi-driver -b main --depth 1 seaweedfs-cosi-docs
+
 # /tmp/home-ops-docs/rclone-docs/docs/content
 git clone https://github.com/rclone/rclone -b master --depth 1 rclone-docs
 
