@@ -1,6 +1,7 @@
 # SeaweedFS COSI driver RBAC (mirrors the upstream seaweedfs chart
 # templates/cosi/cosi-cluster-role.yaml, adapted: SA is namespace-local
-# `seaweedfs-cosi-driver` in the `cosi` tenant namespace).
+# `seaweedfs-cosi-driver` in the `seaweedfs` tenant namespace — the driver
+# moved here from the cosi component so it shares the SeaweedFS tenant).
 # The sidecar (release-0.2 sidecar/cmd/cmd.go) runs Bucket + BucketAccess
 # listeners via controller-runtime against the kube API (needs buckets,
 # bucketaccesses (+status), bucketclaims/status, bucketaccessclasses/status),
@@ -62,7 +63,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: seaweedfs-cosi-driver
-    namespace: cosi
+    namespace: seaweedfs
 roleRef:
   kind: ClusterRole
   name: seaweedfs-cosi-driver

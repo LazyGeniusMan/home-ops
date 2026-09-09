@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: cosi
-resources:
-  - driver-rbac.yaml
-  - driver.yaml
-  - bucketclasses.yaml
+# COSI central infrastructure only (CRDs + controller live in
+# controllers/base). The SeaweedFS COSI driver moved to the seaweedfs
+# component's configs/base (it runs in the seaweedfs tenant namespace).
+resources: []

@@ -4,7 +4,8 @@ resources:
   - ../base
   - cloudflare-api-token.yaml
 patches:
-  # Dev S3 endpoint + vault refs + wildcard DNS.
+  # Dev S3 endpoint + wildcard DNS. (S3 keys are COSI-minted via the
+  # in-namespace cnpg-cosi SecretStore — no per-env vault ref patch.)
   - patch: |
       - op: replace
         path: /spec/backup/barmanObjectStore/endpointURL
@@ -12,16 +13,6 @@ patches:
     target:
       kind: Cluster
       name: postgres-base
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-dev-bdo1-talos-apps-01/cnpg/s3-access-key-id
-      - op: replace
-        path: /spec/data/1/remoteRef/key
-        value: pass://acme-dev-bdo1-talos-apps-01/cnpg/s3-secret-access-key
-    target:
-      kind: ExternalSecret
-      name: cnpg-s3-credentials
   - patch: |
       - op: replace
         path: /spec/dnsNames/0

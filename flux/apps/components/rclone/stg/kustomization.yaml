@@ -3,38 +3,27 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Stg (prd values) Proton Pass vault (pass://acme-prd-bdo1-talos-apps-01).
+  # Stg (prd values) Proton Pass vault (pass://acme-prd-bdo1-talos-apps-01)
+  # for the Drive triple. (The S3 pair is COSI-minted via the in-namespace
+  # rclone-cosi SecretStore — no per-env vault ref patch for
+  # sw-access-key/sw-secret-key.)
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/rclone/sw-access-key
-    target:
-      kind: ExternalSecret
-      name: rclone-credentials
-  - patch: |
-      - op: replace
-        path: /spec/data/1/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/rclone/sw-secret-key
-    target:
-      kind: ExternalSecret
-      name: rclone-credentials
-  - patch: |
-      - op: replace
-        path: /spec/data/2/remoteRef/key
         value: pass://acme-prd-bdo1-talos-apps-01/rclone/drive-username
     target:
       kind: ExternalSecret
       name: rclone-credentials
   - patch: |
       - op: replace
-        path: /spec/data/3/remoteRef/key
+        path: /spec/data/1/remoteRef/key
         value: pass://acme-prd-bdo1-talos-apps-01/rclone/drive-password
     target:
       kind: ExternalSecret
       name: rclone-credentials
   - patch: |
       - op: replace
-        path: /spec/data/4/remoteRef/key
+        path: /spec/data/2/remoteRef/key
         value: pass://acme-prd-bdo1-talos-apps-01/rclone/drive-token
     target:
       kind: ExternalSecret

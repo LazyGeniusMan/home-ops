@@ -3,5 +3,6 @@ kind: Kustomization
 resources:
   - dragonfly-base.yaml
   - s3-credentials.yaml
+  - cosi-keys.yaml
   - wildcard-certificate.yaml
   - bucketclaims.yaml

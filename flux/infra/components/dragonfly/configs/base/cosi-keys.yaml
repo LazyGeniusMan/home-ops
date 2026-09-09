@@ -1,0 +1,57 @@
+# COSI credential bridge (§10.3): in-namespace Kubernetes SecretStore reading
+# the COSI-minted BucketInfo JSON (Secret dragonfly-backups-cosi-creds, key
+# BucketInfo) via the eso-k8s-reader ServiceAccount. Role is
+# least-privilege: secrets get/list/watch restricted to the *-cosi-creds
+# Secret + selfsubjectrulesreviews create, in-namespace only. Same pattern
+# as the clickstack-k8s/coder-k8s stores: server.url omitted (defaults to
+# kubernetes.default), kube-root-ca.crt supplies the API CA. Consumers
+# (dragonfly-s3-credentials here) use GJSON `property`
+# (BucketInfo.spec.secretS3.accessKeyID/accessSecretKey) — verified against
+# ESO v2.10.0 providers/v1/kubernetes/client.go getFromSecretData.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-k8s-reader
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eso-k8s-reader
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["dragonfly-backups-cosi-creds"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["selfsubjectrulesreviews"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eso-k8s-reader
+subjects:
+  - kind: ServiceAccount
+    name: eso-k8s-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: eso-k8s-reader
+---
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: dragonfly-cosi
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: dragonfly
+      server:
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        serviceAccount:
+          name: eso-k8s-reader

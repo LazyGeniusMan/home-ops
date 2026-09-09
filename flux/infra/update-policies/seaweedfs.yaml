@@ -43,3 +43,47 @@ spec:
   policy:
     semver:
       range: ">=1.4.30"
+# SeaweedFS COSI driver + sidecar (moved here from cosi.yaml with the driver
+# move — markers live in components/seaweedfs/configs/base/driver.yaml).
+# Sidecar tracks the k8s-staging repo (no registry.k8s.io promotion for
+# release-0.2 yet); driver tracks ghcr.io semver >=0.1.2.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: cosi-sidecar
+spec:
+  image: "gcr.io/k8s-staging-sig-storage/objectstorage-sidecar"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: cosi-sidecar
+spec:
+  imageRepositoryRef:
+    name: cosi-sidecar
+  policy:
+    semver:
+      range: ">=0.0.0"
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: cosi-driver
+spec:
+  image: "ghcr.io/seaweedfs/seaweedfs-cosi-driver"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: cosi-driver
+spec:
+  imageRepositoryRef:
+    name: cosi-driver
+  policy:
+    semver:
+      range: ">=0.1.2"

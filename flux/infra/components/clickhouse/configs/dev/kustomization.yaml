@@ -4,7 +4,8 @@ resources:
   - ../base
   - cloudflare-api-token.yaml
 patches:
-  # Dev S3 endpoint + vault refs + wildcard DNS.
+  # Dev S3 endpoint + wildcard DNS. (S3 keys are COSI-minted via the
+  # in-namespace clickhouse-cosi SecretStore — no per-env vault ref patch.)
   - patch: |
       - op: replace
         path: /spec/configuration/files/storage.xml
@@ -24,16 +25,6 @@ patches:
     target:
       kind: ClickHouseInstallation
       name: clickhouse
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-dev-bdo1-talos-apps-01/clickhouse/s3-access-key-id
-      - op: replace
-        path: /spec/data/1/remoteRef/key
-        value: pass://acme-dev-bdo1-talos-apps-01/clickhouse/s3-secret-access-key
-    target:
-      kind: ExternalSecret
-      name: clickhouse-s3-backup
   - patch: |
       - op: replace
         path: /spec/dnsNames/0

@@ -8,3 +8,8 @@ resources:
   - wildcard-certificate.yaml
   - terraform.yaml
   - terraform-remote-state-rbac.yaml
+  # SeaweedFS COSI driver (moved from the cosi component — the driver is a
+  # SeaweedFS workload, so it lives in this tenant namespace; see README).
+  - driver-rbac.yaml
+  - driver.yaml
+  - bucketclasses.yaml

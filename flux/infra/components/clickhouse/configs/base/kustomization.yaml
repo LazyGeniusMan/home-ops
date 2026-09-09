@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - installation-base.yaml
   - s3-credentials.yaml
+  - cosi-keys.yaml
   - wildcard-certificate.yaml
   - backup-cronjob.yaml
   - bucketclaims.yaml
