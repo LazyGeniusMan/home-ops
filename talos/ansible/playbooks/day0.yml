@@ -6,6 +6,11 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  # Explicitly load shared vars: group_vars/ is not auto-loaded with an
+  # inline `-i localhost,` inventory (Ansible resolves group_vars relative
+  # to the inventory file/playbook dir).
+  vars_files:
+    - "{{ playbook_dir }}/../group_vars/all.yml"
   vars:
     talos_cluster: acme-dev-bdo1-talos-apps-01
   roles:
