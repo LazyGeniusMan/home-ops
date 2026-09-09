@@ -1,0 +1,44 @@
+# Narrow cross-namespace read grant for the headlamp tofu runner (§13.3).
+# The headlamp-sso Terraform module reads the zitadel bootstrap outputs via
+# `data.terraform_remote_state` (in-cluster Kubernetes backend, state Secret
+# `tfstate-default-zitadel-bootstrap-identity` in the `zitadel` namespace).
+# That read runs as THIS namespace's tofu runner SA
+# (`system:serviceaccount:headlamp:tf-runner`, created by the tofu-controller
+# chart via allowedNamespaces), so the SA needs get+list on the bootstrap
+# state Secret — and nothing else (resourceNames pins the single Secret).
+# Ownership note: the Role + RoleBinding below carry explicit
+# `metadata.namespace: zitadel` but are OWNED BY the headlamp component — they
+# ship in the headlamp base dir so they reconcile (and prune) with the app.
+# Same-namespace `varsFrom` CANNOT cross namespaces (no namespace field),
+# which is why remote-state + this RBAC is the mechanism.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: headlamp-terraform-remote-state-reader
+  namespace: zitadel
+  labels:
+    app.kubernetes.io/name: headlamp
+    app.kubernetes.io/part-of: headlamp
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["tfstate-default-zitadel-bootstrap-identity"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: headlamp-terraform-remote-state-reader
+  namespace: zitadel
+  labels:
+    app.kubernetes.io/name: headlamp
+    app.kubernetes.io/part-of: headlamp
+subjects:
+  - kind: ServiceAccount
+    name: tf-runner
+    namespace: headlamp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: headlamp-terraform-remote-state-reader

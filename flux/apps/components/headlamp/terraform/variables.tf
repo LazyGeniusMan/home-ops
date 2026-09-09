@@ -4,12 +4,6 @@ variable "domain" {
   default     = "zitadel.home-ops.yansyah.my.id"
 }
 
-variable "org_id" {
-  description = "home-ops org ID (plain literal per-env overlay value, non-sensitive; read from zitadel-bootstrap-outputs after bootstrap; empty falls back to name lookup)"
-  type        = string
-  default     = ""
-}
-
 variable "admin_email" {
   description = "Super-admin human user email"
   type        = string

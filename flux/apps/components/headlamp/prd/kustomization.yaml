@@ -11,14 +11,14 @@ patches:
     target:
       kind: HTTPRoute
       name: headlamp
-  # Prd OIDC issuer + client-secret vault ref.
+  # No headlamp-oidc vault patches: client_id + client_secret flow end-to-end
+  # from the headlamp-sso outputs Secret via the in-cluster `headlamp-k8s`
+  # SecretStore (base/headlamp-secrets.yaml) — no Proton Pass seeding.
+  # Prd OIDC issuer.
   - patch: |
       - op: replace
         path: /spec/target/template/data/OIDC_ISSUER_URL
         value: https://zitadel.home-ops.yansyah.my.id
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/headlamp/oidc-client-secret
     target:
       kind: ExternalSecret
       name: headlamp-oidc

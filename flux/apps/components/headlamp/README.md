@@ -45,12 +45,30 @@ the route is owned explicitly (§8.1 pattern, same split as §11.1).
 | Scopes | `openid profile email groups` |
 | Callback | `https://headlamp.home-ops.yansyah.my.id/oidc-callback` (covered by the locked `https://headlamp.home-ops.yansyah.my.id/*` redirect) |
 
-Client-secret choice: **confidential** — the §11.1 Tofu module declares the
-`headlamp` client with `auth_method_type = OIDC_AUTH_METHOD_TYPE_BASIC`
-(see `flux/infra/components/zitadel/terraform/main.tf`), so a secret is
-required; NOT public-client PKCE. The secret is read out of the Tofu state
-after `terraform apply` into
-`pass://acme-prd-bdo1-talos-apps-01/headlamp/oidc-client-secret` (never Git).
+Client-secret choice: **confidential** — this app's `headlamp-sso` Terraform
+module declares the `headlamp` client with
+`auth_method_type = OIDC_AUTH_METHOD_TYPE_BASIC` (see `terraform/main.tf`),
+so a secret is required; NOT public-client PKCE.
+
+Secret handoff (stored outputs, end-to-end — NO pass:// seeding for OIDC
+creds): the `headlamp-sso` module outputs the generated `client_id` +
+`client_secret` into the CR output Secret `headlamp-sso-outputs` (CR
+`writeOutputsToSecret`), and ESO `headlamp-oidc` consumes BOTH keys from that
+Secret through the in-cluster `headlamp-k8s` SecretStore (ESO Kubernetes
+provider: `eso-k8s-reader` SA + in-namespace Role/RoleBinding,
+`remoteNamespace: headlamp`, same-cluster API via `kube-root-ca.crt`).
+No `headlamp/oidc-client-*` vault entries exist or are needed; rotation is
+automatic on the next `headlamp-sso` reconcile (refreshInterval 1h).
+
+JWT prerequisite (one-time, manual): the `headlamp-terraform-vars`
+ExternalSecret mirrors the shared instance key
+`pass://<env-vault>/zitadel/terraform-jwt-profile-json` (same IAM_OWNER
+service-user key the zitadel bootstrap uses — mirrored per namespace like
+the cloudflare-api-token mirrors). That JWT key is the ONLY remaining
+pass:// dependency for SSO. Without the key the CR retries on interval.
+Upstream identity (org_id + admin/user IDs) flows from the zitadel bootstrap
+slice via `data.terraform_remote_state` (in-cluster Kubernetes backend) —
+no `org_id` var, no manual per-env fill, no email lookups.
 
 ## Plugins (pluginsManager sidecar, all pinned)
 
@@ -101,12 +119,12 @@ namespace-local).
 
 ## Credentials
 
-`ExternalSecret/headlamp-oidc` syncs the client secret from Proton Pass
-(`pass://acme-prd-bdo1-talos-apps-01/headlamp/oidc-client-secret`; static
-fields are templated, Git holds `remoteRef`s only). Seed the vault entry
-with pass-cli. The Cloudflare token mirror in `wildcard-certificate.yaml`
-uses the same vault path as §§9–10, copied so the DNS-01 secret exists in
-this namespace too.
+`ExternalSecret/headlamp-oidc` syncs the client credentials from the
+`headlamp-sso-outputs` Secret via the in-cluster `headlamp-k8s` SecretStore
+(stored outputs, end-to-end — no Proton Pass seeding for OIDC creds; static
+fields are templated, Git holds refs only). The Cloudflare token mirror in
+`wildcard-certificate.yaml` uses the same vault path as §§9–10, copied so
+the DNS-01 secret exists in this namespace too.
 
 ## Environments
 
