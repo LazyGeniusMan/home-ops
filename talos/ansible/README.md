@@ -5,6 +5,10 @@ each node's own config, bootstraps etcd, and fetches kubeconfig; day-2 is
 ongoing operate (health, upgrade, config patch). All node contact is
 `talosctl` over the Talos API — no SSH, no kubectl in this tree.
 
+> Operator? Start with [`RUNBOOK.md`](RUNBOOK.md) — step-by-step Day 0/1/2
+> commands, verification, troubleshooting, and reference tables. This README
+> is the concept index; the runbook is the procedure.
+
 ## Layout
 
 ```text
