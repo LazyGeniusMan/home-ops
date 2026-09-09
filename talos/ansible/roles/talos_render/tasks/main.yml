@@ -21,6 +21,11 @@
       --out-file {{ talos_build_dir }}/{{ talos_cluster }}/patches.yml
       --force --file-mode 0600
     creates: "{{ talos_build_dir }}/{{ talos_cluster }}/patches.yml"
+  environment:
+    PROTON_PASS_AGENT_REASON: >-
+      {{ talos_render_pass_agent_reason_prefix }}-{{ talos_cluster }}-exec-{{
+        lookup('community.general.random_string', length=16,
+        override_all='0123456789abcdef') }}
   no_log: true
   changed_when: true
 
@@ -32,6 +37,11 @@
       --out-file {{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml
       --force --file-mode 0600
     creates: "{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml"
+  environment:
+    PROTON_PASS_AGENT_REASON: >-
+      {{ talos_render_pass_agent_reason_prefix }}-{{ talos_cluster }}-{{ item.name }}-exec-{{
+        lookup('community.general.random_string', length=16,
+        override_all='0123456789abcdef') }}
   loop: "{{ talos_clusters[talos_cluster].nodes }}"
   loop_control:
     label: "{{ item.name }}"

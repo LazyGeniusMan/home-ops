@@ -3,3 +3,7 @@ talos_render_talosctl: talosctl
 talos_render_version: "{{ talos_version }}"
 # Image Factory endpoint for schematic uploads (POST --data-binary @schematic).
 talos_render_schematic_factory_url: https://factory.talos.dev/schematics
+# Audit prefix for PROTON_PASS_AGENT_REASON. Every pass-cli exec gets a fresh
+# `<prefix>-<cluster>[-<node>]-exec-<16 lowercase hex>` reason (mirrors
+# eso-proton-pass NewAgentReason: 8 random bytes hex, max 300 chars).
+talos_render_pass_agent_reason_prefix: talos-render

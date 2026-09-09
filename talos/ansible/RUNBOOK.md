@@ -55,8 +55,14 @@ is set before touching secrets.
 ```bash
 # Working dir: anywhere (env is shell-global)
 export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_...
+export PROTON_PASS_AGENT_REASON=talos-render-manual-exec-$(openssl rand -hex 8)
 pass-cli login
 ```
+
+Ansible auto-generates a fresh unique `PROTON_PASS_AGENT_REASON` per
+`pass-cli` exec during day-0 renders
+(`<prefix>-<cluster>[-<node>]-exec-<16 random lowercase hex>`); the export
+above is only needed for manual `pass-cli` commands.
 
 If this step is missed, day-0 fails fast with:
 

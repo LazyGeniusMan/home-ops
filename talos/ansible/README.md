@@ -32,6 +32,12 @@ ansible/
 - `proton_pass_pat_env: PROTON_PASS_PERSONAL_ACCESS_TOKEN` — pass-cli PAT
   arrives via env only, never in files. Authenticate:
   `export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... ; pass-cli login`
+  (manual commands can also
+  `export PROTON_PASS_AGENT_REASON=talos-render-manual-exec-<16 hex>` for
+  audit attribution). Ansible auto-generates a fresh unique
+  `PROTON_PASS_AGENT_REASON` per `pass-cli` exec
+  (`<prefix>-<cluster>[-<node>]-exec-<16 random lowercase hex>`,
+  `no_log: true` keeps it out of logs).
 - `talos_cluster` — active cluster name (override with `-e talos_cluster=...`).
 - `talos_clusters.<name>` — per-cluster map: `vault` (Proton Pass vault),
   `endpoint` (VIP URL), `nodes: [{name, ip, role}]`. This map is the single
