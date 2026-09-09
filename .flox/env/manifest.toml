@@ -53,6 +53,7 @@ kubeconform.version = "0.8.0"
 ## -------------------------------------------------------------------
 [vars]
 # INTRO_MESSAGE = "It's gettin' Flox in here"
+PROTON_PASS_KEY_PROVIDER = "fs"
 
 
 ## Activation Hook ---------------------------------------------------

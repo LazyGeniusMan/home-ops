@@ -1,5 +1,5 @@
 # Node patch: bdo-r01-cp-002 — acme-dev-bdo1-talos-apps-01 (Talos v1.14).
-# QEMU/KVM VM: virtio NIC (eth0), /dev/sda 32 GB install target,
+# QEMU/KVM VM: virtio NIC (ens18), /dev/sda 32 GB install target,
 # /dev/sdb 64 GB data disk. Install selector pins the OS disk by size so the
 # data disk is never picked; app-data XFS volume provisions on the 64 GB disk.
 # Day-0 verifies link name + sizes with `talosctl get links/disks --insecure`.
@@ -10,7 +10,7 @@ hostname: bdo-r01-cp-002
 ---
 apiVersion: v1alpha1
 kind: LinkConfig
-name: eth0
+name: ens18
 addresses:
   - address: 192.168.1.201/24
 routes:

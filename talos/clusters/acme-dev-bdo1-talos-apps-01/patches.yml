@@ -26,7 +26,7 @@ taints:
 apiVersion: v1alpha1
 kind: Layer2VIPConfig
 name: 192.168.1.248 # K8s API VIP, advertised from the control-plane node
-link: eth0 # QEMU/KVM virtio NIC; day-0 verifies via `talosctl get links`
+link: ens18 # QEMU/KVM virtio NIC; day-0 verifies via `talosctl get links`
 ---
 apiVersion: v1alpha1
 kind: RegistryAuthConfig

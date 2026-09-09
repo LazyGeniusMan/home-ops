@@ -91,7 +91,7 @@ talosctl get links --insecure -n 192.168.1.201
 talosctl get disks --insecure -n 192.168.1.201
 ```
 
-Confirm the link name matches the node patch (`eth0` on dev/QEMU,
+Confirm the link name matches the node patch (`ens18` on dev/QEMU,
 `enp45s0` on prd/bare metal) and the disk layout matches (dev: `/dev/sda`
 32 GiB OS + `/dev/sdb` 64 GiB data; prd: `/dev/nvme0n1` 512 GiB NVMe).
 
@@ -476,12 +476,12 @@ talosctl apply-config --talosconfig build/$C/talosconfig -n 192.168.1.201 \
 | Cluster | Endpoint (VIP) | Node | IP | Role | Hardware / NIC / disks |
 | --- | --- | --- | --- | --- | --- |
 | `acme-prd-bdo1-talos-apps-01` | `https://192.168.1.198:6443` | `bdo-r01-cp-001` | `192.168.1.101` | `controlplane` | Bare metal (MSI Cubi 5); link `enp45s0` (RTL8125); install `/dev/nvme0n1` 512 GiB NVMe |
-| `acme-dev-bdo1-talos-apps-01` | `https://192.168.1.248:6443` | `bdo-r01-cp-002` | `192.168.1.201` | `controlplane` | QEMU/KVM VM; link `eth0` (virtio); `/dev/sda` 32 GiB OS + `/dev/sdb` 64 GiB data |
+| `acme-dev-bdo1-talos-apps-01` | `https://192.168.1.248:6443` | `bdo-r01-cp-002` | `192.168.1.201` | `controlplane` | QEMU/KVM VM; link `ens18` (virtio); `/dev/sda` 32 GiB OS + `/dev/sdb` 64 GiB data |
 
 Per-node schematics carry extensions: prd `intel-ucode, i915,
 realtek-firmware, netbird`; dev `qemu-guest-agent, netbird`. VIP
 advertises from the control-plane node (`Layer2VIPConfig` link `enp45s0` /
-`eth0` respectively).
+`ens18` respectively).
 
 ### 5.2 `build/<cluster>/` file table (all gitignored)
 

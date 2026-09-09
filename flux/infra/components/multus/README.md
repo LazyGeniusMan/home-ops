@@ -38,7 +38,7 @@ This component OWNS `NetworkAttachmentDefinition/lan-dhcp`; `win11-vm` and
 - L2: `macvlan` on the LAN uplink in `bridge` mode; guests DHCP directly
   against the router at **192.168.1.1**. Base master targets the prd host NIC
   (`enp45s0` = RTL8125 2.5GbE); the stg overlay repatches master to the
-  dev virtio NIC (`eth0`, QEMU/KVM).
+  dev virtio NIC (`ens18`, QEMU/KVM).
 
 ## DHCP dependency
 
@@ -49,7 +49,7 @@ address, check the router's DHCP pool/scope before suspecting Multus.
 ## Environments
 
 `prd` and `stg` controllers track `../base` with no patches;
-stg configs repatch the NAD master to `eth0` (above).
+stg configs repatch the NAD master to `ens18` (above).
 
 ## Telemetry-off / monitoring / updates
 

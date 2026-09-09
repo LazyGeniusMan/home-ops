@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev Talos K8s API VIP (Layer2VIP .248 on eth0) — NOT the prd .198, NOT
+  # Dev Talos K8s API VIP (Layer2VIP .248 on ens18) — NOT the prd .198, NOT
   # the LB pool VIP (.249). See talos/clusters/acme-dev-bdo1-talos-apps-01.
   - patch: |
       - op: replace

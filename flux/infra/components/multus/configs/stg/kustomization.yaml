@@ -1,4 +1,4 @@
-# Stg tracks the dev cluster (QEMU/KVM virtio NIC eth0), so the NAD
+# Stg tracks the dev cluster (QEMU/KVM virtio NIC ens18), so the NAD
 # master is repatched from the prd default (enp45s0).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -12,7 +12,7 @@ patches:
             "cniVersion": "0.3.1",
             "name": "lan-dhcp",
             "type": "macvlan",
-            "master": "eth0",
+            "master": "ens18",
             "mode": "bridge",
             "ipam": { "type": "dhcp" }
           }'

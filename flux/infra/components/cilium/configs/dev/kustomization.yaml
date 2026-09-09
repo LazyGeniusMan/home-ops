@@ -3,11 +3,11 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev Talos LB VIP (.249, single-IP pool) + dev node NIC (eth0,
+  # Dev Talos LB VIP (.249, single-IP pool) + dev node NIC (ens18,
   # QEMU/KVM virtio) — see base/lb-pool.yaml placeholders
   # __LB_VIP__ / __NODE_NIC__. The dev Talos API VIP (.248, Layer2VIP) is
   # NOT in this pool — see talos/clusters/acme-dev-bdo1-talos-apps-01
-  # (endpoint .248, link eth0).
+  # (endpoint .248, link ens18).
   - patch: |
       - op: replace
         path: /spec/blocks/0/start
@@ -21,7 +21,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/interfaces/0
-        value: eth0
+        value: ens18
     target:
       kind: CiliumL2AnnouncementPolicy
       name: default
