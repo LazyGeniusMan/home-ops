@@ -12,6 +12,10 @@ the operator chart 0.1.40 and the CSI chart 0.2.36) +
 overlays; tenant is `infra/seaweedfs` via
 `flux/infra/update-policies/seaweedfs.yaml`.
 
+## COSI driver sourcing
+
+Why not the upstream chart's `cosi.enabled`? The main `seaweedfs` chart (not the `seaweedfs-operator` chart this component runs) ships a COSI driver stanza, but it assumes a chart-managed cluster (chart-local filer gRPC endpoint, HTTPS ENDPOINT default, BucketAccessClass named `seaweedfs`). This component runs the operator model with filer `seaweed-main-filer.seaweedfs:8888`, plain-HTTP internal S3, and class `seaweedfs-key` - wiring the main chart would need a second HelmRelease with everything else disabled plus overrides. The three hand-vendored files (driver.yaml, driver-rbac.yaml, bucketclasses.yaml in the cosi component) mirror upstream `templates/cosi/` and are less drift surface.
+
 ## Chart source note (OCI unavailable — justified)
 
 `helm pull oci://…` against both seaweedfs Helm hosts returns 403
@@ -41,21 +45,24 @@ markers.
 
 Two endpoints, split by caller location:
 
-- In-cluster: `http://seaweed-main-s3.seaweedfs:8333` (ClusterIP S3 API,
-  plain HTTP) — every in-cluster consumer MUST use this (no hairpin, no
-  Gateway TLS). Dragonfly takes the bare host (`--s3_endpoint` has no
-  scheme) plus `--s3_use_https=false`.
+- In-cluster: `http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333`
+  (ClusterIP S3 API, plain HTTP, FQDN) — every in-cluster consumer MUST
+  use this (no hairpin, no Gateway TLS). Dragonfly takes the bare host
+  (`--s3_endpoint` has no scheme) plus `--s3_use_https=false`.
 - External: `https://s3.seaweedfs.home-ops.yansyah.my.id` — S3 API on 443
   (terminated by the shared Gateway) for outside-cluster user access only.
 
 Path-style buckets only; every bucket consumer needs an IAM identity:
 
-- Buckets are COSI-managed (`BucketClaim`/`BucketAccess` in the cosi
-  component — one pair per consumer: `cnpg-backups`, `dragonfly-backups`,
-  `clickhouse`, `rclone-vault`); legacy out-of-band buckets (`weed shell` /
-  S3 API against the cluster) remain only until cutover (see the cosi
-  README). The convention is one bucket per consumer, e.g.
-  `rclone-vault`, `appname-media`.
+- Buckets are COSI-managed (`BucketClaim`/`BucketAccess` colocated with
+  each consumer — one pair per bucket: `cnpg-backups` (cnpg),
+  `dragonfly-backups` (dragonfly), `clickhouse` (clickhouse),
+  `rclone-vault` (rclone); shared prefixes ride the owner's claim, e.g.
+  `zitadel`/`coder`/`ferretdb` on `cnpg-backups`, `clickstack` on
+  `clickhouse`); legacy out-of-band buckets (`weed shell` / S3 API
+  against the cluster) remain only until cutover (see the cosi README).
+  The convention is one bucket per consumer, e.g. `rclone-vault`,
+  `appname-media`.
 - Credentials: create the S3 identity via the operator's S3 config and
   store it in Proton Pass under
   `pass://acme-prd-bdo1-talos-apps-01/seaweedfs/<consumer>/…`

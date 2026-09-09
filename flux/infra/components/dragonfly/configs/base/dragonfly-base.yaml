@@ -11,7 +11,7 @@
 #   (the mountPath would be the s3:// URI). Persistent local disk therefore
 #   lives on the tiering volume; S3 carries the snapshots (below).
 # - Backup: hourly snapshots (snapshot_cron) stream to the SeaweedFS S3
-#   endpoint (in-cluster seaweed-main-s3.seaweedfs:8333, §12 — same wave,
+#   endpoint (in-cluster seaweed-main-s3.seaweedfs.svc.cluster.local:8333, §12 — same wave,
 #   referenced by DNS name only, no file dependency). The internal S3 serves
 #   plain HTTP, so --s3_use_https=false rides alongside --s3_endpoint (which
 #   takes a bare host, no scheme). Credentials come from the

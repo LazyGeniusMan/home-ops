@@ -82,13 +82,16 @@ consumer needs (also stated in `dragonfly-base.yaml`):
 
 ## S3 contract
 
-- Endpoint `seaweed-main-s3.seaweedfs:8333` (in-cluster SeaweedFS S3, bare
-  host — `--s3_endpoint` takes no scheme; the public
-  `https://s3.seaweedfs.<domain>` Gateway route is for outside-cluster
-  users only) is referenced by DNS name only — SeaweedFS itself lands in
-  the same wave (§12), so there is no file dependency from this component.
-  The bucket backing `s3://dragonfly-backups/` must exist **before** the
-  first Dragonfly object starts (Dragonfly never creates buckets).
+- Endpoint `seaweed-main-s3.seaweedfs.svc.cluster.local:8333`
+  (in-cluster SeaweedFS S3 FQDN, bare host — `--s3_endpoint` takes no
+  scheme; the public `https://s3.seaweedfs.<domain>` Gateway route is for
+  outside-cluster users only) is referenced by DNS name only — SeaweedFS
+  itself lands in the same wave (§12), so there is no file dependency from
+  this component. The bucket backing `s3://dragonfly-backups/` must exist
+  **before** the first Dragonfly object starts (Dragonfly never creates
+  buckets). Its COSI `BucketClaim`/`BucketAccess` pair lives here in
+  `configs/base/bucketclaims.yaml` (also serves the `zitadel-cache`
+  snapshot prefix — shared bucket, one claim).
 - Credentials: `ExternalSecret/dragonfly-s3-credentials` syncs
   `ACCESS_KEY_ID`/`SECRET_ACCESS_KEY` from Proton Pass
   (`pass://acme-prd-bdo1-talos-apps-01/dragonfly/s3-access-key-id`,

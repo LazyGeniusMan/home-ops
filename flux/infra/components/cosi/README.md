@@ -3,10 +3,17 @@
 GitOps-managed object-storage provisioning on SeaweedFS: the central COSI
 controller (release-0.2, `objectstorage.k8s.io/v1alpha1`) plus the SeaweedFS
 COSI driver, with default `BucketClass/seaweedfs` +
-`BucketAccessClass/seaweedfs-key`. `configs/base/bucketclaims.yaml` ships
-central `BucketClaim`/`BucketAccess` pairs (one per live bucket:
-`cnpg-backups`, `dragonfly-backups`, `clickhouse`, `rclone-vault`), all in
-the `cosi` tenant namespace.
+`BucketAccessClass/seaweedfs-key`. `BucketClaim`/`BucketAccess` pairs are
+colocated with their consumers (one pair per live bucket: `cnpg-backups`,
+`dragonfly-backups`, `clickhouse`, `rclone-vault`):
+
+- `flux/infra/components/cnpg/configs/base/bucketclaims.yaml`
+- `flux/infra/components/dragonfly/configs/base/bucketclaims.yaml`
+- `flux/infra/components/clickhouse/configs/base/bucketclaims.yaml`
+- `flux/apps/components/rclone/base/bucketclaims.yaml`
+
+Driver, RBAC, and classes stay central in `configs/base/`
+(`driver.yaml`, `driver-rbac.yaml`, `bucketclasses.yaml`).
 
 ## Layout (mirrors cert-manager §9 pattern)
 
@@ -59,23 +66,22 @@ tenant is `infra/cosi` via `flux/infra/update-policies/cosi.yaml`.
    CSI HelmRelease; FilerConf written only when `disk`/`replication` set).
 3. Consumer creates `BucketAccess` (`bucketAccessClassName: seaweedfs-key`)
    → `DriverGrantBucketAccess` mints S3 keys into a Secret
-   (`secretS3.endpoint=http://seaweed-main-s3.seaweedfs:8333` — internal
-   ClusterIP, no hairpin; `region=us-east-1`, ignored by SeaweedFS but
-   required by some S3 clients).
+   (`secretS3.endpoint=http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333`
+   — internal ClusterIP, no hairpin; `region=us-east-1`, ignored by
+   SeaweedFS but required by some S3 clients).
 4. Pod mounts the Secret (`secretName`) as a volume (see the driver's
    `examples/consumer-pod.yaml`).
 
 Prereqs (verified, not managed here): `seaweedfs` operator chart 0.1.40 +
 `Seaweed/seaweed-main` v4.45 with filer (`seaweed-main-filer.seaweedfs:8888`)
-and S3 (`seaweed-main-s3.seaweedfs:8333`).
+and S3 (`seaweed-main-s3.seaweedfs.svc.cluster.local:8333`).
 
 ## Endpoint contract (internal vs external)
 
 In-cluster traffic MUST use the internal S3 service
-`http://seaweed-main-s3.seaweedfs:8333` (short form — no `svc.cluster.local`
-suffix needed; `seaweedfs` resolves cluster-wide via CoreDNS search
-expansion, and the short form matches the driver's own `ENDPOINT` /
-`SEAWEEDFS_FILER` convention). Port 8333 + plain HTTP: the S3 Deployment
+`http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333` (FQDN —
+resolves cluster-wide without relying on CoreDNS search expansion).
+Port 8333 + plain HTTP: the S3 Deployment
 serves HTTP only, so URL clients (CNPG `endpointURL`, ClickHouse
 `storage.xml`, rclone `RCLONE_CONFIG_SW_ENDPOINT`) take the full
 `http://…:8333` URL while Dragonfly's `--s3_endpoint` takes the bare host

@@ -4,3 +4,4 @@ resources:
   - dragonfly-base.yaml
   - s3-credentials.yaml
   - wildcard-certificate.yaml
+  - bucketclaims.yaml

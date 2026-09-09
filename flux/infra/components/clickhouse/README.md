@@ -26,7 +26,12 @@ Pass (`pass://acme-prd-bdo1-talos-apps-01/clickhouse/s3-access-key-id` and
 `.../s3-secret-access-key`; keys need read/write on the `clickhouse/` bucket
 prefix). The CHI reads them via `storage.xml` `from_env` — no credential value
 is committed anywhere in this component. Seed the vault entries with pass-cli
-and create the bucket prefix once via the SeaweedFS S3 API.
+and create the bucket prefix once via the SeaweedFS S3 API. In-cluster
+`storage.xml` endpoints use the FQDN
+`http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333`. Its COSI
+`BucketClaim`/`BucketAccess` pair lives here in
+`configs/base/bucketclaims.yaml` (also serves the apps `clickstack`
+component's `clickhouse/clickstack/` prefix — shared bucket, one claim).
 
 ## Environments
 

@@ -1,0 +1,46 @@
+# COSI-managed bucket for the Dragonfly snapshots (colocated with the
+# consuming component — lands in the `dragonfly` tenant namespace via the
+# Fleet `infra-configs` Kustomization's `targetNamespace`).
+# - Claim uses BucketClass/seaweedfs, protocol S3. The central controller
+#   creates the cluster-scoped Bucket; the driver (DriverCreateBucket =
+#   req.GetName()) provisions the live bucket in SeaweedFS under a
+#   controller-generated name (`bc-<uuid>`) — claim/access names do NOT map
+#   to pre-existing bucket names, so `spec.existingBucketName` is
+#   intentionally unset. Read the live name from the claim's
+#   `status.bucketName` once `status.bucketReady` is true.
+# - Existing out-of-band bucket `dragonfly-backups` keeps serving traffic
+#   until cutover: Dragonfly `spec.snapshot.dir`s (`s3://dragonfly-backups/`
+#   + prefixes `dragonfly/`, `zitadel-cache/`) keep pointing at the legacy
+#   bucket; copy data to the COSI-provisioned bucket (see cosi README
+#   "Bucket cutover"), then repoint `dir`. Do NOT break existing snapshots
+#   — the endpoint switch keeps working against the legacy bucket; this
+#   claim is the migration path.
+# - The BucketAccess (BucketAccessClass/seaweedfs-key, authenticationType
+#   KEY) mints S3 keys into its `credentialsSecretName` Secret in THIS
+#   namespace as a `BucketInfo` JSON file (secretS3.endpoint/region/
+#   accessKeyID/accessSecretKey). The driver hands back the INTERNAL
+#   endpoint (http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333).
+# - Credential bridge: consumers keep reading their same-namespace
+#   ExternalSecrets (Proton Pass) today. To migrate to COSI keys, copy
+#   `accessKeyID`/`accessSecretKey` out of the BucketInfo JSON into the
+#   Proton Pass entries (pass-cli seed), keeping the ExternalSecret shape
+#   unchanged.
+---
+apiVersion: objectstorage.k8s.io/v1alpha1
+kind: BucketClaim
+metadata:
+  name: dragonfly-backups
+spec:
+  bucketClassName: seaweedfs
+  protocols:
+    - S3
+---
+apiVersion: objectstorage.k8s.io/v1alpha1
+kind: BucketAccess
+metadata:
+  name: dragonfly-backups-access
+spec:
+  bucketAccessClassName: seaweedfs-key
+  bucketClaimName: dragonfly-backups
+  credentialsSecretName: dragonfly-backups-cosi-creds
+  protocol: S3

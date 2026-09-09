@@ -8,7 +8,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/backup/barmanObjectStore/endpointURL
-        value: http://seaweed-main-s3.seaweedfs:8333
+        value: http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333
     target:
       kind: Cluster
       name: postgres-base

@@ -33,8 +33,9 @@ Copy the CronJob block for new buckets and change
 Remotes are pure `RCLONE_CONFIG_*` env vars — no config file is mounted:
 
 - `sw` remote: `type=s3 provider=Other endpoint=http://
-  seaweed-main-s3.seaweedfs:8333 force_path_style=true`,
-  keys from the `rclone-credentials` Secret (§12.1 in-cluster endpoint).
+  seaweed-main-s3.seaweedfs.svc.cluster.local:8333 force_path_style=true`,
+  keys from the `rclone-credentials` Secret (§12.1 in-cluster endpoint,
+  FQDN).
 - `drive` remote: `type=protondrive`, credentials from the same Secret.
   Key names (`drive-username/password/token`) must match the rclone
   protondrive backend options — run `rclone config` once locally and
@@ -46,9 +47,9 @@ Remotes are pure `RCLONE_CONFIG_*` env vars — no config file is mounted:
 (`pass://acme-prd-bdo1-talos-apps-01/rclone/*`):
 `sw-access-key`, `sw-secret-key`, `drive-username`, `drive-password`,
 `drive-token`. Seed the vault entries with pass-cli. Bucket
-`rclone-vault` is COSI-managed (claim/access in the cosi component); its
-S3 identity stays Proton Pass until cut over to the COSI-minted keys per
-the cosi README "Credential bridge".
+`rclone-vault` is COSI-managed (claim/access in `base/bucketclaims.yaml`
+here); its S3 identity stays Proton Pass until cut over to the
+COSI-minted keys per the cosi README "Credential bridge".
 
 ## Environments
 

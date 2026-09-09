@@ -5,3 +5,4 @@ resources:
   - s3-credentials.yaml
   - wildcard-certificate.yaml
   - backup-cronjob.yaml
+  - bucketclaims.yaml

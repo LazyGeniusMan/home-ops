@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - rclone-credentials.yaml
   - cronjob.yaml
+  - bucketclaims.yaml
