@@ -38,6 +38,13 @@
   no_log: true
   changed_when: true
 
+- name: Resolve and upload per-node schematics
+  ansible.builtin.include_tasks: schematic.yml
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    loop_var: node
+    label: "{{ node.name }}"
+
 - name: Generate Talos secrets bundle when missing
   ansible.builtin.command:
     cmd: >-
@@ -46,6 +53,19 @@
     creates: "{{ talos_build_dir }}/{{ talos_cluster }}/secrets.bundle.yml"
   no_log: true
   changed_when: true
+
+- name: Resolve first node name for installer image ref
+  ansible.builtin.set_fact:
+    talos_render_first_node: "{{ talos_clusters[talos_cluster].nodes[0].name }}"
+  when: not ansible_check_mode
+
+- name: Build installer image ref from first node schematic ID
+  ansible.builtin.set_fact:
+    talos_render_install_image: >-
+      factory.talos.dev/metal-installer/{{
+        (talos_render_schematic_ids | default({})).get(
+          talos_render_first_node, '') }}:{{ talos_version }}
+  when: not ansible_check_mode
 
 - name: Generate machine configs from rendered patches
   ansible.builtin.command:
@@ -59,6 +79,7 @@
       --config-patch @{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ node.name }}-patches.yml
       {% endfor %}
       --talos-version {{ talos_render_version }}
+      --install-image {{ talos_render_install_image | default('factory.talos.dev/metal-installer/pending-schematic-upload:' + talos_version, true) }}
       -o {{ talos_build_dir }}/{{ talos_cluster }}
   changed_when: true
 

@@ -1,0 +1,127 @@
+---
+# Per-node schematic handling: node -> cluster -> _base fallback (first wins).
+# Included once per node with loop_var `node` from tasks/main.yml.
+# Outputs per node under build/<cluster>/: schematics-<node>.yml (reference
+# copy), schematic-<node>.id, schematic-<node>.sha256 (upload idempotency).
+- name: Reset per-node schematic ID guard
+  ansible.builtin.set_fact:
+    talos_render_schematic_id: ""
+
+- name: Build schematic candidate list for node-cluster-base fallback
+  ansible.builtin.set_fact:
+    talos_render_schematic_files:
+      - "{{ playbook_dir }}/../../clusters/{{ talos_cluster }}/nodes/{{ node.name }}/schematics.yml"
+      - "{{ playbook_dir }}/../../clusters/{{ talos_cluster }}/schematics.yml"
+      - "{{ playbook_dir }}/../../clusters/_base/schematics.yml"
+
+- name: Pick first existing schematic source
+  ansible.builtin.set_fact:
+    talos_render_schematic_src: "{{ lookup('ansible.builtin.first_found', talos_render_schematic_files, skip=true) }}"
+
+- name: Assert a schematic source exists
+  ansible.builtin.assert:
+    that: talos_render_schematic_src | length > 0
+    fail_msg: "No schematics.yml for node {{ node.name }} (looked under nodes/, cluster, _base)."
+    success_msg: "Schematic for {{ node.name }}: {{ talos_render_schematic_src }}"
+
+- name: Stage resolved schematic under build dir
+  ansible.builtin.copy:
+    src: "{{ talos_render_schematic_src }}"
+    dest: "{{ talos_build_dir }}/{{ talos_cluster }}/schematics-{{ node.name }}.yml"
+    mode: "0600"
+
+- name: Checksum staged schematic
+  ansible.builtin.stat:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/schematics-{{ node.name }}.yml"
+    checksum_algorithm: sha256
+  check_mode: false
+  register: talos_render_schematic_stat
+
+- name: Read stored schematic hash
+  ansible.builtin.slurp:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/schematic-{{ node.name }}.sha256"
+  check_mode: false
+  failed_when: false
+  register: talos_render_schematic_stored_hash
+
+- name: Decide whether upload is needed
+  ansible.builtin.set_fact:
+    talos_render_schematic_stored_hash_text: >-
+      {{ talos_render_schematic_stored_hash.content
+        | default('', true) | b64decode | trim }}
+
+- name: Compare stored hash to decide upload
+  ansible.builtin.set_fact:
+    talos_render_schematic_need_upload: >-
+      {{ (talos_render_schematic_stat.stat.checksum | default(''))
+        != talos_render_schematic_stored_hash_text
+        or talos_render_schematic_stored_hash.content is not defined }}
+    talos_render_schematic_current_hash: >-
+      {{ talos_render_schematic_stat.stat.checksum | default('') }}
+
+- name: Upload schematic to Image Factory
+  ansible.builtin.uri:
+    url: "{{ talos_render_schematic_factory_url }}"
+    method: POST
+    body: "{{ lookup('ansible.builtin.file', talos_build_dir + '/' + talos_cluster + '/schematics-' + node.name + '.yml') }}"
+    body_format: raw
+    return_content: true
+    status_code: [200, 201]
+  when: talos_render_schematic_need_upload and not ansible_check_mode
+  failed_when: false
+  register: talos_render_schematic_upload
+
+- name: Fail gracefully when the factory upload fails
+  ansible.builtin.assert:
+    that: talos_render_schematic_upload.status in [200, 201]
+    fail_msg: "Image Factory upload failed for {{ node.name }} ({{ talos_render_schematic_factory_url }} unreachable or rejected the schematic)."
+    success_msg: "Schematic uploaded for {{ node.name }}."
+  when: talos_render_schematic_need_upload and not ansible_check_mode
+
+- name: Derive schematic ID from upload response
+  ansible.builtin.set_fact:
+    talos_render_schematic_id: "{{ talos_render_schematic_upload.json.id
+      if (talos_render_schematic_upload.json is defined
+      and talos_render_schematic_upload.json is mapping
+      and 'id' in talos_render_schematic_upload.json)
+      else (talos_render_schematic_upload.content | trim | replace('\"', '')) }}"
+  when: talos_render_schematic_need_upload and not ansible_check_mode
+
+- name: Read stored schematic ID
+  ansible.builtin.slurp:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/schematic-{{ node.name }}.id"
+  check_mode: false
+  failed_when: false
+  register: talos_render_schematic_stored_id
+  when: not talos_render_schematic_need_upload
+
+- name: Reuse stored schematic ID
+  ansible.builtin.set_fact:
+    talos_render_schematic_id: "{{ talos_render_schematic_stored_id.content | b64decode | trim }}"
+  when: not talos_render_schematic_need_upload and talos_render_schematic_stored_id.content is defined
+
+- name: Persist schematic ID
+  ansible.builtin.copy:
+    content: "{{ talos_render_schematic_id }}\n"
+    dest: "{{ talos_build_dir }}/{{ talos_cluster }}/schematic-{{ node.name }}.id"
+    mode: "0600"
+  when: talos_render_schematic_need_upload and not ansible_check_mode and talos_render_schematic_id | length > 0
+
+- name: Persist schematic hash
+  ansible.builtin.copy:
+    content: "{{ talos_render_schematic_current_hash }}\n"
+    dest: "{{ talos_build_dir }}/{{ talos_cluster }}/schematic-{{ node.name }}.sha256"
+    mode: "0600"
+  when: talos_render_schematic_need_upload and not ansible_check_mode and talos_render_schematic_id | length > 0
+
+- name: Rewrite installer image in rendered node patches
+  ansible.builtin.replace:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ node.name }}-patches.yml"
+    regexp: 'factory\.talos\.dev/metal-installer/(?:PLACEHOLDER_SCHEMATIC_ID|[0-9a-f]{64})'
+    replace: "factory.talos.dev/metal-installer/{{ talos_render_schematic_id }}"
+  when: talos_render_schematic_id | length > 0
+
+- name: Accumulate per-node schematic IDs
+  ansible.builtin.set_fact:
+    talos_render_schematic_ids: "{{ (talos_render_schematic_ids | default({})) | combine({node.name: talos_render_schematic_id}) }}"
+  when: talos_render_schematic_id | length > 0

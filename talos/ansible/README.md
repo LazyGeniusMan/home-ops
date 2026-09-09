@@ -40,6 +40,38 @@ ansible/
   ever resolved through `pass-cli item view "pass://<vault>/talos/<field>"`
   or `pass-cli inject` on double-brace templates.
 
+## Schematics (Image Factory upload + --install-image)
+
+Day-0 resolves each node's installer schematic before `gen config` with
+fallback order (first existing file wins; node is AUTHORITATIVE):
+
+1. `talos/clusters/<cluster>/nodes/<node>/schematics.yml`
+2. `talos/clusters/<cluster>/schematics.yml`
+3. `talos/clusters/_base/schematics.yml` (vanilla `customization: {}`)
+
+For each node the role (`roles/talos_render/tasks/schematic.yml`) stages a
+reference copy at `build/<cluster>/schematics-<node>.yml`, uploads it via
+`POST https://factory.talos.dev/schematics` (JSON `.id`, raw-ID fallback),
+and persists `schematic-<node>.id` + `schematic-<node>.sha256`. Upload is
+idempotent: skipped when the schematic hash is unchanged (re-upload only on
+content change). The rendered node patch copies under
+`build/<cluster>/nodes-<node>-patches.yml` get their
+`PLACEHOLDER_SCHEMATIC_ID` rewritten to the resolved per-node ID, so each
+node's `UnattendedInstallConfig.installer.image` is correct.
+
+`talosctl gen config` receives
+`--install-image factory.talos.dev/metal-installer/<ID>:<talos_version>`
+(`talos_version` already carries the leading `v`, e.g. `v1.14.0`, so the
+ref has exactly one `v`)
+using the first node's resolved ID (single-node clusters: that node's own
+ID). Schematic IDs are not secrets but task output is kept tidy.
+
+`build/` outputs per cluster (all gitignored via `talos/.gitignore`
+`ansible/build/`): `secrets.bundle.yml`, `controlplane.yaml`,
+`worker.yaml`, `talosconfig`, `kubeconfig`, `patches.yml`,
+`nodes-<node>-patches.yml`, `schematics-<node>.yml`,
+`schematic-<node>.id`, `schematic-<node>.sha256`.
+
 ## Inventory (local-only — no node inventory)
 
 Every playbook runs on `hosts: localhost` with `connection: local` (plus

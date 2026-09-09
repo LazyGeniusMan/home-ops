@@ -1,3 +1,5 @@
 ---
 talos_render_talosctl: talosctl
 talos_render_version: "{{ talos_version }}"
+# Image Factory endpoint for schematic uploads (POST --data-binary @schematic).
+talos_render_schematic_factory_url: https://factory.talos.dev/schematics
