@@ -8,7 +8,8 @@
         "version": "2.21.3"
       },
       "ansible-lint": {
-        "pkg-path": "ansible-lint"
+        "pkg-path": "ansible-lint",
+        "version": "25.8.2"
       },
       "cilium-cli": {
         "pkg-path": "cilium-cli",
@@ -31,11 +32,16 @@
         "version": "1.26.7"
       },
       "golangci-lint": {
-        "pkg-path": "golangci-lint"
+        "pkg-path": "golangci-lint",
+        "version": "2.13.2"
       },
       "gopls": {
         "pkg-path": "gopls",
         "version": "0.23.0"
+      },
+      "kubeconform": {
+        "pkg-path": "kubeconform",
+        "version": "0.8.0"
       },
       "kubectl": {
         "pkg-path": "kubectl",
@@ -64,6 +70,10 @@
       "python3": {
         "pkg-path": "python3",
         "version": "3.14.7"
+      },
+      "yq": {
+        "pkg-path": "yq-go",
+        "version": "4.53.3"
       }
     },
     "hook": {
@@ -877,6 +887,93 @@
       "priority": 5
     },
     {
+      "attr_path": "kubeconform",
+      "broken": false,
+      "derivation": "/nix/store/k4xwf6yc1s70psjn8kw7hbvx89ggr3cg-kubeconform-0.8.0.drv",
+      "description": "FAST Kubernetes manifests validator, with support for Custom Resources",
+      "install_id": "kubeconform",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "name": "kubeconform-0.8.0",
+      "pname": "kubeconform",
+      "rev": "0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "rev_count": 1066703,
+      "rev_date": "2026-09-03T03:08:44Z",
+      "scrape_date": "2026-09-05T04:57:41.086915Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.8.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/k090c6zznd5086xnm8lkddk8rn3abrk9-kubeconform-0.8.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "kubeconform",
+      "broken": false,
+      "derivation": "/nix/store/rjpsbfpgkg7mrixafx1aindwf7sbc1kx-kubeconform-0.8.0.drv",
+      "description": "FAST Kubernetes manifests validator, with support for Custom Resources",
+      "install_id": "kubeconform",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "name": "kubeconform-0.8.0",
+      "pname": "kubeconform",
+      "rev": "0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "rev_count": 1066703,
+      "rev_date": "2026-09-03T03:08:44Z",
+      "scrape_date": "2026-09-05T05:27:08.767474Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.8.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/nkcwqmxw2brhbg9biyzhzag3iq48c61p-kubeconform-0.8.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "kubeconform",
+      "broken": false,
+      "derivation": "/nix/store/whvcf16w5g6gqq6nz8jpanbi27b05jl9-kubeconform-0.8.0.drv",
+      "description": "FAST Kubernetes manifests validator, with support for Custom Resources",
+      "install_id": "kubeconform",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "name": "kubeconform-0.8.0",
+      "pname": "kubeconform",
+      "rev": "0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "rev_count": 1066703,
+      "rev_date": "2026-09-03T03:08:44Z",
+      "scrape_date": "2026-09-05T06:03:56.701830Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.8.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/8lx6dl594qwr75gk40nxk18p0na6cqy5-kubeconform-0.8.0"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
       "attr_path": "kubectl",
       "broken": false,
       "derivation": "/nix/store/1js6yrb914s3jk5wf1bs9cgxkw0sryha-kubectl-1.37.0.drv",
@@ -1489,11 +1586,99 @@
       "version": "3.14.7",
       "outputs_to_install": [
         "out",
+        "out",
         "out"
       ],
       "outputs": {
         "debug": "/nix/store/dm1ysal713a16j2h1cf52vhf878yr0wd-python3-3.14.7-debug",
         "out": "/nix/store/b5bpi6zfajzzrwwpgba2q6li3nnya4bs-python3-3.14.7"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "yq-go",
+      "broken": false,
+      "derivation": "/nix/store/fnlqipc728n3bmsg2rjb942pbb4fvacs-yq-go-4.53.3.drv",
+      "description": "Portable command-line YAML processor",
+      "install_id": "yq",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "name": "yq-go-4.53.3",
+      "pname": "yq-go",
+      "rev": "0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "rev_count": 1066703,
+      "rev_date": "2026-09-03T03:08:44Z",
+      "scrape_date": "2026-09-05T05:00:23.363102Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "4.53.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/ivxf4jhgfbyvb90qd7c58g5hm37k2pbr-yq-go-4.53.3"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "yq-go",
+      "broken": false,
+      "derivation": "/nix/store/s236np3j1yljw4ah9w0sv6lm1qy27hr7-yq-go-4.53.3.drv",
+      "description": "Portable command-line YAML processor",
+      "install_id": "yq",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "name": "yq-go-4.53.3",
+      "pname": "yq-go",
+      "rev": "0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "rev_count": 1066703,
+      "rev_date": "2026-09-03T03:08:44Z",
+      "scrape_date": "2026-09-05T05:30:44.778852Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "4.53.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/imixh3w8g9v93fa7vzgsyjfvdssyqsx1-yq-go-4.53.3"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "yq-go",
+      "broken": false,
+      "derivation": "/nix/store/r74f4mh034y45qaacan5cp9nrsiysyj1-yq-go-4.53.3.drv",
+      "description": "Portable command-line YAML processor",
+      "install_id": "yq",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "name": "yq-go-4.53.3",
+      "pname": "yq-go",
+      "rev": "0968519e14f7aa7d3e9b389682bd74d2b51c8ce8",
+      "rev_count": 1066703,
+      "rev_date": "2026-09-03T03:08:44Z",
+      "scrape_date": "2026-09-05T06:07:38.272162Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "4.53.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/wfppsb3smwcxr20wvw0441wlr799az6s-yq-go-4.53.3"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
