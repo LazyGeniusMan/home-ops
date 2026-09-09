@@ -91,6 +91,7 @@
       --config-patch @{{ talos_build_dir }}/{{ talos_cluster }}/patches.yml
       --talos-version {{ talos_render_version }}
       -t talosconfig
+      --force
       -o {{ talos_build_dir }}/{{ talos_cluster }}/talosconfig
   changed_when: true
 
@@ -108,6 +109,7 @@
       --install-image
       factory.talos.dev/metal-installer/{{ (talos_render_schematic_ids | default({})).get(item.name, 'pending-schematic-upload') }}:{{ talos_version }}
       -t {{ talos_machine_roles[item.role] }}
+      --force
       -o {{ talos_build_dir }}/{{ talos_cluster }}/nodes/{{ item.name }}/{{ talos_machine_roles[item.role] }}.yaml
   loop: "{{ talos_clusters[talos_cluster].nodes }}"
   loop_control:

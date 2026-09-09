@@ -16,6 +16,7 @@
 ---
 apiVersion: v1alpha1
 kind: HostnameConfig
+auto: off
 hostname: bdo-r01-cp-001
 ---
 apiVersion: v1alpha1
@@ -32,7 +33,7 @@ installer:
   image: factory.talos.dev/metal-installer/PLACEHOLDER_SCHEMATIC_ID:v1.14.0 # set from schematic upload
 provisioning:
   diskSelector:
-    match: disk.dev_path == "/dev/nvme0n1" # 512 GB KPART NVMe (only disk on host)
+    match: disk.dev_path == "/dev/nvme0"
   wipe: true
 ---
 apiVersion: v1alpha1
@@ -40,7 +41,8 @@ kind: UserVolumeConfig
 name: nvme-data
 provisioning:
   diskSelector:
-    match: disk.transport == "nvme" && !system_disk
+    match: disk.dev_path == "/dev/nvme0"
+  minSize: 1GiB
 filesystem:
   type: xfs
 ---
@@ -49,7 +51,8 @@ kind: UserVolumeConfig
 name: sata-data
 provisioning:
   diskSelector:
-    match: disk.transport == "sata" && !system_disk
+    match: disk.dev_path == "/dev/sda"
+  minSize: 1GiB
 filesystem:
   type: xfs
 ---

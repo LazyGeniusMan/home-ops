@@ -6,6 +6,7 @@
 ---
 apiVersion: v1alpha1
 kind: HostnameConfig
+auto: off
 hostname: bdo-r01-cp-002
 ---
 apiVersion: v1alpha1
@@ -22,15 +23,26 @@ installer:
   image: factory.talos.dev/metal-installer/PLACEHOLDER_SCHEMATIC_ID:v1.14.0 # set from schematic upload
 provisioning:
   diskSelector:
-    match: disk.dev_path == "/dev/sda" && disk.size == 32u * GiB # 32 GB OS disk
+    match: disk.dev_path == "/dev/sda"
   wipe: true
 ---
 apiVersion: v1alpha1
 kind: UserVolumeConfig
-name: app-data
+name: nvme-data
 provisioning:
   diskSelector:
-    match: disk.dev_path == "/dev/sdb" && disk.size == 64u * GiB # 64 GB data disk
+    match: disk.dev_path == "/dev/sda"
+  minSize: 1GiB
+filesystem:
+  type: xfs
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: sata-data
+provisioning:
+  diskSelector:
+    match: disk.dev_path == "/dev/sdb"
+  minSize: 1GiB
 filesystem:
   type: xfs
 ---
