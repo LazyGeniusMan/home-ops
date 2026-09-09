@@ -50,9 +50,10 @@ spec:
     crds:
       create: true
     csiDriver:
-      # The CSI driver ships as the HelmRelease below (chart-pinned). The
-      # operator's SeaweedCSIDriver controller would add cluster-wide RBAC
-      # for a second deployment path we do not use, so it stays off.
+      # The driver ships as the `seaweedfs-csi-driver` HelmRelease below, not via
+      # the operator: bundled CSI pins v1.4.20 vs chart-tracked v1.4.30 ($imagepolicy),
+      # manages one StorageClass per SeaweedCSIDriver CR vs our two tiered (nvme/sata)
+      # classes, and couples driver upgrades to the operator — so it stays off.
       enabled: false
     serviceMonitor:
       enabled: false

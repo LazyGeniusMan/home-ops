@@ -1,5 +1,6 @@
 # Tiered CSI StorageClasses (§12.1): provisioner seaweedfs-csi-driver
-# (deployed by the operator). collections separate the tiers on the filer;
+# (deployed by the `seaweedfs-csi-driver` HelmRelease, not the operator);
+# collections separate the tiers on the filer;
 # replication "000" = single copy (local disks already pin each tier;
 # raise per-workload via claim parameters when real replicas land).
 ---
