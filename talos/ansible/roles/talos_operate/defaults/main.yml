@@ -1,3 +1,18 @@
 ---
 talos_operate_talosctl: talosctl
 talos_operate_upgrade_image: ""
+# Target Talos version for the auto-constructed installer ref
+# (e.g. v1.15.0, adjacent minors only). Empty = no version upgrade.
+# An explicit upgrade_image wins when both are set.
+talos_operate_upgrade_talos_version: ""
+# Desired Kubernetes version (e.g. 1.38.0, no leading v to match
+# `talosctl upgrade-k8s --to`). Compared against the kubelet image recorded
+# in the rendered machine config; the upgrade runs only on mismatch.
+talos_operate_kubernetes_version: ""
+talos_operate_regen_talosconfig: false
+talos_operate_regen_kubeconfig: false
+talos_operate_reapply_configs: false
+# apply-config mode for config re-apply: staged (default, no-reboot safe).
+talos_operate_reapply_mode: staged
+# Audit prefix for PROTON_PASS_AGENT_REASON on re-apply inject execs.
+talos_operate_pass_agent_reason_prefix: talos-operate

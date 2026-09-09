@@ -1,0 +1,141 @@
+---
+# Config re-apply: force re-render of edited patches (bypassing day-0
+# creates: guards), regenerate node machine configs, push via authenticated
+# apply-config --mode <reapply_mode> (default staged: applies without reboot
+# when the change allows it). Day-1's insecure apply is maintenance-only; this
+# is the installed-cluster path.
+- name: Assert re-apply mode is valid
+  ansible.builtin.assert:
+    that:
+      - talos_operate_reapply_mode in ['auto', 'no-reboot', 'staged', 'try']
+    fail_msg: "reapply_mode must be one of auto, no-reboot, staged, try (got '{{ talos_operate_reapply_mode }}')."
+    success_msg: "Re-apply mode {{ talos_operate_reapply_mode }}."
+  when: talos_operate_reapply_configs | bool
+
+- name: Assert pass-cli PAT is present for patch re-render
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', proton_pass_pat_env) | length > 0
+    fail_msg: "Set {{ proton_pass_pat_env }} (pass-cli login) before re-rendering secrets."
+    success_msg: "Proton Pass credential available via {{ proton_pass_pat_env }}."
+  when: talos_operate_reapply_configs | bool
+
+- name: Force re-render cluster patches.yml via pass-cli inject
+  # NOTE: intentionally WITHOUT no_log and WITHOUT creates: — same rationale
+  # as day-0 (inject prints no secret values; failures name the missing
+  # pass:// ref), but the guard is dropped so edited sources re-render.
+  ansible.builtin.command:
+    cmd: >-
+      pass-cli inject
+      --in-file {{ playbook_dir }}/../../clusters/{{ talos_cluster }}/patches.yml
+      --out-file {{ talos_build_dir }}/{{ talos_cluster }}/patches.yml
+      --force --file-mode 0600
+  environment:
+    PROTON_PASS_AGENT_REASON: >-
+      {{ talos_operate_pass_agent_reason_prefix }}-{{ talos_cluster }}-exec-{{
+        lookup('community.general.random_string', length=16,
+        override_all='0123456789abcdef') }}
+  when: talos_operate_reapply_configs | bool
+  changed_when: true
+
+- name: Force re-render node patches via pass-cli inject
+  ansible.builtin.command:
+    cmd: >-
+      pass-cli inject
+      --in-file {{ playbook_dir }}/../../clusters/{{ talos_cluster }}/nodes/{{ item.name }}/patches.yml
+      --out-file {{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml
+      --force --file-mode 0600
+  environment:
+    PROTON_PASS_AGENT_REASON: >-
+      {{ talos_operate_pass_agent_reason_prefix }}-{{ talos_cluster }}-{{ item.name }}-exec-{{
+        lookup('community.general.random_string', length=16,
+        override_all='0123456789abcdef') }}
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: talos_operate_reapply_configs | bool
+  changed_when: true
+
+- name: Read per-node schematic IDs for installer image rewrite
+  ansible.builtin.slurp:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/schematic-{{ item.name }}.id"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  check_mode: false
+  failed_when: false
+  register: talos_operate_reapply_schematic
+  when: talos_operate_reapply_configs | bool
+
+- name: Map node names to schematic IDs for re-apply
+  ansible.builtin.set_fact:
+    talos_operate_reapply_ids: >-
+      {{ (talos_operate_reapply_ids | default({}))
+      | combine({item.item.name: (item.content | default('', true) | b64decode | trim)}) }}
+  loop: "{{ talos_operate_reapply_schematic.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - talos_operate_reapply_configs | bool
+    - item.content is defined
+
+- name: Assert schematic IDs resolve for re-apply
+  ansible.builtin.assert:
+    that:
+      - (talos_operate_reapply_ids | default({})).get(item.name, '') | length > 0
+    fail_msg: >-
+      Missing schematic ID for {{ item.name }}
+      (build/{{ talos_cluster }}/schematic-{{ item.name }}.id); re-run day-0.
+    success_msg: "Schematic ID resolves for {{ item.name }}."
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: talos_operate_reapply_configs | bool
+
+- name: Rewrite installer image in re-rendered node patches
+  ansible.builtin.replace:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml"
+    regexp: 'factory\.talos\.dev/metal-installer/(?:PLACEHOLDER_SCHEMATIC_ID|[0-9a-f]{64})'
+    replace: "factory.talos.dev/metal-installer/{{ (talos_operate_reapply_ids | default({})).get(item.name, '') }}"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - talos_operate_reapply_configs | bool
+    - (talos_operate_reapply_ids | default({})).get(item.name, '') | length > 0
+
+- name: Regenerate per-node machine configs from edited patches
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_operate_talosctl }} gen config {{ talos_cluster }}
+      {{ talos_clusters[talos_cluster].endpoint }}
+      --with-secrets {{ talos_build_dir }}/{{ talos_cluster }}/secrets.bundle.yml
+      --config-patch @{{ playbook_dir }}/../../clusters/_base/patches.yml
+      --config-patch @{{ talos_build_dir }}/{{ talos_cluster }}/patches.yml
+      {{ '--config-patch-control-plane' if talos_machine_roles[item.role] == 'controlplane' else '--config-patch-worker' }}
+      @{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml
+      --talos-version {{ talos_version }}
+      --install-image
+      factory.talos.dev/metal-installer/{{ (talos_operate_reapply_ids | default({})).get(item.name, 'pending-schematic-upload') }}:{{ talos_version }}
+      -t {{ talos_machine_roles[item.role] }}
+      --force
+      -o {{ talos_build_dir }}/{{ talos_cluster }}/nodes/{{ item.name }}/{{ talos_machine_roles[item.role] }}.yaml
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: talos_operate_reapply_configs | bool
+  changed_when: true
+
+- name: Apply machine configs to installed nodes
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_operate_talosctl }} apply-config
+      --talosconfig {{ talos_talosconfig }}
+      -n {{ item.ip }}
+      -f {{ talos_build_dir }}/{{ talos_cluster }}/nodes/{{ item.name }}/{{ talos_machine_roles[item.role] }}.yaml
+      --mode {{ talos_operate_reapply_mode }}
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: talos_operate_reapply_configs | bool
+  changed_when: true

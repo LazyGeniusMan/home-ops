@@ -1,0 +1,30 @@
+---
+# Regen plane: rebuild client configs from the EXISTING secrets bundle
+# (--with-secrets reuses build/<cluster>/secrets.bundle.yml).
+# Never mints a new bundle: fresh PKI would orphan a live cluster.
+- name: Regenerate cluster talosconfig from existing secrets bundle
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_operate_talosctl }} gen config {{ talos_cluster }}
+      {{ talos_clusters[talos_cluster].endpoint }}
+      --with-secrets {{ talos_build_dir }}/{{ talos_cluster }}/secrets.bundle.yml
+      --config-patch @{{ playbook_dir }}/../../clusters/_base/patches.yml
+      --config-patch @{{ talos_build_dir }}/{{ talos_cluster }}/patches.yml
+      --talos-version {{ talos_version }}
+      -t talosconfig
+      --force
+      -o {{ talos_build_dir }}/{{ talos_cluster }}/talosconfig
+  when: talos_operate_regen_talosconfig | bool
+  changed_when: true
+
+- name: Regenerate admin kubeconfig
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_operate_talosctl }} kubeconfig
+      --talosconfig {{ talos_talosconfig }}
+      {{ talos_build_dir }}/{{ talos_cluster }}/kubeconfig
+      -n {{ talos_clusters[talos_cluster].nodes[0].ip }}
+      -e {{ talos_clusters[talos_cluster].nodes[0].ip }}
+      -f
+  when: talos_operate_regen_kubeconfig | bool
+  changed_when: true

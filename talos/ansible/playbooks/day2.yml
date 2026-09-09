@@ -1,7 +1,11 @@
 ---
-# Day-2 operate: health + etcd status; optional upgrade via -e upgrade_image=....
+# Day-2 operate: health + etcd status; optional upgrades, regen, re-apply.
 # Local-only: ansible-playbook playbooks/day2.yml -i localhost,
-#   -e talos_cluster=acme-dev-bdo1-talos-apps-01 [-e upgrade_image=<installer>]
+#   -e talos_cluster=acme-dev-bdo1-talos-apps-01
+#   [-e upgrade_image=<installer>] [-e upgrade_talos_version=<ver>]
+#   [-e kubernetes_version=<ver>]
+#   [-e regen_talosconfig=true] [-e regen_kubeconfig=true]
+#   [-e reapply_configs=true [-e reapply_mode=staged]]
 - name: Day-2 operate Talos cluster
   hosts: localhost
   connection: local
@@ -17,3 +21,9 @@
     - role: talos_operate
       vars:
         talos_operate_upgrade_image: "{{ upgrade_image | default('') }}"
+        talos_operate_upgrade_talos_version: "{{ upgrade_talos_version | default('') }}"
+        talos_operate_kubernetes_version: "{{ kubernetes_version | default('') }}"
+        talos_operate_regen_talosconfig: "{{ regen_talosconfig | default(false) | bool }}"
+        talos_operate_regen_kubeconfig: "{{ regen_kubeconfig | default(false) | bool }}"
+        talos_operate_reapply_configs: "{{ reapply_configs | default(false) | bool }}"
+        talos_operate_reapply_mode: "{{ reapply_mode | default('staged') }}"

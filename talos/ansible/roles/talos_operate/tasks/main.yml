@@ -31,14 +31,17 @@
   ansible.builtin.debug:
     msg: "{{ talos_operate_etcd.stdout_lines | default(['etcd members unavailable']) }}"
 
-- name: Upgrade nodes when an upgrade image is supplied
-  ansible.builtin.command:
-    cmd: >-
-      {{ talos_operate_talosctl }} upgrade
-      --talosconfig {{ talos_talosconfig }}
-      -n {{ item.ip }} -i {{ talos_operate_upgrade_image }}
-  loop: "{{ talos_clusters[talos_cluster].nodes }}"
-  loop_control:
-    label: "{{ item.name }}"
-  when: talos_operate_upgrade_image | length > 0
-  changed_when: true
+# Execution order (documented in RUNBOOK §3): config-plane first, version
+# upgrades last — regen talosconfig/kubeconfig → re-apply machine configs →
+# Talos upgrade per node → Kubernetes upgrade. Talos always precedes k8s.
+- name: Regenerate talosconfig or kubeconfig on request
+  ansible.builtin.include_tasks: regen.yml
+
+- name: Re-apply rendered machine configs on request
+  ansible.builtin.include_tasks: reapply.yml
+
+- name: Upgrade Talos per node on request
+  ansible.builtin.include_tasks: upgrade.yml
+
+- name: Upgrade Kubernetes on version drift
+  ansible.builtin.include_tasks: kubernetes.yml

@@ -1,0 +1,65 @@
+---
+# Kubernetes upgrade on version drift only. Desired version is
+# talos_operate_kubernetes_version (group default 1.37.0 = what day-0 last
+# rendered; no leading v, matching `upgrade-k8s --to`). The installed version
+# is read from the kubelet image recorded in the rendered machine config.
+# Runs AFTER any Talos upgrade (see tasks/main.yml order). Clusters are
+# single control-plane: upgrade-k8s targets nodes[0]. --dry-run always prints
+# the plan first; the real upgrade runs only on mismatch.
+- name: Resolve rendered machine config path for drift detection
+  ansible.builtin.set_fact:
+    talos_operate_k8s_node: "{{ talos_clusters[talos_cluster].nodes[0] }}"
+  when: talos_operate_kubernetes_version | length > 0
+
+- name: Build rendered machine config path for drift detection
+  ansible.builtin.set_fact:
+    talos_operate_k8s_config_path: >- # noqa: yaml[line-length]
+      {{ talos_build_dir }}/{{ talos_cluster }}/nodes/{{ talos_operate_k8s_node.name }}/{{ talos_machine_roles[talos_operate_k8s_node.role] }}.yaml
+  when: talos_operate_kubernetes_version | length > 0
+
+- name: Read rendered machine config for drift detection
+  ansible.builtin.slurp:
+    path: "{{ talos_operate_k8s_config_path }}"
+  check_mode: false
+  failed_when: false
+  register: talos_operate_k8s_config
+  when: talos_operate_kubernetes_version | length > 0
+
+- name: Detect rendered Kubernetes version
+  ansible.builtin.set_fact:
+    talos_operate_rendered_k8s: >-
+      {{ ((talos_operate_k8s_config.content | default('', true) | b64decode
+      | regex_findall('siderolabs/kubelet:v([0-9]+\.[0-9]+\.[0-9]+)')) + ['unknown']) | first }}
+  when: talos_operate_kubernetes_version | length > 0
+
+- name: Decide whether Kubernetes upgrade is needed
+  ansible.builtin.set_fact:
+    talos_operate_k8s_drift: "{{ talos_operate_rendered_k8s != 'unknown' and talos_operate_rendered_k8s != talos_operate_kubernetes_version }}"
+  when: talos_operate_kubernetes_version | length > 0
+
+- name: Dry-run Kubernetes upgrade plan
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_operate_talosctl }} upgrade-k8s
+      --talosconfig {{ talos_talosconfig }}
+      --nodes {{ talos_clusters[talos_cluster].nodes[0].ip }}
+      --to {{ talos_operate_kubernetes_version }}
+      --dry-run
+  when: talos_operate_k8s_drift | default(false) | bool
+  changed_when: false
+  register: talos_operate_k8s_plan
+
+- name: Report Kubernetes upgrade plan
+  ansible.builtin.debug:
+    msg: "{{ talos_operate_k8s_plan.stdout_lines | default(['Kubernetes upgrade plan unavailable']) }}"
+  when: talos_operate_k8s_plan.stdout_lines is defined
+
+- name: Upgrade Kubernetes control plane
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_operate_talosctl }} upgrade-k8s
+      --talosconfig {{ talos_talosconfig }}
+      --nodes {{ talos_clusters[talos_cluster].nodes[0].ip }}
+      --to {{ talos_operate_kubernetes_version }}
+  when: talos_operate_k8s_drift | default(false) | bool
+  changed_when: true

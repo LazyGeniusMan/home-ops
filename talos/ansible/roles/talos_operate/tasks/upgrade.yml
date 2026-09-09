@@ -1,0 +1,65 @@
+---
+# Talos OS upgrade, one node at a time in cluster-map order.
+# Image precedence: an explicit talos_operate_upgrade_image wins; otherwise
+# the installer ref is built per node as
+# factory.talos.dev/metal-installer/<schematic-<node>.id>:<talos_operate_upgrade_talos_version>,
+# reusing the day-0 schematic ID files (slurp, never re-upload).
+# NOTE: Talos only supports upgrades between adjacent minor versions
+# (e.g. v1.14.x -> v1.15.x); never skip a minor.
+- name: Read per-node schematic IDs for upgrade image construction
+  ansible.builtin.slurp:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/schematic-{{ item.name }}.id"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  check_mode: false
+  failed_when: false
+  register: talos_operate_upgrade_schematic
+  when:
+    - talos_operate_upgrade_image | length == 0
+    - talos_operate_upgrade_talos_version | length > 0
+
+- name: Map node names to schematic IDs for upgrade
+  ansible.builtin.set_fact:
+    talos_operate_upgrade_ids: >-
+      {{ (talos_operate_upgrade_ids | default({}))
+      | combine({item.item.name: (item.content | default('', true) | b64decode | trim)}) }}
+  loop: "{{ talos_operate_upgrade_schematic.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - talos_operate_upgrade_image | length == 0
+    - talos_operate_upgrade_talos_version | length > 0
+    - item.content is defined
+
+- name: Assert schematic IDs resolve when auto-building upgrade images
+  ansible.builtin.assert:
+    that:
+      - (talos_operate_upgrade_ids | default({})).get(item.name, '') | length > 0
+    fail_msg: >-
+      Missing schematic ID for {{ item.name }}
+      (build/{{ talos_cluster }}/schematic-{{ item.name }}.id); re-run day-0
+      or pass -e upgrade_image=... explicitly.
+    success_msg: "Upgrade image resolves for {{ item.name }}."
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - talos_operate_upgrade_image | length == 0
+    - talos_operate_upgrade_talos_version | length > 0
+
+- name: Upgrade Talos on each node
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_operate_talosctl }} upgrade
+      --talosconfig {{ talos_talosconfig }}
+      -n {{ item.ip }}
+      -i {{ talos_operate_upgrade_image if talos_operate_upgrade_image | length > 0
+        else 'factory.talos.dev/metal-installer/'
+        + talos_operate_upgrade_ids[item.name]
+        + ':' + talos_operate_upgrade_talos_version }}
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: talos_operate_upgrade_image | length > 0 or talos_operate_upgrade_talos_version | length > 0
+  changed_when: true

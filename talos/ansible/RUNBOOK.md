@@ -313,9 +313,10 @@ kubectl --kubeconfig build/$C/kubeconfig get nodes -o wide
 
 ## 3. Day 2 — operate (`playbooks/day2.yml`)
 
-Read-only health/etcd by default; per-node upgrade only when an installer
-image is supplied. Role step order (`talos_operate`): `health` once →
-`etcd members` → `upgrade` per node when image set.
+Default (no flags) is read-only health/etcd. Flags opt into regen,
+re-apply, and version upgrades. Execution order: regen
+talosconfig/kubeconfig → re-apply machine configs → Talos upgrade per
+node → Kubernetes upgrade. Talos always precedes k8s.
 
 ### 3.1 Read-only (safe anytime)
 
@@ -332,7 +333,7 @@ ansible-playbook playbooks/day2.yml -i localhost, -e talos_cluster=acme-prd-bdo1
 This runs `talosctl health` (control-plane nodes + `--init-node nodes[0]`)
 and `talosctl etcd members` (against `nodes[0]`), both with
 `failed_when: false` — they report via debug output and never fail the play.
-No changes are made without `upgrade_image`.
+No changes are made without one of the §3.2 flags.
 
 > ⚠️ **Warning — health runs once ever:** the health task carries
 > `creates: build/<cluster>/.healthy`, so after its first successful run the
@@ -340,36 +341,44 @@ No changes are made without `upgrade_image`.
 > "health check skipped or unavailable"). Delete
 > `build/<cluster>/.healthy` to force a fresh health check.
 
-### 3.2 Upgrade (per-node, sequential)
+### 3.2 Flags (opt-in upgrades, regen, re-apply)
 
-Get the installer image from the day-0 schematic ID file (same version the
-configs were rendered with, `v1.14.0`):
+| Flag | Effect | Example |
+| --- | --- | --- |
+| `upgrade_image` | Explicit installer per node; wins when both image flags are set | `-e upgrade_image=factory.talos.dev/metal-installer/<id>:v1.15.0` |
+| `upgrade_talos_version` | Auto-builds installer per node from `build/<cluster>/schematic-<node>.id` (slurp, never re-uploads) | `-e upgrade_talos_version=v1.15.0` |
+| `kubernetes_version` | `--dry-run` plan first, then `upgrade-k8s --to`; runs only on drift vs rendered kubelet image | `-e kubernetes_version=1.38.0` |
+| `regen_talosconfig` | Rebuilds `talosconfig` from existing secrets bundle (never mints new PKI) | `-e regen_talosconfig=true` |
+| `regen_kubeconfig` | Re-fetches admin kubeconfig via `talosctl kubeconfig -f` | `-e regen_kubeconfig=true` |
+| `reapply_configs` (+ `reapply_mode`, default `staged`) | Re-renders patches (bypasses day-0 `creates:` guards), regenerates machine configs, `apply-config --mode <reapply_mode>` | `-e reapply_configs=true` |
+
+### 3.3 Talos upgrade (per-node, sequential)
+
+Talos minor upgrades are **adjacent-minors-only** (e.g. v1.14.x → v1.15.x,
+never skip a minor).
+
+Explicit image (read the real ID from the file — never invent one):
 
 ```bash
 # Working dir: talos/ansible/
 C=acme-dev-bdo1-talos-apps-01
-cat build/$C/schematic-*.id
-# -> 64-hex ID, e.g. the vanilla v1.14 ID
-#    376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba
-#    (yours WILL differ per schematic — always use the file value)
+cat build/$C/schematic-*.id   # 64-hex factory ID per node
+ansible-playbook playbooks/day2.yml -i localhost, \
+  -e talos_cluster=$C \
+  -e upgrade_image=factory.talos.dev/metal-installer/$(cat build/$C/schematic-bdo-r01-cp-002.id):v1.15.0
 ```
 
-Then upgrade (nodes are upgraded **one at a time, in cluster-map order** —
-a single Ansible loop, not parallel):
+Version flag (auto-builds the same installer ref per node from the `.id`
+files; fails fast naming the node when an ID is missing):
 
 ```bash
 # Working dir: talos/ansible/
 ansible-playbook playbooks/day2.yml -i localhost, \
   -e talos_cluster=acme-dev-bdo1-talos-apps-01 \
-  -e upgrade_image=factory.talos.dev/metal-installer/<id-from-.id-file>:v1.14.0
+  -e upgrade_talos_version=v1.15.0
 ```
 
-The `<id>` must be the per-node schematic ID for the node being upgraded
-in a multi-schematic cluster; today's clusters are single-node so there is
-one ID each. `upgrade_image` maps to the role var
-`talos_operate_upgrade_image` (empty default = no upgrade).
-
-Verify after upgrade:
+Nodes upgrade **one at a time, in cluster-map order**. Verify after:
 
 ```bash
 # Working dir: talos/ansible/
@@ -378,11 +387,58 @@ talosctl --talosconfig build/$C/talosconfig -n 192.168.1.201 -e 192.168.1.201 ve
 kubectl --kubeconfig build/$C/kubeconfig get nodes -o wide
 ```
 
-> ⚠️ **Warning — upgrade-only:** despite the play/role headers mentioning
-> "patch", day-2 contains **no config-patch task**. It performs health,
-> etcd-members, and installer upgrade only. Config changes require day-0
-> re-render plus a manual authenticated `talosctl apply-config` (see
-> Troubleshooting).
+### 3.4 Kubernetes upgrade (drift-only)
+
+Compares `-e kubernetes_version=<ver>` (no leading `v`) against the kubelet
+image recorded in the rendered machine config; skips when they match.
+Always prints the `--dry-run` plan before the real `upgrade-k8s --to`.
+Targets `nodes[0]` (today's clusters are single control-plane).
+
+```bash
+# Working dir: talos/ansible/
+ansible-playbook playbooks/day2.yml -i localhost, \
+  -e talos_cluster=acme-dev-bdo1-talos-apps-01 \
+  -e kubernetes_version=1.38.0
+```
+
+> ⚠️ **Warning — anti-drift:** `upgrade-k8s` mutates the live cluster
+> without re-rendering `build/`. Re-run day-0 afterwards so rendered
+> machine configs match the upgraded version.
+
+### 3.5 Regen client configs
+
+Rebuilds from the **existing** secrets bundle — never mints new PKI (fresh
+PKI would orphan a live cluster).
+
+```bash
+# Working dir: talos/ansible/
+ansible-playbook playbooks/day2.yml -i localhost, \
+  -e talos_cluster=acme-dev-bdo1-talos-apps-01 \
+  -e regen_talosconfig=true -e regen_kubeconfig=true
+```
+
+### 3.6 Re-apply machine configs (installed cluster)
+
+Day-0 re-render does **not** push config to nodes, and day-1's insecure
+apply is maintenance-only. This is the installed-cluster path: force
+re-render of edited patches (needs the PAT, like day-0), regenerate machine
+configs, then authenticated `apply-config --mode <reapply_mode>` (default
+`staged` — applies without reboot when the change allows it; one of `auto`,
+`no-reboot`, `staged`, `try`).
+
+```bash
+# Working dir: talos/ansible/
+ansible-playbook playbooks/day2.yml -i localhost, \
+  -e talos_cluster=acme-dev-bdo1-talos-apps-01 \
+  -e reapply_configs=true
+```
+
+```bash
+# Working dir: talos/ansible/
+ansible-playbook playbooks/day2.yml -i localhost, \
+  -e talos_cluster=acme-dev-bdo1-talos-apps-01 \
+  -e reapply_configs=true -e reapply_mode=no-reboot
+```
 
 ---
 
@@ -445,10 +501,14 @@ C=acme-dev-bdo1-talos-apps-01
 # 1. Re-render:
 rm build/$C/patches.yml build/$C/nodes-*-patches.yml
 ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=$C
-# 2. Push with authenticated API (NOT automated by any play):
+# 2. Push with authenticated API (manual, or automated via §3.6):
 talosctl apply-config --talosconfig build/$C/talosconfig -n 192.168.1.201 \
   -f build/$C/nodes/bdo-r01-cp-002/controlplane.yaml --mode auto
 ```
+
+Automated equivalent (re-renders + pushes in one play, default mode
+`staged`): `ansible-playbook playbooks/day2.yml -i localhost,
+-e talos_cluster=$C -e reapply_configs=true` (see §3.6).
 
 ### 4.5 Multi-node notes (future clusters)
 
@@ -518,3 +578,8 @@ advertises from the control-plane node (`Layer2VIPConfig` link `enp45s0` /
 | `talos_cluster` | all | `acme-dev-bdo1-talos-apps-01` | Selects `talos_clusters[<name>]` (vault, endpoint, nodes). Always pass explicitly except for dev. |
 | `talos_bootstrap_mode` | day-1 | `auto` | `--mode` for insecure `apply-config` (`auto` / `no-reboot` / …). |
 | `upgrade_image` | day-2 | `""` (no upgrade) | Maps to `talos_operate_upgrade_image`; when set, each node runs `talosctl upgrade -n <ip> -i <image>`. Example: `factory.talos.dev/metal-installer/<id-from-build-schematic-*.id>:v1.14.0`. |
+| `upgrade_talos_version` | day-2 | `""` (no upgrade) | Auto-builds installer per node from `build/<cluster>/schematic-<node>.id`. Adjacent minors only. Example: `v1.15.0` (see §3.3). |
+| `kubernetes_version` | day-2 | `1.37.0` (group default) | `--dry-run` plan then `upgrade-k8s --to`; drift-only. Example: `1.38.0` (see §3.4). |
+| `regen_talosconfig` | day-2 | `false` | Rebuilds talosconfig from existing secrets bundle (see §3.5). |
+| `regen_kubeconfig` | day-2 | `false` | Re-fetches admin kubeconfig (see §3.5). |
+| `reapply_configs` (+ `reapply_mode`, default `staged`) | day-2 | `false` | Re-renders patches + pushes via `apply-config --mode` (see §3.6). |
