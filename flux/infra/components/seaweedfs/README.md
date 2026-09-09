@@ -39,12 +39,22 @@ markers.
 
 ## S3 contract (what other components use)
 
-Endpoint: `https://s3.seaweedfs.home-ops.yansyah.my.id` — S3 API on 443
-(terminated by the shared Gateway). Path-style buckets only; every bucket
-consumer needs an IAM identity:
+Two endpoints, split by caller location:
 
-- Buckets are created out-of-band (`weed shell` / S3 API against the
-  cluster); the convention is one bucket per consumer, e.g.
+- In-cluster: `http://seaweed-main-s3.seaweedfs:8333` (ClusterIP S3 API,
+  plain HTTP) — every in-cluster consumer MUST use this (no hairpin, no
+  Gateway TLS). Dragonfly takes the bare host (`--s3_endpoint` has no
+  scheme) plus `--s3_use_https=false`.
+- External: `https://s3.seaweedfs.home-ops.yansyah.my.id` — S3 API on 443
+  (terminated by the shared Gateway) for outside-cluster user access only.
+
+Path-style buckets only; every bucket consumer needs an IAM identity:
+
+- Buckets are COSI-managed (`BucketClaim`/`BucketAccess` in the cosi
+  component — one pair per consumer: `cnpg-backups`, `dragonfly-backups`,
+  `clickhouse`, `rclone-vault`); legacy out-of-band buckets (`weed shell` /
+  S3 API against the cluster) remain only until cutover (see the cosi
+  README). The convention is one bucket per consumer, e.g.
   `rclone-vault`, `appname-media`.
 - Credentials: create the S3 identity via the operator's S3 config and
   store it in Proton Pass under

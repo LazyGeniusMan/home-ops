@@ -17,7 +17,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/backup/barmanObjectStore/endpointURL
-        value: https://s3.seaweedfs.home-ops.yansyah.my.id
+        value: http://seaweed-main-s3.seaweedfs:8333
     target:
       kind: Cluster
       name: zitadel-db
@@ -34,7 +34,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/args/0
-        value: --s3_endpoint=s3.seaweedfs.home-ops.yansyah.my.id
+        value: --s3_endpoint=seaweed-main-s3.seaweedfs:8333
     target:
       kind: Dragonfly
       name: zitadel-cache

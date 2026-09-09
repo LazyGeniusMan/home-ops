@@ -60,7 +60,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/backup/barmanObjectStore/endpointURL
-        value: https://s3.seaweedfs.home-ops.yansyah.my.id
+        value: http://seaweed-main-s3.seaweedfs:8333
     target:
       kind: Cluster
       name: ferretdb
@@ -74,7 +74,7 @@ patches:
               <disks>
                 <backups_s3>
                   <type>s3</type>
-                  <endpoint>https://s3.seaweedfs.home-ops.yansyah.my.id/clickhouse/clickstack/</endpoint>
+                  <endpoint>http://seaweed-main-s3.seaweedfs:8333/clickhouse/clickstack/</endpoint>
                   <access_key_id from_env="CLICKHOUSE_S3_ACCESS_KEY_ID"/>
                   <secret_access_key from_env="CLICKHOUSE_S3_SECRET_ACCESS_KEY"/>
                 </backups_s3>

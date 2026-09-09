@@ -82,11 +82,13 @@ consumer needs (also stated in `dragonfly-base.yaml`):
 
 ## S3 contract
 
-- Endpoint `https://s3.seaweedfs.home-ops.yansyah.my.id` is referenced by DNS
-  name only — SeaweedFS itself lands in the same wave (§12), so there is no
-  file dependency from this component. The bucket backing
-  `s3://dragonfly-backups/` must exist **before** the first Dragonfly object
-  starts (Dragonfly never creates buckets).
+- Endpoint `seaweed-main-s3.seaweedfs:8333` (in-cluster SeaweedFS S3, bare
+  host — `--s3_endpoint` takes no scheme; the public
+  `https://s3.seaweedfs.<domain>` Gateway route is for outside-cluster
+  users only) is referenced by DNS name only — SeaweedFS itself lands in
+  the same wave (§12), so there is no file dependency from this component.
+  The bucket backing `s3://dragonfly-backups/` must exist **before** the
+  first Dragonfly object starts (Dragonfly never creates buckets).
 - Credentials: `ExternalSecret/dragonfly-s3-credentials` syncs
   `ACCESS_KEY_ID`/`SECRET_ACCESS_KEY` from Proton Pass
   (`pass://acme-prd-bdo1-talos-apps-01/dragonfly/s3-access-key-id`,
@@ -97,6 +99,8 @@ consumer needs (also stated in `dragonfly-base.yaml`):
 - S3-compatible quirk: `--s3_endpoint` overrides the AWS endpoint and the
   `AWS_REGION` env satisfies the SDK credential chain for non-AWS backends
   (both set on the base object per upstream backup docs).
+  `--s3_use_https=false` rides alongside (internal S3 is plain HTTP;
+  `s3_use_https` defaults true).
 
 ## Certificate + DNS
 

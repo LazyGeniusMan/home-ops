@@ -5,3 +5,4 @@ resources:
   - driver-rbac.yaml
   - driver.yaml
   - bucketclasses.yaml
+  - bucketclaims.yaml

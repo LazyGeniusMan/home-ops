@@ -58,4 +58,4 @@ patches:
                   - name: rclone
                     env:
                       - name: RCLONE_CONFIG_SW_ENDPOINT
-                        value: "https://s3.seaweedfs.home-ops.yansyah.my.id"
+                        value: "http://seaweed-main-s3.seaweedfs:8333"

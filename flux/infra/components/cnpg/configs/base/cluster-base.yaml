@@ -4,8 +4,8 @@
 #   pod anti-affinity so replicas spread across nodes.
 # - Storage: storageClassName local-ssd-nvme (the §9 default class).
 # - Backup: continuous WAL archive + daily base backup to the SeaweedFS S3
-#   endpoint (s3.seaweedfs.home-ops.yansyah.my.id, §12 — same wave, referenced
-#   by DNS name only, no file dependency). Credentials come from the
+#   endpoint (in-cluster http://seaweed-main-s3.seaweedfs:8333, §12 — same
+#   wave, referenced by DNS name only, no file dependency). Credentials come from the
 #   s3-credentials ExternalSecret in this directory.
 # - PITR/restore: see README runbook; an example bootstrap.recovery stanza with
 #   recoveryTarget.targetTime is included commented out.

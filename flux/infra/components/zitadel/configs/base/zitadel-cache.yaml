@@ -73,9 +73,12 @@ spec:
     - name: AWS_REGION
       value: us-east-1
 
+  # Internal S3 serves plain HTTP: --s3_use_https=false must stay paired
+  # with --s3_endpoint (bare host, no scheme; s3_use_https defaults true).
   args:
     - --s3_endpoint=__S3_HOST__
     - --dbfilename=dump-{timestamp}
+    - --s3_use_https=false
 
   affinity:
     podAntiAffinity:

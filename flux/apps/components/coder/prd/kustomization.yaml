@@ -59,7 +59,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/backup/barmanObjectStore/endpointURL
-        value: https://s3.seaweedfs.home-ops.yansyah.my.id
+        value: http://seaweed-main-s3.seaweedfs:8333
     target:
       kind: Cluster
       name: coder-db

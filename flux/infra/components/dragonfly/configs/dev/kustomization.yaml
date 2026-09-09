@@ -8,7 +8,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/args/0
-        value: --s3_endpoint=s3.seaweedfs.homelab-dev.yansyah.my.id
+        value: --s3_endpoint=seaweed-main-s3.seaweedfs:8333
     target:
       kind: Dragonfly
       name: dragonfly-base

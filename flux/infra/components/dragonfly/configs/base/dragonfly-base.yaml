@@ -11,8 +11,10 @@
 #   (the mountPath would be the s3:// URI). Persistent local disk therefore
 #   lives on the tiering volume; S3 carries the snapshots (below).
 # - Backup: hourly snapshots (snapshot_cron) stream to the SeaweedFS S3
-#   endpoint (s3.seaweedfs.home-ops.yansyah.my.id, §12 — same wave, referenced
-#   by DNS name only, no file dependency). Credentials come from the
+#   endpoint (in-cluster seaweed-main-s3.seaweedfs:8333, §12 — same wave,
+#   referenced by DNS name only, no file dependency). The internal S3 serves
+#   plain HTTP, so --s3_use_https=false rides alongside --s3_endpoint (which
+#   takes a bare host, no scheme). Credentials come from the
 #   s3-credentials ExternalSecret in this directory (AWS_* env + s3_endpoint
 #   arg on the Dragonfly object). Restore: see README runbook.
 # - Connection contract for §11 consumers: host
@@ -63,6 +65,7 @@ spec:
   args:
     - --s3_endpoint=__S3_HOST__
     - --dbfilename=dump-{timestamp}
+    - --s3_use_https=false
 
   affinity:
     podAntiAffinity:

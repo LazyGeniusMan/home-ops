@@ -54,11 +54,15 @@ OCI is the upstream source of truth, verified by pull:
 
 ## S3 contract
 
-- Endpoint `https://s3.seaweedfs.home-ops.yansyah.my.id` is referenced by DNS
-  name only — SeaweedFS itself lands in the same wave (§12), so there is no
-  file dependency from this component. The bucket backing
-  `s3://cnpg-backups/` must exist **before** the first Cluster starts (Barman
-  Cloud ≥3.16 only creates the bucket on the check-wal-archive path).
+- Endpoint `http://seaweed-main-s3.seaweedfs:8333` (in-cluster SeaweedFS S3;
+  the public `https://s3.seaweedfs.<domain>` Gateway route is for
+  outside-cluster users only) is referenced by DNS name only — SeaweedFS
+  itself lands in the same wave (§12), so there is no file dependency from
+  this component. The bucket backing `s3://cnpg-backups/` must exist
+  **before** the first Cluster starts (Barman Cloud ≥3.16 only creates the
+  bucket on the check-wal-archive path). COSI-managed replacement buckets
+  live under controller-generated names — see the cosi README "Bucket
+  cutover" before repointing `destinationPath`.
 - Credentials: `ExternalSecret/cnpg-s3-credentials` syncs
   `ACCESS_KEY_ID`/`ACCESS_SECRET_KEY` from Proton Pass
   (`pass://acme-prd-bdo1-talos-apps-01/cnpg/s3-access-key-id`,

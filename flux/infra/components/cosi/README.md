@@ -3,9 +3,10 @@
 GitOps-managed object-storage provisioning on SeaweedFS: the central COSI
 controller (release-0.2, `objectstorage.k8s.io/v1alpha1`) plus the SeaweedFS
 COSI driver, with default `BucketClass/seaweedfs` +
-`BucketAccessClass/seaweedfs-key`. Consumers (e.g. `cnpg-backups` for CNPG)
-claim buckets via namespaced `BucketClaim`/`BucketAccess` objects (separate
-task — none shipped here).
+`BucketAccessClass/seaweedfs-key`. `configs/base/bucketclaims.yaml` ships
+central `BucketClaim`/`BucketAccess` pairs (one per live bucket:
+`cnpg-backups`, `dragonfly-backups`, `clickhouse`, `rclone-vault`), all in
+the `cosi` tenant namespace.
 
 ## Layout (mirrors cert-manager §9 pattern)
 
@@ -67,6 +68,44 @@ tenant is `infra/cosi` via `flux/infra/update-policies/cosi.yaml`.
 Prereqs (verified, not managed here): `seaweedfs` operator chart 0.1.40 +
 `Seaweed/seaweed-main` v4.45 with filer (`seaweed-main-filer.seaweedfs:8888`)
 and S3 (`seaweed-main-s3.seaweedfs:8333`).
+
+## Endpoint contract (internal vs external)
+
+In-cluster traffic MUST use the internal S3 service
+`http://seaweed-main-s3.seaweedfs:8333` (short form — no `svc.cluster.local`
+suffix needed; `seaweedfs` resolves cluster-wide via CoreDNS search
+expansion, and the short form matches the driver's own `ENDPOINT` /
+`SEAWEEDFS_FILER` convention). Port 8333 + plain HTTP: the S3 Deployment
+serves HTTP only, so URL clients (CNPG `endpointURL`, ClickHouse
+`storage.xml`, rclone `RCLONE_CONFIG_SW_ENDPOINT`) take the full
+`http://…:8333` URL while Dragonfly's `--s3_endpoint` takes the bare host
+(`seaweed-main-s3.seaweedfs:8333`) plus `--s3_use_https=false` (its
+`s3_use_https` flag defaults true). The public
+`https://s3.seaweedfs.<domain>` Gateway route stays for outside-cluster
+user access only — no in-cluster consumer may point at it (hairpin +
+needless TLS termination).
+
+## Bucket cutover (COSI-provisioned names differ)
+
+The driver provisions the live bucket under a controller-generated name
+(`bc-<uuid>`, from `DriverCreateBucket = req.GetName()`), so the claims do
+NOT adopt the pre-existing out-of-band buckets (`cnpg-backups`,
+`dragonfly-backups`, `clickhouse`, `rclone-vault` — one day to be deleted).
+Cutover per bucket: read the live name from the claim's
+`status.bucketName`, copy data (`rclone sync` against the internal
+endpoint, or SeaweedFS `s3.copy`), repoint the consumer at the new
+bucket/prefix, then delete the legacy bucket.
+
+## Credential bridge (COSI secret → consumers)
+
+Each `BucketAccess` mints keys into its `credentialsSecretName` Secret in
+the `cosi` namespace (`BucketInfo` JSON: `secretS3.endpoint/region/
+accessKeyID/accessSecretKey`). Consumers keep reading their same-namespace
+Proton Pass `ExternalSecret`s (unchanged shape) — the existing secrets stay
+the auth source of truth so this change never orphans credentials. To cut a
+consumer over to COSI keys: copy `accessKeyID`/`accessSecretKey` from the
+`BucketInfo` JSON into that consumer's Proton Pass entries (`pass-cli`
+seed). Never reference the `cosi`-namespace Secret cross-namespace.
 
 ## Environments
 
