@@ -15,14 +15,25 @@
 # applied first (org + users exist), and the IAM_OWNER service-user key JSON
 # must be seeded at pass://<env-vault>/zitadel/terraform-jwt-profile-json
 # (shared instance key, mirrored into this namespace — same pattern as the
-# cloudflare-api-token mirrors). Read org_id from the
-# `zitadel-bootstrap-outputs` Secret (zitadel namespace) into the per-env
-# overlay CR vars (literal, non-sensitive) — until then the CR retries.
+# cloudflare-api-token mirrors). Without the key the CR retries on interval.
+# Upstream wiring: org_id + admin/user IDs flow from the zitadel bootstrap
+# slice via `data.terraform_remote_state` (in-cluster Kubernetes backend,
+# state Secret `tfstate-default-zitadel-bootstrap-identity` in the `zitadel`
+# namespace) — NO org_id var, NO manual per-env fill, NO email lookups.
+# The read runs as this namespace's tofu runner SA
+# (`system:serviceaccount:hubble-ui:tf-runner`); its narrow cross-namespace grant
+# (Role + RoleBinding in the zitadel namespace, get+list on the bootstrap
+# state Secret only) ships in `terraform-remote-state-rbac.yaml` in this SAME
+# base dir so it reconciles with the app — the Role lives in the zitadel
+# namespace but is owned by the hubble-ui component (prune it if hubble-ui is
+# ever removed). Same-namespace `varsFrom` CANNOT cross namespaces (no namespace
+# field), which is why remote-state + RBAC is the mechanism here.
 # Backend: in-cluster Kubernetes default (state Secrets in the hubble-ui
 # namespace) — no backendConfig needed. Drift detection stays on (default).
-# Outputs: client_id lands in `hubble-ui-sso-outputs`; read the client SECRET
-# from state and seed pass://<env-vault>/hubble-ui/oidc-client-id (+ overwrite
-# pass://<env-vault>/hubble-ui/oauth2-proxy-client-secret) — never Git.
+# Outputs: client_id + client_secret + cookie_secret land in
+# `hubble-ui-sso-outputs` (all sensitive); the `oauth2-proxy` ExternalSecret
+# consumes ALL THREE from that Secret through the in-cluster `hubble-ui-k8s`
+# SecretStore (base/hubble-secrets.yaml) — never Git, never Proton Pass.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -61,8 +72,6 @@ spec:
   vars:
     - name: domain
       value: __ZITADEL_HOST__
-    - name: org_id
-      value: __ZITADEL_ORG_ID__
     - name: admin_email
       value: admin@__BASE_DOMAIN__
     - name: user_email
@@ -76,3 +85,4 @@ spec:
     name: hubble-ui-sso-outputs
     outputs:
       - client_id
+      - client_secret

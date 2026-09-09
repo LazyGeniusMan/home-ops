@@ -11,18 +11,24 @@ provider "zitadel" {
   jwt_profile_json = var.jwt_profile_json
 }
 
-# Org anchor: name lookup with a literal fallback. data.zitadel_orgs filters by
-# name ("home-ops"); var.org_id (plain literal per-env overlay value,
-# non-sensitive) wins when set — read it from the `zitadel-bootstrap-outputs`
-# Secret (zitadel namespace) after the bootstrap first applies (one-time manual
-# step; the CR retries meanwhile). When empty, the lookup result is used.
-data "zitadel_orgs" "home_ops" {
-  name        = var.org_name
-  name_method = "TEXT_QUERY_METHOD_EQUALS"
+# Org anchor: the ID flows from the zitadel bootstrap slice via remote state
+# (state Secret `tfstate-default-zitadel-bootstrap-identity` in the `zitadel`
+# namespace, read with the in-cluster Kubernetes backend) — no literal org_id
+# var, no manual per-env fill. The read runs as the hubble-ui-namespace tofu
+# runner SA, whose narrow RBAC (Role + RoleBinding in the zitadel namespace,
+# owned by this component in base/terraform-remote-state-rbac.yaml) grants
+# get+list on the bootstrap state Secret only.
+data "terraform_remote_state" "zitadel" {
+  backend = "kubernetes"
+  config = {
+    secret_suffix     = "zitadel-bootstrap-identity"
+    namespace         = "zitadel"
+    in_cluster_config = true
+  }
 }
 
-locals {
-  org_id = var.org_id != "" ? var.org_id : one(data.zitadel_orgs.home_ops.ids)
+data "zitadel_org" "home_ops" {
+  id = data.terraform_remote_state.zitadel.outputs.org_id
 }
 
 # App project: the roles/grants below are scoped HERE, so `hubble-ui-admin`
@@ -30,14 +36,14 @@ locals {
 # requires a grant to authenticate; project_role_assertion puts the roles in
 # the token `groups` claim (consumed by the proxy --oidc-groups-claim).
 resource "zitadel_project" "hubble_ui" {
-  org_id                 = local.org_id
+  org_id                 = data.zitadel_org.home_ops.id
   name                   = "hubble-ui"
   project_role_check     = true
   project_role_assertion = true
 }
 
 resource "zitadel_project_role" "admin" {
-  org_id       = local.org_id
+  org_id       = data.zitadel_org.home_ops.id
   project_id   = zitadel_project.hubble_ui.id
   role_key     = "hubble-ui-admin"
   display_name = "Hubble UI Admin"
@@ -45,42 +51,42 @@ resource "zitadel_project_role" "admin" {
 }
 
 resource "zitadel_project_role" "user" {
-  org_id       = local.org_id
+  org_id       = data.zitadel_org.home_ops.id
   project_id   = zitadel_project.hubble_ui.id
   role_key     = "hubble-ui-user"
   display_name = "Hubble UI User"
   group        = "hubble-ui"
 }
 
-# Users resolved by email lookup (emails are plain vars); one() asserts exactly
-# one match. Admin (super-admin, ORG_OWNER) gets hubble-ui-admin; the normal
-# user gets hubble-ui-user. The proxy gate stays admin-only
+# Users come from the zitadel bootstrap remote-state outputs (stored IDs —
+# no email lookup needed). Admin (super-admin, ORG_OWNER) gets hubble-ui-admin;
+# the normal user gets hubble-ui-user. The proxy gate stays admin-only
 # (--allowed-group=hubble-ui-admin), so only the admin grant gates access
 # today; the user role/grant is provisioned for the day the gate widens.
-data "zitadel_human_users" "admin" {
-  org_id       = local.org_id
-  email        = var.admin_email
-  email_method = "TEXT_QUERY_METHOD_EQUALS"
-}
-
-data "zitadel_human_users" "user" {
-  org_id       = local.org_id
-  email        = var.user_email
-  email_method = "TEXT_QUERY_METHOD_EQUALS"
+locals {
+  admin_user_id = data.terraform_remote_state.zitadel.outputs.admin_user_id
+  user_user_id  = data.terraform_remote_state.zitadel.outputs.user_user_id
 }
 
 resource "zitadel_user_grant" "admin" {
-  org_id     = local.org_id
+  org_id     = data.zitadel_org.home_ops.id
   project_id = zitadel_project.hubble_ui.id
-  user_id    = one(data.zitadel_human_users.admin.user_ids)
+  user_id    = local.admin_user_id
   role_keys  = ["hubble-ui-admin"]
 }
 
 resource "zitadel_user_grant" "user" {
-  org_id     = local.org_id
+  org_id     = data.zitadel_org.home_ops.id
   project_id = zitadel_project.hubble_ui.id
-  user_id    = one(data.zitadel_human_users.user.user_ids)
+  user_id    = local.user_user_id
   role_keys  = ["hubble-ui-user"]
+}
+
+# oauth2-proxy cookie secret, generated in-Tofu (32 random bytes, base64 —
+# mirrors `openssl rand -base64 32`). Stored ONLY in the outputs Secret, never
+# Git, never Proton Pass; regenerated iff the state is recreated.
+resource "random_bytes" "cookie_secret" {
+  length = 32
 }
 
 # OIDC client (code flow + PKCE, refresh tokens; scopes openid profile email
@@ -88,11 +94,11 @@ resource "zitadel_user_grant" "user" {
 # name stays `hubble`, redirect https://<app-host>/* (covers the proxy callback
 # /oauth2/callback), post-logout https://<app-host>/; app_host rides the
 # per-env overlay CR vars. The generated client_id/client_secret are computed
-# server-side — read them from state (or the `hubble-ui-sso-outputs` Secret)
-# after apply and seed pass://<env-vault>/hubble-ui/oidc-client-id (+ overwrite
-# pass://<env-vault>/hubble-ui/oauth2-proxy-client-secret) — never Git.
+# server-side — they land in the `hubble-ui-sso-outputs` Secret via the CR's
+# writeOutputsToSecret and are consumed natively (k8s-provider ExternalSecret),
+# never Git, never Proton Pass.
 resource "zitadel_application_oidc" "hubble" {
-  org_id                      = local.org_id
+  org_id                      = data.zitadel_org.home_ops.id
   project_id                  = zitadel_project.hubble_ui.id
   name                        = "hubble"
   redirect_uris               = ["https://${var.app_host}/*"]

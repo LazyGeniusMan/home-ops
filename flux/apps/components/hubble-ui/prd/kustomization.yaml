@@ -11,31 +11,9 @@ patches:
     target:
       kind: HTTPRoute
       name: hubble
-  # Prd proxy + token vault refs.
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/hubble-ui/oauth2-proxy-client-secret
-      - op: replace
-        path: /spec/data/1/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/hubble-ui/oauth2-proxy-cookie-secret
-    target:
-      kind: ExternalSecret
-      name: oauth2-proxy
-  # Prd proxy client-id vault ref (data/2 = clientId entry added for SSO
-  # decoupling — the generated ID synced from the hubble-ui-sso Terraform
-  # outputs; data/0 client-secret + data/1 cookie-secret patches above are
-  # unchanged).
-  - patch: |
-      - op: replace
-        path: /spec/data/2/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/hubble-ui/oidc-client-id
-    target:
-      kind: ExternalSecret
-      name: oauth2-proxy
-  # Prd Hubble-ui SSO Terraform identity: vault ref for the shared instance
-  # JWT key + CR vars (prd issuer host, prd emails, prd app host). org_id is
-  # a one-time manual fill from `zitadel-bootstrap-outputs` (zitadel ns).
+  # No oauth2-proxy vault patches: client_id + client_secret + cookie_secret
+  # flow end-to-end from the hubble-ui-sso outputs Secret via the in-cluster
+  # `hubble-ui-k8s` SecretStore (base/hubble-secrets.yaml).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -49,15 +27,12 @@ patches:
         value: zitadel.home-ops.yansyah.my.id
       - op: replace
         path: /spec/vars/1/value
-        value: REPLACE-ME-WITH-ORG-ID-FROM-zitadel-bootstrap-outputs
-      - op: replace
-        path: /spec/vars/2/value
         value: admin@home-ops.yansyah.my.id
       - op: replace
-        path: /spec/vars/3/value
+        path: /spec/vars/2/value
         value: user@home-ops.yansyah.my.id
       - op: replace
-        path: /spec/vars/4/value
+        path: /spec/vars/3/value
         value: hubble.home-ops.yansyah.my.id
     target:
       kind: Terraform

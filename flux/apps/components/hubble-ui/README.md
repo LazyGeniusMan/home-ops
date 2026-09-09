@@ -48,11 +48,16 @@ upstreams to `http://hubble-ui.hubble-ui.svc:80`:
 | Gate | `allowed-group=admin` |
 | Flags | `reverse-proxy=true`, `skip-provider-button=true` |
 
-Secrets (`ExternalSecret/oauth2-proxy`): `client-secret` + `cookie-secret`
-(32 random bytes) from Proton Pass
-(`pass://acme-prd-bdo1-talos-apps-01/hubble-ui/oauth2-proxy-*`). Seed the
-vault entries with pass-cli. The Zitadel `hubble` client is already declared
-— reference only.
+Secrets: `ExternalSecret/oauth2-proxy` syncs `client-id` + `client-secret`
+(both generated server-side) + `cookie-secret` (32 random bytes, generated
+in-Tofu) from the `hubble-ui-sso-outputs` Secret through the in-cluster
+`hubble-ui-k8s` SecretStore (stored outputs, end-to-end — NO pass:// seeding
+for OIDC creds). The Zitadel `hubble` client is owned by this app's
+`hubble-ui-sso` Terraform CR (upstream identity — org_id + admin/user IDs —
+flows from the zitadel bootstrap slice via `data.terraform_remote_state`, no
+`org_id` var, no email lookups). The JWT provider key
+(`pass://<env-vault>/zitadel/terraform-jwt-profile-json`) is the ONLY
+remaining pass:// SSO dependency.
 
 ## Routing
 

@@ -7,3 +7,4 @@ resources:
   - hubble-ui.yaml
   - oauth2-proxy.yaml
   - terraform.yaml
+  - terraform-remote-state-rbac.yaml
