@@ -4,10 +4,25 @@ resources:
   - ../base
 patches:
   # Prd Corefile (home-ops.yansyah.my.id -> .199) — replaces base placeholder block.
+  # The replace carries the full Corefile: the cluster.local + `.` blocks are
+  # env-independent (identical in every overlay); only the LAN zone differs.
   - patch: |
       - op: replace
         path: /data/Corefile
         value: |-
+              cluster.local:53 in-addr.arpa:53 ip6.arpa:53 {
+                  errors
+                  cache 30
+                  kubernetes cluster.local in-addr.arpa ip6.arpa {
+                      pods insecure
+                      fallthrough in-addr.arpa ip6.arpa
+                      ttl 30
+                  }
+                  forward . /etc/resolv.conf
+                  loop
+                  reload
+                  loadbalance
+              }
               home-ops.yansyah.my.id:53 {
                   errors
                   cache 30
@@ -34,6 +49,18 @@ patches:
                       fallthrough
                   }
                   forward . /etc/resolv.conf
+                  loop
+                  reload
+                  loadbalance
+              }
+              .:53 {
+                  errors
+                  health {
+                      lameduck 10s
+                  }
+                  ready
+                  forward . /etc/resolv.conf
+                  cache 30
                   loop
                   reload
                   loadbalance

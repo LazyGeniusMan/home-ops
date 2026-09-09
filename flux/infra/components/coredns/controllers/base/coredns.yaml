@@ -46,14 +46,31 @@ spec:
     image:
       repository: coredns/coredns
       tag: 1.14.7
-    # Standalone CoreDNS (not the kube-dns replacement): drop the
-    # cluster-service labels/selectors so kubelet DNS is untouched.
-    isClusterService: false
+    # Cluster DNS fronted by the standalone kube-dns Service (kube-dns.yaml):
+    # isClusterService adds the k8s-app labels, the CriticalAddonsOnly
+    # toleration, and (critically) dnsPolicy Default, so
+    # `forward . /etc/resolv.conf` reaches the node upstream instead of
+    # looping back into the 10.96.0.10 cluster DNS IP.
+    isClusterService: true
+    # Run as the standalone ServiceAccount (bound to ClusterRole coredns in
+    # kube-dns.yaml); the chart must not render its own RBAC, which would
+    # collide on the ClusterRole/coredns name and bind the wrong subject.
+    serviceAccount:
+      name: coredns
+    rbac:
+      create: false
     # The chart-owned ConfigMap would collide with configs/base/corefile.yaml
     # (both render <fullname>/Corefile), so skip it; the Deployment still
     # mounts config-volume from the standalone ConfigMap of the same name.
     deployment:
       skipConfig: true
+      # Pinned to the pre-flip selector: flipping isClusterService changes the
+      # default selector (adds k8s-app), and Deployment selectors are
+      # immutable — without this pin the Helm upgrade would fail.
+      selector:
+        matchLabels:
+          app.kubernetes.io/instance: coredns
+          app.kubernetes.io/name: coredns
     # The servers: chain only carries the default "." zone; the
     # home-ops.yansyah.my.id zone block lives in the standalone ConfigMap.
     servers:

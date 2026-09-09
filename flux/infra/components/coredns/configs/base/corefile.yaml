@@ -2,10 +2,21 @@
 # The chart-owned ConfigMap is skipped (deployment.skipConfig: true) because
 # it would render the same <fullname>/Corefile object; the chart Deployment
 # still mounts config-volume from this ConfigMap, so the Corefile below is
-# what CoreDNS actually serves. Plugin chain: template -> hosts -> forward.
-# (CoreDNS runs template before hosts in its directive chain, so the LAN
-# answers below win; hosts only carries static entries and falls through;
-# everything else forwards upstream.)
+# what CoreDNS actually serves. Three server blocks:
+#   1. cluster.local (+ in-addr.arpa/ip6.arpa) via the kubernetes plugin —
+#      Talos-managed CoreDNS is disabled (KubeCoreDNSConfig enabled: false),
+#      so without this block pods using the default clusterDNS (10.96.0.10)
+#      get no answer for *.cluster.local.
+#   2. __BASE_DOMAIN__ LAN zone: template -> hosts -> forward (CoreDNS runs
+#      template before hosts in its directive chain, so the LAN answers below
+#      win; hosts only carries static entries and falls through; everything
+#      else forwards upstream).
+#   3. `.` catch-all for external names (health/ready live here — the chart's
+#      `servers:` default zone is never rendered due to skipConfig, and the
+#      Deployment's liveness/readiness probes need :8080/health + :8181/ready).
+# Pods run with dnsPolicy Default (isClusterService: true), so
+# `forward . /etc/resolv.conf` reaches the node upstream instead of looping
+# back into the cluster DNS IP.
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -13,6 +24,19 @@ metadata:
   name: coredns
 data:
   Corefile: |-
+    cluster.local:53 in-addr.arpa:53 ip6.arpa:53 {
+        errors
+        cache 30
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+            pods insecure
+            fallthrough in-addr.arpa ip6.arpa
+            ttl 30
+        }
+        forward . /etc/resolv.conf
+        loop
+        reload
+        loadbalance
+    }
     __BASE_DOMAIN__:53 {
         errors
         cache 30
@@ -39,6 +63,18 @@ data:
             fallthrough
         }
         forward . /etc/resolv.conf
+        loop
+        reload
+        loadbalance
+    }
+    .:53 {
+        errors
+        health {
+            lameduck 10s
+        }
+        ready
+        forward . /etc/resolv.conf
+        cache 30
         loop
         reload
         loadbalance
