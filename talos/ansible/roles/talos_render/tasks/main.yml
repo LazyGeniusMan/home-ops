@@ -14,6 +14,11 @@
     success_msg: "Proton Pass credential available via {{ proton_pass_pat_env }}."
 
 - name: Render cluster patches.yml via pass-cli inject
+  # NOTE: intentionally WITHOUT no_log — pass-cli inject with --out-file
+  # prints no secret values (success: "Secrets injected successfully to:
+  # <path>"; failure: only the unresolved pass://<vault>/<item>/<field>
+  # ref). A failure therefore names the missing vault field instead of
+  # showing "censored".
   ansible.builtin.command:
     cmd: >-
       pass-cli inject
@@ -26,10 +31,12 @@
       {{ talos_render_pass_agent_reason_prefix }}-{{ talos_cluster }}-exec-{{
         lookup('community.general.random_string', length=16,
         override_all='0123456789abcdef') }}
-  no_log: true
   changed_when: true
 
 - name: Render node patches via pass-cli inject
+  # NOTE: intentionally WITHOUT no_log — see the cluster inject task above:
+  # pass-cli prints no secret values in this mode; failures name the
+  # unresolved pass://<vault>/<item>/<field> ref for this node.
   ansible.builtin.command:
     cmd: >-
       pass-cli inject
@@ -45,7 +52,6 @@
   loop: "{{ talos_clusters[talos_cluster].nodes }}"
   loop_control:
     label: "{{ item.name }}"
-  no_log: true
   changed_when: true
 
 - name: Resolve and upload per-node schematics
@@ -56,12 +62,14 @@
     label: "{{ node.name }}"
 
 - name: Generate Talos secrets bundle when missing
+  # NOTE: intentionally WITHOUT no_log — `talosctl gen secrets -o` writes
+  # the bundle to a file and prints nothing secret-bearing, so failures
+  # (bad flags, unwritable out-file) stay visible instead of "censored".
   ansible.builtin.command:
     cmd: >-
       {{ talos_render_talosctl }} gen secrets
       -o {{ talos_build_dir }}/{{ talos_cluster }}/secrets.bundle.yml
     creates: "{{ talos_build_dir }}/{{ talos_cluster }}/secrets.bundle.yml"
-  no_log: true
   changed_when: true
 
 - name: Ensure per-node build directories exist

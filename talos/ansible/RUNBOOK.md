@@ -73,6 +73,16 @@ Set PROTON_PASS_PERSONAL_ACCESS_TOKEN (pass-cli login) before rendering secrets.
 > ⚠️ **Warning — PAT expiry:** a stale/expired token surfaces as
 > `pass-cli inject` failures during day-0 rendering. Re-export a fresh token
 > and run `pass-cli login` again, then re-run the play.
+>
+> Inject failures name the missing secret directly, e.g.
+> `Failed to fetch secret for pass://<vault>/talos/<field>` + `Field
+> '<field>' not found in item 'talos'` — that means the vault item exists
+> but the field is absent/renamed. Add the field to the item in Proton Pass
+> (field names are case-sensitive), or fix the `pass://` ref in the source
+> `patches.yml`, then delete the stale `build/<cluster>/patches.yml` (or
+> `nodes-<node>-patches.yml`) and re-run day-0. Inject tasks intentionally
+> carry no `no_log` — `pass-cli inject --out-file` prints no secret values,
+> only the unresolved ref, so the error stays actionable.
 
 ### 0.4 Network + node state
 

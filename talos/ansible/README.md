@@ -50,9 +50,13 @@ ansible/
   `talosctl` call instead of an ambient `TALOSCONFIG` or `~/.talos/config`.
   `talosconfig`/`kubeconfig` stay under `build/<cluster>/` (gitignored,
   existing convention) — they are NOT written into `talos/clusters/`.
-- Secrets use `no_log: true` on every task that touches them and are only
-  ever resolved through `pass-cli item view "pass://<vault>/talos/<field>"`
-  or `pass-cli inject` on double-brace templates.
+- Secrets are only ever resolved through
+  `pass-cli item view "pass://<vault>/talos/<field>"`
+  or `pass-cli inject` on double-brace templates. The day-0 `pass-cli
+  inject` / `talosctl gen secrets` tasks intentionally carry NO `no_log`:
+  in `--out-file` mode neither tool prints secret values, so keeping output
+  visible means failures name the unresolved `pass://` ref instead of
+  showing "censored".
 
 ## Schematics (Image Factory upload + --install-image)
 
