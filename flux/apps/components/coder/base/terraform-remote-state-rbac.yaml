@@ -1,0 +1,44 @@
+# Narrow cross-namespace read grant for the coder tofu runner (§13.6).
+# The coder-sso Terraform module reads the zitadel bootstrap outputs via
+# `data.terraform_remote_state` (in-cluster Kubernetes backend, state Secret
+# `tfstate-default-zitadel-bootstrap-identity` in the `zitadel` namespace).
+# That read runs as THIS namespace's tofu runner SA
+# (`system:serviceaccount:coder:tf-runner`, created by the tofu-controller
+# chart via allowedNamespaces), so the SA needs get+list on the bootstrap
+# state Secret — and nothing else (resourceNames pins the single Secret).
+# Ownership note: the Role + RoleBinding below carry explicit
+# `metadata.namespace: zitadel` but are OWNED BY the coder component — they
+# ship in the coder base dir so they reconcile (and prune) with the app.
+# Same-namespace `varsFrom` CANNOT cross namespaces (no namespace field),
+# which is why remote-state + this RBAC is the mechanism.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-terraform-remote-state-reader
+  namespace: zitadel
+  labels:
+    app.kubernetes.io/name: coder
+    app.kubernetes.io/part-of: coder
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["tfstate-default-zitadel-bootstrap-identity"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-terraform-remote-state-reader
+  namespace: zitadel
+  labels:
+    app.kubernetes.io/name: coder
+    app.kubernetes.io/part-of: coder
+subjects:
+  - kind: ServiceAccount
+    name: tf-runner
+    namespace: coder
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-terraform-remote-state-reader

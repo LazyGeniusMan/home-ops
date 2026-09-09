@@ -24,13 +24,21 @@ Coder speaks OIDC natively against the §11.1 issuer. SSO is owned by THIS
 app (per-app decoupling — the central zitadel module owns no clients):
 
 - `terraform/` — owns the `coder` Zitadel project + project-scoped roles
-  `coder-admin` / `coder-user` + user grants (admin@ gets coder-admin,
-  user@ gets coder-user) + the `coder` OIDC client. Machine-applied by the
-  `coder-sso` Terraform CR in `base/terraform.yaml` (same shape as the
-  zitadel bootstrap CR: OCI `apps` source, `./terraform` path, plain
-  per-env `vars` + ESO `coder-terraform-vars` varsFrom, in-cluster state
-  backend, `client_id` in `coder-sso-outputs`). No `dependsOn` — fleet
-  ordering (`apps` after `infra-configs`) is the mechanism.
+  `coder-admin` / `coder-user` + user grants + the `coder` OIDC client.
+  Upstream identity (org_id + admin/user IDs) flows from the zitadel
+  bootstrap slice via `data.terraform_remote_state` (in-cluster Kubernetes
+  backend, state Secret `tfstate-default-zitadel-bootstrap-identity` in the
+  `zitadel` namespace) — no `org_id` var, no manual per-env fill, no email
+  lookups. The read runs as the coder-namespace tofu runner SA, whose narrow
+  cross-namespace grant (Role + RoleBinding in the zitadel namespace,
+  get+list on the bootstrap state Secret only) ships in
+  `base/terraform-remote-state-rbac.yaml` in this SAME base dir so it
+  reconciles (and prunes) with the app. Machine-applied by the `coder-sso`
+  Terraform CR in `base/terraform.yaml` (same shape as the zitadel bootstrap
+  CR: OCI `apps` source, `./terraform` path, plain per-env `vars` + ESO
+  `coder-terraform-vars` varsFrom, in-cluster state backend, `client_id` +
+  `client_secret` in `coder-sso-outputs`). No `dependsOn` — fleet ordering
+  (`apps` after `infra-configs`) is the mechanism.
 - `coder-admin` is project-scoped: it NEVER implies org admin (ORG_OWNER
   stays with the bootstrap org membership only).
 
@@ -54,24 +62,26 @@ Both groups sign in; Coder-side ownership/RBAC distinguishes them (first
 OIDC login claims instance ownership — perform it as admin@ before
 inviting anyone else).
 
-Secret handoff (established pass:// seeding runbook): after the first
-`coder-sso` apply, read the generated `client_id` (CR output Secret
-`coder-sso-outputs`, or tofu state) + `client_secret` (tofu state only)
-into `pass://<env-vault>/coder/oidc-client-id` +
-`pass://<env-vault>/coder/oidc-client-secret` (dev vault
-`acme-dev-bdo1-talos-apps-01`, prd/stg vault `acme-prd-bdo1-talos-apps-01`;
-never Git). ESO `coder-oidc` syncs both keys; the HelmRelease consumes
-them via `secretKeyRef` (`CODER_OIDC_CLIENT_ID` ← `client-id`,
-`CODER_OIDC_CLIENT_SECRET` ← `client-secret`).
+Secret handoff (stored outputs, end-to-end — NO pass:// seeding for OIDC
+creds): the `coder-sso` module outputs the generated `client_id` +
+`client_secret` into the CR output Secret `coder-sso-outputs` (CR
+`writeOutputsToSecret`), and ESO `coder-oidc` consumes BOTH keys from that
+Secret through the in-cluster `coder-k8s` SecretStore (ESO Kubernetes
+provider: `eso-k8s-reader` SA + in-namespace Role/RoleBinding,
+`remoteNamespace: coder`, same-cluster API via `kube-root-ca.crt` —
+first in-repo usage of the Kubernetes provider; the repo otherwise only has
+the `proton-pass` ClusterSecretStore). The HelmRelease consumes them via
+`secretKeyRef` (`CODER_OIDC_CLIENT_ID` ← `client-id`,
+`CODER_OIDC_CLIENT_SECRET` ← `client-secret`). No `coder/oidc-client-*`
+vault entries exist or are needed; rotation is automatic on the next
+`coder-sso` reconcile (refreshInterval 1h).
 
 JWT prerequisite (one-time, manual): the `coder-terraform-vars`
 ExternalSecret mirrors the shared instance key
 `pass://<env-vault>/zitadel/terraform-jwt-profile-json` (same IAM_OWNER
 service-user key the zitadel bootstrap uses — mirrored per namespace like
-the cloudflare-api-token mirrors), and the per-env `coder-sso` CR `vars`
-need `org_id` filled once from the `zitadel-bootstrap-outputs` Secret
-(zitadel namespace; literal, non-sensitive) after the bootstrap first
-applies. Without the key/org the CR retries on interval.
+the cloudflare-api-token mirrors). That JWT key is the ONLY remaining
+pass:// dependency for SSO. Without the key the CR retries on interval.
 
 ## SSO identity → operator mapping (LOCKED)
 
@@ -141,13 +151,14 @@ listener addition) so workspace hostnames terminate correctly.
 
 ## Credentials
 
-`ExternalSecret/coder-oidc` (Zitadel client id + secret — see the OIDC
-secret-handoff runbook above; `coder-terraform-vars` mirrors the shared
-instance JWT key), `coder-db-credentials` + `coder-db-app-secret`
+`ExternalSecret/coder-oidc` (Zitadel client id + secret from stored outputs
+via the `coder-k8s` SecretStore — see the OIDC secret-handoff runbook above;
+`coder-terraform-vars` mirrors the shared instance JWT key — the only SSO
+pass:// entry left), `coder-db-credentials` + `coder-db-app-secret`
 (same-password pair, see `coder-secrets.yaml`), `cnpg-s3-credentials` +
 `cloudflare-api-token`
 (same vault paths as §§9–10, copied so Barman/DNS-01 secrets exist in
-this namespace too). Seed each vault entry with pass-cli.
+this namespace too). Seed each remaining vault entry with pass-cli.
 
 ## Environments
 

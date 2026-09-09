@@ -3,28 +3,13 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Stg (prd values) secrets vault (pass://acme-prd-bdo1-talos-apps-01).
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/coder/oidc-client-secret
-    target:
-      kind: ExternalSecret
-      name: coder-oidc
-  # Stg (prd values) coder-oidc client-id vault ref (data/1 = clientId entry
-  # added for SSO decoupling — the generated ID synced from the coder-sso
-  # Terraform outputs; data/0 client-secret patch above is unchanged).
-  - patch: |
-      - op: replace
-        path: /spec/data/1/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/coder/oidc-client-id
-    target:
-      kind: ExternalSecret
-      name: coder-oidc
+  # No coder-oidc vault patches: client_id + client_secret flow end-to-end
+  # from the coder-sso outputs Secret via the in-cluster `coder-k8s`
+  # SecretStore (base/coder-secrets.yaml) — no Proton Pass seeding.
   # Stg (prd values) Coder SSO Terraform identity: vault ref for the shared
   # instance JWT key + CR vars (prd issuer host, prd emails, prd app host).
-  # org_id is a one-time manual fill from `zitadel-bootstrap-outputs`
-  # (zitadel ns).
+  # org_id and user IDs come from the zitadel bootstrap remote-state outputs
+  # (no var).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -38,15 +23,12 @@ patches:
         value: zitadel.home-ops.yansyah.my.id
       - op: replace
         path: /spec/vars/1/value
-        value: REPLACE-ME-WITH-ORG-ID-FROM-zitadel-bootstrap-outputs
-      - op: replace
-        path: /spec/vars/2/value
         value: admin@home-ops.yansyah.my.id
       - op: replace
-        path: /spec/vars/3/value
+        path: /spec/vars/2/value
         value: user@home-ops.yansyah.my.id
       - op: replace
-        path: /spec/vars/4/value
+        path: /spec/vars/3/value
         value: coder.home-ops.yansyah.my.id
     target:
       kind: Terraform

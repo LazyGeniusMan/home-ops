@@ -10,12 +10,24 @@ provider "zitadel" {
   jwt_profile_json = var.jwt_profile_json
 }
 
-# Org anchor: literal ID (plain var, non-sensitive, no ESO needed). After the
-# zitadel bootstrap first applies, read org_id from the
-# `zitadel-bootstrap-outputs` Secret (zitadel namespace) into the per-env
-# overlay CR vars (one-time manual step; the CR retries meanwhile).
+# Org anchor: the ID flows from the zitadel bootstrap slice via remote state
+# (state Secret `tfstate-default-zitadel-bootstrap-identity` in the `zitadel`
+# namespace, read with the in-cluster Kubernetes backend) — no literal org_id
+# var, no manual per-env fill. The read runs as the coder-namespace tofu
+# runner SA, whose narrow RBAC (Role + RoleBinding in the zitadel namespace,
+# owned by this component in base/terraform.yaml) grants get+list on the
+# bootstrap state Secret only.
+data "terraform_remote_state" "zitadel" {
+  backend = "kubernetes"
+  config = {
+    secret_suffix     = "zitadel-bootstrap-identity"
+    namespace         = "zitadel"
+    in_cluster_config = true
+  }
+}
+
 data "zitadel_org" "home_ops" {
-  id = var.org_id
+  id = data.terraform_remote_state.zitadel.outputs.org_id
 }
 
 # App project: the roles/grants below are scoped HERE, so `coder-admin` never
@@ -45,41 +57,35 @@ resource "zitadel_project_role" "user" {
   group        = "coder"
 }
 
-# Users resolved by email lookup (emails are plain vars); one() asserts exactly
-# one match. Admin (super-admin, ORG_OWNER) gets coder-admin; the normal user
-# gets coder-user. Both groups sign in; Coder-side ownership/RBAC distinguishes
-# them (see the app README).
-data "zitadel_human_users" "admin" {
-  org_id       = data.zitadel_org.home_ops.id
-  email        = var.admin_email
-  email_method = "TEXT_QUERY_METHOD_EQUALS"
-}
-
-data "zitadel_human_users" "user" {
-  org_id       = data.zitadel_org.home_ops.id
-  email        = var.user_email
-  email_method = "TEXT_QUERY_METHOD_EQUALS"
+# Users come from the zitadel bootstrap remote-state outputs (stored IDs —
+# no email lookup needed). Admin (super-admin, ORG_OWNER) gets coder-admin;
+# the normal user gets coder-user. Both groups sign in; Coder-side
+# ownership/RBAC distinguishes them (see the app README).
+locals {
+  admin_user_id = data.terraform_remote_state.zitadel.outputs.admin_user_id
+  user_user_id  = data.terraform_remote_state.zitadel.outputs.user_user_id
 }
 
 resource "zitadel_user_grant" "admin" {
   org_id     = data.zitadel_org.home_ops.id
   project_id = zitadel_project.coder.id
-  user_id    = one(data.zitadel_human_users.admin.user_ids)
+  user_id    = local.admin_user_id
   role_keys  = ["coder-admin"]
 }
 
 resource "zitadel_user_grant" "user" {
   org_id     = data.zitadel_org.home_ops.id
   project_id = zitadel_project.coder.id
-  user_id    = one(data.zitadel_human_users.user.user_ids)
+  user_id    = local.user_user_id
   role_keys  = ["coder-user"]
 }
 
 # OIDC client (code flow + PKCE, refresh tokens; scopes openid profile email
 # groups). Name stays `coder` (existing wiring references it); the generated
-# client_id/client_secret are computed server-side — read them from state (or
-# the `coder-sso-outputs` Secret) after apply and seed
-# pass://<env-vault>/coder/oidc-client-id + oidc-client-secret (never Git).
+# client_id/client_secret are computed server-side — they flow out via the
+# module outputs into the `coder-sso-outputs` Secret (CR
+# writeOutputsToSecret), which the `coder-oidc` ExternalSecret consumes
+# through the in-cluster `coder-k8s` SecretStore (no Proton Pass seeding).
 # Redirect https://<app-host>/* covers the callback
 # /api/v2/users/oidc/callback; app_host rides the per-env overlay CR vars.
 resource "zitadel_application_oidc" "coder" {

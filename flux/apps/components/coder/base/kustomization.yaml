@@ -7,3 +7,4 @@ resources:
   - coder-httproutes.yaml
   - coder.yaml
   - terraform.yaml
+  - terraform-remote-state-rbac.yaml
