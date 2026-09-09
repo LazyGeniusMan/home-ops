@@ -18,20 +18,16 @@ patches:
     target:
       kind: HTTPRoute
       name: flux-operator-tls
-  # Stg (prd values) proxy credential vault refs.
+  # No oauth2-proxy-oidc vault patches: client_id + client_secret flow
+  # end-to-end from the flux-operator-ui-sso outputs Secret via the in-cluster
+  # `flux-operator-ui-k8s` SecretStore — no Proton Pass seeding. Cookie only.
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/flux-operator-ui/oauth2-proxy-client-id
-      - op: replace
-        path: /spec/data/1/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/flux-operator-ui/oauth2-proxy-client-secret
-      - op: replace
-        path: /spec/data/2/remoteRef/key
         value: pass://acme-prd-bdo1-talos-apps-01/flux-operator-ui/oauth2-proxy-cookie-secret
     target:
       kind: ExternalSecret
-      name: oauth2-proxy-credentials
+      name: oauth2-proxy-cookie
   # Stg (prd values) wildcard Certificate (wildcard-home-ops).
   - patch: |
       - op: replace

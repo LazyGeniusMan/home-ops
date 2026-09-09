@@ -11,23 +11,24 @@ provider "zitadel" {
   jwt_profile_json = var.jwt_profile_json
 }
 
-# Org anchor: name lookup with a literal-ID fallback. After the zitadel
-# bootstrap first applies, read org_id from the `zitadel-bootstrap-outputs`
-# Secret (zitadel namespace) into the per-env overlay CR vars (one-time manual
-# step; the CR retries meanwhile). Until org_id is filled, the name lookup
-# resolves the org instead (count-gated so a failing lookup can never wedge a
-# plan that already carries the literal ID).
-data "zitadel_orgs" "home_ops" {
-  count       = var.org_id == null ? 1 : 0
-  name        = var.org_name
-  name_method = "TEXT_QUERY_METHOD_EQUALS"
-  state       = "ORG_STATE_ACTIVE"
+# Org anchor: the ID flows from the zitadel bootstrap slice via remote state
+# (state Secret `tfstate-default-zitadel-bootstrap-identity` in the `zitadel`
+# namespace, read with the in-cluster Kubernetes backend) — no literal org_id
+# var, no manual per-env fill. The read runs as the flux-operator-ui-namespace
+# tofu runner SA, whose narrow RBAC (Role + RoleBinding in the zitadel
+# namespace, owned by this component in base/terraform-remote-state-rbac.yaml)
+# grants get+list on the bootstrap state Secret only.
+data "terraform_remote_state" "zitadel" {
+  backend = "kubernetes"
+  config = {
+    secret_suffix     = "zitadel-bootstrap-identity"
+    namespace         = "zitadel"
+    in_cluster_config = true
+  }
 }
 
-locals {
-  # Literal per-env org_id wins when set; otherwise the single name-lookup
-  # hit (one() asserts exactly one match).
-  org_id = var.org_id != null ? var.org_id : one(data.zitadel_orgs.home_ops[0].ids)
+data "zitadel_org" "home_ops" {
+  id = data.terraform_remote_state.zitadel.outputs.org_id
 }
 
 # App project: the roles/grants below are scoped HERE, so
@@ -35,14 +36,14 @@ locals {
 # project_role_check requires a grant to authenticate; project_role_assertion
 # puts the roles in the token `groups` claim.
 resource "zitadel_project" "flux_operator_ui" {
-  org_id                 = local.org_id
+  org_id                 = data.zitadel_org.home_ops.id
   name                   = "flux-operator-ui"
   project_role_check     = true
   project_role_assertion = true
 }
 
 resource "zitadel_project_role" "admin" {
-  org_id       = local.org_id
+  org_id       = data.zitadel_org.home_ops.id
   project_id   = zitadel_project.flux_operator_ui.id
   role_key     = "flux-operator-ui-admin"
   display_name = "Flux Operator UI Admin"
@@ -50,40 +51,34 @@ resource "zitadel_project_role" "admin" {
 }
 
 resource "zitadel_project_role" "user" {
-  org_id       = local.org_id
+  org_id       = data.zitadel_org.home_ops.id
   project_id   = zitadel_project.flux_operator_ui.id
   role_key     = "flux-operator-ui-user"
   display_name = "Flux Operator UI User"
   group        = "flux-operator-ui"
 }
 
-# Users resolved by email lookup (emails are plain vars); one() asserts exactly
-# one match. Admin (super-admin, ORG_OWNER) gets flux-operator-ui-admin; the
-# normal user gets flux-operator-ui-user. Only the admin role passes the
-# oauth2-proxy `--allowed-group` gate (admin-only UI stays admin-only).
-data "zitadel_human_users" "admin" {
-  org_id       = local.org_id
-  email        = var.admin_email
-  email_method = "TEXT_QUERY_METHOD_EQUALS"
-}
-
-data "zitadel_human_users" "user" {
-  org_id       = local.org_id
-  email        = var.user_email
-  email_method = "TEXT_QUERY_METHOD_EQUALS"
+# Users come from the zitadel bootstrap remote-state outputs (stored IDs —
+# no email lookup needed). Admin (super-admin, ORG_OWNER) gets
+# flux-operator-ui-admin; the normal user gets flux-operator-ui-user. Only the
+# admin role passes the oauth2-proxy `--allowed-group` gate (admin-only UI
+# stays admin-only).
+locals {
+  admin_user_id = data.terraform_remote_state.zitadel.outputs.admin_user_id
+  user_user_id  = data.terraform_remote_state.zitadel.outputs.user_user_id
 }
 
 resource "zitadel_user_grant" "admin" {
-  org_id     = local.org_id
+  org_id     = data.zitadel_org.home_ops.id
   project_id = zitadel_project.flux_operator_ui.id
-  user_id    = one(data.zitadel_human_users.admin.user_ids)
+  user_id    = local.admin_user_id
   role_keys  = ["flux-operator-ui-admin"]
 }
 
 resource "zitadel_user_grant" "user" {
-  org_id     = local.org_id
+  org_id     = data.zitadel_org.home_ops.id
   project_id = zitadel_project.flux_operator_ui.id
-  user_id    = one(data.zitadel_human_users.user.user_ids)
+  user_id    = local.user_user_id
   role_keys  = ["flux-operator-ui-user"]
 }
 
@@ -92,13 +87,13 @@ resource "zitadel_user_grant" "user" {
 # `flux-operator-ui` for_each entry (redirect https://<app-host>/* covers
 # /oauth2/callback, post-logout https://<app-host>/). Name stays
 # `flux-operator-ui`; the generated client_id/client_secret are computed
-# server-side — read them from state (or the `flux-operator-ui-sso-outputs`
-# Secret) after apply and seed
-# pass://<env-vault>/flux-operator-ui/oauth2-proxy-client-id +
-# oauth2-proxy-client-secret (never Git). app_host rides the per-env overlay CR
-# vars.
+# server-side — they flow out via the module outputs into the
+# `flux-operator-ui-sso-outputs` Secret (CR writeOutputsToSecret), which the
+# `oauth2-proxy-credentials` ExternalSecret consumes through the in-cluster
+# `flux-operator-ui-k8s` SecretStore (no Proton Pass seeding for OIDC creds).
+# app_host rides the per-env overlay CR vars.
 resource "zitadel_application_oidc" "flux_operator_ui" {
-  org_id                      = local.org_id
+  org_id                      = data.zitadel_org.home_ops.id
   project_id                  = zitadel_project.flux_operator_ui.id
   name                        = "flux-operator-ui"
   redirect_uris               = ["https://${var.app_host}/*"]
