@@ -10,12 +10,24 @@ provider "zitadel" {
   jwt_profile_json = var.jwt_profile_json
 }
 
-# Org anchor: literal ID (plain var, non-sensitive, no ESO needed). After the
-# zitadel bootstrap first applies, read org_id from the
-# `zitadel-bootstrap-outputs` Secret (zitadel namespace) into the per-env
-# overlay CR vars (one-time manual step; the CR retries meanwhile).
+# Org anchor: the ID flows from the zitadel bootstrap slice via remote state
+# (state Secret `tfstate-default-zitadel-bootstrap-identity` in the `zitadel`
+# namespace, read with the in-cluster Kubernetes backend) — no literal org_id
+# var, no manual per-env fill. The read runs as the clickstack-namespace tofu
+# runner SA, whose narrow RBAC (Role + RoleBinding in the zitadel namespace,
+# owned by this component in base/terraform-remote-state-rbac.yaml) grants
+# get+list on the bootstrap state Secret only.
+data "terraform_remote_state" "zitadel" {
+  backend = "kubernetes"
+  config = {
+    secret_suffix     = "zitadel-bootstrap-identity"
+    namespace         = "zitadel"
+    in_cluster_config = true
+  }
+}
+
 data "zitadel_org" "home_ops" {
-  id = var.org_id
+  id = data.terraform_remote_state.zitadel.outputs.org_id
 }
 
 # App project: the roles/grants below are scoped HERE, so `clickstack-admin`
@@ -45,33 +57,26 @@ resource "zitadel_project_role" "user" {
   group        = "clickstack"
 }
 
-# Users resolved by email lookup (emails are plain vars); one() asserts exactly
-# one match. Admin (super-admin, ORG_OWNER) gets clickstack-admin; the normal
-# user gets clickstack-user. Only clickstack-admin may sign in — the per-app
-# oauth2-proxy sidecar gates on `--allowed-group=clickstack-admin`.
-data "zitadel_human_users" "admin" {
-  org_id       = data.zitadel_org.home_ops.id
-  email        = var.admin_email
-  email_method = "TEXT_QUERY_METHOD_EQUALS"
-}
-
-data "zitadel_human_users" "user" {
-  org_id       = data.zitadel_org.home_ops.id
-  email        = var.user_email
-  email_method = "TEXT_QUERY_METHOD_EQUALS"
+# Users come from the zitadel bootstrap remote-state outputs (stored IDs —
+# no email lookup needed). Admin (super-admin, ORG_OWNER) gets clickstack-admin;
+# the normal user gets clickstack-user. Only clickstack-admin may sign in —
+# the per-app oauth2-proxy sidecar gates on `--allowed-group=clickstack-admin`.
+locals {
+  admin_user_id = data.terraform_remote_state.zitadel.outputs.admin_user_id
+  user_user_id  = data.terraform_remote_state.zitadel.outputs.user_user_id
 }
 
 resource "zitadel_user_grant" "admin" {
   org_id     = data.zitadel_org.home_ops.id
   project_id = zitadel_project.clickstack.id
-  user_id    = one(data.zitadel_human_users.admin.user_ids)
+  user_id    = local.admin_user_id
   role_keys  = ["clickstack-admin"]
 }
 
 resource "zitadel_user_grant" "user" {
   org_id     = data.zitadel_org.home_ops.id
   project_id = zitadel_project.clickstack.id
-  user_id    = one(data.zitadel_human_users.user.user_ids)
+  user_id    = local.user_user_id
   role_keys  = ["clickstack-user"]
 }
 
@@ -81,9 +86,10 @@ resource "zitadel_user_grant" "user" {
 # https://<app-host>/* covers the proxy callback /oauth2/callback — same as
 # the shared client `https://*/oauth2/callback` covered). app_host rides the
 # per-env overlay CR vars. The generated client_id/client_secret are computed
-# server-side — read them from state (or the `clickstack-sso-outputs` Secret)
-# after apply and seed pass://<env-vault>/clickstack/oauth2-proxy-client-id +
-# oauth2-proxy-client-secret (never Git).
+# server-side — they flow out via the module outputs into the
+# `clickstack-sso-outputs` Secret (CR writeOutputsToSecret), which the
+# `oauth2-proxy` ExternalSecret consumes through the in-cluster
+# `clickstack-k8s` SecretStore (no Proton Pass seeding for OIDC creds).
 resource "zitadel_application_oidc" "clickstack" {
   org_id                      = data.zitadel_org.home_ops.id
   project_id                  = zitadel_project.clickstack.id

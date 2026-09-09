@@ -7,17 +7,10 @@ patches:
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/clickstack/oauth2-proxy-client-secret
-    target:
-      kind: ExternalSecret
-      name: oauth2-proxy
-  - patch: |
-      - op: replace
-        path: /spec/data/1/remoteRef/key
         value: pass://acme-prd-bdo1-talos-apps-01/clickstack/oauth2-proxy-cookie-secret
     target:
       kind: ExternalSecret
-      name: oauth2-proxy
+      name: oauth2-proxy-cookie
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -148,15 +141,8 @@ patches:
       kind: Deployment
       name: oauth2-proxy
   # Prd Clickstack SSO Terraform identity: vault ref for the shared instance
-  # JWT key + CR vars (prd issuer host, prd emails, prd app host). org_id is a
-  # one-time manual fill from `zitadel-bootstrap-outputs` (zitadel ns).
-  - patch: |
-      - op: replace
-        path: /spec/data/2/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/clickstack/oauth2-proxy-client-id
-    target:
-      kind: ExternalSecret
-      name: oauth2-proxy
+  # JWT key + CR vars (issuer host, emails, app host). org_id and
+  # user IDs come from the zitadel bootstrap remote-state outputs (no var).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -170,15 +156,12 @@ patches:
         value: zitadel.home-ops.yansyah.my.id
       - op: replace
         path: /spec/vars/1/value
-        value: REPLACE-ME-WITH-ORG-ID-FROM-zitadel-bootstrap-outputs
-      - op: replace
-        path: /spec/vars/2/value
         value: admin@home-ops.yansyah.my.id
       - op: replace
-        path: /spec/vars/3/value
+        path: /spec/vars/2/value
         value: user@home-ops.yansyah.my.id
       - op: replace
-        path: /spec/vars/4/value
+        path: /spec/vars/3/value
         value: clickstack.home-ops.yansyah.my.id
     target:
       kind: Terraform
