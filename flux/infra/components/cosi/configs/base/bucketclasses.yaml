@@ -1,0 +1,27 @@
+# Default object-storage classes for the SeaweedFS driver.
+# BucketClass parameters (pkg/driver/provisioner.go): `replication` must be
+# exactly 3 digits (SeaweedFS DC/rack/node placement, 001 = single copy) and
+# `disk` is a free-format FilerConf disk-type tag (`ssd` lands buckets on the
+# nvme tier; the driver writes FilerConf only when either key is set).
+# deletionPolicy Delete removes the bucket from SeaweedFS once all
+# BucketAccesses are gone.
+# BucketAccessClass authenticationType Key mints S3 access/secret keys into
+# the per-access Secret (secretS3.endpoint/region/accessKeyID/
+# accessSecretKey, consumed as a secret volume by pods).
+---
+kind: BucketClass
+apiVersion: objectstorage.k8s.io/v1alpha1
+metadata:
+  name: seaweedfs
+driverName: seaweedfs.objectstorage.k8s.io
+deletionPolicy: Delete
+parameters:
+  replication: "001"
+  disk: ssd
+---
+kind: BucketAccessClass
+apiVersion: objectstorage.k8s.io/v1alpha1
+metadata:
+  name: seaweedfs-key
+driverName: seaweedfs.objectstorage.k8s.io
+authenticationType: KEY

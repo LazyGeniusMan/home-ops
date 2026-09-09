@@ -49,6 +49,7 @@ jobs:
           - multus
           - kubevirt
           - zitadel
+          - cosi
     runs-on: ubuntu-latest
     permissions:
       contents: read

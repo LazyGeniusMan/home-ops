@@ -1,0 +1,69 @@
+# SeaweedFS COSI driver RBAC (mirrors the upstream seaweedfs chart
+# templates/cosi/cosi-cluster-role.yaml, adapted: SA is namespace-local
+# `seaweedfs-cosi-driver` in the `cosi` tenant namespace).
+# The sidecar (release-0.2 sidecar/cmd/cmd.go) runs Bucket + BucketAccess
+# listeners via controller-runtime against the kube API (needs buckets,
+# bucketaccesses (+status), bucketclaims/status, bucketaccessclasses/status),
+# and manages per-bucket Secrets + leader-election Leases.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: seaweedfs-cosi-driver
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: seaweedfs-cosi-driver
+rules:
+  - apiGroups: ["objectstorage.k8s.io"]
+    resources:
+      - "buckets"
+      - "bucketaccesses"
+      - "bucketclaims"
+      - "bucketaccessclasses"
+      - "buckets/status"
+      - "bucketaccesses/status"
+      - "bucketclaims/status"
+      - "bucketaccessclasses/status"
+    verbs:
+      - "get"
+      - "list"
+      - "watch"
+      - "update"
+      - "create"
+      - "delete"
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs:
+      - "get"
+      - "watch"
+      - "list"
+      - "delete"
+      - "update"
+      - "create"
+  - apiGroups: [""]
+    resources:
+      - "secrets"
+      - "events"
+    verbs:
+      - "get"
+      - "list"
+      - "watch"
+      - "update"
+      - "create"
+      - "delete"
+      - "patch"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: seaweedfs-cosi-driver
+subjects:
+  - kind: ServiceAccount
+    name: seaweedfs-cosi-driver
+    namespace: cosi
+roleRef:
+  kind: ClusterRole
+  name: seaweedfs-cosi-driver
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,72 @@
+# Update policy for the cosi component: tracks the COSI central controller +
+# sidecar staging images and the SeaweedFS COSI driver image. The
+# ImageUpdateAutomation (update cluster) opens PRs via $imagepolicy markers
+# in components/cosi (see README). Follows the §7 update-policy contract
+# (ImageRepository + ImagePolicy + $imagepolicy markers).
+#
+# COSI note: no registry.k8s.io promotion exists for release-0.2 yet
+# (cloudbuild publishes only gcr.io/k8s-staging-sig-storage), so the
+# controller/sidecar policies track the staging repo tags. The controller pin
+# (v20250905-controllerv0.2.0-rc1-100-gd904c62) is a date-stamped staging
+# build, not semver — keep the marker hand-bumped until a v0.2.x release tag
+# lands, then switch the ImagePolicy range + pin to that tag.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: cosi-controller
+spec:
+  image: "gcr.io/k8s-staging-sig-storage/objectstorage-controller"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: cosi-controller
+spec:
+  imageRepositoryRef:
+    name: cosi-controller
+  policy:
+    semver:
+      range: ">=0.0.0"
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: cosi-sidecar
+spec:
+  image: "gcr.io/k8s-staging-sig-storage/objectstorage-sidecar"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: cosi-sidecar
+spec:
+  imageRepositoryRef:
+    name: cosi-sidecar
+  policy:
+    semver:
+      range: ">=0.0.0"
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: cosi-driver
+spec:
+  image: "ghcr.io/seaweedfs/seaweedfs-cosi-driver"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: cosi-driver
+spec:
+  imageRepositoryRef:
+    name: cosi-driver
+  policy:
+    semver:
+      range: ">=0.1.2"
