@@ -43,13 +43,23 @@ Remotes are pure `RCLONE_CONFIG_*` env vars — no config file is mounted:
 
 ## Credentials
 
-`ExternalSecret/rclone-credentials` syncs five keys from Proton Pass
-(`pass://acme-prd-bdo1-talos-apps-01/rclone/*`):
-`sw-access-key`, `sw-secret-key`, `drive-username`, `drive-password`,
-`drive-token`. Seed the vault entries with pass-cli. Bucket
-`rclone-vault` is COSI-managed (claim/access in `base/bucketclaims.yaml`
-here); its S3 identity stays Proton Pass until cut over to the
-COSI-minted keys per the cosi README "Credential bridge".
+Two ExternalSecrets target the SAME `rclone-credentials` Secret (one
+store per ES):
+
+- `rclone-cosi-s3`: the S3 pair (`sw-access-key`/`sw-secret-key`), synced
+  by ESO from the COSI-minted BucketInfo JSON (Secret
+  `rclone-vault-cosi-creds`, key `BucketInfo`) through the in-namespace
+  `rclone-cosi` SecretStore — GJSON `property` extracts
+  `spec.secretS3.accessKeyID/accessSecretKey`.
+- `rclone-credentials`: the Drive triple (`drive-username`,
+  `drive-password`, `drive-token`) still from Proton Pass
+  (`pass://acme-prd-bdo1-talos-apps-01/rclone/*`); seed those vault
+  entries with pass-cli.
+
+Decision: COSI, not the operator S3 CRDs. The operator S3 CRDs were
+evaluated and NOT created — they would mint a SECOND identity/keypair on
+the same `rclone-vault` bucket, duplicating the identity COSI already
+provides for no benefit. COSI stays the single S3-identity source here.
 
 ## Environments
 

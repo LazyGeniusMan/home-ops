@@ -21,12 +21,17 @@ OCI registry resolves — hence OCI primary with a documented fallback.
 
 ## Credentials
 
-`ExternalSecret/clickhouse-s3-backup` syncs the SeaweedFS S3 keys from Proton
-Pass (`pass://acme-prd-bdo1-talos-apps-01/clickhouse/s3-access-key-id` and
-`.../s3-secret-access-key`; keys need read/write on the `clickhouse/` bucket
-prefix). The CHI reads them via `storage.xml` `from_env` — no credential value
-is committed anywhere in this component. Seed the vault entries with pass-cli
-and create the bucket prefix once via the SeaweedFS S3 API. In-cluster
+`ExternalSecret/clickhouse-s3-backup` syncs the SeaweedFS S3 keys from the
+COSI-minted BucketInfo JSON (Secret `clickhouse-cosi-creds`) through the
+in-namespace `clickhouse-cosi` SecretStore — GJSON `property` extracts
+`spec.secretS3.accessKeyID/accessSecretKey` (keys need read/write on the
+`clickhouse/` bucket prefix). The CHI reads them via `storage.xml`
+`from_env` — no credential value is committed anywhere in this component.
+The cross-namespace sharer (apps `clickstack` CHI —
+`clickhouse/clickstack/` prefix) reads the same keys through the
+`cosi-clickhouse` ClusterSecretStore (no per-namespace claim). The Proton
+Pass `pass://…/clickhouse/s3-*` entries stay seeded as rollback; create the
+bucket prefix once via the SeaweedFS S3 API. In-cluster
 `storage.xml` endpoints use the FQDN
 `http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333`. Its COSI
 `BucketClaim`/`BucketAccess` pair lives here in

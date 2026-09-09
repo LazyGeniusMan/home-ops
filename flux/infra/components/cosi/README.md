@@ -12,8 +12,10 @@ colocated with their consumers (one pair per live bucket: `cnpg-backups`,
 - `flux/infra/components/clickhouse/configs/base/bucketclaims.yaml`
 - `flux/apps/components/rclone/base/bucketclaims.yaml`
 
-Driver, RBAC, and classes stay central in `configs/base/`
-(`driver.yaml`, `driver-rbac.yaml`, `bucketclasses.yaml`).
+Driver, RBAC, and classes stay central in the seaweedfs component's
+`configs/base/` (`driver.yaml`, `driver-rbac.yaml`, `bucketclasses.yaml`)
+— the driver is a SeaweedFS workload, so it is hosted in the seaweedfs
+tenant namespace (moved there from this component).
 
 ## Layout (mirrors cert-manager §9 pattern)
 
@@ -105,13 +107,32 @@ bucket/prefix, then delete the legacy bucket.
 ## Credential bridge (COSI secret → consumers)
 
 Each `BucketAccess` mints keys into its `credentialsSecretName` Secret in
-the `cosi` namespace (`BucketInfo` JSON: `secretS3.endpoint/region/
-accessKeyID/accessSecretKey`). Consumers keep reading their same-namespace
-Proton Pass `ExternalSecret`s (unchanged shape) — the existing secrets stay
-the auth source of truth so this change never orphans credentials. To cut a
-consumer over to COSI keys: copy `accessKeyID`/`accessSecretKey` from the
-`BucketInfo` JSON into that consumer's Proton Pass entries (`pass-cli`
-seed). Never reference the `cosi`-namespace Secret cross-namespace.
+the CLAIM namespace (the namespace the claim lands in via the Fleet
+`targetNamespace` — `cnpg`, `dragonfly`, `clickhouse`, `rclone` — NOT a
+`cosi` namespace) as a `BucketInfo` JSON file (`secretS3.endpoint/region/
+accessKeyID/accessSecretKey`). Consumers read those keys through ESO
+Kubernetes-provider stores with GJSON `property`
+(`BucketInfo.spec.secretS3.accessKeyID/accessSecretKey`):
+
+- Same-namespace (in-namespace `SecretStore` + `eso-k8s-reader` SA/Role
+  colocated with the claim): `cnpg-s3-credentials` (cnpg),
+  `dragonfly-s3-credentials` (dragonfly), `clickhouse-s3-backup`
+  (clickhouse), `rclone-cosi-s3` (rclone).
+- Cross-namespace sharers — same bucket, own prefix, NO per-namespace
+  claim (a second claim would fork a second `bc-<uuid>` bucket):
+  `ClusterSecretStore/cosi-cnpg` serves `cnpg-s3-credentials` in
+  `zitadel` (zitadel-db), `coder` (coder-db), and `clickstack`
+  (ferretdb); `cosi-dragonfly` serves `dragonfly-s3-credentials` in
+  `zitadel` (zitadel-cache); `cosi-clickhouse` serves
+  `clickhouse-s3-backup` in `clickstack` (CHI). The stores pin the
+  claim-namespace `eso-k8s-reader` SA (least-privilege Role already covers
+  the `*-cosi-creds` Secret + `selfsubjectrulesreviews` create, so no new
+  RBAC) with `caProvider.namespace` set (mandatory on a ClusterSecretStore).
+
+Target literal keys are unchanged everywhere, so no consumer workload
+manifest changed — only the ExternalSecret `secretStoreRef`/`remoteRef`.
+The Proton Pass `s3-*`/`sw-*` entries stay seeded in the vault as rollback
+(each migrated file documents the repoint).
 
 ## Environments
 

@@ -74,10 +74,16 @@ Seed each vault entry with pass-cli:
 - `pass://acme-prd-bdo1-talos-apps-01/zitadel/smtp-*` — relay user/password
   (optional; unwired until a relay exists — Zitadel logs mail links to pod
   output meanwhile).
-- `pass://acme-prd-bdo1-talos-apps-01/{cnpg,dragonfly}/s3-*` and
-  `pass://acme-prd-bdo1-talos-apps-01/cert-manager/cloudflare-api-token` —
-  same vault paths as §§9–10, copied so the Barman/snapshot/DNS-01 secrets
-  exist in this namespace too.
+- S3 keys are COSI-minted, not Proton Pass: `cnpg-s3-credentials`
+  (zitadel-db) syncs from the `cnpg-backups-cosi-creds` BucketInfo JSON
+  through the `cosi-cnpg` ClusterSecretStore, and
+  `dragonfly-s3-credentials` (zitadel-cache) from
+  `dragonfly-backups-cosi-creds` through `cosi-dragonfly` (same buckets,
+  own prefixes — no per-namespace claims; see the cosi README). The
+  `pass://…/{cnpg,dragonfly}/s3-*` vault entries stay seeded as rollback.
+- `pass://acme-prd-bdo1-talos-apps-01/cert-manager/cloudflare-api-token` —
+  same vault path as §9, copied so the DNS-01 secret exists in this
+  namespace too.
 
 ## OIDC contract (LOCKED for wave-3c app writers)
 

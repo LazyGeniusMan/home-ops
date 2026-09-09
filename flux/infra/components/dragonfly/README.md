@@ -93,12 +93,14 @@ consumer needs (also stated in `dragonfly-base.yaml`):
   `configs/base/bucketclaims.yaml` (also serves the `zitadel-cache`
   snapshot prefix — shared bucket, one claim).
 - Credentials: `ExternalSecret/dragonfly-s3-credentials` syncs
-  `ACCESS_KEY_ID`/`SECRET_ACCESS_KEY` from Proton Pass
-  (`pass://acme-prd-bdo1-talos-apps-01/dragonfly/s3-access-key-id`,
-  `pass://acme-prd-bdo1-talos-apps-01/dragonfly/s3-secret-access-key`). Seed
-  the vault entries with pass-cli. The Dragonfly object consumes them as a
-  same-namespace secret via `spec.env` — copy the `ExternalSecret` into each
-  namespace that hosts a Dragonfly instance.
+  `ACCESS_KEY_ID`/`SECRET_ACCESS_KEY` from the COSI-minted BucketInfo JSON
+  (Secret `dragonfly-backups-cosi-creds`) through the in-namespace
+  `dragonfly-cosi` SecretStore — GJSON `property` extracts
+  `spec.secretS3.accessKeyID/accessSecretKey`. Target literal keys are
+  unchanged. The cross-namespace sharer (`zitadel-cache` — same bucket, own
+  prefix) reads the same keys through the `cosi-dragonfly`
+  ClusterSecretStore (no per-namespace claim). The Proton Pass
+  `pass://…/dragonfly/s3-*` entries stay seeded as rollback.
 - S3-compatible quirk: `--s3_endpoint` overrides the AWS endpoint and the
   `AWS_REGION` env satisfies the SDK credential chain for non-AWS backends
   (both set on the base object per upstream backup docs).

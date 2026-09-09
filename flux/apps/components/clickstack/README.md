@@ -45,7 +45,10 @@ the shared `clickhouse-keeper` ensemble (infra clickhouse namespace) by name
 and the operator resolves it. If keeper endpoints are not resolvable
 cross-namespace, create a component-local CHK from the §10.2 base shape first.
 Backups go to SeaweedFS via the `backups_s3` disk (credentials from the
-`clickhouse-s3-backup` Secret — never Git). Per-table replication: create
+`clickhouse-s3-backup` Secret — never Git; COSI-minted from the
+`clickhouse-cosi-creds` BucketInfo JSON through the `cosi-clickhouse`
+ClusterSecretStore — same bucket, own `clickhouse/clickstack/` prefix, no
+per-namespace claim; see the cosi README). Per-table replication: create
 tables with ReplicatedMergeTree + ON CLUSTER DDL (same §10.2 rule).
 
 ## FerretDB backend (Mongo-wire over CNPG)
@@ -54,7 +57,10 @@ tables with ReplicatedMergeTree + ON CLUSTER DDL (same §10.2 rule).
 §10.1 `cluster-base` template (same shape: 3 instances, sync quorum 1,
 `local-ssd-nvme`, continuous WAL + daily base backup to SeaweedFS S3 under
 `s3://cnpg-backups/ferretdb/`). Adjusted: dbname/owner `ferretdb`, own S3
-prefix. Connection via the CNPG `-rw` Service
+prefix. S3 keys are COSI-minted from the `cnpg-backups-cosi-creds`
+BucketInfo JSON through the `cosi-cnpg` ClusterSecretStore (same bucket,
+own prefix — no per-namespace claim; see the cosi README). Connection via
+the CNPG `-rw` Service
 (`postgres://ferretdb@ferretdb-rw.clickstack.svc:5432/ferretdb`,
 `sslmode=require` — CNPG serves TLS with a self-signed cert FerretDB cannot
 verify, so verify-full is impossible; require still encrypts in transit, same

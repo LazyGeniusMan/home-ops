@@ -69,12 +69,14 @@ OCI is the upstream source of truth, verified by pull:
   controller-generated names — see the cosi README "Bucket cutover"
   before repointing `destinationPath`.
 - Credentials: `ExternalSecret/cnpg-s3-credentials` syncs
-  `ACCESS_KEY_ID`/`ACCESS_SECRET_KEY` from Proton Pass
-  (`pass://acme-prd-bdo1-talos-apps-01/cnpg/s3-access-key-id`,
-  `pass://acme-prd-bdo1-talos-apps-01/cnpg/s3-secret-access-key`). Seed the
-  vault entries with pass-cli. The Cluster consumes them as a same-namespace
-  secret — copy the `ExternalSecret` into each namespace that hosts a
-  Postgres cluster.
+  `ACCESS_KEY_ID`/`ACCESS_SECRET_KEY` from the COSI-minted BucketInfo JSON
+  (Secret `cnpg-backups-cosi-creds`) through the in-namespace `cnpg-cosi`
+  SecretStore — GJSON `property` extracts
+  `spec.secretS3.accessKeyID/accessSecretKey`. Target literal keys are
+  unchanged. The cross-namespace sharers (`zitadel-db`, `coder-db`,
+  `ferretdb` — same bucket, own prefix) read the same keys through the
+  `cosi-cnpg` ClusterSecretStore (no per-namespace claim). The Proton Pass
+  `pass://…/cnpg/s3-*` entries stay seeded as rollback.
 - S3-compatible quirk per upstream docs: if boto3 checksum errors appear
   (`x-amz-content-sha256`), set `spec.env` `AWS_REQUEST_CHECKSUM_CALCULATION`
   / `AWS_RESPONSE_CHECKSUM_VALIDATION` to `when_required` on the Cluster.

@@ -156,9 +156,13 @@ via the `coder-k8s` SecretStore — see the OIDC secret-handoff runbook above;
 `coder-terraform-vars` mirrors the shared instance JWT key — the only SSO
 pass:// entry left), `coder-db-credentials` + `coder-db-app-secret`
 (same-password pair, see `coder-secrets.yaml`), `cnpg-s3-credentials` +
-`cloudflare-api-token`
-(same vault paths as §§9–10, copied so Barman/DNS-01 secrets exist in
-this namespace too). Seed each remaining vault entry with pass-cli.
+`cloudflare-api-token`. `cnpg-s3-credentials` (coder-db) is COSI-minted:
+it syncs from the `cnpg-backups-cosi-creds` BucketInfo JSON through the
+`cosi-cnpg` ClusterSecretStore (same bucket, own prefix — no
+per-namespace claim; see the cosi README). The `pass://…/cnpg/s3-*`
+entries stay seeded as rollback, and `cloudflare-api-token` follows the
+§9 vault path so the DNS-01 secret exists in this namespace too. Seed
+each remaining vault entry with pass-cli.
 
 ## Environments
 

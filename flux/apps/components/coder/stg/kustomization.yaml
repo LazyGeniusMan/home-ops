@@ -47,16 +47,8 @@ patches:
     target:
       kind: ExternalSecret
       name: coder-db-app-secret
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/cnpg/s3-access-key-id
-      - op: replace
-        path: /spec/data/1/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/cnpg/s3-secret-access-key
-    target:
-      kind: ExternalSecret
-      name: cnpg-s3-credentials
+  # (S3 keys are COSI-minted via the cosi-cnpg ClusterSecretStore — no
+  # per-env vault ref patch for cnpg-s3-credentials.)
   - patch: |
       - op: replace
         path: /spec/backup/barmanObjectStore/endpointURL

@@ -14,7 +14,7 @@ overlays; tenant is `infra/seaweedfs` via
 
 ## COSI driver sourcing
 
-Why not the upstream chart's `cosi.enabled`? The main `seaweedfs` chart (not the `seaweedfs-operator` chart this component runs) ships a COSI driver stanza, but it assumes a chart-managed cluster (chart-local filer gRPC endpoint, HTTPS ENDPOINT default, BucketAccessClass named `seaweedfs`). This component runs the operator model with filer `seaweed-main-filer.seaweedfs:8888`, plain-HTTP internal S3, and class `seaweedfs-key` - wiring the main chart would need a second HelmRelease with everything else disabled plus overrides. The three hand-vendored files (driver.yaml, driver-rbac.yaml, bucketclasses.yaml in the cosi component) mirror upstream `templates/cosi/` and are less drift surface.
+Why not the upstream chart's `cosi.enabled`? The main `seaweedfs` chart (not the `seaweedfs-operator` chart this component runs) ships a COSI driver stanza, but it assumes a chart-managed cluster (chart-local filer gRPC endpoint, HTTPS ENDPOINT default, BucketAccessClass named `seaweedfs`). This component runs the operator model with filer `seaweed-main-filer.seaweedfs:8888`, plain-HTTP internal S3, and class `seaweedfs-key` - wiring the main chart would need a second HelmRelease with everything else disabled plus overrides. The three hand-vendored files (driver.yaml, driver-rbac.yaml, bucketclasses.yaml in this component's `configs/base/` — the driver is a SeaweedFS workload, hosted in this tenant namespace) mirror upstream `templates/cosi/` and are less drift surface.
 
 ## Chart source note (OCI unavailable — justified)
 

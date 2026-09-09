@@ -18,20 +18,8 @@ patches:
     target:
       kind: ExternalSecret
       name: clickstack-hyperdx
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/clickstack/s3-access-key-id
-    target:
-      kind: ExternalSecret
-      name: clickhouse-s3-backup
-  - patch: |
-      - op: replace
-        path: /spec/data/1/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/clickstack/s3-secret-access-key
-    target:
-      kind: ExternalSecret
-      name: clickhouse-s3-backup
+  # (S3 keys are COSI-minted via the cosi-clickhouse ClusterSecretStore —
+  # no per-env vault ref patch for clickhouse-s3-backup.)
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -46,17 +34,9 @@ patches:
     target:
       kind: ExternalSecret
       name: cloudflare-api-token
-  # Prd CNPG S3 refs + endpoint.
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/cnpg/s3-access-key-id
-      - op: replace
-        path: /spec/data/1/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/cnpg/s3-secret-access-key
-    target:
-      kind: ExternalSecret
-      name: cnpg-s3-credentials
+  # Prd CNPG S3 endpoint. (S3 keys are COSI-minted via the cosi-cnpg
+  # ClusterSecretStore — no per-env vault ref patch for
+  # cnpg-s3-credentials.)
   - patch: |
       - op: replace
         path: /spec/backup/barmanObjectStore/endpointURL
