@@ -54,7 +54,7 @@ jobs:
         uses: controlplaneio-fluxcd/distribution/actions/push@1eaaa7f67ad253af88d4fac2f349ed8e7d801b83 # main
         id: push
         with:
-          repository: ghcr.io/${{ github.repository }}/fleet
+          repository: ghcr.io/${{ tolower(github.repository) }}/fleet
           path: "./flux/fleet"
           diff-tag: stable
           tags: stable-${{ env.STABLE_VERSION }}

@@ -74,7 +74,7 @@ jobs:
         uses: controlplaneio-fluxcd/distribution/actions/push@1eaaa7f67ad253af88d4fac2f349ed8e7d801b83 # main
         id: push
         with:
-          repository: ghcr.io/${{ github.repository }}/infra/${{ matrix.component }}
+          repository: ghcr.io/${{ tolower(github.repository) }}/infra/${{ matrix.component }}
           path: flux/infra/components/${{ matrix.component }}
           diff-tag: dev
           tags: dev-${{ env.SHORT_SHA }}
