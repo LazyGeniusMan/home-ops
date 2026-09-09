@@ -8,6 +8,11 @@
 proton_pass_pat_env: PROTON_PASS_PERSONAL_ACCESS_TOKEN
 talos_version: v1.14.0
 talos_build_dir: "{{ playbook_dir }}/../build"
+# Inventory node role -> Talos machine type. Inventory says `controlplane`;
+# `talosctl gen config -t` and per-node output files say `controlplane`.
+talos_machine_roles:
+  controlplane: controlplane
+  worker: worker
 # Explicit talosctl auth: bootstrap/operate pass this via --talosconfig
 # instead of relying on an ambient TALOSCONFIG or ~/.talos/config.
 talos_talosconfig: "{{ talos_build_dir }}/{{ talos_cluster }}/talosconfig"

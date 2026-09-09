@@ -54,20 +54,16 @@
   no_log: true
   changed_when: true
 
-- name: Resolve first node name for installer image ref
-  ansible.builtin.set_fact:
-    talos_render_first_node: "{{ talos_clusters[talos_cluster].nodes[0].name }}"
-  when: not ansible_check_mode
+- name: Ensure per-node build directories exist
+  ansible.builtin.file:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/nodes/{{ item.name }}"
+    state: directory
+    mode: "0700"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
 
-- name: Build installer image ref from first node schematic ID
-  ansible.builtin.set_fact:
-    talos_render_install_image: >-
-      factory.talos.dev/metal-installer/{{
-        (talos_render_schematic_ids | default({})).get(
-          talos_render_first_node, '') }}:{{ talos_version }}
-  when: not ansible_check_mode
-
-- name: Generate machine configs from rendered patches
+- name: Generate cluster talosconfig
   ansible.builtin.command:
     cmd: >-
       {{ talos_render_talosctl }} gen config {{ talos_cluster }}
@@ -75,18 +71,38 @@
       --with-secrets {{ talos_build_dir }}/{{ talos_cluster }}/secrets.bundle.yml
       --config-patch @{{ playbook_dir }}/../../clusters/_base/patches.yml
       --config-patch @{{ talos_build_dir }}/{{ talos_cluster }}/patches.yml
-      {% for node in talos_clusters[talos_cluster].nodes %}
-      --config-patch @{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ node.name }}-patches.yml
-      {% endfor %}
       --talos-version {{ talos_render_version }}
-      --install-image {{ talos_render_install_image | default('factory.talos.dev/metal-installer/pending-schematic-upload:' + talos_version, true) }}
-      -o {{ talos_build_dir }}/{{ talos_cluster }}
+      -t talosconfig
+      -o {{ talos_build_dir }}/{{ talos_cluster }}/talosconfig
   changed_when: true
 
-- name: Validate generated controlplane config
+- name: Generate per-node machine configs
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_render_talosctl }} gen config {{ talos_cluster }}
+      {{ talos_clusters[talos_cluster].endpoint }}
+      --with-secrets {{ talos_build_dir }}/{{ talos_cluster }}/secrets.bundle.yml
+      --config-patch @{{ playbook_dir }}/../../clusters/_base/patches.yml
+      --config-patch @{{ talos_build_dir }}/{{ talos_cluster }}/patches.yml
+      {{ '--config-patch-control-plane' if talos_machine_roles[item.role] == 'controlplane' else '--config-patch-worker' }}
+      @{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml
+      --talos-version {{ talos_render_version }}
+      --install-image
+      factory.talos.dev/metal-installer/{{ (talos_render_schematic_ids | default({})).get(item.name, 'pending-schematic-upload') }}:{{ talos_version }}
+      -t {{ talos_machine_roles[item.role] }}
+      -o {{ talos_build_dir }}/{{ talos_cluster }}/nodes/{{ item.name }}/{{ talos_machine_roles[item.role] }}.yaml
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: true
+
+- name: Validate generated per-node configs
   ansible.builtin.command:
     cmd: >-
       {{ talos_render_talosctl }} validate
-      -c {{ talos_build_dir }}/{{ talos_cluster }}/controlplane.yaml
+      -c {{ talos_build_dir }}/{{ talos_cluster }}/nodes/{{ item.name }}/{{ talos_machine_roles[item.role] }}.yaml
       -m metal
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
   changed_when: false

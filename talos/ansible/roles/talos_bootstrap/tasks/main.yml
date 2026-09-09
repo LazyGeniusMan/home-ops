@@ -6,7 +6,7 @@
       {{ talos_bootstrap_talosctl }} apply-config
       --talosconfig {{ talos_talosconfig }}
       --insecure -n {{ item.ip }}
-      -f {{ talos_build_dir }}/{{ talos_cluster }}/controlplane.yaml
+      -f {{ talos_build_dir }}/{{ talos_cluster }}/nodes/{{ item.name }}/{{ talos_machine_roles[item.role] }}.yaml
       --mode {{ talos_bootstrap_mode }}
     creates: "{{ talos_build_dir }}/{{ talos_cluster }}/.installed-{{ item.name }}"
   loop: "{{ talos_clusters[talos_cluster].nodes }}"

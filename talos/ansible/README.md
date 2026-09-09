@@ -1,9 +1,9 @@
 # talos/ansible — day-0/1/2 automation (idempotent, talosctl-only)
 
-Day-0 renders + generates configs and installs Talos; day-1 bootstraps etcd /
-fetches kubeconfig and applies node patches; day-2 is ongoing operate
-(health, upgrade, config patch). All node contact is `talosctl` over the
-Talos API — no SSH, no kubectl in this tree.
+Day-0 renders per-node machine configs + cluster talosconfig; day-1 applies
+each node's own config, bootstraps etcd, and fetches kubeconfig; day-2 is
+ongoing operate (health, upgrade, config patch). All node contact is
+`talosctl` over the Talos API — no SSH, no kubectl in this tree.
 
 ## Layout
 
@@ -32,10 +32,14 @@ ansible/
 - `talos_clusters.<name>` — per-cluster map: `vault` (Proton Pass vault),
   `endpoint` (VIP URL), `nodes: [{name, ip, role}]`. This map is the single
   source of truth for node IPs — they are data for `talosctl -n/-e` flags
-  only, never Ansible connection targets.
+  only, never Ansible connection targets. `role` is `controlplane` or
+  `worker`; `talos_machine_roles` maps it to the Talos machine type of the
+  same name (`controlplane` — inventory spelling — maps to `controlplane`).
 - `talos_talosconfig` — explicit `--talosconfig` path
   (`build/<cluster>/talosconfig`) passed on every bootstrap/operate
   `talosctl` call instead of an ambient `TALOSCONFIG` or `~/.talos/config`.
+  `talosconfig`/`kubeconfig` stay under `build/<cluster>/` (gitignored,
+  existing convention) — they are NOT written into `talos/clusters/`.
 - Secrets use `no_log: true` on every task that touches them and are only
   ever resolved through `pass-cli item view "pass://<vault>/talos/<field>"`
   or `pass-cli inject` on double-brace templates.
@@ -59,18 +63,37 @@ content change). The rendered node patch copies under
 `PLACEHOLDER_SCHEMATIC_ID` rewritten to the resolved per-node ID, so each
 node's `UnattendedInstallConfig.installer.image` is correct.
 
-`talosctl gen config` receives
-`--install-image factory.talos.dev/metal-installer/<ID>:<talos_version>`
+Each node's `talosctl gen config` receives
+`--install-image factory.talos.dev/metal-installer/<that-node-ID>:<talos_version>`
 (`talos_version` already carries the leading `v`, e.g. `v1.14.0`, so the
-ref has exactly one `v`)
-using the first node's resolved ID (single-node clusters: that node's own
-ID). Schematic IDs are not secrets but task output is kept tidy.
+ref has exactly one `v`).
+Schematic IDs are not secrets but task output is kept tidy.
+
+## Machine configs (per-node, role-based)
+
+Day-0 runs ONE `gen config` per node (plus one `-t talosconfig` run per
+cluster), so each node gets only its own patches, scoped to its role:
+
+- output: `build/<cluster>/nodes/<node>/<type>.yaml` where `<type>` is the
+  `talos_machine_roles` mapping of the node's `role`
+  (`controlplane` -> `controlplane.yaml`, `worker` -> `worker.yaml`).
+- invocation: `-t <type> -o build/<cluster>/nodes/<node>/<type>.yaml` with
+  base + cluster patches via generic `--config-patch` and ONLY that node's
+  patch via `--config-patch-control-plane` (role `controlplane`) or
+  `--config-patch-worker` (role `worker`).
+- `talosconfig` is generated once per cluster into
+  `build/<cluster>/talosconfig` (base + cluster patches, carries the
+  cluster endpoint) and reused via `talos_talosconfig`.
+- each generated node file is validated
+  (`talosctl validate -c <node file> -m metal`).
+- day-1 `apply-config` is role-aware: node `<name>` gets
+  `build/<cluster>/nodes/<name>/<type>.yaml` for its own role.
 
 `build/` outputs per cluster (all gitignored via `talos/.gitignore`
-`ansible/build/`): `secrets.bundle.yml`, `controlplane.yaml`,
-`worker.yaml`, `talosconfig`, `kubeconfig`, `patches.yml`,
-`nodes-<node>-patches.yml`, `schematics-<node>.yml`,
-`schematic-<node>.id`, `schematic-<node>.sha256`.
+`ansible/build/`): `secrets.bundle.yml`, `talosconfig`, `kubeconfig`,
+`patches.yml`, `nodes-<node>-patches.yml`, `nodes/<node>/*.yaml`,
+`schematics-<node>.yml`, `schematic-<node>.id`,
+`schematic-<node>.sha256`.
 
 ## Inventory (local-only — no node inventory)
 
