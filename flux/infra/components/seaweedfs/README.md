@@ -64,14 +64,30 @@ consumer needs an IAM identity:
   (redirect `https://<ui_host>/oauth2/callback`, per-app `ui_host`
   wiring in this component's `terraform/`), scopes `openid
   profile email groups`, cookie domain `.home-ops.yansyah.my.id`.
-  Admin-only via `--allowed-group=admin` against the `groups` claim
-  (`admin@home-ops.yansyah.my.id` is the sole `admin` member).
-  Credentials (client id/secret + cookie secret) sync from Proton Pass
-  via the `ui-auth-credentials` ExternalSecret — seed with pass-cli:
-  `pass://acme-prd-bdo1-talos-apps-01/seaweedfs/oauth2-proxy-client-id`,
-  `-client-secret`, `-cookie-secret` (cookie secret: 32 random bytes,
-  e.g. `openssl rand -base64 32`). Image is hand-bumped (no
+  Admin-only via `--allowed-group=seaweedfs-admin` against the `groups`
+  claim (project-scoped role, managed by the `seaweedfs-sso` Terraform
+  CR — never implies org admin). Credentials (client id/secret +
+  cookie secret) flow end-to-end from stored outputs: the `seaweedfs-sso`
+  module outputs all three into the `seaweedfs-sso-outputs` Secret (CR
+  `writeOutputsToSecret`), and the `ui-auth-credentials` ExternalSecret
+  consumes them from that Secret through the in-cluster `seaweedfs-k8s`
+  SecretStore (ESO Kubernetes provider, `eso-k8s-reader` SA + Role) —
+  no Proton Pass seeding, never Git. The cookie secret is generated
+  in-Tofu (`random_bytes`, 32 bytes base64). Image is hand-bumped (no
   ImageRepository/ImagePolicy tracks it yet).
+- `terraform.yaml` + `terraform/`: the `seaweedfs-sso` CR owns this
+  component's Zitadel slice (project + project-scoped roles
+  `seaweedfs-admin`/`seaweedfs-user` + grants + the `seaweedfs` OIDC
+  client). Upstream IDs (org_id + admin/user user IDs) come from the
+  zitadel bootstrap state (`tfstate-default-zitadel-bootstrap-identity`,
+  zitadel ns) via `data.terraform_remote_state` (in-cluster Kubernetes
+  backend) — no org_id literal, no email data-source lookups, no ESO
+  for any ID. The read runs as `system:serviceaccount:seaweedfs:tf-runner`
+  through the narrow Role/RoleBinding in
+  `configs/base/terraform-remote-state-rbac.yaml` (explicit
+  `metadata.namespace: zitadel`, get+list on the bootstrap state Secret
+  only). Only the IAM_OWNER JWT provider key stays in Proton Pass
+  (same pattern as the zitadel bootstrap).
 - `s3-ui-routes.yaml`: `seaweedfs-ui-tls` points at the `ui-auth`
   Service — the filer UI is reachable ONLY through the proxy. The S3
   API route (`seaweedfs-s3-tls`) stays DIRECT to `seaweed-main-s3:8333`

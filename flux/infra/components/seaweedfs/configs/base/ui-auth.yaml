@@ -12,12 +12,78 @@
 #   README role matrix).
 # - Cookie domain .__BASE_DOMAIN__ (shared with sibling proxies).
 #
-# Seed the generated client id/secret into Proton Pass after the CR applies
-# (see terraform.yaml handoff) — the ExternalSecret keys below stay put.
+# Credentials flow end-to-end from stored outputs: the `seaweedfs-sso`
+# Terraform module outputs client_id + client_secret + cookie_secret into the
+# `seaweedfs-sso-outputs` Secret (CR writeOutputsToSecret in terraform.yaml),
+# and the `ui-auth-credentials` ExternalSecret consumes all three keys from
+# that Secret through the in-cluster `seaweedfs-k8s` SecretStore below (ESO
+# Kubernetes provider). NO pass:// seeding for OIDC creds — no manual step
+# after the CR applies. The writeOutputsToSecret Secret stores outputs
+# base64-encoded under their output names (`client_id`, `client_secret`,
+# `cookie_secret`); the `property` fields below map those onto the
+# OAUTH2_PROXY_* env keys the proxy consumes via envFrom.
 #
 # Image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0 (verified real on Quay;
 # hand-bumped — no ImageRepository/ImagePolicy tracks it yet, unlike the
 # seaweedfs images in flux/infra/update-policies/seaweedfs.yaml).
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-k8s-reader
+  labels:
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/part-of: seaweedfs
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eso-k8s-reader
+  labels:
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/part-of: seaweedfs
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["selfsubjectrulesreviews"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eso-k8s-reader
+  labels:
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/part-of: seaweedfs
+subjects:
+  - kind: ServiceAccount
+    name: eso-k8s-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: eso-k8s-reader
+---
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: seaweedfs-k8s
+  labels:
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/part-of: seaweedfs
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: seaweedfs
+      server:
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        serviceAccount:
+          name: eso-k8s-reader
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -26,8 +92,8 @@ metadata:
 spec:
   refreshInterval: 1h
   secretStoreRef:
-    name: proton-pass
-    kind: ClusterSecretStore
+    name: seaweedfs-k8s
+    kind: SecretStore
   target:
     name: ui-auth-credentials
     template:
@@ -38,13 +104,16 @@ spec:
   data:
     - secretKey: clientId
       remoteRef:
-        key: __PROTON_PASS_BASE__/seaweedfs/oauth2-proxy-client-id
+        key: seaweedfs-sso-outputs
+        property: client_id
     - secretKey: clientSecret
       remoteRef:
-        key: __PROTON_PASS_BASE__/seaweedfs/oauth2-proxy-client-secret
+        key: seaweedfs-sso-outputs
+        property: client_secret
     - secretKey: cookieSecret
       remoteRef:
-        key: __PROTON_PASS_BASE__/seaweedfs/oauth2-proxy-cookie-secret
+        key: seaweedfs-sso-outputs
+        property: cookie_secret
 ---
 apiVersion: apps/v1
 kind: Deployment

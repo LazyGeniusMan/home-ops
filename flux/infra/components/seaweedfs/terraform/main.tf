@@ -13,25 +13,28 @@ provider "zitadel" {
   jwt_profile_json = var.jwt_profile_json
 }
 
-# Org anchor: name lookup with a literal-ID fallback. After the zitadel
-# bootstrap first applies, read org_id from the `zitadel-bootstrap-outputs`
-# Secret (zitadel namespace) into the per-env overlay CR vars (one-time
-# manual step; the CR retries meanwhile). When org_id is set (non-empty), the
-# literal `zitadel_org` lookup wins; otherwise the name search resolves the
-# org created by the bootstrap (name "home-ops").
-data "zitadel_orgs" "home_ops" {
-  count       = var.org_id == "" ? 1 : 0
-  name        = var.org_name
-  name_method = "TEXT_QUERY_METHOD_EQUALS"
-}
+# Org + user anchor: IDs come from the zitadel bootstrap state
+# (`tfstate-default-zitadel-bootstrap-identity`, zitadel namespace) via the
+# in-cluster kubernetes backend — no org_id literal, no email lookups, no
+# ESO/pass:// for any ID. The tf-runner reads that Secret through the narrow
+# Role/RoleBinding shipped in configs/base/rbac.yaml
+# (system:serviceaccount:seaweedfs:tf-runner → get on that Secret only).
+# Own state keeps the default backend (state Secrets in the seaweedfs
+# namespace); only this data source reaches cross-namespace.
+data "terraform_remote_state" "zitadel_bootstrap" {
+  backend = "kubernetes"
 
-data "zitadel_org" "home_ops" {
-  count = var.org_id == "" ? 0 : 1
-  id    = var.org_id
+  config = {
+    secret_suffix     = "zitadel-bootstrap-identity"
+    namespace         = "zitadel"
+    in_cluster_config = true
+  }
 }
 
 locals {
-  org_id = var.org_id == "" ? one(data.zitadel_orgs.home_ops[0].ids) : data.zitadel_org.home_ops[0].id
+  org_id        = data.terraform_remote_state.zitadel_bootstrap.outputs.org_id
+  admin_user_id = data.terraform_remote_state.zitadel_bootstrap.outputs.admin_user_id
+  user_user_id  = data.terraform_remote_state.zitadel_bootstrap.outputs.user_user_id
 }
 
 # Component project: the roles/grants below are scoped HERE, so
@@ -61,43 +64,37 @@ resource "zitadel_project_role" "user" {
   group        = "seaweedfs"
 }
 
-# Users resolved by email lookup (emails are plain vars); one() asserts exactly
-# one match. Admin (super-admin) gets seaweedfs-admin; the normal user gets
+# Grants bind the stored bootstrap user IDs directly (no email lookups).
+# Admin (super-admin) gets seaweedfs-admin; the normal user gets
 # seaweedfs-user. The filer UI stays admin-only via the proxy's
 # --allowed-group=seaweedfs-admin (see ui-auth.yaml); the user grant exists so
 # a future read-only gate can bind it without touching the project.
-data "zitadel_human_users" "admin" {
-  org_id       = local.org_id
-  email        = var.admin_email
-  email_method = "TEXT_QUERY_METHOD_EQUALS"
-}
-
-data "zitadel_human_users" "user" {
-  org_id       = local.org_id
-  email        = var.user_email
-  email_method = "TEXT_QUERY_METHOD_EQUALS"
-}
-
 resource "zitadel_user_grant" "admin" {
   org_id     = local.org_id
   project_id = zitadel_project.seaweedfs.id
-  user_id    = one(data.zitadel_human_users.admin.user_ids)
+  user_id    = local.admin_user_id
   role_keys  = ["seaweedfs-admin"]
 }
 
 resource "zitadel_user_grant" "user" {
   org_id     = local.org_id
   project_id = zitadel_project.seaweedfs.id
-  user_id    = one(data.zitadel_human_users.user.user_ids)
+  user_id    = local.user_user_id
   role_keys  = ["seaweedfs-user"]
 }
 
+# oauth2-proxy cookie secret, generated in-Tofu (32 random bytes, base64 —
+# mirrors `openssl rand -base64 32`). Stored ONLY in the outputs Secret, never
+# Git, never Proton Pass; regenerated iff the state is recreated.
+resource "random_bytes" "cookie_secret" {
+  length = 32
+}
+
 # OIDC client (code flow + PKCE, refresh tokens; scopes openid profile email
-# groups). Name stays `seaweedfs` (matches the ui-auth wiring + Proton Pass
-# paths below); the generated client_id/client_secret are computed
-# server-side — read them from state (or the `seaweedfs-sso-outputs` Secret)
-# after apply and seed pass://<env-vault>/seaweedfs/oauth2-proxy-client-id +
-# oauth2-proxy-client-secret (never Git). Redirect
+# groups). Name stays `seaweedfs`. The generated client_id/client_secret are
+# computed server-side and flow to the proxy through the
+# `seaweedfs-sso-outputs` Secret (writeOutputsToSecret in terraform.yaml) —
+# no Proton Pass seeding, never Git. Redirect
 # https://<ui-host>/oauth2/callback serves the filer-UI proxy; ui_host rides
 # the per-env overlay CR vars.
 resource "zitadel_application_oidc" "seaweedfs" {

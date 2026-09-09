@@ -32,20 +32,7 @@ patches:
     target:
       kind: HTTPRoute
       name: seaweedfs-s3-tls
-  # Stg (prd values) proxy vault refs + issuer/callback/cookie-domain.
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/seaweedfs/oauth2-proxy-client-id
-      - op: replace
-        path: /spec/data/1/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/seaweedfs/oauth2-proxy-client-secret
-      - op: replace
-        path: /spec/data/2/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/seaweedfs/oauth2-proxy-cookie-secret
-    target:
-      kind: ExternalSecret
-      name: ui-auth-credentials
+  # Stg (prd values) proxy issuer/callback/cookie-domain.
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/args/2
@@ -60,9 +47,9 @@ patches:
       kind: Deployment
       name: ui-auth
   # Stg (prd values) SeaweedFS SSO Terraform identity: vault ref for the shared
-  # instance JWT key + CR vars (prd issuer host, prd emails, prd UI host).
-  # org_id is a one-time manual fill from `zitadel-bootstrap-outputs`
-  # (zitadel ns).
+  # instance JWT key + CR vars (prd issuer host, prd UI host). IDs flow from
+  # the bootstrap state via remote-state + RBAC (see base/terraform.yaml) —
+  # no per-env ID literals.
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -76,15 +63,6 @@ patches:
         value: zitadel.home-ops.yansyah.my.id
       - op: replace
         path: /spec/vars/1/value
-        value: REPLACE-ME-WITH-ORG-ID-FROM-zitadel-bootstrap-outputs
-      - op: replace
-        path: /spec/vars/2/value
-        value: admin@home-ops.yansyah.my.id
-      - op: replace
-        path: /spec/vars/3/value
-        value: user@home-ops.yansyah.my.id
-      - op: replace
-        path: /spec/vars/4/value
         value: ui.seaweedfs.home-ops.yansyah.my.id
     target:
       kind: Terraform

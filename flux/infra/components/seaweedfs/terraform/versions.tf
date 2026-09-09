@@ -5,5 +5,9 @@ terraform {
       source  = "zitadel/zitadel"
       version = "~> 3.3"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.7"
+    }
   }
 }

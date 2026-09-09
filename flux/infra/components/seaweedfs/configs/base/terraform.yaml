@@ -10,18 +10,30 @@
 # upstream (checkDependencies resolves every entry as kind Terraform), so NO
 # dependsOn entry here — the fleet ordering above is the mechanism. Same
 # shape as flux/infra/components/zitadel/configs/base/terraform-bootstrap.yaml.
+# Upstream wiring: org_id + admin/user IDs flow from the zitadel bootstrap
+# slice via `data.terraform_remote_state` (in-cluster Kubernetes backend,
+# state Secret `tfstate-default-zitadel-bootstrap-identity` in the `zitadel`
+# namespace) — NO org_id var, NO manual per-env fill, NO email lookups.
+# The read runs as this namespace's tofu runner SA
+# (`system:serviceaccount:seaweedfs:tf-runner`); its narrow cross-namespace
+# grant (Role + RoleBinding in the zitadel namespace, get+list on the
+# bootstrap state Secret only) ships in `terraform-remote-state-rbac.yaml` in
+# this SAME base dir so it reconciles with the component — the Role lives in
+# the zitadel namespace but is owned by the seaweedfs component (prune it if
+# seaweedfs is ever removed). Same-namespace `varsFrom` CANNOT cross
+# namespaces (no namespace field), which is why remote-state + RBAC is the
+# mechanism here.
 # First-run prerequisite (one-time, manual): the Zitadel bootstrap must have
 # applied first (org + users exist), and the IAM_OWNER service-user key JSON
 # must be seeded at pass://<env-vault>/zitadel/terraform-jwt-profile-json
 # (shared instance key, mirrored into this namespace — same pattern as the
-# cloudflare-api-token mirror). org_id is a one-time manual fill from the
-# `zitadel-bootstrap-outputs` Secret (zitadel ns); until then the name lookup
-# (var.org_name) resolves the org and the CR still converges once users exist.
+# cloudflare-api-token mirror). Without the key the CR retries on interval.
 # Backend: in-cluster Kubernetes default (state Secrets in the seaweedfs
 # namespace) — no backendConfig needed. Drift detection stays on (default).
-# Outputs: client_id lands in `seaweedfs-sso-outputs`; read the client SECRET
-# from state and seed pass://<env-vault>/seaweedfs/oauth2-proxy-client-secret
-# (+ oauth2-proxy-client-id from the outputs) — never Git.
+# Outputs: client_id + client_secret (sensitive) + cookie_secret (sensitive)
+# land in `seaweedfs-sso-outputs`; the `ui-auth-credentials` ExternalSecret
+# consumes all three from that Secret through the in-cluster `seaweedfs-k8s`
+# SecretStore (ui-auth.yaml) — never Git, never Proton Pass.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -60,12 +72,6 @@ spec:
   vars:
     - name: domain
       value: __ZITADEL_HOST__
-    - name: org_id
-      value: __ZITADEL_ORG_ID__
-    - name: admin_email
-      value: admin@__BASE_DOMAIN__
-    - name: user_email
-      value: user@__BASE_DOMAIN__
     - name: ui_host
       value: __SEAWEEDFS_UI_HOST__
   varsFrom:
@@ -75,3 +81,5 @@ spec:
     name: seaweedfs-sso-outputs
     outputs:
       - client_id
+      - client_secret
+      - cookie_secret

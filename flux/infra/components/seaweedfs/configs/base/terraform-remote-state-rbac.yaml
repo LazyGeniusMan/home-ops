@@ -1,0 +1,45 @@
+# Narrow cross-namespace read grant for the seaweedfs tofu runner.
+# The seaweedfs-sso Terraform module reads the zitadel bootstrap outputs via
+# `data.terraform_remote_state` (in-cluster Kubernetes backend, state Secret
+# `tfstate-default-zitadel-bootstrap-identity` in the `zitadel` namespace).
+# That read runs as THIS namespace's tofu runner SA
+# (`system:serviceaccount:seaweedfs:tf-runner`, created by the tofu-controller
+# chart via allowedNamespaces), so the SA needs get+list on the bootstrap
+# state Secret — and nothing else (resourceNames pins the single Secret).
+# Ownership note: the Role + RoleBinding below carry explicit
+# `metadata.namespace: zitadel` (the infra tenant applies this base with
+# targetNamespace=seaweedfs) but are OWNED BY the seaweedfs component — they
+# ship in this base dir so they reconcile (and prune) with the component.
+# Same-namespace `varsFrom` CANNOT cross namespaces (no namespace field),
+# which is why remote-state + this RBAC is the mechanism.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: seaweedfs-terraform-remote-state-reader
+  namespace: zitadel
+  labels:
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/part-of: seaweedfs
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["tfstate-default-zitadel-bootstrap-identity"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: seaweedfs-terraform-remote-state-reader
+  namespace: zitadel
+  labels:
+    app.kubernetes.io/name: seaweedfs
+    app.kubernetes.io/part-of: seaweedfs
+subjects:
+  - kind: ServiceAccount
+    name: tf-runner
+    namespace: seaweedfs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: seaweedfs-terraform-remote-state-reader
