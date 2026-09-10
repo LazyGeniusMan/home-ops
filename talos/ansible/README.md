@@ -35,10 +35,12 @@ ansible/
   arrives via env only, never in files. Login prerequisite (Ansible NEVER
   logs in — authenticate before running any play):
   `export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... ; pass-cli login`.
-  Every play probes the session first via `pass-cli info -o json` (`rc==0`
-  + JSON mapping stdout = logged in; logged-out gives `rc=1` + a non-JSON
-  error) and fails fast telling you to export + `pass-cli login`; the env
-  var alone is NOT proof of a session.
+  Every play first asserts the PAT env var is set/non-empty, then probes
+  the session via `pass-cli info -o json` (`rc==0` + JSON mapping stdout =
+  logged in; logged-out gives `rc=1` + a non-JSON error) and fails fast
+  telling you to export + `pass-cli login`; the env
+  var alone is NOT proof of a session. Day-2 checks unconditionally (even
+  read-only runs); day-1 checks before `apply-config --insecure`.
   (manual commands can also
   `export PROTON_PASS_AGENT_REASON=talos-render-manual-exec-<16 hex>` for
   audit attribution). Ansible auto-generates a fresh unique

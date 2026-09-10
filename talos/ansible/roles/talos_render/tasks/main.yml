@@ -1,5 +1,18 @@
 ---
 # Day-0 render: inject secrets, generate machine configs, validate.
+- name: Assert Proton Pass PAT env var is set
+  # Fail fast before any build output or pass-cli exec: the PAT must arrive
+  # via env only (never files). check_mode has no effect on assert, so
+  # --check still validates.
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', proton_pass_pat_env) | length > 0
+    fail_msg: >-
+      {{ proton_pass_pat_env }} is not set or empty. Export
+      {{ proton_pass_pat_env }}=pst_... and run `pass-cli login` before
+      rendering secrets, then re-run the play.
+    success_msg: "{{ proton_pass_pat_env }} is set."
+
 - name: Ensure build directory exists
   ansible.builtin.file:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}"

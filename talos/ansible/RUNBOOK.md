@@ -51,10 +51,11 @@ changes.
 
 The PAT arrives via environment **only**, never in files. Login prerequisite:
 **Ansible NEVER logs in** — export the PAT and run `pass-cli login` in your
-shell before any play. Every play probes the existing session first via
-`pass-cli info -o json` (`rc==0` + JSON mapping stdout = logged in;
-logged-out gives `rc=1` + a non-JSON error, even with the env var set) and
-fails fast telling you to export + `pass-cli login`.
+shell before any play. Every play first asserts the PAT env var is
+set/non-empty, then probes the existing session via `pass-cli info -o json`
+(`rc==0` + JSON mapping stdout = logged in; logged-out gives `rc=1` + a
+non-JSON error, even with the env var set) and fails fast telling you to
+export + `pass-cli login`.
 
 ```bash
 # Working dir: anywhere (env is shell-global)
@@ -269,8 +270,10 @@ ansible-playbook playbooks/day1.yml -i localhost, -e talos_cluster=acme-dev-bdo1
 
 ### 2.1b PAT store (day-1) + one-time interactive `agent create`
 
-Day-1 probes the `pass-cli` session (same `info -o json` login check as
-day-0/day-2) and writes `PROTON_PASS_PERSONAL_ACCESS_TOKEN` to
+Day-1 checks the PAT env var, then probes the `pass-cli` session (same
+`info -o json` login check as day-0/day-2) as its FIRST tasks — before any
+`talosctl apply-config --insecure`, bootstrap, or kubeconfig fetch — and
+writes `PROTON_PASS_PERSONAL_ACCESS_TOKEN` to
 `build/<cluster>/proton-pass-pat` (`0600`, `no_log`, gitignored via
 `ansible/build/`). Needs the same `§0.3` login as day-0 — no separate auth.
 
@@ -363,11 +366,12 @@ kubectl --kubeconfig build/$C/kubeconfig get nodes -o wide
 
 ## 3. Day 2 — operate (`playbooks/day2.yml`)
 
-Default (no flags) is read-only health/etcd. Flags opt into regen,
-re-apply, version upgrades, and the ESO PAT Secret plane. Execution order:
-regen talosconfig/kubeconfig → re-apply machine configs → Talos upgrade
-per node → Kubernetes upgrade → PAT Secret apply/renew (post-Flux, §3.7).
-Talos always precedes k8s.
+Default (no flags) is read-only health/etcd, but STILL checks the PAT env
+var + `pass-cli` session first (cheap fail-fast; re-apply/renew need them).
+Flags opt into regen, re-apply, version upgrades, and the ESO PAT Secret
+plane. Execution order: auth probe → regen talosconfig/kubeconfig →
+re-apply machine configs → Talos upgrade per node → Kubernetes upgrade →
+PAT Secret apply/renew (post-Flux, §3.7). Talos always precedes k8s.
 
 ### 3.1 Read-only (safe anytime)
 

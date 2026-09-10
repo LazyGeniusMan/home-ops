@@ -1,5 +1,52 @@
 ---
 # Day-1: install, bootstrap etcd, fetch kubeconfig, apply node config.
+# Auth comes FIRST: day-1 ends by storing the PAT locally, and nothing
+# before that needs pass-cli — but failing fast here beats pushing a config
+# to nodes and only then discovering the session/store step cannot run.
+- name: Assert Proton Pass PAT env var is set
+  # Fail fast before any talosctl call: the PAT arrives via env only (never
+  # files) and day-1 stores it locally for the day-2 ESO Secret apply.
+  # check_mode has no effect on assert, so --check still validates.
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', proton_pass_pat_env) | length > 0
+    fail_msg: >-
+      {{ proton_pass_pat_env }} is not set or empty. Export
+      {{ proton_pass_pat_env }}=pst_... and run `pass-cli login` before
+      day-1 (needed for the local PAT store), then re-run the play.
+    success_msg: "{{ proton_pass_pat_env }} is set."
+
+- name: Check pass-cli session is authenticated for local store
+  # Ansible NEVER logs in: probes the existing session via
+  # `pass-cli info -o json` (rc==0 + JSON mapping stdout = logged in;
+  # logged-out gives rc=1 + a non-JSON error). check_mode:false so
+  # --check still validates auth. On failure, export
+  # PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... and run `pass-cli login`,
+  # then re-run the play.
+  ansible.builtin.command:
+    cmd: pass-cli info -o json
+  environment:
+    PROTON_PASS_AGENT_REASON: >-
+      {{ talos_bootstrap_pass_agent_reason_prefix }}-{{ talos_cluster }}-authcheck-{{
+        lookup('community.general.random_string', length=16,
+        override_all='0123456789abcdef') }}
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  register: talos_bootstrap_pass_session
+  no_log: true
+
+- name: Fail when pass-cli has no authenticated session
+  ansible.builtin.assert:
+    that:
+      - talos_bootstrap_pass_session.rc == 0
+      - talos_bootstrap_pass_session.stdout | from_json is mapping
+    fail_msg: >-
+      No authenticated pass-cli session. Export
+      {{ proton_pass_pat_env }}=pst_... and run `pass-cli login` before
+      day-1 (needed for the local PAT store), then re-run the play.
+    success_msg: "pass-cli session authenticated."
+
 - name: Apply installer config to maintenance nodes (insecure first boot)
   ansible.builtin.command:
     cmd: >-
@@ -52,32 +99,6 @@
       -f
     creates: "{{ talos_build_dir }}/{{ talos_cluster }}/kubeconfig"
   changed_when: true
-
-- name: Check pass-cli session is authenticated for local store
-  # Ansible NEVER logs in: probes the existing session via
-  # `pass-cli info -o json` (rc==0 + JSON mapping stdout = logged in;
-  # logged-out gives rc=1 + a non-JSON error). check_mode:false so
-  # --check still validates auth. On failure, export
-  # PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... and run `pass-cli login`,
-  # then re-run the play.
-  ansible.builtin.command:
-    cmd: pass-cli info -o json
-  check_mode: false
-  changed_when: false
-  failed_when: false
-  register: talos_bootstrap_pass_session
-  no_log: true
-
-- name: Fail when pass-cli has no authenticated session
-  ansible.builtin.assert:
-    that:
-      - talos_bootstrap_pass_session.rc == 0
-      - talos_bootstrap_pass_session.stdout | from_json is mapping
-    fail_msg: >-
-      No authenticated pass-cli session. Export
-      {{ proton_pass_pat_env }}=pst_... and run `pass-cli login` before
-      day-1 (needed for the local PAT store), then re-run the play.
-    success_msg: "pass-cli session authenticated."
 
 - name: Store PAT locally for day-2 ESO Secret apply
   # Day-1 runs pre-Flux (no external-secrets ns on the cluster): store only.
