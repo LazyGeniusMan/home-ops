@@ -15,3 +15,18 @@ talos_bootstrap_pat_filename: proton-pass-pat
 # Example: pass-cli agent create <agent-name>
 #   --expiration {{ talos_bootstrap_pat_expiration }} [--vault <cluster-vault>]
 talos_bootstrap_pat_expiration: 1y
+# Day-1 readiness gate tuning: after `apply-config --insecure` each node
+# installs + reboots, so bootstrapping immediately races the reboot window
+# (`FailedPrecondition: bootstrap is not available yet`). L1: TCP 50000
+# reachable per node. L2: authenticated `talosctl version` poll (fails in
+# maintenance mode / during reboot; rc==0 proves configured boot).
+# Bootstrap + kubeconfig fetch retry because slow boots can still lag the
+# gates.
+talos_bootstrap_api_port: 50000
+talos_bootstrap_wait_timeout: 300
+talos_bootstrap_version_retries: 60
+talos_bootstrap_version_delay: 10
+talos_bootstrap_bootstrap_retries: 30
+talos_bootstrap_bootstrap_delay: 10
+talos_bootstrap_kubeconfig_retries: 12
+talos_bootstrap_kubeconfig_delay: 10

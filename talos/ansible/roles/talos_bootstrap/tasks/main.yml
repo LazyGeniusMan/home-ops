@@ -71,6 +71,37 @@
     label: "{{ item.name }}"
   changed_when: false
 
+- name: Wait for Talos API port on installed nodes
+  # L1 readiness gate: after the insecure apply each node installs + reboots,
+  # so the API is briefly down. Ready nodes expose TCP 50000 again post-reboot
+  # (runs from localhost: the day-1 play uses connection: local). Typical
+  # wait is 1-2 min; timeout is generous for slow installs.
+  ansible.builtin.wait_for:
+    host: "{{ item.ip }}"
+    port: "{{ talos_bootstrap_api_port }}"
+    timeout: "{{ talos_bootstrap_wait_timeout }}"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Wait for authenticated Talos API on the bootstrap node
+  # L2 readiness gate: `talosctl version` with the cluster talosconfig fails
+  # in maintenance mode (cert error) and during reboot (connection refused);
+  # rc==0 proves the node installed, rebooted, and booted configured.
+  # `talosctl health` is NOT a pre-bootstrap gate (it only works post-bootstrap).
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_bootstrap_talosctl }} version
+      --talosconfig {{ talos_talosconfig }}
+      -n {{ talos_clusters[talos_cluster].nodes[0].ip }}
+      -e {{ talos_clusters[talos_cluster].nodes[0].ip }}
+  check_mode: false
+  changed_when: false
+  register: talos_bootstrap_version
+  until: talos_bootstrap_version.rc == 0
+  retries: "{{ talos_bootstrap_version_retries }}"
+  delay: "{{ talos_bootstrap_version_delay }}"
+
 - name: Bootstrap etcd on the first control-plane node
   ansible.builtin.command:
     cmd: >-
@@ -80,6 +111,13 @@
       -e {{ talos_clusters[talos_cluster].nodes[0].ip }}
     creates: "{{ talos_build_dir }}/{{ talos_cluster }}/.bootstrapped"
   changed_when: true
+  register: talos_bootstrap_result
+  # `bootstrap` has no wait flags and still races slow boots with
+  # `FailedPrecondition: bootstrap is not available yet` — retry all
+  # non-zero exits (until covers every rc != 0).
+  until: talos_bootstrap_result.rc == 0
+  retries: "{{ talos_bootstrap_bootstrap_retries }}"
+  delay: "{{ talos_bootstrap_bootstrap_delay }}"
 
 - name: Mark cluster bootstrapped
   ansible.builtin.file:
@@ -99,6 +137,11 @@
       -f
     creates: "{{ talos_build_dir }}/{{ talos_cluster }}/kubeconfig"
   changed_when: true
+  register: talos_bootstrap_kubeconfig
+  # The Kubernetes API needs time to come up post-bootstrap.
+  until: talos_bootstrap_kubeconfig.rc == 0
+  retries: "{{ talos_bootstrap_kubeconfig_retries }}"
+  delay: "{{ talos_bootstrap_kubeconfig_delay }}"
 
 - name: Store PAT locally for day-2 ESO Secret apply
   # Day-1 runs pre-Flux (no external-secrets ns on the cluster): store only.

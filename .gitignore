@@ -23,3 +23,5 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+# Ansible tooling artifact dirs (collections/modules/roles checkouts must never be committed)
+**/.ansible/

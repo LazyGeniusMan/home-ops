@@ -241,9 +241,18 @@ Installs machine configs onto maintenance-booted nodes, bootstraps etcd on
 the first node, and fetches the admin kubeconfig. Run **after a successful
 day-0 real run** for the same cluster.
 
-Role step order (`talos_bootstrap`): `apply-config --insecure` per node →
-`bootstrap` on `nodes[0]` → `kubeconfig` fetch → marker files → login check
-+ local store (`build/<cluster>/proton-pass-pat`, `0600`, `no_log`).
+Role step order (`talos_bootstrap`): auth check (PAT env + `pass-cli`
+session) → `apply-config --insecure` per node →
+readiness wait (TCP 50000 per node, then authenticated `talosctl version`
+poll on `nodes[0]`) → `bootstrap` on `nodes[0]` (retried) → `kubeconfig`
+fetch (retried) → marker files → local PAT store
+(`build/<cluster>/proton-pass-pat`, `0600`, `no_log`).
+
+> The readiness wait fixes the day-1 bootstrap race: nodes install + reboot
+> right after the insecure apply, so bootstrapping immediately fails with
+> `FailedPrecondition: bootstrap is not available yet`. Expect 1–2 min of
+> waiting on a normal run; gates allow up to ~10 min for slow installs
+> (tunables: `talos_bootstrap_*` in `roles/talos_bootstrap/defaults/main.yml`).
 Day-1 runs pre-Flux (no `external-secrets` namespace yet) — store only,
 never apply. The PAT is the vault credential itself, so it stays in
 `build/<cluster>/` (gitignored) and is never seeded back into the vault
