@@ -235,7 +235,12 @@ the first node, and fetches the admin kubeconfig. Run **after a successful
 day-0 real run** for the same cluster.
 
 Role step order (`talos_bootstrap`): `apply-config --insecure` per node →
-`bootstrap` on `nodes[0]` → `kubeconfig` fetch → marker files.
+`bootstrap` on `nodes[0]` → `kubeconfig` fetch → marker files → PAT assert
++ local store (`build/<cluster>/proton-pass-pat`, `0600`, `no_log`).
+Day-1 runs pre-Flux (no `external-secrets` namespace yet) — store only,
+never apply. The PAT is the vault credential itself, so it stays in
+`build/<cluster>/` (gitignored) and is never seeded back into the vault
+it unlocks.
 
 ### 2.1 Command
 
@@ -255,6 +260,39 @@ Optional apply mode override (default `auto`):
 # Working dir: talos/ansible/
 ansible-playbook playbooks/day1.yml -i localhost, -e talos_cluster=acme-dev-bdo1-talos-apps-01 -e talos_bootstrap_mode=no-reboot
 ```
+
+### 2.1b PAT store (day-1) + one-time interactive `pat create`
+
+Day-1 asserts `PROTON_PASS_PERSONAL_ACCESS_TOKEN` is set (same assert as
+day-0) and writes it to `build/<cluster>/proton-pass-pat` (`0600`,
+`no_log`, gitignored via `ansible/build/`). Needs the same `§0.3` login as
+day-0 — no separate auth.
+
+If no PAT exists yet, mint one **interactively** first (one-time;
+`pass-cli` cannot create PATs inside a PAT/agent session, and day-1
+never auto-creates):
+
+```bash
+export PROTON_PASS_AGENT_REASON=talos-bootstrap-manual-exec-$(openssl rand -hex 8)
+pass-cli personal-access-token create --name home-ops-eso --expiration 1y --output json
+# Save the printed pst_ token, then:
+export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_...
+pass-cli login
+```
+
+Grant the PAT access to the cluster vault if needed:
+
+```bash
+pass-cli personal-access-token access grant \
+  --personal-access-token-name home-ops-eso \
+  --vault-name <cluster> --role viewer
+# e.g. --vault-name acme-dev-bdo1-talos-apps-01
+```
+
+Then run day-1; the store step picks up the exported PAT. Expiration enum
+for `--expiration`: `1h, 1d, 1w, 1m, 3m, 6m, 1y` (default `1y`, mirroring
+`talos_bootstrap_pat_expiration` — doc-only; `-e pat_expiration=...` only
+feeds the day-2 renew/example strings, it never changes the stored file).
 
 ### 2.2 What "insecure-first-boot" means
 
@@ -314,9 +352,10 @@ kubectl --kubeconfig build/$C/kubeconfig get nodes -o wide
 ## 3. Day 2 — operate (`playbooks/day2.yml`)
 
 Default (no flags) is read-only health/etcd. Flags opt into regen,
-re-apply, and version upgrades. Execution order: regen
-talosconfig/kubeconfig → re-apply machine configs → Talos upgrade per
-node → Kubernetes upgrade. Talos always precedes k8s.
+re-apply, version upgrades, and the ESO PAT Secret plane. Execution order:
+regen talosconfig/kubeconfig → re-apply machine configs → Talos upgrade
+per node → Kubernetes upgrade → PAT Secret apply/renew (post-Flux, §3.7).
+Talos always precedes k8s.
 
 ### 3.1 Read-only (safe anytime)
 
@@ -351,6 +390,10 @@ No changes are made without one of the §3.2 flags.
 | `regen_talosconfig` | Rebuilds `talosconfig` from existing secrets bundle (never mints new PKI) | `-e regen_talosconfig=true` |
 | `regen_kubeconfig` | Re-fetches admin kubeconfig via `talosctl kubeconfig -f` | `-e regen_kubeconfig=true` |
 | `reapply_configs` (+ `reapply_mode`, default `staged`) | Re-renders patches (bypasses day-0 `creates:` guards), regenerates machine configs, `apply-config --mode <reapply_mode>` | `-e reapply_configs=true` |
+| `pat_apply` | Applies the stored PAT to the ESO Secret (post-Flux only; skips + explains when the `external-secrets` ns is missing) | `-e pat_apply=true` |
+| `pat_renew` (needs `pat_apply=true`) | Attempts `pass-cli ... renew` first, refreshes the local store when a new `pst_` token parses; blocked PAT/agent sessions skip with the interactive command | `-e pat_apply=true -e pat_renew=true` |
+| `pat_name` | PAT identity for renew (default `home-ops-eso`) | `-e pat_name=home-ops-eso` |
+| `pat_expiration` | Expiration enum for renew (`1h,1d,1w,1m,3m,6m,1y`; default `1y`) | `-e pat_expiration=1y` |
 
 ### 3.3 Talos upgrade (per-node, sequential)
 
@@ -439,6 +482,74 @@ ansible-playbook playbooks/day2.yml -i localhost, \
   -e talos_cluster=acme-dev-bdo1-talos-apps-01 \
   -e reapply_configs=true -e reapply_mode=no-reboot
 ```
+
+### 3.7 ESO PAT Secret apply + renew (post-Flux)
+
+Applies the day-1 stored PAT (`build/<cluster>/proton-pass-pat`) to the
+`external-secrets/proton-pass-pat` Secret (key `pat`) via
+`kubectl --kubeconfig ... create secret --dry-run=client -o yaml | apply`,
+then restarts `deploy/eso-proton-pass` **only when the Secret data
+changed** (the webhook reads `PROTON_PASS_PAT_FILE=/secrets/pat` at
+startup). Run after Flux has installed ESO; pre-Flux the plane skips with
+a note (missing namespace → refresh kubeconfig via `-e
+regen_kubeconfig=true`, or re-run post-Flux). A summary debug reports the
+apply result. All PAT-bearing tasks are `no_log`; Ansible auto-generates
+`PROTON_PASS_AGENT_REASON=talos-operate-<cluster>-exec-<16 hex>` per
+`pass-cli` exec, as on the other planes.
+
+Apply the stored PAT (idempotent; unchanged Secret → no restart):
+
+```bash
+# Working dir: talos/ansible/
+ansible-playbook playbooks/day2.yml -i localhost, \
+  -e talos_cluster=acme-dev-bdo1-talos-apps-01 \
+  -e pat_apply=true
+```
+
+Renew + apply (opt-in; renewal mints a replacement PAT):
+
+```bash
+# Working dir: talos/ansible/
+ansible-playbook playbooks/day2.yml -i localhost, \
+  -e talos_cluster=acme-dev-bdo1-talos-apps-01 \
+  -e pat_apply=true -e pat_renew=true
+```
+
+Custom PAT identity / expiration (defaults `home-ops-eso` / `1y`):
+
+```bash
+# Working dir: talos/ansible/
+ansible-playbook playbooks/day2.yml -i localhost, \
+  -e talos_cluster=acme-dev-bdo1-talos-apps-01 \
+  -e pat_apply=true -e pat_renew=true \
+  -e pat_name=home-ops-eso -e pat_expiration=1y
+```
+
+> ⚠️ **Warning — PAT-session block:** `pass-cli` cannot create/renew PATs
+> while logged in with a PAT/agent session (`Cannot manage ... personal
+> access tokens while logged in with a personal access token or agent
+> session`). The renew step is defensive (`failed_when: false`): on that
+> error it skips and prints the exact interactive command instead — run it
+> in a user-authenticated shell, export the new `pst_` token, then re-run
+> day-2 with `-e pat_apply=true`:
+>
+> ```bash
+> export PROTON_PASS_AGENT_REASON=talos-operate-manual-exec-$(openssl rand -hex 8)
+> pass-cli personal-access-token renew \
+>   --personal-access-token-name home-ops-eso \
+>   --expiration 1y --output json
+> ```
+>
+> When `rc==0` the role extracts the new `pst_` token (JSON or human
+> output) and refreshes the local store; if the output is unparseable it
+> keeps the stored PAT and says so. Renew never fails the play.
+
+> ⚠️ **Warning — PAT expiry (max 1y):** Proton PATs expire after at most
+> one year — renew before expiry or every `ExternalSecret` flips
+> `Ready=False` and the webhook answers `401` (see the external-secrets
+> component README renewal runbook, referenced — not duplicated — here).
+> A stale kubeconfig looks similar (namespace unreachable); refresh first
+> with `-e regen_kubeconfig=true` before assuming expiry.
 
 ---
 
@@ -567,6 +678,7 @@ advertises from the control-plane node (`Layer2VIPConfig` link `enp45s0` /
 | `nodes/<node>/controlplane.yaml` | day-0 `gen config -t controlplane` | Machine config (control-plane nodes) |
 | `nodes/<node>/worker.yaml` | day-0 `gen config -t worker` | Machine config (worker nodes; none today) |
 | `kubeconfig` | day-1 `talosctl kubeconfig -f` | Admin kubeconfig |
+| `proton-pass-pat` (`0600`) | day-1 PAT store (from env; `no_log`) | Local PAT for the day-2 ESO Secret apply — never committed |
 | `.installed-<node>` (`0600`) | day-1 marker | Insecure apply done for that node |
 | `.bootstrapped` (`0600`) | day-1 marker | Etcd bootstrap done (nodes[0]) |
 | `.healthy` | day-2 marker | Health ran once; delete to re-run |
@@ -583,3 +695,7 @@ advertises from the control-plane node (`Layer2VIPConfig` link `enp45s0` /
 | `regen_talosconfig` | day-2 | `false` | Rebuilds talosconfig from existing secrets bundle (see §3.5). |
 | `regen_kubeconfig` | day-2 | `false` | Re-fetches admin kubeconfig (see §3.5). |
 | `reapply_configs` (+ `reapply_mode`, default `staged`) | day-2 | `false` | Re-renders patches + pushes via `apply-config --mode` (see §3.6). |
+| `pat_apply` | day-2 | `false` (stays read-only) | Applies stored PAT to `external-secrets/proton-pass-pat` + conditional webhook restart (see §3.7). |
+| `pat_renew` | day-2 | `false` (needs `pat_apply=true`) | Attempts `pass-cli ... renew` first; blocked PAT sessions skip with the interactive command (see §3.7). |
+| `pat_name` | day-2 | `home-ops-eso` | PAT identity for renew. |
+| `pat_expiration` | day-1 (doc-only) / day-2 | `1y` | Expiration enum (`1h,1d,1w,1m,3m,6m,1y`) for the manual create + renew commands. |

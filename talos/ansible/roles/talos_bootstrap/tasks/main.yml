@@ -52,3 +52,20 @@
       -f
     creates: "{{ talos_build_dir }}/{{ talos_cluster }}/kubeconfig"
   changed_when: true
+
+- name: Check pass-cli PAT is present for local store
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.env', proton_pass_pat_env) | length > 0
+    fail_msg: "Set {{ proton_pass_pat_env }} before day-1 (needed for the local PAT store)."
+    success_msg: "Proton Pass credential available via {{ proton_pass_pat_env }}."
+
+- name: Store PAT locally for day-2 ESO Secret apply
+  # Day-1 runs pre-Flux (no external-secrets ns on the cluster): store only.
+  # The PAT is the vault credential itself, so it is kept in build/<cluster>/
+  # (0600, gitignored) — never seeded back into the vault it unlocks.
+  ansible.builtin.copy:
+    content: "{{ lookup('ansible.builtin.env', proton_pass_pat_env) }}\n"
+    dest: "{{ talos_build_dir }}/{{ talos_cluster }}/{{ talos_bootstrap_pat_filename }}"
+    mode: "0600"
+  no_log: true

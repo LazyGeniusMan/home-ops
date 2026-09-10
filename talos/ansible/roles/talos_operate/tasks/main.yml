@@ -37,6 +37,9 @@
 - name: Regenerate talosconfig or kubeconfig on request
   ansible.builtin.include_tasks: regen.yml
 
+- name: Apply ESO PAT Secret on request (post-Flux)
+  ansible.builtin.include_tasks: pat_secret.yml
+
 - name: Re-apply rendered machine configs on request
   ansible.builtin.include_tasks: reapply.yml
 

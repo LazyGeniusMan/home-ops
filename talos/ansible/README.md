@@ -1,9 +1,11 @@
-# talos/ansible — day-0/1/2 automation (idempotent, talosctl-only)
+# talos/ansible — day-0/1/2 automation (idempotent, talosctl + kubectl)
 
 Day-0 renders per-node machine configs + cluster talosconfig; day-1 applies
-each node's own config, bootstraps etcd, and fetches kubeconfig; day-2 is
-ongoing operate (health, upgrade, config patch). All node contact is
-`talosctl` over the Talos API — no SSH, no kubectl in this tree.
+each node's own config, bootstraps etcd, fetches kubeconfig, and stores the
+Proton Pass PAT locally (`build/<cluster>/proton-pass-pat`); day-2 is
+ongoing operate (health, upgrade, config patch, ESO PAT Secret apply/renew).
+All node contact is `talosctl` over the Talos API — no SSH. `kubectl` is
+used only by the day-2 PAT Secret plane (post-Flux apply + webhook restart).
 
 > Operator? Start with [`RUNBOOK.md`](RUNBOOK.md) — step-by-step Day 0/1/2
 > commands, verification, troubleshooting, and reference tables. This README
@@ -113,7 +115,9 @@ cluster), so each node gets only its own patches, scoped to its role:
 
 Every playbook runs on `hosts: localhost` with `connection: local` (plus
 `transport = local` in `ansible.cfg`); all node contact is `talosctl` over
-the Talos API — no SSH. There are no node entries in any inventory:
+the Talos API — no SSH (`kubectl --kubeconfig build/<cluster>/kubeconfig`
+only for the day-2 ESO PAT Secret plane). There are no node entries in any
+inventory:
 `inventory.example` is an unused localhost-only stub, and
 `group_vars/all.yml` (`talos_clusters`) remains the single IP source.
 

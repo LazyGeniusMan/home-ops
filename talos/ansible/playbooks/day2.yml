@@ -6,6 +6,7 @@
 #   [-e kubernetes_version=<ver>]
 #   [-e regen_talosconfig=true] [-e regen_kubeconfig=true]
 #   [-e reapply_configs=true [-e reapply_mode=staged]]
+#   [-e pat_apply=true [-e pat_renew=true] [-e pat_name=...] [-e pat_expiration=1y]]
 - name: Day-2 operate Talos cluster
   hosts: localhost
   connection: local
@@ -27,3 +28,7 @@
         talos_operate_regen_kubeconfig: "{{ regen_kubeconfig | default(false) | bool }}"
         talos_operate_reapply_configs: "{{ reapply_configs | default(false) | bool }}"
         talos_operate_reapply_mode: "{{ reapply_mode | default('staged') }}"
+        talos_operate_pat_apply: "{{ pat_apply | default(false) | bool }}"
+        talos_operate_pat_renew: "{{ pat_renew | default(false) | bool }}"
+        talos_operate_pat_name: "{{ pat_name | default('home-ops-eso') }}"
+        talos_operate_pat_expiration: "{{ pat_expiration | default('1y') }}"
