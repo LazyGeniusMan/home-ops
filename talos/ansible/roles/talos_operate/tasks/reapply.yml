@@ -120,12 +120,25 @@
   when: talos_operate_reapply_configs | bool
   changed_when: true
 
+- name: Validate regenerated per-node configs
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_operate_talosctl }} validate
+      -c {{ talos_build_dir }}/{{ talos_cluster }}/nodes/{{ item.name }}/{{ talos_machine_roles[item.role] }}.yaml
+      -m metal
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: talos_operate_reapply_configs | bool
+  changed_when: false
+
 - name: Apply machine configs to installed nodes
   ansible.builtin.command:
     cmd: >-
       {{ talos_operate_talosctl }} apply-config
       --talosconfig {{ talos_talosconfig }}
       -n {{ item.ip }}
+      -e {{ item.ip }}
       -f {{ talos_build_dir }}/{{ talos_cluster }}/nodes/{{ item.name }}/{{ talos_machine_roles[item.role] }}.yaml
       --mode {{ talos_operate_reapply_mode }}
   loop: "{{ talos_clusters[talos_cluster].nodes }}"
