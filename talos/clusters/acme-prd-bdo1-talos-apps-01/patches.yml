@@ -5,7 +5,7 @@
 #     --config-patch @patches.yml \
 #     --config-patch @nodes/<node>/patches.yml
 #
-# Secrets: registry credentials are double-brace Proton Pass references.
+# Secrets: registry credentials + NetBird setup key are double-brace Proton Pass references.
 # Render before generating configs (gitignored build/ holds the result):
 #   export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_...
 #   pass-cli inject --in-file patches.yml --out-file ../../ansible/build/acme-prd-bdo1-talos-apps-01/patches.yml
@@ -57,3 +57,9 @@ kind: ResolverConfig
 nameservers:
   - address: 1.1.1.1
   - address: 8.8.8.8
+---
+apiVersion: v1alpha1
+kind: ExtensionServiceConfig
+name: netbird
+environment:
+  - NB_SETUP_KEY="{{ pass://acme-prd-bdo1-talos-apps-01/netbird/setup-key }}"

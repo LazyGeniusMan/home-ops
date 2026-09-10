@@ -51,3 +51,9 @@ kind: ResolverConfig
 nameservers:
   - address: 1.1.1.1
   - address: 8.8.8.8
+---
+apiVersion: v1alpha1
+kind: ExtensionServiceConfig
+name: netbird
+environment:
+  - NB_SETUP_KEY="{{ pass://acme-dev-bdo1-talos-apps-01/netbird/setup-key }}"

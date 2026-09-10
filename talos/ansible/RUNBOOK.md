@@ -121,6 +121,11 @@ patches, per-node schematics + factory IDs, secrets bundle, `talosconfig`,
 per-node machine configs. Validates each machine config with
 `talosctl validate -m metal`. Changes nothing on the nodes.
 
+Prerequisite: each cluster's own Proton Pass vault must hold a `netbird`
+item with a `setup-key` field (referenced per-cluster as
+`pass://<cluster-vault>/netbird/setup-key` in the cluster patch); a missing
+item fails rendering naming the unresolved ref.
+
 Role step order (`talos_render`): `mkdir build/<cluster> 0700` → login check
 → `pass-cli inject` cluster base patch → `pass-cli inject` per-node patches
 → per-node schematic fallback / factory upload / ID-rewrite → `gen secrets`
