@@ -49,8 +49,12 @@ changes.
 
 ### 0.3 Authenticate to Proton Pass
 
-The PAT arrives via environment **only**, never in files. Day-0 asserts it
-is set before touching secrets.
+The PAT arrives via environment **only**, never in files. Login prerequisite:
+**Ansible NEVER logs in** — export the PAT and run `pass-cli login` in your
+shell before any play. Every play probes the existing session first via
+`pass-cli info -o json` (`rc==0` + JSON mapping stdout = logged in;
+logged-out gives `rc=1` + a non-JSON error, even with the env var set) and
+fails fast telling you to export + `pass-cli login`.
 
 ```bash
 # Working dir: anywhere (env is shell-global)
@@ -67,7 +71,9 @@ above is only needed for manual `pass-cli` commands.
 If this step is missed, day-0 fails fast with:
 
 ```text
-Set PROTON_PASS_PERSONAL_ACCESS_TOKEN (pass-cli login) before rendering secrets.
+No authenticated pass-cli session. Export
+PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... and run `pass-cli login` before
+rendering secrets, then re-run the play.
 ```
 
 > ⚠️ **Warning — PAT expiry:** a stale/expired token surfaces as
@@ -114,7 +120,7 @@ patches, per-node schematics + factory IDs, secrets bundle, `talosconfig`,
 per-node machine configs. Validates each machine config with
 `talosctl validate -m metal`. Changes nothing on the nodes.
 
-Role step order (`talos_render`): `mkdir build/<cluster> 0700` → PAT assert
+Role step order (`talos_render`): `mkdir build/<cluster> 0700` → login check
 → `pass-cli inject` cluster base patch → `pass-cli inject` per-node patches
 → per-node schematic fallback / factory upload / ID-rewrite → `gen secrets`
 bundle → `mkdir nodes/<node>` → `gen config -t talosconfig` → per-node
@@ -235,7 +241,7 @@ the first node, and fetches the admin kubeconfig. Run **after a successful
 day-0 real run** for the same cluster.
 
 Role step order (`talos_bootstrap`): `apply-config --insecure` per node →
-`bootstrap` on `nodes[0]` → `kubeconfig` fetch → marker files → PAT assert
+`bootstrap` on `nodes[0]` → `kubeconfig` fetch → marker files → login check
 + local store (`build/<cluster>/proton-pass-pat`, `0600`, `no_log`).
 Day-1 runs pre-Flux (no `external-secrets` namespace yet) — store only,
 never apply. The PAT is the vault credential itself, so it stays in
@@ -261,32 +267,38 @@ Optional apply mode override (default `auto`):
 ansible-playbook playbooks/day1.yml -i localhost, -e talos_cluster=acme-dev-bdo1-talos-apps-01 -e talos_bootstrap_mode=no-reboot
 ```
 
-### 2.1b PAT store (day-1) + one-time interactive `pat create`
+### 2.1b PAT store (day-1) + one-time interactive `agent create`
 
-Day-1 asserts `PROTON_PASS_PERSONAL_ACCESS_TOKEN` is set (same assert as
-day-0) and writes it to `build/<cluster>/proton-pass-pat` (`0600`,
-`no_log`, gitignored via `ansible/build/`). Needs the same `§0.3` login as
-day-0 — no separate auth.
+Day-1 probes the `pass-cli` session (same `info -o json` login check as
+day-0/day-2) and writes `PROTON_PASS_PERSONAL_ACCESS_TOKEN` to
+`build/<cluster>/proton-pass-pat` (`0600`, `no_log`, gitignored via
+`ansible/build/`). Needs the same `§0.3` login as day-0 — no separate auth.
 
-If no PAT exists yet, mint one **interactively** first (one-time;
-`pass-cli` cannot create PATs inside a PAT/agent session, and day-1
+If no token exists yet, mint one **interactively** first (one-time;
+`pass-cli` cannot create agent tokens inside a PAT/agent session, and day-1
 never auto-creates):
 
 ```bash
 export PROTON_PASS_AGENT_REASON=talos-bootstrap-manual-exec-$(openssl rand -hex 8)
-pass-cli personal-access-token create --name home-ops-eso --expiration 1y --output json
-# Save the printed pst_ token, then:
+pass-cli agent create home-ops-eso --expiration 1y --vault <cluster>
+# e.g. --vault acme-dev-bdo1-talos-apps-01 (always JSON output)
+# Save the printed PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... token, then:
 export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_...
 pass-cli login
 ```
 
-Grant the PAT access to the cluster vault if needed:
+Grant the agent access to the cluster vault if needed:
 
 ```bash
-pass-cli personal-access-token access grant \
-  --personal-access-token-name home-ops-eso \
+pass-cli agent access grant home-ops-eso \
   --vault-name <cluster> --role viewer
 # e.g. --vault-name acme-dev-bdo1-talos-apps-01
+```
+
+Delete an agent by name when retiring it:
+
+```bash
+pass-cli agent delete home-ops-eso
 ```
 
 Then run day-1; the store step picks up the exported PAT. Expiration enum
@@ -525,24 +537,25 @@ ansible-playbook playbooks/day2.yml -i localhost, \
   -e pat_name=home-ops-eso -e pat_expiration=1y
 ```
 
-> ⚠️ **Warning — PAT-session block:** `pass-cli` cannot create/renew PATs
-> while logged in with a PAT/agent session (`Cannot manage ... personal
-> access tokens while logged in with a personal access token or agent
-> session`). The renew step is defensive (`failed_when: false`): on that
-> error it skips and prints the exact interactive command instead — run it
-> in a user-authenticated shell, export the new `pst_` token, then re-run
-> day-2 with `-e pat_apply=true`:
+> ⚠️ **Warning — agent-session block:** `pass-cli` cannot create/renew agent
+> tokens while logged in with a PAT/agent session (`Cannot manage ...
+> personal access tokens while logged in with a personal access token or
+> agent session`). The renew step is defensive (`failed_when: false`): on
+> that error it skips and prints the exact interactive command instead —
+> run it in a user-authenticated shell, export the new `pst_` token, then
+> re-run day-2 with `-e pat_apply=true`:
 >
 > ```bash
 > export PROTON_PASS_AGENT_REASON=talos-operate-manual-exec-$(openssl rand -hex 8)
-> pass-cli personal-access-token renew \
->   --personal-access-token-name home-ops-eso \
+> pass-cli agent renew home-ops-eso \
 >   --expiration 1y --output json
 > ```
 >
-> When `rc==0` the role extracts the new `pst_` token (JSON or human
-> output) and refreshes the local store; if the output is unparseable it
-> keeps the stored PAT and says so. Renew never fails the play.
+> When `rc==0` the role extracts the new token (`.token` from the JSON,
+> stripping the `PROTON_PASS_PERSONAL_ACCESS_TOKEN=` prefix, with a `pst_`
+> regex fallback) and refreshes the local store; if the output is
+> unparseable it keeps the stored PAT and says so. Renew never fails the
+> play.
 
 > ⚠️ **Warning — PAT expiry (max 1y):** Proton PATs expire after at most
 > one year — renew before expiry or every `ExternalSecret` flips
@@ -571,7 +584,7 @@ curl -sS -X POST --data-binary @talos/clusters/_base/schematics.yml https://fact
 
 ### 4.2 PAT expired / `pass-cli` failures
 
-Symptom: day-0 PAT assert fails, or `pass-cli inject` errors mid-render.
+Symptom: day-0 login check fails, or `pass-cli inject` errors mid-render.
 
 ```bash
 export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_...
@@ -696,6 +709,6 @@ advertises from the control-plane node (`Layer2VIPConfig` link `enp45s0` /
 | `regen_kubeconfig` | day-2 | `false` | Re-fetches admin kubeconfig (see §3.5). |
 | `reapply_configs` (+ `reapply_mode`, default `staged`) | day-2 | `false` | Re-renders patches + pushes via `apply-config --mode` (see §3.6). |
 | `pat_apply` | day-2 | `false` (stays read-only) | Applies stored PAT to `external-secrets/proton-pass-pat` + conditional webhook restart (see §3.7). |
-| `pat_renew` | day-2 | `false` (needs `pat_apply=true`) | Attempts `pass-cli ... renew` first; blocked PAT sessions skip with the interactive command (see §3.7). |
+| `pat_renew` | day-2 | `false` (needs `pat_apply=true`) | Attempts `pass-cli agent renew` first; blocked agent sessions skip with the interactive command (see §3.7). |
 | `pat_name` | day-2 | `home-ops-eso` | PAT identity for renew. |
 | `pat_expiration` | day-1 (doc-only) / day-2 | `1y` | Expiration enum (`1h,1d,1w,1m,3m,6m,1y`) for the manual create + renew commands. |

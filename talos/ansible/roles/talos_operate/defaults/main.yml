@@ -26,10 +26,10 @@ talos_operate_pat_key: pat
 talos_operate_pat_deployment: eso-proton-pass
 # Local PAT store filename under build/<cluster>/ (0600, gitignored).
 talos_operate_pat_filename: proton-pass-pat
-# PAT identity for the optional renew attempt (needs an interactive user
-# session — pass-cli cannot manage PATs inside a PAT/agent session).
+# Agent identity for the optional renew attempt (needs an interactive user
+# session — pass-cli cannot manage agent tokens inside a PAT/agent session).
 talos_operate_pat_name: home-ops-eso
-# PAT expiration enum for create/renew examples (1h,1d,1w,1m,3m,6m,1y).
+# Agent token expiration enum for create/renew examples (1h,1d,1w,1m,3m,6m,1y).
 talos_operate_pat_expiration: 1y
 # Apply the stored PAT to the cluster Secret (post-Flux only). Default false
 # keeps day-2 read-only; renew additionally needs talos_operate_pat_renew.

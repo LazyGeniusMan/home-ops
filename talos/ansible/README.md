@@ -32,8 +32,13 @@ ansible/
 ## Variables (group_vars/all.yml)
 
 - `proton_pass_pat_env: PROTON_PASS_PERSONAL_ACCESS_TOKEN` — pass-cli PAT
-  arrives via env only, never in files. Authenticate:
-  `export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... ; pass-cli login`
+  arrives via env only, never in files. Login prerequisite (Ansible NEVER
+  logs in — authenticate before running any play):
+  `export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... ; pass-cli login`.
+  Every play probes the session first via `pass-cli info -o json` (`rc==0`
+  + JSON mapping stdout = logged in; logged-out gives `rc=1` + a non-JSON
+  error) and fails fast telling you to export + `pass-cli login`; the env
+  var alone is NOT proof of a session.
   (manual commands can also
   `export PROTON_PASS_AGENT_REASON=talos-render-manual-exec-<16 hex>` for
   audit attribution). Ansible auto-generates a fresh unique

@@ -6,12 +6,36 @@
     state: directory
     mode: "0700"
 
-- name: Check pass-cli PAT is present in the environment
+- name: Check pass-cli session is authenticated
+  # Ansible NEVER logs in: this probes the existing session via
+  # `pass-cli info -o json` (rc==0 + JSON mapping stdout = logged in;
+  # logged-out gives rc=1 + a non-JSON error). check_mode:false so
+  # --check still validates auth. On failure, export
+  # PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... and run `pass-cli login`,
+  # then re-run the play.
+  ansible.builtin.command:
+    cmd: pass-cli info -o json
+  environment:
+    PROTON_PASS_AGENT_REASON: >-
+      {{ talos_render_pass_agent_reason_prefix }}-{{ talos_cluster }}-authcheck-{{
+        lookup('community.general.random_string', length=16,
+        override_all='0123456789abcdef') }}
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  register: talos_render_pass_session
+  no_log: true
+
+- name: Fail when pass-cli has no authenticated session
   ansible.builtin.assert:
     that:
-      - lookup('ansible.builtin.env', proton_pass_pat_env) | length > 0
-    fail_msg: "Set {{ proton_pass_pat_env }} (pass-cli login) before rendering secrets."
-    success_msg: "Proton Pass credential available via {{ proton_pass_pat_env }}."
+      - talos_render_pass_session.rc == 0
+      - talos_render_pass_session.stdout | from_json is mapping
+    fail_msg: >-
+      No authenticated pass-cli session. Export
+      {{ proton_pass_pat_env }}=pst_... and run `pass-cli login` before
+      rendering secrets, then re-run the play.
+    success_msg: "pass-cli session authenticated."
 
 - name: Render cluster patches.yml via pass-cli inject
   # NOTE: intentionally WITHOUT no_log — pass-cli inject with --out-file

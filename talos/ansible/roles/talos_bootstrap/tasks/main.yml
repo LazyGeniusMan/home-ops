@@ -53,12 +53,31 @@
     creates: "{{ talos_build_dir }}/{{ talos_cluster }}/kubeconfig"
   changed_when: true
 
-- name: Check pass-cli PAT is present for local store
+- name: Check pass-cli session is authenticated for local store
+  # Ansible NEVER logs in: probes the existing session via
+  # `pass-cli info -o json` (rc==0 + JSON mapping stdout = logged in;
+  # logged-out gives rc=1 + a non-JSON error). check_mode:false so
+  # --check still validates auth. On failure, export
+  # PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... and run `pass-cli login`,
+  # then re-run the play.
+  ansible.builtin.command:
+    cmd: pass-cli info -o json
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  register: talos_bootstrap_pass_session
+  no_log: true
+
+- name: Fail when pass-cli has no authenticated session
   ansible.builtin.assert:
     that:
-      - lookup('ansible.builtin.env', proton_pass_pat_env) | length > 0
-    fail_msg: "Set {{ proton_pass_pat_env }} before day-1 (needed for the local PAT store)."
-    success_msg: "Proton Pass credential available via {{ proton_pass_pat_env }}."
+      - talos_bootstrap_pass_session.rc == 0
+      - talos_bootstrap_pass_session.stdout | from_json is mapping
+    fail_msg: >-
+      No authenticated pass-cli session. Export
+      {{ proton_pass_pat_env }}=pst_... and run `pass-cli login` before
+      day-1 (needed for the local PAT store), then re-run the play.
+    success_msg: "pass-cli session authenticated."
 
 - name: Store PAT locally for day-2 ESO Secret apply
   # Day-1 runs pre-Flux (no external-secrets ns on the cluster): store only.
