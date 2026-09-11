@@ -27,12 +27,20 @@ provisioning:
   wipe: true
 ---
 apiVersion: v1alpha1
+kind: VolumeConfig
+name: EPHEMERAL
+provisioning:
+  diskSelector:
+    match: system_disk
+  grow: false
+  maxSize: 32GiB
+---
+apiVersion: v1alpha1
 kind: UserVolumeConfig
 name: nvme-data
 provisioning:
   diskSelector:
-    match: disk.dev_path == "/dev/sda"
-  minSize: 1GiB
+    match: system_disk
 filesystem:
   type: xfs
 ---
@@ -42,7 +50,6 @@ name: sata-data
 provisioning:
   diskSelector:
     match: disk.dev_path == "/dev/sdb"
-  minSize: 1GiB
 filesystem:
   type: xfs
 ---
