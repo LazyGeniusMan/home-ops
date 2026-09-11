@@ -22,12 +22,6 @@ patches:
         value: zitadel.homelab-dev.yansyah.my.id
       - op: replace
         path: /spec/vars/1/value
-        value: admin@homelab-dev.yansyah.my.id
-      - op: replace
-        path: /spec/vars/2/value
-        value: user@homelab-dev.yansyah.my.id
-      - op: replace
-        path: /spec/vars/3/value
         value: coder.homelab-dev.yansyah.my.id
     target:
       kind: Terraform

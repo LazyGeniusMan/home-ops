@@ -29,8 +29,8 @@ App writers build against THIS table — do not deviate.
 |---|---|
 | Issuer | `https://zitadel.homelab-dev.yansyah.my.id` |
 | Org | `home-ops` |
-| Users | `admin@homelab-dev.yansyah.my.id` (super-admin, `admin` group + role), `user@homelab-dev.yansyah.my.id` (normal, `users` group + role) |
-| Groups | `admin` (admin@ member), `users` (user@ member) — asserted in the `groups` claim |
+| Users | `admin@homelab-dev.yansyah.my.id` (super-admin, `admin` group + role — bootstrap-owned); non-admin users are owned per consumer app, not by this bootstrap |
+| Groups | `admin` (admin@ member) — asserted in the `groups` claim; per-app `users` membership is owned by each consumer app |
 | Scopes (all clients) | `openid profile email groups` |
 | Flow (all clients) | Authorization code + PKCE, refresh tokens on |
 | Owner: `coder` → client `coder` | `https://coder.homelab-dev.yansyah.my.id/*` (post-logout → `https://coder.homelab-dev.yansyah.my.id/`) |
@@ -55,7 +55,6 @@ refs (`pass://acme-dev-bdo1-talos-apps-01/zitadel/terraform-*`) plus CR
 
 - `domain=zitadel.homelab-dev.yansyah.my.id`
 - `admin_email=admin@homelab-dev.yansyah.my.id`
-- `user_email=user@homelab-dev.yansyah.my.id`
 - Client `redirect_uris`/`post_logout_redirect_uris`: each per-app
   `terraform/` slice rides its own `app_host`/`ui_host` CR vars (same shapes
   as the table above) — no shared client remains.
