@@ -4,6 +4,8 @@ resources:
   - zitadel-secrets.yaml
   - zitadel-db.yaml
   - zitadel-cache.yaml
+  - cosi-keys.yaml
+  - bucketclaims.yaml
   - wildcard-certificate.yaml
   - zitadel-httproute.yaml
   - org-users.yaml

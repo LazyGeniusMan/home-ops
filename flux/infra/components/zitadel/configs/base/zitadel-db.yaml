@@ -10,13 +10,15 @@
 #   (§12, DNS name only, no file dependency) under s3://cnpg-backups/zitadel/.
 #   The bucket prefix must exist before the first Cluster starts (CNPG never
 #   creates buckets). Credentials: cnpg-s3-credentials ExternalSecret synced
-#   by ESO from the COSI-minted BucketInfo JSON (Secret
-#   cnpg-backups-cosi-creds in the cnpg claim namespace) through the
-#   `cosi-cnpg` ClusterSecretStore — GJSON `property` extracts
+#   by ESO from the COSI-minted BucketInfo JSON (Secret zitadel-db-cosi-creds
+#   in THIS namespace) through the in-namespace `zitadel-cosi` SecretStore
+#   (cosi-keys.yaml) — GJSON `property` extracts
 #   spec.secretS3.accessKeyID/accessSecretKey. Target literal keys
 #   (ACCESS_KEY_ID/ACCESS_SECRET_KEY) are unchanged, so the Cluster reference
-#   is untouched. Same bucket, own prefix — no per-namespace claim (a second
-#   claim would fork a second bc-<uuid> bucket).
+#   is untouched. Dedicated claim `zitadel-db` (bucketclaims.yaml) mints these
+#   keys; the destinationPath keeps pointing at the legacy bucket until
+#   cutover (see cosi README "Bucket cutover": copy data to the
+#   COSI-provisioned bucket, then repoint `destinationPath`).
 #   Fallback: the Proton Pass entries (pass://.../cnpg/s3-*) are retained in
 #   the vault; to roll back, repoint secretStoreRef to proton-pass/
 #   ClusterSecretStore with remoteRef keys
@@ -32,8 +34,8 @@ metadata:
 spec:
   refreshInterval: 1h
   secretStoreRef:
-    name: cosi-cnpg
-    kind: ClusterSecretStore
+    name: zitadel-cosi
+    kind: SecretStore
   target:
     name: cnpg-s3-credentials
     template:
@@ -43,11 +45,11 @@ spec:
   data:
     - secretKey: accessKeyId
       remoteRef:
-        key: cnpg-backups-cosi-creds
+        key: zitadel-db-cosi-creds
         property: BucketInfo.spec.secretS3.accessKeyID
     - secretKey: secretAccessKey
       remoteRef:
-        key: cnpg-backups-cosi-creds
+        key: zitadel-db-cosi-creds
         property: BucketInfo.spec.secretS3.accessSecretKey
 ---
 apiVersion: postgresql.cnpg.io/v1

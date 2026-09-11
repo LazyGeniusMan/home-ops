@@ -12,13 +12,15 @@
 #   the base's). The bucket prefix must exist before the first object starts
 #   (Dragonfly never creates buckets). Credentials:
 #   dragonfly-s3-credentials ExternalSecret synced by ESO from the
-#   COSI-minted BucketInfo JSON (Secret dragonfly-backups-cosi-creds in the
-#   dragonfly claim namespace) through the `cosi-dragonfly`
-#   ClusterSecretStore — GJSON `property` extracts
+#   COSI-minted BucketInfo JSON (Secret zitadel-cache-cosi-creds in THIS
+#   namespace) through the in-namespace `zitadel-cosi` SecretStore
+#   (cosi-keys.yaml) — GJSON `property` extracts
 #   spec.secretS3.accessKeyID/accessSecretKey. Target literal keys
 #   (ACCESS_KEY_ID/SECRET_ACCESS_KEY) are unchanged, so spec.env
-#   secretKeyRefs are untouched. Same bucket, own prefix — no per-namespace
-#   claim (a second claim would fork a second bc-<uuid> bucket).
+#   secretKeyRefs are untouched. Dedicated claim `zitadel-cache`
+#   (bucketclaims.yaml) mints these keys; the dir keeps pointing at the
+#   legacy bucket until cutover (see cosi README "Bucket cutover": copy data
+#   to the COSI-provisioned bucket, then repoint `dir`).
 #   Fallback: the Proton Pass entries (pass://.../dragonfly/s3-*) are
 #   retained in the vault; to roll back, repoint secretStoreRef to
 #   proton-pass/ClusterSecretStore with remoteRef keys
@@ -34,8 +36,8 @@ metadata:
 spec:
   refreshInterval: 1h
   secretStoreRef:
-    name: cosi-dragonfly
-    kind: ClusterSecretStore
+    name: zitadel-cosi
+    kind: SecretStore
   target:
     name: dragonfly-s3-credentials
     template:
@@ -45,11 +47,11 @@ spec:
   data:
     - secretKey: accessKeyId
       remoteRef:
-        key: dragonfly-backups-cosi-creds
+        key: zitadel-cache-cosi-creds
         property: BucketInfo.spec.secretS3.accessKeyID
     - secretKey: secretAccessKey
       remoteRef:
-        key: dragonfly-backups-cosi-creds
+        key: zitadel-cache-cosi-creds
         property: BucketInfo.spec.secretS3.accessSecretKey
 ---
 apiVersion: dragonflydb.io/v1alpha1

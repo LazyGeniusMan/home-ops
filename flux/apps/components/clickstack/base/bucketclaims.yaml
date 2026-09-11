@@ -1,0 +1,66 @@
+# COSI-managed buckets for clickstack's own backups (colocated with the
+# consuming component — lands in the `clickstack` tenant namespace via the
+# Fleet `apps` Kustomization's `targetNamespace`).
+# - Claims use BucketClass/seaweedfs, protocol S3. The central controller
+#   creates the cluster-scoped Buckets; the driver (DriverCreateBucket =
+#   req.GetName()) provisions the live buckets in SeaweedFS under
+#   controller-generated names (`bc-<uuid>`) — claim/access names do NOT map
+#   to pre-existing bucket names, so `spec.existingBucketName` is
+#   intentionally unset. Read each live name from its claim's
+#   `status.bucketName` once `status.bucketReady` is true.
+# - `ferretdb` backs the FerretDB CNPG Cluster WAL + base backups
+#   (ferretdb-postgres.yaml); `clickstack` backs the namespace-local CHI S3
+#   backups (clickstack-clickhouse.yaml). Both previously rode shared legacy
+#   buckets (`cnpg-backups` under prefix `ferretdb/`, `clickhouse` under
+#   prefix `clickhouse/clickstack/`) — those legacy buckets keep serving
+#   traffic until cutover: the CNPG `destinationPath`
+#   and the CHI `storage.xml` endpoint stay on the legacy bucket/prefix; copy
+#   data to the COSI-provisioned buckets (see cosi README "Bucket cutover"),
+#   then repoint. Do NOT break existing backups.
+# - Each BucketAccess (BucketAccessClass/seaweedfs-key, authenticationType
+#   KEY) mints S3 keys into its `credentialsSecretName` Secret in THIS
+#   namespace as a `BucketInfo` JSON file (secretS3.endpoint/region/
+#   accessKeyID/accessSecretKey). The driver hands back the INTERNAL
+#   endpoint (http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333).
+# - Credential bridge: the in-namespace `clickstack-cosi` SecretStore
+#   (cosi-keys.yaml) serves both BucketInfo JSONs; the ExternalSecrets use
+#   GJSON `property` (BucketInfo.spec.secretS3.accessKeyID/accessSecretKey),
+#   keeping target literal keys unchanged.
+---
+apiVersion: objectstorage.k8s.io/v1alpha1
+kind: BucketClaim
+metadata:
+  name: ferretdb
+spec:
+  bucketClassName: seaweedfs
+  protocols:
+    - S3
+---
+apiVersion: objectstorage.k8s.io/v1alpha1
+kind: BucketAccess
+metadata:
+  name: ferretdb-access
+spec:
+  bucketAccessClassName: seaweedfs-key
+  bucketClaimName: ferretdb
+  credentialsSecretName: ferretdb-cosi-creds
+  protocol: S3
+---
+apiVersion: objectstorage.k8s.io/v1alpha1
+kind: BucketClaim
+metadata:
+  name: clickstack
+spec:
+  bucketClassName: seaweedfs
+  protocols:
+    - S3
+---
+apiVersion: objectstorage.k8s.io/v1alpha1
+kind: BucketAccess
+metadata:
+  name: clickstack-access
+spec:
+  bucketAccessClassName: seaweedfs-key
+  bucketClaimName: clickstack
+  credentialsSecretName: clickstack-cosi-creds
+  protocol: S3

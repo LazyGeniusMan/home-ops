@@ -1,0 +1,31 @@
+# COSI credential bridge: in-namespace Kubernetes SecretStore reading the
+# COSI-minted BucketInfo JSON (Secret coder-db-cosi-creds, key BucketInfo)
+# via the eso-k8s-reader ServiceAccount. The SA/Role/Binding already exist
+# in coder-secrets.yaml (shared with the `coder-k8s` store — the Role is
+# unrestricted in-namespace, so no second copy is registered here). Same
+# pattern as the rclone-cosi store: server.url omitted (defaults to
+# kubernetes.default), kube-root-ca.crt supplies the API CA. The
+# cnpg-s3-credentials ExternalSecret (in coder-db.yaml) uses GJSON
+# `property` (BucketInfo.spec.secretS3.accessKeyID/accessSecretKey) —
+# verified against ESO v2.10.0 providers/v1/kubernetes/client.go
+# getFromSecretData.
+---
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: coder-cosi
+  labels:
+    app.kubernetes.io/name: coder
+    app.kubernetes.io/part-of: coder
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: coder
+      server:
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        serviceAccount:
+          name: eso-k8s-reader

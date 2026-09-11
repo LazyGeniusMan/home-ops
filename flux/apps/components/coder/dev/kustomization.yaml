@@ -46,7 +46,7 @@ patches:
     target:
       kind: ExternalSecret
       name: coder-db-app-secret
-  # (S3 keys are COSI-minted via the cosi-cnpg ClusterSecretStore — no
+  # (S3 keys are COSI-minted via the coder-cosi SecretStore — no
   # per-env vault ref patch for cnpg-s3-credentials.)
   - patch: |
       - op: replace

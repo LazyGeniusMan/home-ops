@@ -1,0 +1,72 @@
+# COSI credential bridge: in-namespace Kubernetes SecretStore reading the
+# COSI-minted BucketInfo JSONs (Secrets ferretdb-cosi-creds +
+# clickstack-cosi-creds, key BucketInfo) via the SHARED `eso-k8s-reader`
+# ServiceAccount (the same SA backs the clickstack-k8s store in
+# clickstack-secrets.yaml, so the SA/Role/Binding ship here and stay
+# unrestricted: secrets get/list/watch with NO resourceNames +
+# selfsubjectrulesreviews create, in-namespace only). Same pattern as the
+# cnpg/clickhouse/rclone cosi-keys: server.url omitted (defaults to
+# kubernetes.default), kube-root-ca.crt supplies the API CA. One store
+# serves BOTH ExternalSecrets (cnpg-s3-credentials in ferretdb-postgres.yaml
+# + clickhouse-s3-backup in clickstack-secrets.yaml), which use GJSON
+# `property` (BucketInfo.spec.secretS3.accessKeyID/accessSecretKey) —
+# verified against ESO v2.10.0 providers/v1/kubernetes/client.go
+# getFromSecretData.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-k8s-reader
+  labels:
+    app.kubernetes.io/name: clickstack
+    app.kubernetes.io/part-of: clickstack
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eso-k8s-reader
+  labels:
+    app.kubernetes.io/name: clickstack
+    app.kubernetes.io/part-of: clickstack
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["selfsubjectrulesreviews"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eso-k8s-reader
+  labels:
+    app.kubernetes.io/name: clickstack
+    app.kubernetes.io/part-of: clickstack
+subjects:
+  - kind: ServiceAccount
+    name: eso-k8s-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: eso-k8s-reader
+---
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: clickstack-cosi
+  labels:
+    app.kubernetes.io/name: clickstack
+    app.kubernetes.io/part-of: clickstack
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: clickstack
+      server:
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        serviceAccount:
+          name: eso-k8s-reader

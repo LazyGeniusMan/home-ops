@@ -1,0 +1,70 @@
+# COSI-managed buckets for Zitadel (colocated with the consuming component —
+# lands in the `zitadel` tenant namespace via the Fleet `infra-configs`
+# Kustomization's `targetNamespace`). Two dedicated claims decouple Zitadel
+# from the shared buckets: `zitadel-db` backs the CNPG zitadel-db Cluster
+# (replaces the `cnpg-backups`/`zitadel/` shared prefix served via
+# ClusterSecretStore/cosi-cnpg); `zitadel-cache` backs the zitadel-cache
+# Dragonfly snapshots (replaces the `dragonfly-backups`/`zitadel-cache/`
+# shared prefix served via ClusterSecretStore/cosi-dragonfly).
+# - Claims use BucketClass/seaweedfs, protocol S3. The central controller
+#   creates the cluster-scoped Buckets; the driver (DriverCreateBucket =
+#   req.GetName()) provisions the live buckets in SeaweedFS under
+#   controller-generated names (`bc-<uuid>`) — claim/access names do NOT map
+#   to pre-existing bucket names, so `spec.existingBucketName` is
+#   intentionally unset. Read the live names from each claim's
+#   `status.bucketName` once `status.bucketReady` is true.
+# - Existing out-of-band buckets keep serving traffic until cutover: the
+#   zitadel-db Cluster `destinationPath` (`s3://cnpg-backups/zitadel/`) and
+#   the zitadel-cache Dragonfly `dir` (`s3://dragonfly-backups/zitadel-cache/`)
+#   keep pointing at the legacy buckets; copy data to the COSI-provisioned
+#   buckets (see cosi README "Bucket cutover"), then repoint `destinationPath`
+#   / `dir`. Do NOT break existing backups — the credential switch keeps
+#   working against the legacy buckets; these claims are the migration path.
+# - Each BucketAccess (BucketAccessClass/seaweedfs-key, authenticationType
+#   KEY) mints S3 keys into its `credentialsSecretName` Secret in THIS
+#   namespace as a `BucketInfo` JSON file (secretS3.endpoint/region/
+#   accessKeyID/accessSecretKey). The driver hands back the INTERNAL
+#   endpoint (http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333).
+# - Credential bridge: consumers read their keys through the in-namespace
+#   `zitadel-cosi` SecretStore (cosi-keys.yaml) — GJSON `property` extracts
+#   spec.secretS3.accessKeyID/accessSecretKey. Target literal keys are
+#   unchanged, so no consumer workload manifest changed — only the
+#   ExternalSecret `secretStoreRef`/`remoteRef`.
+---
+apiVersion: objectstorage.k8s.io/v1alpha1
+kind: BucketClaim
+metadata:
+  name: zitadel-db
+spec:
+  bucketClassName: seaweedfs
+  protocols:
+    - S3
+---
+apiVersion: objectstorage.k8s.io/v1alpha1
+kind: BucketAccess
+metadata:
+  name: zitadel-db-access
+spec:
+  bucketAccessClassName: seaweedfs-key
+  bucketClaimName: zitadel-db
+  credentialsSecretName: zitadel-db-cosi-creds
+  protocol: S3
+---
+apiVersion: objectstorage.k8s.io/v1alpha1
+kind: BucketClaim
+metadata:
+  name: zitadel-cache
+spec:
+  bucketClassName: seaweedfs
+  protocols:
+    - S3
+---
+apiVersion: objectstorage.k8s.io/v1alpha1
+kind: BucketAccess
+metadata:
+  name: zitadel-cache-access
+spec:
+  bucketAccessClassName: seaweedfs-key
+  bucketClaimName: zitadel-cache
+  credentialsSecretName: zitadel-cache-cosi-creds
+  protocol: S3
