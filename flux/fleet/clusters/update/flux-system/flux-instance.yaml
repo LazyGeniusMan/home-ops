@@ -7,6 +7,13 @@ spec:
   distribution:
     version: "2.x"
     registry: "ghcr.io/fluxcd"
+    # INTENTIONAL DIVERGENCE (automation cluster): no distribution.artifact —
+    # the update cluster only reconciles image-update policies
+    # (clusters/update/automation.yaml) and never serves workloads, so it
+    # stays on the default distribution manifests. Likewise the component set
+    # below is the image-automation subset (no helm/notification/source-watcher
+    # controllers), and sync.verify tracks the flux-fleet-push workflow on
+    # refs/heads/main instead of release tags.
   components:
     - source-controller
     - kustomize-controller

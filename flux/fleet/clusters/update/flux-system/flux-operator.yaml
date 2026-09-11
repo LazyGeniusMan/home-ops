@@ -45,7 +45,7 @@ spec:
           strategy:
             name: RetryOnFailure
             retryInterval: 3m
-        values:
-          multitenancy:
-            enabled: true
-            defaultServiceAccount: flux-operator
+        valuesFrom:
+          - kind: ConfigMap
+            name: flux-operator-values
+            valuesKey: values.yaml

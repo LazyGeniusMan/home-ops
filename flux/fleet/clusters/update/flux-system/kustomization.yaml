@@ -4,3 +4,12 @@ resources:
   - flux-instance.yaml
   - flux-operator.yaml
   - runtime-info.yaml
+configMapGenerator:
+  - name: flux-operator-values
+    namespace: flux-system
+    files:
+      - values.yaml=flux-operator-values.yaml
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    reconcile.fluxcd.io/watch: Enabled
