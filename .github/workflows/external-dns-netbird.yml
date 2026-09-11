@@ -1,4 +1,4 @@
-# external-dns-netbird publish (§6.2).
+# external-dns-netbird publish.
 # Owner: projects/external-dns-netbird
 # Future repo: external-dns-netbird
 # Self-contained: all steps are inline in this file; no local composite
@@ -10,9 +10,6 @@
 #      `file: projects/external-dns-netbird/Dockerfile` -> `./Dockerfile`.
 #   3. Broaden the trigger path filter: `paths: ['projects/external-dns-netbird/**']` -> `['**']`
 #      (or drop the paths filter; keep the `external-dns-netbird-v*` tag filter).
-#   4. Optionally restore the split-ready `workflow_call` inputs (context,
-#      dockerfile; defaults `'.'`/`'./Dockerfile'`) that the old project-local
-#      project-local publish.yml carried (removed in consolidation) for cross-repo calls.
 name: external-dns-netbird
 
 on:
@@ -32,8 +29,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: projects/external-dns-netbird
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: projects/external-dns-netbird/go.mod
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test ./...
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
+        with:
+          working-directory: projects/external-dns-netbird
+
   publish:
     runs-on: ubuntu-latest
+    needs: test
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

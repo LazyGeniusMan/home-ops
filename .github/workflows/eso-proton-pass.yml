@@ -10,9 +10,6 @@
 #      `file: projects/eso-proton-pass/Dockerfile` -> `./Dockerfile`.
 #   3. Broaden the trigger path filter: `paths: ['projects/eso-proton-pass/**']` -> `['**']`
 #      (or drop the paths filter; keep the `eso-proton-pass-v*` tag filter).
-#   4. Optionally restore the split-ready `workflow_call` inputs (context,
-#      dockerfile; defaults `'.'`/`'./Dockerfile'`) that the old project-local
-#      project-local publish.yml carried (removed in consolidation) for cross-repo calls.
 name: eso-proton-pass
 
 on:
@@ -32,8 +29,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: projects/eso-proton-pass
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: projects/eso-proton-pass/go.mod
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test ./...
+
   publish:
     runs-on: ubuntu-latest
+    needs: test
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

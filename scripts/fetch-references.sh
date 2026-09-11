@@ -1,4 +1,7 @@
-##!/usr/bin/env bash
+#!/usr/bin/env bash
+# Manual-only helper: wipes and re-clones upstream reference docs into
+# /tmp/home-ops-docs. No in-repo callers; run by hand when refreshing
+# local reference material.
 set -e
 
 rm -rf /tmp/home-ops-docs

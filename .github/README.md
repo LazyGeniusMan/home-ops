@@ -1,12 +1,8 @@
-# GitHub Actions (single location)
+# GitHub Actions
 
 All executable CI lives in `.github/workflows/` (12 self-contained
-workflows). Each workflow inlines every step it runs — there is no local
-`.github/actions/` directory (the 13 single-caller composite actions were
-inlined into their calling workflows; only pinned external
-`owner/repo@sha` actions are referenced). There are no other first-party
-`.github/` directories anywhere else in the repo (outside vendored
-third-party paths, see below).
+workflows). Each workflow inlines every step it runs — only pinned
+external `owner/repo@sha` actions are referenced.
 
 ## Ownership
 
@@ -54,8 +50,7 @@ Path flips (monorepo -> split):
   `clusters/.../flux-instance.yaml` (moves with the area)
 - Trigger filters: `paths: ['flux/fleet/**']` -> `['**']` (or drop).
   Keep the `image-updates-*` branch guard, the `create` trigger, and the
-  `flux-fleet-v*` tag filter. Optionally restore `workflow_call` inputs for
-  cross-repo calls.
+  `flux-fleet-v*` tag filter.
 
 ### home-ops-infra (from `flux/infra`)
 
@@ -73,8 +68,7 @@ Path flips (monorepo -> split):
 - `run: ... -d flux/infra` -> `-d .`
 - Trigger filters: `paths: ['flux/infra/**', 'flux/fleet/tenants/infra.yaml']` ->
   `['components/**', 'tenants/infra.yaml']` (or drop). Keep the
-  `flux-infra-v*` tag filter. Optionally restore `workflow_call` inputs
-  (`repository-prefix`, `source-prefix`; defaults `''`/`'components'`).
+  `flux-infra-v*` tag filter.
 
 ### home-ops-apps (from `flux/apps`)
 
@@ -92,8 +86,7 @@ Path flips (monorepo -> split):
 - `run: ... -d flux/apps` -> `-d .`
 - Trigger filters: `paths: ['flux/apps/**', 'flux/fleet/tenants/apps.yaml']` ->
   `['components/**', 'tenants/apps.yaml']` (or drop). Keep the
-  `flux-apps-v*` tag filter. Optionally restore `workflow_call` inputs
-  (`repository-prefix`, `source-prefix`; defaults `''`/`'components'`).
+  `flux-apps-v*` tag filter.
 
 ### eso-proton-pass (from `projects/eso-proton-pass`)
 
@@ -104,9 +97,7 @@ Path flips (monorepo -> split):
 - `context: projects/eso-proton-pass` -> `.`
 - `file: projects/eso-proton-pass/Dockerfile` -> `./Dockerfile`
 - Trigger filter: `paths: ['projects/eso-proton-pass/**']` -> `['**']` (or
-  drop); keep the `eso-proton-pass-v*` tag filter. Optionally restore
-  `workflow_call` inputs (`context`, `dockerfile`; defaults `'.'` /
-  `'./Dockerfile'`).
+  drop); keep the `eso-proton-pass-v*` tag filter.
 
 ### external-dns-netbird (from `projects/external-dns-netbird`)
 
@@ -117,16 +108,11 @@ Path flips (monorepo -> split):
 - `context: projects/external-dns-netbird` -> `.`
 - `file: projects/external-dns-netbird/Dockerfile` -> `./Dockerfile`
 - Trigger filter: `paths: ['projects/external-dns-netbird/**']` -> `['**']`
-  (or drop); keep the `external-dns-netbird-v*` tag filter. Optionally
-  restore `workflow_call` inputs (`context`, `dockerfile`; defaults `'.'` /
-  `'./Dockerfile'`).
+  (or drop); keep the `external-dns-netbird-v*` tag filter.
 
 ## Ignored `.github` paths
 
 `find flux projects -type d -name .github` may still report vendored
 third-party copies that are NOT owned by this repo and must be left alone,
 e.g. `flux/fleet/terraform/.terraform/modules/*/.github/` (downloaded
-Terraform modules) and skill fixtures. Only the five first-party subfolder
-dirs (`flux/{fleet,infra,apps}/.github/`,
-`projects/{eso-proton-pass,external-dns-netbird}/.github/`) were in scope,
-and all five are gone.
+Terraform modules) and skill fixtures.

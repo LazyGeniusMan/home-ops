@@ -80,7 +80,7 @@
       "PROTON_PASS_KEY_PROVIDER": "fs"
     },
     "hook": {
-      "on-activate": "  install_talosctl() {\n    cache_dir=\"${FLOX_ENV_CACHE:-$FLOX_ENV_PROJECT/.flox/cache}\"\n    mkdir -p \"$cache_dir/bin\"\n    if [ ! -x \"$cache_dir/bin/talosctl\" ]; then\n      curl -L -o \"$cache_dir/bin/talosctl\" \\\n        \"https://github.com/siderolabs/talos/releases/download/v1.14.0/talosctl-linux-amd64\"\n      chmod +x \"$cache_dir/bin/talosctl\"\n    fi\n  }\n  # install_terraform() {\n  #   cache_dir=\"${FLOX_ENV_CACHE:-$FLOX_ENV_PROJECT/.flox/cache}\"\n  #   mkdir -p \"$cache_dir/bin\"\n  #   if [ ! -x \"$cache_dir/bin/terraform\" ]; then\n  #     curl -fsSL \"https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_linux_amd64.zip\" -o /tmp/terraform.zip \\\n  #       && unzip -o /tmp/terraform.zip -d \"$cache_dir/bin\" \\\n  #       && rm -f /tmp/terraform.zip \\\n  #       && chmod +x \"$cache_dir/bin/terraform\"\n  #   fi\n  # }\n  install_talosctl\n  # install_terraform\n  cd \"$FLOX_ENV_PROJECT\" || return\n"
+      "on-activate": "  install_talosctl() {\n    cache_dir=\"${FLOX_ENV_CACHE:-$FLOX_ENV_PROJECT/.flox/cache}\"\n    mkdir -p \"$cache_dir/bin\"\n    if [ ! -x \"$cache_dir/bin/talosctl\" ]; then\n      curl -L -o \"$cache_dir/bin/talosctl\" \\\n        \"https://github.com/siderolabs/talos/releases/download/v1.14.0/talosctl-linux-amd64\"\n      chmod +x \"$cache_dir/bin/talosctl\"\n    fi\n  }\n  install_talosctl\n  cd \"$FLOX_ENV_PROJECT\" || return\n"
     },
     "profile": {
       "common": "  export PATH=\"$FLOX_ENV_CACHE/bin:$PATH\"\n  alias terraform=tofu\n"
