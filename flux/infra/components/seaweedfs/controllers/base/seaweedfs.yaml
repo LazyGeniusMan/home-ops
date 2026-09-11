@@ -6,7 +6,7 @@
 # Telemetry: operator serviceMonitor + grafanaDashboard stay disabled
 # (unguarded monitors OFF); no usage-reporting knobs exist upstream.
 ---
-apiVersion: source.toolkit.fluxcd.io/v1beta1
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
   name: seaweedfs-operator
@@ -14,7 +14,7 @@ spec:
   interval: 1h
   url: https://seaweedfs.github.io/seaweedfs-operator/
 ---
-apiVersion: source.toolkit.fluxcd.io/v1beta1
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
   name: seaweedfs-csi-driver

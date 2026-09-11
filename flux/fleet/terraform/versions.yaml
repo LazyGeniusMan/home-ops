@@ -1,9 +1,10 @@
 # SINGLE SOURCE for the Flux Operator chart coordinates used by BOTH the
 # GitOps manifests and the Terraform bootstrap. Do not duplicate these
 # coordinates anywhere else:
-# - clusters/*/flux-system/flux-operator.yaml (OCIRepository url + ref.semver
-#   consumed by Flux after bootstrap) MUST reference the same repository and
-#   version recorded here.
+# - clusters/*/flux-system/flux-operator.yaml (OCIRepository url consumed by
+#   Flux after bootstrap) MUST reference the same repository recorded here;
+#   GitOps floats on semver '*' while versions.yaml pins the bootstrap
+#   install (0.59.0).
 # - main.tf reads this file and passes repository/version to the
 #   flux-operator-bootstrap module, and tests/versions.tftest.hcl asserts the
 #   mapping so drift between GitOps and Terraform fails `tofu test`.
