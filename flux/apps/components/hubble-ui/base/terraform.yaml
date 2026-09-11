@@ -86,3 +86,4 @@ spec:
     outputs:
       - client_id
       - client_secret
+      - cookie_secret

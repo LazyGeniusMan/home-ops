@@ -133,12 +133,18 @@ v1alpha2, chart 0.16.5 — see the `tofu-controller` component):
   Rotate by updating the vault entries — ESO syncs and the next reconcile
   picks them up.
 - Outputs: `org_id` + `project_id` + `admin_user_id` + `user_user_id` land
-  in the `zitadel-bootstrap-outputs` Secret (same `zitadel` namespace) for
+  in the bootstrap state Secret
+  (`tfstate-default-zitadel-bootstrap-identity` in the `zitadel` namespace,
+  mirrored to `zitadel-bootstrap-outputs` via `writeOutputsToSecret`) for
   the later per-app Terraform task. All four are plain IDs (non-sensitive)
-  — per-app slices consume them via CR `varsFrom` (Secret → literal `vars`),
-  never via ESO/`pass://`. Only JWT/passwords stay in ESO. Consumer pattern:
-  read the four IDs out of `zitadel-bootstrap-outputs` into the per-app CR
-  `vars` (`org_id`, `admin_user_id`, `user_user_id`, …) instead of looking
+  — per-app slices read them via `data.terraform_remote_state` (in-cluster
+  Kubernetes backend, `namespace: zitadel`), never via ESO/`pass://`. Only
+  JWT/passwords stay in ESO. The read runs as each app's tofu runner SA
+  under a narrow cross-namespace Role + RoleBinding (get+list on the
+  bootstrap state Secret only, owned by the app component) — CR `varsFrom`
+  has no namespace field and cannot cross namespaces. Consumer pattern:
+  reference `data.terraform_remote_state.zitadel.outputs.*`
+  (`org_id`, `admin_user_id`, `user_user_id`, …) instead of looking
   users up by email data source.
 
 One-time prerequisite (manual): the chart has NO FirstInstance bootstrap
