@@ -1,9 +1,10 @@
 # talos/ansible — day-0/1/2 automation (idempotent, talosctl + kubectl)
 
-Day-0 renders per-node machine configs + cluster talosconfig; day-1 applies
-each node's own config, bootstraps etcd, fetches kubeconfig, and stores the
-Proton Pass PAT locally (`build/<cluster>/proton-pass-pat`); day-2 is
-ongoing operate (health, upgrade, config patch, ESO PAT Secret apply/renew).
+Day-0 renders per-node machine configs + cluster talosconfig, and renders
+the ESO webhook PAT from the vault (`build/<cluster>/proton-pass-pat`);
+day-1 applies each node's own config, bootstraps etcd, and fetches
+kubeconfig; day-2 is ongoing operate (health, upgrade, config re-apply,
+ESO PAT Secret apply/renew).
 All node contact is `talosctl` over the Talos API — no SSH. `kubectl` is
 used only by the day-2 PAT Secret plane (post-Flux apply + webhook restart).
 
@@ -31,10 +32,16 @@ ansible/
 
 ## Variables (group_vars/all.yml)
 
-- `proton_pass_pat_env: PROTON_PASS_PERSONAL_ACCESS_TOKEN` — pass-cli PAT
-  arrives via env only, never in files. Login prerequisite (Ansible NEVER
-  logs in — authenticate before running any play):
+- `proton_pass_pat_env: PROTON_PASS_PERSONAL_ACCESS_TOKEN` — pass-cli
+  login gate. The env var gates **login only**: export it and run
+  `pass-cli login` before any play, because Ansible NEVER logs in —
   `export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... ; pass-cli login`.
+  The PAT *value* used by the ESO webhook no longer flows through the
+  shell: day-0 renders it via `pass-cli inject` from the cluster's own
+  `talos/clusters/<cluster>/pat.yml.template` (double-brace ref to
+  `pass://<own-vault>/eso-proton-pass/pat`) into
+  `build/<cluster>/proton-pass-pat` (`0600`, `talos_pat_filename` shared
+  var keeps render/store/apply in sync), and day-2 reads/renews it there.
   Every play first asserts the PAT env var is set/non-empty, then probes
   the session via `pass-cli info -o json` (`rc==0` + JSON mapping stdout =
   logged in; logged-out gives `rc=1` + a non-JSON error) and fails fast
@@ -69,17 +76,22 @@ ansible/
 
 ## Schematics (Image Factory upload + --install-image)
 
-Day-0 resolves each node's installer schematic before `gen config` with
-fallback order (first existing file wins; node is AUTHORITATIVE):
+Day-0 resolves each node's installer schematic before `gen config` by
+deep-merging all three layers (base → cluster → node, recursive
+`combine` with dedup list-union — node holds node-only entries, never
+copies of inherited ones):
 
-1. `talos/clusters/<cluster>/nodes/<node>/schematics.yml`
-2. `talos/clusters/<cluster>/schematics.yml`
-3. `talos/clusters/_base/schematics.yml` (vanilla `customization: {}`)
+1. `talos/clusters/_base/schematics.yml` (shared; vanilla on its own)
+2. `talos/clusters/<cluster>/schematics.yml` (env-wide, e.g. netbird)
+3. `talos/clusters/<cluster>/nodes/<node>/schematics.yml` (node-only,
+   e.g. qemu-guest-agent / intel-ucode + kernel args / nfsd stack)
 
-For each node the role (`roles/talos_render/tasks/schematic.yml`) stages a
-reference copy at `build/<cluster>/schematics-<node>.yml`, uploads it via
+For each node the role (`roles/talos_render/tasks/schematic.yml`) slurps
+all three levels, merges them, then stages a reference copy at
+`build/<cluster>/schematics-<node>.yml`, uploads it via
 `POST https://factory.talos.dev/schematics` (JSON `.id`, raw-ID fallback),
-and persists `schematic-<node>.id` + `schematic-<node>.sha256`. Upload is
+and persists `schematic-<node>.id` + `schematic-<node>.sha256`. Merged
+bytes change → new factory ID on the next day-0 (hash-gated). Upload is
 idempotent: skipped when the schematic hash is unchanged (re-upload only on
 content change). The rendered node patch copies under
 `build/<cluster>/nodes-<node>-patches.yml` get their
@@ -114,9 +126,17 @@ cluster), so each node gets only its own patches, scoped to its role:
 
 `build/` outputs per cluster (all gitignored via `talos/.gitignore`
 `ansible/build/`): `secrets.bundle.yml`, `talosconfig`, `kubeconfig`,
+`proton-pass-pat` (day-0 `pass-cli inject` from the cluster
+`pat.yml.template`; see the backup/save guide in `RUNBOOK.md` §6),
 `patches.yml`, `nodes-<node>-patches.yml`, `nodes/<node>/*.yaml`,
 `schematics-<node>.yml`, `schematic-<node>.id`,
 `schematic-<node>.sha256`.
+
+Each node also runs an NFS server stack: the node schematic layer adds
+`siderolabs/nfsd` + `nfs-utils` + `nfs-server`, configured by
+`EtcFileConfig` `exports` (`/var/mnt/nfs`, LAN-only `192.168.1.0/24`,
+`root_squash`, `fsid=0`) + `netconfig` and a `UserVolumeConfig` named
+`nfs` (see `RUNBOOK.md` §1.6).
 
 ## Inventory (local-only — no node inventory)
 
