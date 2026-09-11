@@ -2,6 +2,22 @@
 # runs without kube-proxy), Gateway API support, Hubble observability, and a
 # single-IP LoadBalancer pool. Chart: oci://quay.io/cilium/charts/cilium
 # (verified tag 1.20.1; OCI is the upstream source of truth).
+# NAMESPACE / BOOTSTRAP HANDOFF: this HelmRelease and the Terraform bootstrap
+# Job (flux/fleet/terraform/main.tf, prerequisites.charts[0]) manage a SINGLE
+# Helm release identity — release `cilium` in namespace `kube-system` on both
+# sides. The Job installs there first (kube-system pre-exists on Talos, so the
+# Job uses create_namespace = false); spec.targetNamespace + spec.
+# storageNamespace below force helm-controller to render AND store the release
+# in kube-system too, instead of defaulting to the HelmRelease object
+# namespace (`cilium`, forced by the infra tenant Kustomization
+# targetNamespace). Without both overrides Flux would install a second,
+# conflicting copy of the CNI while the Job kept managing kube-system. Once
+# helm-controller reconciles, the agent DaemonSet (`cilium` — chart
+# Values.name default — in kube-system) carries the Flux ownership labels and
+# the Job's flux_adoption_check skips the chart (Terraform then stops touching
+# it; kube-system itself stays user-owned and is never adopted). The `cilium`
+# Namespace created by the infra ResourceSet only hosts Flux bookkeeping
+# (OCIRepository/Kustomizations/ServiceAccount) for this tenant.
 # Telemetry: the chart has no usage-reporting/telemetry keys (verified: non-
 # comment values lines matching telemetry|usageReporting|phoneHome|analytics
 # are empty), so there is nothing to switch off.
@@ -28,11 +44,19 @@ metadata:
 spec:
   interval: 1h
   releaseName: cilium
+  # Single release identity with the bootstrap Job: render and store in
+  # kube-system (see header comment). serviceAccountName `flux` still resolves
+  # in the HelmRelease object namespace (`cilium`).
+  targetNamespace: kube-system
+  storageNamespace: kube-system
   serviceAccountName: flux
   chartRef:
     kind: OCIRepository
     name: cilium-chart
   install:
+    # kube-system pre-exists on Talos — never create it (mirrors the Job's
+    # create_namespace = false).
+    createNamespace: false
     strategy:
       name: RetryOnFailure
       retryInterval: 5m
