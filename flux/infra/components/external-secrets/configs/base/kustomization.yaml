@@ -1,3 +1,22 @@
+# Ordering note (webhook-vs-store): ClusterSecretStore/proton-pass and the
+# eso-proton-pass webhook Deployment/Service live in this ONE Kustomization
+# deliberately. Splitting them into separate Kustomizations would need a
+# cross-Kustomization dependsOn inside this tenant's configs/<<env>>, which
+# the tenants/infra.yaml layout does not express — and tenants/*.yaml is
+# owned by a parallel task, so do not work around this there.
+# Fresh-cluster behavior is EXPECTED to fail-then-heal, never silently:
+# on the very first sync the store may report Ready=False (and downstream
+# ExternalSecrets with it) until the webhook Deployment is Ready. This
+# self-heals via the store's retrySettings (maxRetries 5, retryInterval 5m)
+# plus refreshInterval 1h on every ExternalSecret. Alert on a store or
+# ExternalSecret that stays Ready=False beyond ~10m — that is a real fault
+# (webhook down, PAT missing/expired), not first-sync noise.
+# Manual bootstrap prerequisite (out-of-band, values never committed): the
+# proton-pass-pat Secret must exist in the external-secrets namespace BEFORE
+# this Kustomization first reconciles, or the webhook Deployment stays
+# Pending (missing secret volume) and nothing can sync. One-time command
+# plus the PAT-expiry/rollout-restart runbook live in
+# eso-proton-pass-webhook.yaml and the component README.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:

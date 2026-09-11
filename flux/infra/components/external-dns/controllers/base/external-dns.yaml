@@ -5,6 +5,12 @@
 #  - external-dns-cloudflare: authoritative public DNS (CF_API_TOKEN from ESO).
 #  - external-dns-netbird: NetBird Custom Zones via the in-repo webhook
 #    sidecar (projects/external-dns-netbird, :dev), PAT via NETBIRD_PAT_FILE.
+# Image stream: the webhook sidecar tag below is an intentional
+# single-stream :dev (branch pushes) for ALL envs — prd runs the dev stream
+# too. Promoting prd to :latest stays deferred until the first
+# external-dns-netbird-v* tagged release exists (policy
+# infra:external-dns-netbird in update-policies/external-dns.yaml tracks
+# :dev in alignment).
 # TXT ownership: distinct txtOwnerId/txtPrefix per instance so the two
 # registries never clobber each other. policy sync on both.
 # Sources include Gateway API routes so §8 Gateways/HTTPRoutes sync without

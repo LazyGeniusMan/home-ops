@@ -5,6 +5,15 @@
 # intentionally leaves it unset like the upstream D2 reference.
 # Renewal: cert-manager renews at 2/3 of the issued lifetime automatically;
 # chart bumps flow through update-policies/cert-manager.yaml + PR automation.
+# PREREQUISITE (ordering): the ExternalSecret above resolves through
+# ClusterSecretStore/proton-pass (external-secrets configs/) — it reports
+# Ready=False until the store is Ready (webhook Deployment + out-of-band
+# proton-pass-pat bootstrap; see the external-secrets README). The
+# ClusterIssuer cannot issue, and the wildcard Certificate stays NotReady,
+# until the cloudflare-api-token Secret syncs. Cross-tenant ordering is owned
+# by tenants/*.yaml (parallel task — do not add it here). Fresh-cluster
+# NotReady is EXPECTED and heals via ESO refreshInterval (1h) +
+# cert-manager retries; alert past ~10m.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

@@ -4,17 +4,32 @@ resources:
   - ../base
 patches:
   # Dev Proton Pass vault (pass://acme-dev-bdo1-talos-apps-01).
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-dev-bdo1-talos-apps-01/external-dns/cloudflare-api-token
-    target:
+  # Merge patches keyed by ExternalSecret name (no positional /spec/data/0
+  # path): each secret carries a single data entry here, so replacing the
+  # list wholesale sets the vault key without index fragility.
+  - target:
       kind: ExternalSecret
       name: cloudflare-api-token
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-dev-bdo1-talos-apps-01/external-dns/netbird-pat
-    target:
+    patch: |-
+      apiVersion: external-secrets.io/v1
+      kind: ExternalSecret
+      metadata:
+        name: cloudflare-api-token
+      spec:
+        data:
+          - secretKey: apiToken
+            remoteRef:
+              key: pass://acme-dev-bdo1-talos-apps-01/external-dns/cloudflare-api-token
+  - target:
       kind: ExternalSecret
       name: netbird-pat
+    patch: |-
+      apiVersion: external-secrets.io/v1
+      kind: ExternalSecret
+      metadata:
+        name: netbird-pat
+      spec:
+        data:
+          - secretKey: pat
+            remoteRef:
+              key: pass://acme-dev-bdo1-talos-apps-01/external-dns/netbird-pat

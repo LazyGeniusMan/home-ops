@@ -12,6 +12,24 @@ TXT ownership: distinct `txtOwnerId`/`txtPrefix` per instance
 (`home-ops-prd-cloudflare`/`extdns-cf-`,
 `home-ops-prd-netbird`/`extdns-nb-`); `policy: sync` on both.
 
+## Ordering prerequisite runbook
+
+Both configs/ `ExternalSecret`s resolve through
+`ClusterSecretStore/proton-pass` (external-secrets configs/), which needs
+the eso-proton-pass webhook Ready plus the out-of-band `proton-pass-pat`
+bootstrap (see the external-secrets README "PAT renewal" runbook).
+Cross-tenant ordering is owned by tenants/*.yaml (parallel task). On a fresh
+cluster expect fail-then-heal: `Ready=False` on these secrets, and the
+controllers/ `HelmRelease`s CrashLooping on the missing synced Secrets,
+until ESO syncs — heals via `refreshInterval` + Flux `retryInterval`.
+Alert past ~10m. Verify: `kubectl get clustersecretstore proton-pass`;
+`kubectl -n external-dns get externalsecret,secret`.
+
+`stg/` is RESERVED/UNUSED (see the headers in configs/stg and
+controllers/stg) — no cluster renders it, so it cannot fight prd over the
+TXT registry/domain. Dev and prd TXT scope (`txtOwnerId`, `domainFilters`)
+lives in controllers/{dev,prd}; vault keys live in configs/{dev,prd}.
+
 ## Wildcard record
 
 Sources include Gateway API routes, so the §8 Gateway/HTTPRoutes produce

@@ -1,20 +1,45 @@
+# STG OVERLAY — RESERVED/UNUSED: no cluster renders ./stg (ENVIRONMENT is
+# dev on acme-dev-bdo1-talos-apps-01 and prd on acme-prd-bdo1-talos-apps-01;
+# ENVIRONMENT=stg exists only on the update automation cluster, which
+# reconciles update-policies — not component overlays). The patches below
+# mirror prd values (pass://acme-prd-bdo1-talos-apps-01 vault — NOT a
+# distinct stg vault; no stg vault exists) so the overlay stays buildable and
+# prd-shaped if a real stg environment is ever defined; until then it is
+# inert and CANNOT fight prd over vault keys because it is never rendered.
+# Kept (not removed) so the {base,dev,stg,prd} layout stays uniform (see
+# flux/fleet/README.md). If stg ever becomes real, give it its own vault
+# keys, domain, and txtOwnerIds — do not point it at prd scope.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../base
 patches:
-  # Prd Proton Pass vault (pass://acme-prd-bdo1-talos-apps-01).
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/external-dns/cloudflare-api-token
-    target:
+  # Merge patches keyed by ExternalSecret name (no positional /spec/data/0
+  # path): each secret carries a single data entry here, so replacing the
+  # list wholesale sets the vault key without index fragility.
+  - target:
       kind: ExternalSecret
       name: cloudflare-api-token
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/external-dns/netbird-pat
-    target:
+    patch: |-
+      apiVersion: external-secrets.io/v1
+      kind: ExternalSecret
+      metadata:
+        name: cloudflare-api-token
+      spec:
+        data:
+          - secretKey: apiToken
+            remoteRef:
+              key: pass://acme-prd-bdo1-talos-apps-01/external-dns/cloudflare-api-token
+  - target:
       kind: ExternalSecret
       name: netbird-pat
+    patch: |-
+      apiVersion: external-secrets.io/v1
+      kind: ExternalSecret
+      metadata:
+        name: netbird-pat
+      spec:
+        data:
+          - secretKey: pat
+            remoteRef:
+              key: pass://acme-prd-bdo1-talos-apps-01/external-dns/netbird-pat

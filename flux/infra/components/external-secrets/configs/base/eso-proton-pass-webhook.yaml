@@ -2,9 +2,20 @@
 # (projects/eso-proton-pass, pull-only). Registered implicitly: the
 # ClusterSecretStore above addresses it by Service DNS; no ESO chart values
 # change is needed. Liveness /metrics come from the app itself.
-# Secret bootstrap (one-time, out-of-band — values never committed):
+# BOOTSTRAP PREREQUISITE (assert, do not skip): the proton-pass-pat Secret
+# must already exist in the external-secrets namespace or this Deployment
+# stays Pending (missing secret volume) and the store + every downstream
+# ExternalSecret stay Ready=False. Create it ONE TIME, out-of-band — values
+# never committed:
 #   pass show --field=pat 'acme-prd-bdo1-talos-apps-01/external-secrets/proton-pass-pat' \
 #     | kubectl -n external-secrets create secret generic proton-pass-pat --from-file=pat=/dev/stdin
+# Verify before relying on syncs:
+#   kubectl -n external-secrets get secret proton-pass-pat && \
+#   kubectl get clustersecretstore proton-pass -o jsonpath='{.status.conditions}'
+# PAT ROLLOUT (expiry at most 1y): after rotating the Secret value, the
+# webhook reads the PAT file at startup, so a restart is REQUIRED to pick it
+# up: kubectl -n external-secrets rollout restart deploy/eso-proton-pass.
+# Full expiry-timeline runbook: see the component README ("PAT renewal").
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -51,6 +62,11 @@ spec:
           type: RuntimeDefault
       containers:
         - name: eso-proton-pass
+          # Image stream: intentional single-stream :dev (branch pushes) for
+          # ALL envs — prd runs the dev stream too. Promoting prd to :latest
+          # stays deferred until the first eso-proton-pass-v* tagged release
+          # exists (policy infra:eso-proton-pass in
+          # update-policies/external-secrets.yaml tracks :dev in alignment).
           image: ghcr.io/lazygeniusman/home-ops/infra/eso-proton-pass:dev # {"$imagepolicy": "infra:eso-proton-pass"}
           imagePullPolicy: IfNotPresent
           ports:

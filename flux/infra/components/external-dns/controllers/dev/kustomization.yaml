@@ -4,25 +4,45 @@ resources:
   - ../base
 patches:
   # Dev DNS scope: homelab-dev.yansyah.my.id (home-ops-dev-cloudflare / home-ops-dev-netbird).
-  - patch: |
-      - op: replace
-        path: /spec/values/txtOwnerId
-        value: home-ops-dev-cloudflare
-      - op: replace
-        path: /spec/values/domainFilters/0
-        value: homelab-dev.yansyah.my.id
-    target:
+  # Merge patches (no positional paths): txtOwnerId + domainFilters are
+  # wholesale scalar/single-item values, so a merge replaces them cleanly.
+  # The webhook DOMAIN_FILTER env entry below stays a test-guarded RFC 6902
+  # patch — provider.webhook.env is an ordered list with no merge key on
+  # this CRD, so wholesale replacement would silently drop future base env
+  # entries; the `test` op fails the build loudly if the entry ever moves
+  # from index 1 (same guard pattern as flux/fleet/tenants/overlays).
+  - target:
       kind: HelmRelease
       name: external-dns-cloudflare
+    patch: |-
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata:
+        name: external-dns-cloudflare
+      spec:
+        values:
+          txtOwnerId: home-ops-dev-cloudflare
+          domainFilters:
+            - homelab-dev.yansyah.my.id
+  - target:
+      kind: HelmRelease
+      name: external-dns-netbird
+    patch: |-
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata:
+        name: external-dns-netbird
+      spec:
+        values:
+          txtOwnerId: home-ops-dev-netbird
+          domainFilters:
+            - homelab-dev.yansyah.my.id
   - patch: |
-      - op: replace
-        path: /spec/values/txtOwnerId
-        value: home-ops-dev-netbird
+      - op: test
+        path: /spec/values/provider/webhook/env/1/name
+        value: DOMAIN_FILTER
       - op: replace
         path: /spec/values/provider/webhook/env/1/value
-        value: homelab-dev.yansyah.my.id
-      - op: replace
-        path: /spec/values/domainFilters/0
         value: homelab-dev.yansyah.my.id
     target:
       kind: HelmRelease

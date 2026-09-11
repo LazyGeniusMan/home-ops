@@ -19,6 +19,17 @@ External Secrets Operator v2.10.0 + in-cluster Proton Pass webhook
 `external-dns`, later §§10-13). Refresh `1h` + `retrySettings`
 (maxRetries 5, retryInterval 5m) cover rotation/retry.
 
+## First-sync ordering runbook
+
+`ClusterSecretStore/proton-pass` and the eso-proton-pass webhook live in one
+Kustomization by design (see configs/base/kustomization.yaml). On a fresh
+cluster expect fail-then-heal: the store (and downstream ExternalSecrets)
+report `Ready=False` until the webhook Deployment is Ready; this self-heals
+via store `retrySettings` + per-secret `refreshInterval`. Assert the
+`proton-pass-pat` bootstrap Secret exists first (verify commands in
+configs/base/eso-proton-pass-webhook.yaml). Alert only if `Ready=False`
+persists past ~10m.
+
 ## Bootstrap (pass-cli, one-time, never committed)
 
 ```sh

@@ -1,6 +1,10 @@
 # Update policy for the external-dns component (§9): tracks the OCI Helm chart, and the
 # ImageUpdateAutomation (update cluster) opens PRs via markers in
 # components/external-dns (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+# Image-stream alignment: the infra:external-dns-netbird policy tracks the
+# :dev stream that controllers/base pins (intentional single-stream — see the
+# note in controllers/base/external-dns.yaml). Scoping prd to :latest stays
+# deferred until the first external-dns-netbird-v* tagged release exists.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
