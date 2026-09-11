@@ -38,7 +38,7 @@ pass show --field=pat 'acme-prd-bdo1-talos-apps-01/external-secrets/proton-pass-
   | kubectl -n external-secrets create secret generic proton-pass-pat --from-file=pat=/dev/stdin
 ```
 
-## PAT renewal runbook (no terraform move)
+## PAT renewal runbook
 
 The Proton Pass PAT is a plain Kubernetes Secret (`proton-pass-pat` in
 `external-secrets`, key `pat`) — there is intentionally no Terraform or

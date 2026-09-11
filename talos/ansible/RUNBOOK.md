@@ -465,9 +465,8 @@ and `talosctl etcd members` (against `nodes[0]`), both with
 `failed_when: false` — they report via debug output and never fail the play.
 No changes are made without one of the §3.2 flags.
 
-Health runs on **every** day-2 invocation (a former `creates:
-build/<cluster>/.healthy` guard used to skip it after the first run;
-removed — skip explicitly with `-e skip_health=true`).
+Health runs on **every** day-2 invocation; skip explicitly with
+`-e skip_health=true`.
 
 ### 3.2 Flags (opt-in upgrades, regen, re-apply)
 

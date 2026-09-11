@@ -50,8 +50,8 @@
     success_msg: "pass-cli session authenticated."
 
 - name: Check cluster health
-  # Always runs: a `creates: .healthy` guard used to disable this after the
-  # first run (see RUNBOOK §4.3 history). Skip explicitly instead:
+  # Always runs on every invocation; skip explicitly instead (see RUNBOOK
+  # §3.1):
   #   ansible-playbook playbooks/day2.yml -i localhost, -e talos_cluster=<c> -e skip_health=true
   ansible.builtin.command:
     cmd: >-

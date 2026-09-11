@@ -26,14 +26,15 @@ OCI is the upstream source of truth, verified by pull:
   (`index.md`, `getting_started.md`, `release.yaml`); the CRD install policy
   (`Create`/`CreateReplace`) mirrors upstream `release.yaml`.
 
-## Compatibility note
+## Compatibility
 
-Upstream support matrix lists **v0.16 <-> Flux v2.6.x** (source controller
-v1.7.x, Terraform v1.5.7); this repo runs **Flux v2.9.4**. No v0.16.x chart
-restriction on the Flux version was found in the pulled values/templates
-(controller talks to source/notification over stable cluster-DNS endpoints),
-but if reconciliation misbehaves after install, check the Flux changelogs for
-source/notification API drift first.
+Verified at authoring against the pulled chart (0.16.5): no Flux-version
+restriction in values/templates — the controller reaches
+source-controller and notification-controller over stable cluster-DNS
+endpoints. This repo runs Flux 2.x via the Flux Operator (`FluxInstance`
+`distribution.version: "2.x"`). If reconciliation misbehaves after
+install, check the Flux changelogs for source/notification API drift
+first.
 
 ## Layout
 
