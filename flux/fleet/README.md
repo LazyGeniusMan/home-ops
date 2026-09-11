@@ -5,7 +5,8 @@ Operator lifecycle, tenant delivery (`tenants/`), and the Terraform bootstrap
 (`terraform/`). Adapted from the upstream
 [d2-fleet](https://github.com/controlplaneio-fluxcd/d2-fleet) reference
 (clusters match the Talos clusters in `talos/clusters/`; components are
-onboarded per-directory in §§8-14).
+onboarded per-directory in `flux/apps/components/` and
+`flux/infra/components/`).
 
 ## Layout
 
@@ -26,10 +27,10 @@ flux/fleet/
 │   ├── policies.yaml    # source allowlist + ValidatingAdmissionPolicy
 │   ├── infra.yaml       # ResourceSet: per-component namespace + OCIRepository + Kustomizations
 │   ├── apps.yaml        # ResourceSet: per-component namespace + OCIRepository + Kustomizations
-│   └── overlays/        # per-cluster selection (one dir per cluster, pass-through by default)
+│   └── overlays/        # per-cluster selection (one dir per cluster; prd pass-through, dev skips win11-vm)
 │       ├── README.md    # mechanism, onboarding, CLUSTER_NAME/CLUSTER_DOMAIN consumption
-│       ├── acme-prd-bdo1-talos-apps-01/  # prd overlay (full set by default)
-│       └── acme-dev-bdo1-talos-apps-01/  # dev overlay (full set by default)
+│       ├── acme-prd-bdo1-talos-apps-01/  # prd overlay (full set, no patches active)
+│       └── acme-dev-bdo1-talos-apps-01/  # dev overlay (skips win11-vm via active patch)
 └── terraform/           # OpenTofu bootstrap of the Flux Operator (no live apply in CI)
 ```
 

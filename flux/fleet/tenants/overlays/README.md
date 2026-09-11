@@ -6,11 +6,9 @@ One directory per workload cluster, named exactly like the cluster:
 tenants/overlays/
 ├── README.md                          # this file
 ├── acme-dev-bdo1-talos-apps-01/       # ENVIRONMENT=dev, ARTIFACT_TAG=dev
-│   └── kustomization.yaml             # pass-through + commented example:
-│                                      # OPTIONAL dev skips win11-vm + talos-vm
+│   └── kustomization.yaml             # active patch: skips win11-vm
 └── acme-prd-bdo1-talos-apps-01/       # ENVIRONMENT=prd, ARTIFACT_TAG=stable
-    └── kustomization.yaml             # pass-through + commented example:
-                                       # OPTIONAL prd-only policy note
+    └── kustomization.yaml             # pass-through + commented policy example
 ```
 
 Each overlay holds a single `kustomization.yaml` — no sidecar patch files —
@@ -22,8 +20,8 @@ each `kustomization.yaml`). Example patches live as commented inline
 ## How it works
 
 Each `clusters/<name>/tenants.yaml` (a Flux Kustomization) syncs
-`path: ./tenants/overlays/<name>` instead of the old shared `./tenants`.
-Each overlay kustomization lists the three shared ResourceSets as resources:
+`path: ./tenants/overlays/<name>`. Each overlay kustomization lists the
+three shared ResourceSets as resources:
 
 ```yaml
 resources:
@@ -32,9 +30,9 @@ resources:
   - ../../policies.yaml
 ```
 
-Default behavior is **unchanged**: with no `patches:` active, the overlay
-renders byte-equivalent ResourceSets to the old shared path (proven by the
-default-equivalence check below).
+With no `patches:` active, the overlay renders the shared set as-is.
+The dev overlay has one active patch (removes the `win11-vm` input from
+the `apps` ResourceSet); the prd overlay has no active patches.
 
 ## One mechanism for apps + infra + policies
 
@@ -52,7 +50,7 @@ ResourceSets. Why JSON patches and not strategic-merge `$patch: delete`?
 - Removals go **highest index first** so earlier ops do not shift later
   targets. Re-check the 0-based index in `tenants/apps.yaml` (or
   `infra.yaml`) every time you write a patch; the current order is noted in
-  the commented example block of each overlay `kustomization.yaml`.
+  the comments of each overlay `kustomization.yaml`.
 
 Patches are inline `patch: |-` YAML blocks (not separate `path:` files and
 not `*.json`) so the op list stays readable and every file remains a valid
@@ -60,9 +58,9 @@ manifest.
 
 ## Adding a per-cluster exception (onboarding)
 
-1. Uncomment the example `patches:` block in
-   `tenants/overlays/<cluster>/kustomization.yaml` (or add a new inline RFC
-   6902 patch; keep `test` guards on list removals, highest index first).
+1. Add an inline RFC 6902 `patches:` block in
+   `tenants/overlays/<cluster>/kustomization.yaml` (keep `test` guards on
+   list removals, highest index first).
 2. Verify locally:
    `kustomize build flux/fleet/tenants/overlays/<cluster> --load-restrictor=LoadRestrictionsNone`
 3. Open a PR; CI (`flux-fleet-validate`) auto-discovers the overlay
@@ -76,16 +74,13 @@ manifest.
    `path: ./tenants/overlays/<new-cluster>`.
 3. Extend this README's tree + the fleet README layout.
 
-## Default-equivalence proof
+## Verifying an overlay renders
 
-With no patches active, each overlay must render exactly the shared set:
+To confirm an overlay renders the expected set:
 
 ```bash
-for f in apps infra policies; do
-  kustomize build flux/fleet/tenants/overlays/<cluster> \
-    --load-restrictor=LoadRestrictionsNone \
-  | python3 -c "import sys,yaml; ..."   # compare spec.inputs per ResourceSet
-done
+kustomize build flux/fleet/tenants/overlays/<cluster> \
+  --load-restrictor=LoadRestrictionsNone
 ```
 
 (The `flux-system` OCIRepository `flux-system` built by the operator runs
