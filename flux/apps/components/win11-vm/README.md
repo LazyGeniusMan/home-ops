@@ -48,11 +48,10 @@ Microsoft licensing means the ISO URL is never committed. To provision:
 
 `stg` and `prd` carry a static MAC on the `lan` bridge interface so the
 router (192.168.1.1) hands each VM a stable DHCP lease / reservation (`dev`
-is a passthrough with no static MAC). The MAC is a literal on the VM spec
-(`macAddress` is a plain string field ESO cannot inject); Proton Pass
-mirrors the same value, and the `win11-vm-network` ExternalSecret syncs it
-into a `win11-vm-network` Secret (`lan-mac` key) for operational consumers
-(router DHCP reservations).
+is a passthrough with no static MAC). The MAC lives only as a literal on the
+per-env overlay patch (`macAddress` is a plain string field — no ESO, no
+Secret); Proton Pass holds a manual mirror of the same value (`lan-mac`
+item) for the operator to read when creating the router DHCP reservation.
 
 Safety rules for every MAC below:
 
@@ -68,10 +67,10 @@ Safety rules for every MAC below:
 | stg | `52:54:00:02:0B:01` | `pass://acme-prd-bdo1-talos-apps-01/win11-vm/lan-mac` |
 | prd | `52:54:00:03:0B:01` | `pass://acme-prd-bdo1-talos-apps-01/win11-vm/lan-mac` |
 
-Mirror warning: the per-env patch literal, the vault value, and the synced
-`win11-vm-network` Secret must all agree — if either side changes, update
-both. User action: create a `lan-mac` item holding the env's MAC under
-`<vault>/win11-vm/` in Proton Pass.
+Mirror warning: the per-env patch literal and the vault value must agree —
+just two copies, nothing else to keep in step. If either side changes, update
+both. User action: create a `lan-mac` item holding the env's exact literal
+under `<vault>/win11-vm/` in Proton Pass.
 
 ## Firmware
 

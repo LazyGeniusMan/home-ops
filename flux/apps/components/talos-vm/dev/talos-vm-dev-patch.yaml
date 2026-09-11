@@ -1,10 +1,10 @@
 # Dev-only talos-vm patch: minimal specs (v1.14 worker minima — boot+DHCP
 # only: 1 core / 1Gi / 10Gi) + static `lan` bridge MAC. The MAC is a literal
 # here because KubeVirt `macAddress` is a plain string ESO cannot inject —
-# mirror the SAME value in Proton Pass at
-# pass://acme-dev-bdo1-talos-apps-01/talos-vm/lan-mac (vault = source of
-# truth; the talos-vm-network ExternalSecret syncs it for router DHCP
-# reservations). If either side changes, update both.
+# mirror the SAME value manually in Proton Pass at
+# pass://acme-dev-bdo1-talos-apps-01/talos-vm/lan-mac (manual mirror for
+# router DHCP reservations; the patch literal is the single source of
+# truth). If either side changes, update both.
 - op: replace
   path: /spec/template/spec/domain/cpu/cores
   value: 1

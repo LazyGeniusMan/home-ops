@@ -8,12 +8,3 @@ patches:
     target:
       kind: VirtualMachine
       name: talos-vm
-  # Substitute the vault literal (coder ESO idiom): base holds
-  # `__PROTON_PASS_BASE__/...` remoteRefs only, never values.
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/talos-vm/lan-mac
-    target:
-      kind: ExternalSecret
-      name: talos-vm-network

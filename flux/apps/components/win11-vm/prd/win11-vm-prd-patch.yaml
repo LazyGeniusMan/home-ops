@@ -1,9 +1,9 @@
 # Prd-only win11-vm patch: static `lan` bridge MAC (specs unchanged from
 # base). The MAC is a literal here because KubeVirt `macAddress` is a plain
-# string ESO cannot inject — mirror the SAME value in Proton Pass at
-# pass://acme-prd-bdo1-talos-apps-01/win11-vm/lan-mac (vault = source of
-# truth; the win11-vm-network ExternalSecret syncs it for router DHCP
-# reservations). If either side changes, update both.
+# string ESO cannot inject — mirror the SAME value manually in Proton Pass
+# at pass://acme-prd-bdo1-talos-apps-01/win11-vm/lan-mac (manual mirror
+# for router DHCP reservations; the patch literal is the single source of
+# truth). If either side changes, update both.
 - op: add
   path: /spec/template/spec/domain/devices/interfaces/1/macAddress
   # vault: pass://acme-prd-bdo1-talos-apps-01/win11-vm/lan-mac
