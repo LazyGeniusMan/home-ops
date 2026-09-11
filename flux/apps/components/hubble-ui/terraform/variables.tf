@@ -4,18 +4,6 @@ variable "domain" {
   default     = "zitadel.home-ops.yansyah.my.id"
 }
 
-variable "admin_email" {
-  description = "Super-admin human user email"
-  type        = string
-  default     = "admin@home-ops.yansyah.my.id"
-}
-
-variable "user_email" {
-  description = "Normal member human user email"
-  type        = string
-  default     = "user@home-ops.yansyah.my.id"
-}
-
 variable "app_host" {
   description = "Public Hubble UI hostname (no scheme; redirect https://<app-host>/* covers the proxy callback /oauth2/callback)"
   type        = string

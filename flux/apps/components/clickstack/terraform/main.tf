@@ -57,13 +57,12 @@ resource "zitadel_project_role" "user" {
   group        = "clickstack"
 }
 
-# Users come from the zitadel bootstrap remote-state outputs (stored IDs —
-# no email lookup needed). Admin (super-admin, ORG_OWNER) gets clickstack-admin;
-# the normal user gets clickstack-user. Only clickstack-admin may sign in —
-# the per-app oauth2-proxy sidecar gates on `--allowed-group=clickstack-admin`.
+# Admin user comes from the zitadel bootstrap remote-state output (stored ID —
+# no email lookup needed). Admin (super-admin, ORG_OWNER) gets clickstack-admin.
+# Only clickstack-admin may sign in — the per-app oauth2-proxy sidecar gates
+# on `--allowed-group=clickstack-admin` (admin-only UI, no user grant).
 locals {
   admin_user_id = data.terraform_remote_state.zitadel.outputs.admin_user_id
-  user_user_id  = data.terraform_remote_state.zitadel.outputs.user_user_id
 }
 
 resource "zitadel_user_grant" "admin" {
@@ -71,13 +70,6 @@ resource "zitadel_user_grant" "admin" {
   project_id = zitadel_project.clickstack.id
   user_id    = local.admin_user_id
   role_keys  = ["clickstack-admin"]
-}
-
-resource "zitadel_user_grant" "user" {
-  org_id     = data.zitadel_org.home_ops.id
-  project_id = zitadel_project.clickstack.id
-  user_id    = local.user_user_id
-  role_keys  = ["clickstack-user"]
 }
 
 # OIDC client (code flow + PKCE, refresh tokens; scopes openid profile email

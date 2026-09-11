@@ -58,14 +58,12 @@ resource "zitadel_project_role" "user" {
   group        = "hubble-ui"
 }
 
-# Users come from the zitadel bootstrap remote-state outputs (stored IDs —
-# no email lookup needed). Admin (super-admin, ORG_OWNER) gets hubble-ui-admin;
-# the normal user gets hubble-ui-user. The proxy gate stays admin-only
-# (--allowed-group=hubble-ui-admin), so only the admin grant gates access
-# today; the user role/grant is provisioned for the day the gate widens.
+# Admin user comes from the zitadel bootstrap remote-state output (stored ID —
+# no email lookup needed). Admin (super-admin, ORG_OWNER) gets hubble-ui-admin.
+# The proxy gate stays admin-only (--allowed-group=hubble-ui-admin), so only
+# the admin grant gates access (admin-only UI, no user grant).
 locals {
   admin_user_id = data.terraform_remote_state.zitadel.outputs.admin_user_id
-  user_user_id  = data.terraform_remote_state.zitadel.outputs.user_user_id
 }
 
 resource "zitadel_user_grant" "admin" {
@@ -73,13 +71,6 @@ resource "zitadel_user_grant" "admin" {
   project_id = zitadel_project.hubble_ui.id
   user_id    = local.admin_user_id
   role_keys  = ["hubble-ui-admin"]
-}
-
-resource "zitadel_user_grant" "user" {
-  org_id     = data.zitadel_org.home_ops.id
-  project_id = zitadel_project.hubble_ui.id
-  user_id    = local.user_user_id
-  role_keys  = ["hubble-ui-user"]
 }
 
 # oauth2-proxy cookie secret, generated in-Tofu (32 random bytes, base64 —

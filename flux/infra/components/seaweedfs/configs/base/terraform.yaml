@@ -10,7 +10,7 @@
 # upstream (checkDependencies resolves every entry as kind Terraform), so NO
 # dependsOn entry here — the fleet ordering above is the mechanism. Same
 # shape as flux/infra/components/zitadel/configs/base/terraform-bootstrap.yaml.
-# Upstream wiring: org_id + admin/user IDs flow from the zitadel bootstrap
+# Upstream wiring: org_id + admin ID flows from the zitadel bootstrap
 # slice via `data.terraform_remote_state` (in-cluster Kubernetes backend,
 # state Secret `tfstate-default-zitadel-bootstrap-identity` in the `zitadel`
 # namespace) — NO org_id var, NO manual per-env fill, NO email lookups.

@@ -94,8 +94,9 @@ Path-style buckets only; every bucket consumer needs an IAM identity:
   ImageRepository/ImagePolicy tracks it yet).
 - `terraform.yaml` + `terraform/`: the `seaweedfs-sso` CR owns this
   component's Zitadel slice (project + project-scoped roles
-  `seaweedfs-admin`/`seaweedfs-user` + grants + the `seaweedfs` OIDC
-  client). Upstream IDs (org_id + admin/user user IDs) come from the
+  `seaweedfs-admin`/`seaweedfs-user` + the admin grant + the `seaweedfs` OIDC
+  client; admin-only UI, no user grant). Upstream IDs (org_id + admin user ID)
+  come from the
   zitadel bootstrap state (`tfstate-default-zitadel-bootstrap-identity`,
   zitadel ns) via `data.terraform_remote_state` (in-cluster Kubernetes
   backend) — no org_id literal, no email data-source lookups, no ESO

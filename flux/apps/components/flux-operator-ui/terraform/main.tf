@@ -58,14 +58,12 @@ resource "zitadel_project_role" "user" {
   group        = "flux-operator-ui"
 }
 
-# Users come from the zitadel bootstrap remote-state outputs (stored IDs —
+# Admin user comes from the zitadel bootstrap remote-state output (stored ID —
 # no email lookup needed). Admin (super-admin, ORG_OWNER) gets
-# flux-operator-ui-admin; the normal user gets flux-operator-ui-user. Only the
-# admin role passes the oauth2-proxy `--allowed-group` gate (admin-only UI
-# stays admin-only).
+# flux-operator-ui-admin. Only the admin role passes the oauth2-proxy
+# `--allowed-group` gate (admin-only UI, no user grant).
 locals {
   admin_user_id = data.terraform_remote_state.zitadel.outputs.admin_user_id
-  user_user_id  = data.terraform_remote_state.zitadel.outputs.user_user_id
 }
 
 resource "zitadel_user_grant" "admin" {
@@ -73,13 +71,6 @@ resource "zitadel_user_grant" "admin" {
   project_id = zitadel_project.flux_operator_ui.id
   user_id    = local.admin_user_id
   role_keys  = ["flux-operator-ui-admin"]
-}
-
-resource "zitadel_user_grant" "user" {
-  org_id     = data.zitadel_org.home_ops.id
-  project_id = zitadel_project.flux_operator_ui.id
-  user_id    = local.user_user_id
-  role_keys  = ["flux-operator-ui-user"]
 }
 
 # OIDC client (code flow + PKCE, refresh tokens; scopes openid profile email

@@ -34,7 +34,6 @@ data "terraform_remote_state" "zitadel_bootstrap" {
 locals {
   org_id        = data.terraform_remote_state.zitadel_bootstrap.outputs.org_id
   admin_user_id = data.terraform_remote_state.zitadel_bootstrap.outputs.admin_user_id
-  user_user_id  = data.terraform_remote_state.zitadel_bootstrap.outputs.user_user_id
 }
 
 # Component project: the roles/grants below are scoped HERE, so
@@ -64,23 +63,15 @@ resource "zitadel_project_role" "user" {
   group        = "seaweedfs"
 }
 
-# Grants bind the stored bootstrap user IDs directly (no email lookups).
-# Admin (super-admin) gets seaweedfs-admin; the normal user gets
-# seaweedfs-user. The filer UI stays admin-only via the proxy's
-# --allowed-group=seaweedfs-admin (see ui-auth.yaml); the user grant exists so
-# a future read-only gate can bind it without touching the project.
+# Grant binds the stored bootstrap admin ID directly (no email lookups).
+# Admin (super-admin) gets seaweedfs-admin. The filer UI stays admin-only via
+# the proxy's --allowed-group=seaweedfs-admin (see ui-auth.yaml; no user
+# grant).
 resource "zitadel_user_grant" "admin" {
   org_id     = local.org_id
   project_id = zitadel_project.seaweedfs.id
   user_id    = local.admin_user_id
   role_keys  = ["seaweedfs-admin"]
-}
-
-resource "zitadel_user_grant" "user" {
-  org_id     = local.org_id
-  project_id = zitadel_project.seaweedfs.id
-  user_id    = local.user_user_id
-  role_keys  = ["seaweedfs-user"]
 }
 
 # oauth2-proxy cookie secret, generated in-Tofu (32 random bytes, base64 —

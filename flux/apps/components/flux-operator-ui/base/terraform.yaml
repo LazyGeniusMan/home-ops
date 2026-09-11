@@ -16,7 +16,7 @@
 # must be seeded at pass://<env-vault>/zitadel/terraform-jwt-profile-json
 # (shared instance key, mirrored into this namespace — same pattern as the
 # cloudflare-api-token mirrors). Without the key the CR retries on interval.
-# Upstream wiring: org_id + admin/user IDs flow from the zitadel bootstrap
+# Upstream wiring: org_id + admin ID flow from the zitadel bootstrap
 # slice via `data.terraform_remote_state` (in-cluster Kubernetes backend,
 # state Secret `tfstate-default-zitadel-bootstrap-identity` in the `zitadel`
 # namespace) — NO org_id var, NO manual per-env fill, NO email lookups.
@@ -76,10 +76,6 @@ spec:
   vars:
     - name: domain
       value: __ZITADEL_HOST__
-    - name: admin_email
-      value: admin@__BASE_DOMAIN__
-    - name: user_email
-      value: user@__BASE_DOMAIN__
     - name: app_host
       value: __SERVICE_HOST__
   varsFrom:
