@@ -66,9 +66,11 @@ ExternalSecret mirrors the shared instance key
 service-user key the zitadel bootstrap uses — mirrored per namespace like
 the cloudflare-api-token mirrors). That JWT key is the ONLY remaining
 pass:// dependency for SSO. Without the key the CR retries on interval.
-Upstream identity (org_id + admin/user IDs) flows from the zitadel bootstrap
+Upstream identity (org_id + admin user ID) flows from the zitadel bootstrap
 slice via `data.terraform_remote_state` (in-cluster Kubernetes backend) —
-no `org_id` var, no manual per-env fill, no email lookups.
+no `org_id` var, no manual per-env fill, no email lookups. Normal users are
+owned by this slice (`zitadel_human_user.users`, created from
+`var.user_emails`; empty = admin-only).
 
 ## Plugins (pluginsManager sidecar, all pinned)
 

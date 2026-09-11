@@ -4,16 +4,17 @@ variable "domain" {
   default     = "zitadel.home-ops.yansyah.my.id"
 }
 
-variable "admin_email" {
-  description = "Super-admin human user email"
-  type        = string
-  default     = "admin@home-ops.yansyah.my.id"
+variable "user_emails" {
+  description = "Normal users to create + grant coder-user (empty = admin-only)"
+  type        = list(string)
+  default     = []
 }
 
-variable "user_email" {
-  description = "Normal member human user email"
+variable "user_initial_password" {
+  description = "Initial password for normal users (rotate after first login; shared across users in this slice)"
   type        = string
-  default     = "user@home-ops.yansyah.my.id"
+  sensitive   = true
+  default     = null
 }
 
 variable "app_host" {

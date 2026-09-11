@@ -71,10 +71,6 @@ spec:
   vars:
     - name: domain
       value: __ZITADEL_HOST__
-    - name: admin_email
-      value: admin@__BASE_DOMAIN__
-    - name: user_email
-      value: user@__BASE_DOMAIN__
     - name: app_host
       value: __SERVICE_HOST__
   varsFrom:

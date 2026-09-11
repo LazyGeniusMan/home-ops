@@ -57,13 +57,11 @@ resource "zitadel_project_role" "user" {
   group        = "coder"
 }
 
-# Users come from the zitadel bootstrap remote-state outputs (stored IDs —
-# no email lookup needed). Admin (super-admin, ORG_OWNER) gets coder-admin;
-# the normal user gets coder-user. Both groups sign in; Coder-side
-# ownership/RBAC distinguishes them (see the app README).
+# Admin comes from the zitadel bootstrap remote-state output (stored ID — no
+# email lookup needed); normal users are owned HERE (per-app decoupling —
+# the bootstrap slice is admin-only). Empty user_emails = admin-only.
 locals {
   admin_user_id = data.terraform_remote_state.zitadel.outputs.admin_user_id
-  user_user_id  = data.terraform_remote_state.zitadel.outputs.user_user_id
 }
 
 resource "zitadel_user_grant" "admin" {
@@ -73,10 +71,31 @@ resource "zitadel_user_grant" "admin" {
   role_keys  = ["coder-admin"]
 }
 
-resource "zitadel_user_grant" "user" {
+# Normal users: plain org members (roles=[]) + coder-user grant. Coder-side
+# ownership/RBAC distinguishes them from the admin (see the app README).
+resource "zitadel_human_user" "users" {
+  for_each          = toset(var.user_emails)
+  org_id            = data.zitadel_org.home_ops.id
+  user_name         = each.value
+  first_name        = "Home-Ops"
+  last_name         = "User"
+  email             = each.value
+  is_email_verified = true
+  initial_password  = var.user_initial_password
+}
+
+resource "zitadel_org_member" "users" {
+  for_each = zitadel_human_user.users
+  org_id   = data.zitadel_org.home_ops.id
+  user_id  = each.value.id
+  roles    = []
+}
+
+resource "zitadel_user_grant" "users" {
+  for_each   = zitadel_human_user.users
   org_id     = data.zitadel_org.home_ops.id
   project_id = zitadel_project.coder.id
-  user_id    = local.user_user_id
+  user_id    = each.value.id
   role_keys  = ["coder-user"]
 }
 

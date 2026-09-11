@@ -24,8 +24,10 @@ Coder speaks OIDC natively against the §11.1 issuer. SSO is owned by THIS
 app (per-app decoupling — the central zitadel module owns no clients):
 
 - `terraform/` — owns the `coder` Zitadel project + project-scoped roles
-  `coder-admin` / `coder-user` + user grants + the `coder` OIDC client.
-  Upstream identity (org_id + admin/user IDs) flows from the zitadel
+  `coder-admin` / `coder-user` + user grants + the `coder` OIDC client +
+  the normal users themselves (`zitadel_human_user.users`, created from
+  `var.user_emails`; empty = admin-only).
+  Upstream identity (org_id + admin user ID) flows from the zitadel
   bootstrap slice via `data.terraform_remote_state` (in-cluster Kubernetes
   backend, state Secret `tfstate-default-zitadel-bootstrap-identity` in the
   `zitadel` namespace) — no `org_id` var, no manual per-env fill, no email
