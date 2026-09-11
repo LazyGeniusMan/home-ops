@@ -64,6 +64,47 @@ provisioning:
 filesystem:
   type: xfs
 ---
+# NFS server stack (nfs-server README §Requirements + Configuration).
+# Backing store: UserVolumeConfig <name> mounts at /var/mnt/<name>, so the
+# volume MUST be named `nfs` for the /etc/exports line below (/var/mnt/nfs,
+# byte-identical to upstream README example) to resolve. (Brief sketched
+# `nfs-data`; that would mount at /var/mnt/nfs-data and the export path would
+# not exist — exportfs -r would fail and the server would never start.)
+# system_disk (/dev/nvme0, 512 GB NVMe) is the ONLY disk on this host — the
+# /dev/sda sata-data volume above pends on a disk that does not exist (AHCI
+# controller is vfio-pci passthrough). EPHEMERAL is capped at 64 GiB, leaving
+# room for nfs as a second system_disk partition alongside nvme-data. Day-0:
+# verify free space with `talosctl get volumestatus/disks`; cap nvme-data
+# with maxSize if the nfs provisioning reports insufficient space.
+apiVersion: v1alpha1
+kind: EtcFileConfig
+name: exports
+mode: 0o644
+contents: |
+  /var/mnt/nfs 192.168.1.0/24(rw,sync,no_subtree_check,fsid=0)
+# Conservative: default root_squash kept (no no_root_squash); fsid=0 marks the
+# NFSv4 pseudo-root. CIDR tightened from the README's 10.0.0.0/8 placeholder
+# to the live LAN both nodes serve (192.168.1.0/24).
+---
+apiVersion: v1alpha1
+kind: EtcFileConfig
+name: netconfig
+mode: 0o644
+contents: |
+  udp        tpi_clts      v     inet     udp     -       -
+  tcp        tpi_cots_ord  v     inet     tcp     -       -
+# libtirpc IPv4 server table (nfs-server README); service path-deps on both
+# /etc/exports and /etc/netconfig — it will not start without them.
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: nfs
+provisioning:
+  diskSelector:
+    match: system_disk
+filesystem:
+  type: xfs
+---
 apiVersion: v1alpha1
 kind: KubeNodeConfig
 nodeIP:
