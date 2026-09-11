@@ -10,13 +10,12 @@
 # Users (human, email-verified, initial passwords rotated after first login):
 # - admin@home-ops.yansyah.my.id — super-admin (instance IAM_OWNER via the
 #   chart's FirstInstance machine bootstrap, then org owner)
-# - user@home-ops.yansyah.my.id — normal member, no admin roles
+# Non-admin users are owned per consumer app, not by this bootstrap.
 # Groups (provider zitadel ~> 3.3 ships no user_group resources — mapped to
 # org membership + project grants, asserted into the `groups` claim):
 # - admin: admin@ as ORG_OWNER + project admin grant
-# - users: user@ as plain org member + project user grant
-# Roles/grants: home-ops project with roles admin / user; user grants bind
-# each user to their role (drives id_token role assertion alongside the
+# Roles/grants: home-ops project with role admin; the admin grant binds the
+# admin user to that role (drives id_token role assertion alongside the
 # groups claim above).
 # OIDC clients (all: code flow + PKCE, refresh tokens on; secrets via ESO,
 # never in Git — see the OIDC contract table in the README). Each app owns
@@ -52,11 +51,6 @@ data:
       lastName: Admin
       groups: [admin]
       roles: [admin]
-    - email: user@__BASE_DOMAIN__
-      firstName: Home-Ops
-      lastName: User
-      groups: [users]
-      roles: [user]
   groups: |
     - admin
     - users

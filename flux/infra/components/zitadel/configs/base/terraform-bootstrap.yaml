@@ -1,12 +1,13 @@
 # Bootstrap identity (§11.1), machine-applied by Tofu Controller.
-# Manages ONLY the Zitadel-side bootstrap: org, 2 human users, org membership
-# (admin=ORG_OWNER), legacy home-ops project + project roles + user grants.
+# Manages ONLY the Zitadel-side bootstrap: org, admin human user, org
+# membership (admin=ORG_OWNER), legacy home-ops project + admin role + grant.
 # OIDC clients live in each app's own per-app terraform/ slice — this
 # bootstrap slice owns none.
 # The pinned provider (zitadel ~> 3.3) ships no zitadel_user_group resources —
 # groups are emulated via org membership + project grants (same pattern as
-# terraform/): admin ≡ ORG_OWNER + admin grant; user ≡ plain member + user
-# grant, asserted into the `groups` claim via the project role assertion.
+# terraform/): admin ≡ ORG_OWNER + admin grant, asserted into the `groups`
+# claim via the project role assertion. Non-admin users are owned per
+# consumer app, not by this bootstrap.
 #
 # Ordering: this object ships in configs/ (fleet `infra-configs` Kustomization
 # dependsOn `infra-controllers`), so it only reconciles after the zitadel
@@ -24,10 +25,10 @@
 # Rotation: update the Proton Pass entries; ESO syncs the Secret and the next
 # reconcile picks the new values up (password rotation takes effect on next
 # user-resource change; JWT rotation is immediate).
-# Outputs: org_id + project_id + admin_user_id + user_user_id land in
+# Outputs: org_id + project_id + admin_user_id land in
 # `zitadel-bootstrap-outputs` for the later per-app Terraform task (plain IDs,
 # non-sensitive — consumed via CR varsFrom, never ESO; only JWT/passwords stay
-# in ESO). Per-app slices read the four IDs from that Secret into their CR
+# in ESO). Per-app slices read the three IDs from that Secret into their CR
 # `vars` (literal, non-sensitive) instead of looking users up by email.
 ---
 apiVersion: external-secrets.io/v1
@@ -77,8 +78,6 @@ spec:
       value: __ZITADEL_HOST__
     - name: admin_email
       value: admin@__BASE_DOMAIN__
-    - name: user_email
-      value: user@__BASE_DOMAIN__
   varsFrom:
     - kind: Secret
       name: zitadel-terraform-vars
@@ -88,4 +87,3 @@ spec:
       - org_id
       - project_id
       - admin_user_id
-      - user_user_id

@@ -93,8 +93,8 @@ App writers build against THIS table — do not deviate.
 |---|---|
 | Issuer | `https://zitadel.home-ops.yansyah.my.id` |
 | Org | `home-ops` |
-| Users | `admin@home-ops.yansyah.my.id` (super-admin, `admin` group + role), `user@home-ops.yansyah.my.id` (normal, `users` group + role) |
-| Groups | `admin` (admin@ member), `users` (user@ member) — asserted in the `groups` claim |
+| Users | `admin@home-ops.yansyah.my.id` (super-admin, `admin` group + role — bootstrap-owned); non-admin users are owned per consumer app, not by this bootstrap |
+| Groups | `admin` (admin@ member) — asserted in the `groups` claim; per-app `users` membership is owned by each consumer app |
 | Scopes (all clients) | `openid profile email groups` |
 | Flow (all clients) | Authorization code + PKCE, refresh tokens on |
 | Owner: `coder` → client `coder` | `https://coder.home-ops.yansyah.my.id/*` (post-logout → `https://coder.home-ops.yansyah.my.id/`) |
@@ -116,9 +116,10 @@ v1alpha2, chart 0.16.5 — see the `tofu-controller` component):
 
 - `configs/base/terraform-bootstrap.yaml` — `zitadel-bootstrap-identity`
   Terraform CR (`approvePlan: auto`, in-cluster state backend) applying the
-  bootstrap slice of `terraform/`: `zitadel_org`, `zitadel_human_user` × 2,
-  `zitadel_org_member` × 2, legacy `zitadel_project` (`home-ops`) + roles +
-  grants. OIDC clients live in each app's own per-app `terraform/` slice —
+  bootstrap slice of `terraform/`: `zitadel_org`, `zitadel_human_user`
+  (admin only), `zitadel_org_member` (admin only), legacy `zitadel_project`
+  (`home-ops`) + admin role + grant. Non-admin users are owned per consumer
+  app. OIDC clients live in each app's own per-app `terraform/` slice —
   this bootstrap slice owns none.
 - `terraform/` — the modules (`zitadel/zitadel ~> 3.3`, `tofu validate`
   passes; the provider ships no `zitadel_user_group` resources, so groups map
@@ -126,17 +127,17 @@ v1alpha2, chart 0.16.5 — see the `tofu-controller` component):
   Single source of truth for the contract table above.
 - `configs/base/org-users.yaml` — human-readable mirror of the intent (kept
   in sync with `terraform/` + the CR `vars` on contract changes).
-- Secrets (`admin_initial_password`, `user_initial_password`,
+- Secrets (`admin_initial_password`,
   `jwt_profile_json`) flow via the ESO `zitadel-terraform-vars` ExternalSecret
   (Proton Pass `pass://<env-vault>/zitadel/terraform-*`, never Git); per-env
   vault paths + `domain`/email `vars` land in the `dev`/`prd`/`stg` overlays.
   Rotate by updating the vault entries — ESO syncs and the next reconcile
   picks them up.
-- Outputs: `org_id` + `project_id` + `admin_user_id` + `user_user_id` land
+- Outputs: `org_id` + `project_id` + `admin_user_id` land
   in the bootstrap state Secret
   (`tfstate-default-zitadel-bootstrap-identity` in the `zitadel` namespace,
   mirrored to `zitadel-bootstrap-outputs` via `writeOutputsToSecret`) for
-  the later per-app Terraform task. All four are plain IDs (non-sensitive)
+  the later per-app Terraform task. All three are plain IDs (non-sensitive)
   — per-app slices read them via `data.terraform_remote_state` (in-cluster
   Kubernetes backend, `namespace: zitadel`), never via ESO/`pass://`. Only
   JWT/passwords stay in ESO. The read runs as each app's tofu runner SA
@@ -144,7 +145,7 @@ v1alpha2, chart 0.16.5 — see the `tofu-controller` component):
   bootstrap state Secret only, owned by the app component) — CR `varsFrom`
   has no namespace field and cannot cross namespaces. Consumer pattern:
   reference `data.terraform_remote_state.zitadel.outputs.*`
-  (`org_id`, `admin_user_id`, `user_user_id`, …) instead of looking
+  (`org_id`, `admin_user_id`, …) instead of looking
   users up by email data source.
 
 One-time prerequisite (manual): the chart has NO FirstInstance bootstrap

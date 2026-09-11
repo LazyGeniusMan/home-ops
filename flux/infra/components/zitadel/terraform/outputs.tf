@@ -13,8 +13,3 @@ output "admin_user_id" {
   value       = zitadel_human_user.admin.id
 }
 
-output "user_user_id" {
-  description = "normal member human user ID (non-sensitive; per-app slices take this via varsFrom, never ESO)"
-  value       = zitadel_human_user.user.id
-}
-
