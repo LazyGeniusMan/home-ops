@@ -10,13 +10,10 @@
 #   `status.bucketName` once `status.bucketReady` is true.
 # - `ferretdb` backs the FerretDB CNPG Cluster WAL + base backups
 #   (ferretdb-postgres.yaml); `clickstack` backs the namespace-local CHI S3
-#   backups (clickstack-clickhouse.yaml). Both previously rode shared legacy
-#   buckets (`cnpg-backups` under prefix `ferretdb/`, `clickhouse` under
-#   prefix `clickhouse/clickstack/`) — those legacy buckets keep serving
-#   traffic until cutover: the CNPG `destinationPath`
-#   and the CHI `storage.xml` endpoint stay on the legacy bucket/prefix; copy
-#   data to the COSI-provisioned buckets (see cosi README "Bucket cutover"),
-#   then repoint. Do NOT break existing backups.
+#   backups (clickstack-clickhouse.yaml). The CNPG `destinationPath`
+#   (`s3://cnpg-backups/ferretdb/`) and the CHI `storage.xml` endpoint target
+#   the COSI-provisioned buckets. The `s3://` path prefixes must exist before
+#   the first Cluster starts (CNPG never creates buckets).
 # - Each BucketAccess (BucketAccessClass/seaweedfs-key, authenticationType
 #   KEY) mints S3 keys into its `credentialsSecretName` Secret in THIS
 #   namespace as a `BucketInfo` JSON file (secretS3.endpoint/region/

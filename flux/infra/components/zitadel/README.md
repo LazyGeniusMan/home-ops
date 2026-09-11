@@ -1,4 +1,4 @@
-# Zitadel (§11.1)
+# Zitadel
 
 Zitadel **v4.17.1** identity provider: the OIDC issuer for
 `https://zitadel.home-ops.yansyah.my.id` plus the locked client contract the
@@ -11,8 +11,9 @@ OCI is the upstream source of truth, verified by pull:
 - `oci://ghcr.io/zitadel/zitadel-charts/zitadel`, tag **10.0.4** (digest
   `sha256:9afa657fad65079857339f7d7fd296c73e577f6c8ec4e4a103093be35964b50c`,
   `helm template` + `helm lint` pass locally).
-- Chart↔app divergence (cnpg-style, unlike §10.3 dragonfly where versions
-  agree): chart **10.0.4** embeds app **v4.15.3**, but the app image is pinned
+- Chart↔app divergence (same split as the cnpg component, unlike the
+  dragonfly component where chart and operator versions agree): chart
+  **10.0.4** embeds app **v4.15.3**, but the app image is pinned
   separately in values (`image.tag` + `login.image.tag` = **v4.17.1**;
   `ghcr.io/zitadel/zitadel:v4.17.1` and
   `ghcr.io/zitadel/zitadel-login:v4.17.1` manifests verified on GHCR). On
@@ -26,35 +27,41 @@ OCI is the upstream source of truth, verified by pull:
   plus the pulled chart `values.yaml`/templates.
 - The `update-policies/zitadel.yaml` floor `>=10.0.4` tracks the CHART line
   (ImageRepository + ImagePolicy + `$imagepolicy` marker
-  `infra:zitadel:tag`, same §7 contract as cert-manager/cnpg/dragonfly).
+  `infra:zitadel:tag`, same image update policy contract as the
+  cert-manager/cnpg/dragonfly components).
 
 ## Layout
 
-Mirrors §9/cert-manager file-for-file: `controllers/{base,prd,stg}`
-(OCIRepository + HelmRelease, env overlays inherit base unchanged) and
-`configs/{base,prd,stg}` (secrets, DB, cache, certificate, routes,
-identity intent + Terraform bootstrap CR).
+Mirrors the cert-manager component file-for-file:
+`controllers/{base,prd,stg}` (OCIRepository + HelmRelease, env overlays
+inherit base unchanged) and `configs/{base,prd,stg}` (secrets, DB, cache,
+certificate, routes, identity intent + Terraform bootstrap CR).
 
-## Dependencies (§§8–10)
+## Dependencies
 
 - Database: `configs/base/zitadel-db.yaml` — namespace-local instantiation of
-  the §10.1 `cluster-base` template (same shape: 3 instances, sync quorum 1,
-  `local-ssd-nvme`, continuous WAL + daily base backup to SeaweedFS S3 under
-  `s3://cnpg-backups/zitadel/`). Adjusted: dbname/owner `zitadel`, own S3
-  prefix. Connection via DSN (`ZITADEL_DATABASE_POSTGRES_DSN` from the
-  `zitadel-db-credentials` ExternalSecret, `sslmode=require`).
+  the cnpg `cluster-base` template
+  (`flux/infra/components/cnpg/configs/base/cluster-base.yaml`; same shape:
+  3 instances, sync quorum 1, `local-ssd-nvme`, continuous WAL + daily base
+  backup to SeaweedFS S3 under `s3://cnpg-backups/zitadel/`). Adjusted:
+  dbname/owner `zitadel`, own S3 prefix. Connection via DSN
+  (`ZITADEL_DATABASE_POSTGRES_DSN` from the `zitadel-db-credentials`
+  ExternalSecret, `sslmode=require`).
 - Cache: `configs/base/zitadel-cache.yaml` — namespace-local instantiation of
-  the §10.3 `dragonfly-base` template (3 replicas, tiered persistence, hourly
-  S3 snapshots under `s3://dragonfly-backups/zitadel-cache/`). Connection
-  contract per the §10.3 README: host
-  `zitadel-cache.zitadel.svc.cluster.local`, port **6379**, no auth.
+  the dragonfly `dragonfly-base` template
+  (`flux/infra/components/dragonfly/configs/base/dragonfly-base.yaml`;
+  3 replicas, tiered persistence, hourly S3 snapshots under
+  `s3://dragonfly-backups/zitadel-cache/`). Connection contract per the
+  dragonfly component README (`flux/infra/components/dragonfly/README.md`):
+  host `zitadel-cache.zitadel.svc.cluster.local`, port **6379**, no auth.
 - Routing: `configs/base/zitadel-httproute.yaml` — two hand-written HTTPRoutes
-  on the shared §8.1 Gateway (`main`, cross-namespace parentRef): `/` → the
-  `zitadel` Service (8080, h2c) and `/ui/v2/login` → `zitadel-login` (3000).
-  Chart-native ingress/gateway templating stays off so the §8.1 pattern is
-  owned explicitly. TLS terminates at the Gateway via the in-namespace
-  wildcard `Certificate` (`wildcard-certificate.yaml`, same duplicate pattern
-  as §8.1 — cert-manager Secrets are namespace-local).
+  on the shared Gateway (`main` in `flux/infra/components/gateway-api/`,
+  cross-namespace parentRef): `/` → the `zitadel` Service (8080, h2c) and
+  `/ui/v2/login` → `zitadel-login` (3000). Chart-native ingress/gateway
+  templating stays off so the gateway-api pattern is owned explicitly. TLS
+  terminates at the Gateway via the in-namespace wildcard `Certificate`
+  (`wildcard-certificate.yaml`, same duplicate pattern as the gateway-api
+  component — cert-manager Secrets are namespace-local).
 - HTTP/2 note: the console requires end-to-end HTTP/2 — the Gateway must
   forward h2c to the backend (the Service already advertises
   `appProtocol: kubernetes.io/h2c`).
@@ -82,8 +89,8 @@ Seed each vault entry with pass-cli:
   `configs/base/bucketclaims.yaml` and the cosi README). The
   `pass://…/{cnpg,dragonfly}/s3-*` vault entries stay seeded as rollback.
 - `pass://acme-prd-bdo1-talos-apps-01/cert-manager/cloudflare-api-token` —
-  same vault path as §9, copied so the DNS-01 secret exists in this
-  namespace too.
+  same vault path as the cert-manager component, copied so the DNS-01
+  secret exists in this namespace too.
 
 ## OIDC contract (LOCKED for wave-3c app writers)
 
@@ -117,7 +124,7 @@ v1alpha2, chart 0.16.5 — see the `tofu-controller` component):
 - `configs/base/terraform-bootstrap.yaml` — `zitadel-bootstrap-identity`
   Terraform CR (`approvePlan: auto`, in-cluster state backend) applying the
   bootstrap slice of `terraform/`: `zitadel_org`, `zitadel_human_user`
-  (admin only), `zitadel_org_member` (admin only), legacy `zitadel_project`
+  (admin only), `zitadel_org_member` (admin only), central `zitadel_project`
   (`home-ops`) + admin role + grant. Non-admin users are owned per consumer
   app. OIDC clients live in each app's own per-app `terraform/` slice —
   this bootstrap slice owns none.
@@ -166,7 +173,8 @@ Proton Pass (never Git).
   telem\*/analytic\*/phone-home/usage-report/tracking returns nothing).
 - Unguarded monitors OFF: the chart's `metrics.enabled` stays `false` and no
   `ServiceMonitor` objects are shipped until `monitoring.coreos.com` CRDs land
-  (same §9 deviation). Flip: set `metrics.enabled: true` plus
+  (same as the cert-manager component). Flip: set `metrics.enabled: true`
+  plus
   `metrics.serviceMonitor.enabled: true` once the monitoring stack exists.
 - App/chart bumps flow through `update-policies/zitadel.yaml` + PR automation
   (remember the chart↔app divergence above: bump the chart tag AND both image

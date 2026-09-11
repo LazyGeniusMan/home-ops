@@ -1,4 +1,4 @@
-# Rclone vault sync (§12.2): SeaweedFS S3 → Proton Drive, image
+# Rclone vault sync: SeaweedFS S3 → Proton Drive, image
 # rclone/rclone:1.75.1. Env-only config — NO rclone.conf file: remotes are
 # defined purely through RCLONE_CONFIG_* variables below, with secrets
 # injected from the base/ ExternalSecret. Shell-form args let SYNC_FLAGS
@@ -46,7 +46,9 @@ spec:
                   value: "--dry-run --verbose"
                 - name: RETENTION_DAYS
                   value: "30"
-                # SeaweedFS S3 remote (the section 12.1 contract endpoint, __S3_ENDPOINT_URL__).
+                # SeaweedFS S3 remote (in-cluster endpoint, __S3_ENDPOINT_URL__ —
+                # patched per env to the SeaweedFS S3 FQDN; see the S3 contract
+                # in flux/infra/components/seaweedfs/README.md).
                 - name: RCLONE_CONFIG_SW_TYPE
                   value: "s3"
                 - name: RCLONE_CONFIG_SW_PROVIDER

@@ -1,9 +1,10 @@
-# CNPG (§10.1)
+# CNPG
 
 CloudNativePG operator **1.30.0** (via Helm chart **0.29.0**) plus a reusable
 HA `Cluster` base template: 3 instances, streaming replication with
-synchronous quorum, `local-ssd-nvme` storage (the §9 default class), Barman
-S3 backup to SeaweedFS, and a `*.postgres.home-ops.yansyah.my.id` wildcard
+synchronous quorum, `local-ssd-nvme` storage (the default StorageClass —
+see `flux/infra/components/local-path-provisioner/`), Barman S3 backup to
+SeaweedFS, and a `*.postgres.home-ops.yansyah.my.id` wildcard
 `Certificate`.
 
 ## Chart source
@@ -17,8 +18,9 @@ OCI is the upstream source of truth, verified by pull:
   **1.30.0** (`appVersion: 1.30.0` in the pulled `Chart.yaml`). The
   `OCIRepository` tag therefore pins the *chart* version; operator 1.30 is
   carried by that chart.
-- Update policy (`update-policies/cnpg.yaml`) follows the §7 contract
-  (ImageRepository + ImagePolicy + `$imagepolicy` marker `infra:cnpg:tag`),
+- Update policy (`flux/infra/update-policies/cnpg.yaml`) follows the image
+  update policy contract (ImageRepository + ImagePolicy + `$imagepolicy`
+  marker `infra:cnpg:tag`),
   but the semver floor is the **chart** line `>=0.29.0` — a `>=1.30` floor
   would never match chart tags and would deaden automation. Chart bumps stay
   on PR review, where the chart→operator mapping is re-verified before merge.
@@ -57,17 +59,16 @@ OCI is the upstream source of truth, verified by pull:
 - Endpoint `http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333`
   (in-cluster SeaweedFS S3 FQDN; the public
   `https://s3.seaweedfs.<domain>` Gateway route is for outside-cluster
-  users only) is referenced by DNS name only — SeaweedFS itself lands in
-  the same wave (§12), so there is no file dependency from this
-  component. The bucket backing `s3://cnpg-backups/` must exist
-  **before** the first Cluster starts (Barman Cloud ≥3.16 only creates the
-  bucket on the check-wal-archive path). Its COSI
-  `BucketClaim`/`BucketAccess` pair lives here in
-  `configs/base/bucketclaims.yaml`. (Former cross-namespace sharers —
-  `zitadel-db`, `coder-db`, `ferretdb` — moved to dedicated in-namespace
-  claims; see the cosi README.) COSI-managed replacement buckets live under
-  controller-generated names — see the cosi README "Bucket cutover"
-  before repointing `destinationPath`.
+  users only) is referenced by DNS name only — SeaweedFS is deployed
+  alongside this component (see `flux/infra/components/seaweedfs/`), so
+  there is no file dependency from this component. The bucket backing
+  `s3://cnpg-backups/` must exist **before** the first Cluster starts
+  (Barman Cloud ≥3.16 only creates the bucket on the check-wal-archive
+  path). Its COSI `BucketClaim`/`BucketAccess` pair lives here in
+  `configs/base/bucketclaims.yaml`. (`zitadel-db`, `coder-db`, and
+  `ferretdb` each use a dedicated in-namespace claim; see the cosi README.)
+  COSI-managed buckets live under controller-generated names — see the cosi
+  README "Bucket naming" before repointing `destinationPath`.
 - Credentials: `ExternalSecret/cnpg-s3-credentials` syncs
   `ACCESS_KEY_ID`/`ACCESS_SECRET_KEY` from the COSI-minted BucketInfo JSON
   (Secret `cnpg-backups-cosi-creds`) through the in-namespace `cnpg-cosi`
@@ -82,11 +83,13 @@ OCI is the upstream source of truth, verified by pull:
 ## Certificate + DNS
 
 `Certificate/wildcard-postgres` requests `*.postgres.home-ops.yansyah.my.id`
-from `ClusterIssuer/letsencrypt` (§9), stored as `wildcard-postgres-tls` in
-the Cluster's own namespace (namespace-local TLS, same pattern as §8.1).
-No `DNSEndpoint` CR is shipped: the §9 external-dns chart does not enable a
-CRD source for this zone, so the nested wildcard rides on the existing
-`*.home-ops` wildcard A automation (§9.4, Gateway LB target). Verify host
+from `ClusterIssuer/letsencrypt` (see `flux/infra/components/cert-manager/`),
+stored as `wildcard-postgres-tls` in the Cluster's own namespace
+(namespace-local TLS, same pattern as the gateway-api component).
+No `DNSEndpoint` CR is shipped: the external-dns chart (see
+`flux/infra/components/external-dns/`) does not enable a CRD source for
+this zone, so the nested wildcard rides on the existing `*.home-ops`
+wildcard A automation (Gateway LB target). Verify host
 resolution (`dig primary.postgres.home-ops.yansyah.my.id`) before sending
 client traffic over TLS.
 
@@ -98,8 +101,9 @@ client traffic over TLS.
 - Monitoring: the in-cluster Postgres exporter is on by default upstream
   (metrics port on every instance), but nothing scrapes it — `monitoring:
   podMonitorEnabled: false` in chart values and **no** `PodMonitor`/`ServiceMonitor`
-  objects are shipped until `monitoring.coreos.com` CRDs land (same §9
-  deviation). Flip: set `podMonitorEnabled: true` once the monitoring stack
+  objects are shipped until `monitoring.coreos.com` CRDs land (same as the
+  cert-manager component). Flip: set `podMonitorEnabled: true` once the
+  monitoring stack
   exists, or apply the manual `PodMonitor` from upstream docs
   (`monitoring.md`, selector `cnpg.io/cluster: <name>`, port `metrics`).
   Note upstream deprecates `.spec.monitoring.enablePodMonitor` — prefer the
@@ -109,6 +113,6 @@ client traffic over TLS.
 
 ## Environments
 
-`prd` and `stg` currently inherit `../base` unchanged (same shape
-as cert-manager before per-env divergence). Per-env Cluster tuning (size,
+`prd` and `stg` currently inherit `../base` unchanged (same shape as
+cert-manager). Per-env Cluster tuning (size,
 schedule, retention) lands with the first real cluster, not here.

@@ -1,7 +1,7 @@
 # Tofu Controller v0.16.5: Flux-native Terraform/OpenTofu reconciler. Installs
-# the cluster-scoped `terraforms.infra.contrib.fluxcd.io` CRD (v1alpha2 current,
-# v1alpha1 deprecated) reconciling the 7 `kind: Terraform` objects already
-# present (app SSO clients, zitadel bootstrap, seaweedfs).
+# the cluster-scoped `terraforms.infra.contrib.fluxcd.io` CRD (v1alpha2)
+# reconciling the `kind: Terraform` objects (app SSO clients, zitadel
+# bootstrap, seaweedfs).
 # Chart: oci://ghcr.io/flux-iac/charts/tofu-controller (verified tag 0.16.5 ==
 # app v0.16.5; pulled digest
 # sha256:336e9a2690b868781422165bf20550dc7e7093abeb841c498d8bd1dd594fbd27 —

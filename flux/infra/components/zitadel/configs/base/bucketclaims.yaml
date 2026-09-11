@@ -1,11 +1,9 @@
 # COSI-managed buckets for Zitadel (colocated with the consuming component —
 # lands in the `zitadel` tenant namespace via the Fleet `infra-configs`
-# Kustomization's `targetNamespace`). Two dedicated claims decouple Zitadel
-# from the shared buckets: `zitadel-db` backs the CNPG zitadel-db Cluster
-# (replaces the `cnpg-backups`/`zitadel/` shared prefix served via
-# ClusterSecretStore/cosi-cnpg); `zitadel-cache` backs the zitadel-cache
-# Dragonfly snapshots (replaces the `dragonfly-backups`/`zitadel-cache/`
-# shared prefix served via ClusterSecretStore/cosi-dragonfly).
+# Kustomization's `targetNamespace`). Two dedicated claims: `zitadel-db`
+# backs the CNPG zitadel-db Cluster WAL + base backups (zitadel-db.yaml);
+# `zitadel-cache` backs the zitadel-cache Dragonfly snapshots
+# (zitadel-cache.yaml).
 # - Claims use BucketClass/seaweedfs, protocol S3. The central controller
 #   creates the cluster-scoped Buckets; the driver (DriverCreateBucket =
 #   req.GetName()) provisions the live buckets in SeaweedFS under
@@ -13,13 +11,11 @@
 #   to pre-existing bucket names, so `spec.existingBucketName` is
 #   intentionally unset. Read the live names from each claim's
 #   `status.bucketName` once `status.bucketReady` is true.
-# - Existing out-of-band buckets keep serving traffic until cutover: the
-#   zitadel-db Cluster `destinationPath` (`s3://cnpg-backups/zitadel/`) and
-#   the zitadel-cache Dragonfly `dir` (`s3://dragonfly-backups/zitadel-cache/`)
-#   keep pointing at the legacy buckets; copy data to the COSI-provisioned
-#   buckets (see cosi README "Bucket cutover"), then repoint `destinationPath`
-#   / `dir`. Do NOT break existing backups — the credential switch keeps
-#   working against the legacy buckets; these claims are the migration path.
+# - The zitadel-db Cluster `destinationPath` (`s3://cnpg-backups/zitadel/`)
+#   and the zitadel-cache Dragonfly `dir`
+#   (`s3://dragonfly-backups/zitadel-cache/`) target the COSI-provisioned
+#   buckets. The `s3://` path prefixes must exist before the first Cluster /
+#   Dragonfly object starts (CNPG and Dragonfly never create buckets).
 # - Each BucketAccess (BucketAccessClass/seaweedfs-key, authenticationType
 #   KEY) mints S3 keys into its `credentialsSecretName` Secret in THIS
 #   namespace as a `BucketInfo` JSON file (secretS3.endpoint/region/

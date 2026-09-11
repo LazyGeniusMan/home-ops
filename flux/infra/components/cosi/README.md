@@ -5,7 +5,7 @@ controller (release-0.2, `objectstorage.k8s.io/v1alpha1`) plus the SeaweedFS
 COSI driver, with default `BucketClass/seaweedfs` +
 `BucketAccessClass/seaweedfs-key`. `BucketClaim`/`BucketAccess` pairs are
 colocated with their consumers (one pair per live bucket — 9 claims: 4
-shared/owner claims + 5 dedicated per-instance claims):
+owner claims + 5 dedicated per-instance claims):
 
 - Owner claims: `flux/infra/components/cnpg/configs/base/bucketclaims.yaml`
   (`cnpg-backups`), `flux/infra/components/dragonfly/configs/base/bucketclaims.yaml`
@@ -21,9 +21,9 @@ shared/owner claims + 5 dedicated per-instance claims):
 Driver, RBAC, and classes stay central in the seaweedfs component's
 `configs/base/` (`driver.yaml`, `driver-rbac.yaml`, `bucketclasses.yaml`)
 — the driver is a SeaweedFS workload, so it is hosted in the seaweedfs
-tenant namespace (moved there from this component).
+tenant namespace.
 
-## Layout (mirrors cert-manager §9 pattern)
+## Layout (mirrors the cert-manager component pattern)
 
 `controllers/base/` (vendored release-0.2 CRDs + central controller) +
 `configs/base/` (driver RBAC + Deployment + classes) + plain `../base`
@@ -99,19 +99,18 @@ serves HTTP only, so URL clients (CNPG `endpointURL`, ClickHouse
 user access only — no in-cluster consumer may point at it (hairpin +
 needless TLS termination).
 
-## Bucket cutover (COSI-provisioned names differ)
+## Bucket naming (COSI-provisioned names differ)
 
 The driver provisions the live bucket under a controller-generated name
-(`bc-<uuid>`, from `DriverCreateBucket = req.GetName()`), so the owner
-claims do NOT adopt the pre-existing out-of-band buckets (`cnpg-backups`,
-`dragonfly-backups`, `clickhouse`, `rclone-vault` — one day to be deleted).
-Cutover per bucket: read the live name from the claim's
-`status.bucketName`, copy data (`rclone sync` against the internal
-endpoint, or SeaweedFS `s3.copy`), repoint the consumer at the new
-bucket/prefix, then delete the legacy bucket. The dedicated per-instance
-claims cut over from the shared legacy prefixes instead (e.g.
-`cnpg-backups/zitadel/` → the `zitadel-db` bucket); the legacy buckets
-stay until every sharer has moved.
+(`bc-<uuid>`, from `DriverCreateBucket = req.GetName()`), so claim/access
+names do NOT equal the backing SeaweedFS bucket names — read the live name
+from the claim's `status.bucketName` once `status.bucketReady` is true
+(`rclone sync` against the internal endpoint, or SeaweedFS `s3.copy`,
+moves data between buckets when re-homing a consumer). The four owner
+claims back the long-lived backup buckets (`cnpg-backups`,
+`dragonfly-backups`, `clickhouse`, `rclone-vault`); each dedicated
+per-instance claim backs its own bucket (e.g. `zitadel-db` backs Zitadel's
+Postgres WAL + base backups).
 
 ## Credential bridge (COSI secret → consumers)
 
@@ -126,11 +125,8 @@ Kubernetes-provider stores with GJSON `property`
 
 - Every claim has an in-namespace `SecretStore` + `eso-k8s-reader`
   SA/Role colocated with it (the `cosi-keys.yaml` beside each
-  `bucketclaims.yaml`). No `ClusterSecretStore` remains — the former
-  cross-namespace bridges (`cosi-cnpg`, `cosi-dragonfly`,
-  `cosi-clickhouse`, which let zitadel/coder/clickstack read the owners'
-  shared-bucket keys under their own prefixes) were retired once each
-  consumer got a dedicated claim:
+  `bucketclaims.yaml`). Consumers only ever read keys from their own
+  namespace's store:
   | Claim ns | Claim | Creds Secret | Store | Consumer ExternalSecret |
   |---|---|---|---|---|
   | `cnpg` | `cnpg-backups` | `cnpg-backups-cosi-creds` | `cnpg-cosi` | `cnpg-s3-credentials` (postgres-base) |
@@ -150,15 +146,16 @@ The Proton Pass `s3-*`/`sw-*` entries stay seeded in the vault as rollback
 
 ## Environments
 
-`dev`/`stg`/`prd` inherit `../base` unchanged (same shape as cert-manager
-before per-env divergence). Per-env class tuning (e.g. replication per site)
+`dev`/`stg`/`prd` inherit `../base` unchanged (same shape as cert-manager).
+Per-env class tuning (e.g. replication per site)
 lands here when the second site exists.
 
 ## Telemetry-off / monitoring / updates
 
 - No phone-home/usage-reporting knobs in the vendored manifests (controller
   takes only `--v`; driver takes only endpoint env); metrics endpoints, if
-  any, are unscraped until the monitoring stack lands (same §9 deviation).
+  any, are unscraped until the monitoring stack lands (same as the
+  cert-manager component).
 - Images auto-track via `update-policies/cosi.yaml` + PR automation, except
   the controller/sidecar staging pins (date-stamped, non-semver —
   hand-bumped until a `v0.2.x` release tag lands; then switch pins + policy

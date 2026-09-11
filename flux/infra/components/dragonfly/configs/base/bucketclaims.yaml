@@ -8,13 +8,12 @@
 #   to pre-existing bucket names, so `spec.existingBucketName` is
 #   intentionally unset. Read the live name from the claim's
 #   `status.bucketName` once `status.bucketReady` is true.
-# - Existing out-of-band bucket `dragonfly-backups` keeps serving traffic
-#   until cutover: Dragonfly `spec.snapshot.dir`s (`s3://dragonfly-backups/`
-#   + prefixes `dragonfly/`, `zitadel-cache/`) keep pointing at the legacy
-#   bucket; copy data to the COSI-provisioned bucket (see cosi README
-#   "Bucket cutover"), then repoint `dir`. Do NOT break existing snapshots
-#   — the endpoint switch keeps working against the legacy bucket; this
-#   claim is the migration path.
+# - `dragonfly-backups` backs the dragonfly-base snapshots: the
+#   `spec.snapshot.dir` (`s3://dragonfly-backups/dragonfly/`, see
+#   dragonfly-base.yaml) targets the COSI-provisioned bucket. The
+#   zitadel-cache instance holds its own dedicated claim — see the cosi
+#   README. The `s3://` path prefix must exist before the first Dragonfly
+#   object starts (Dragonfly never creates buckets).
 # - The BucketAccess (BucketAccessClass/seaweedfs-key, authenticationType
 #   KEY) mints S3 keys into its `credentialsSecretName` Secret in THIS
 #   namespace as a `BucketInfo` JSON file (secretS3.endpoint/region/

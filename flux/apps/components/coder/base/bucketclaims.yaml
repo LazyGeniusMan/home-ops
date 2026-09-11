@@ -8,13 +8,11 @@
 #   to pre-existing bucket names, so `spec.existingBucketName` is
 #   intentionally unset. Read the live name from the claim's
 #   `status.bucketName` once `status.bucketReady` is true.
-# - Existing out-of-band bucket `cnpg-backups` keeps serving traffic until
-#   cutover: the coder-db barmanObjectStore `destinationPath`
-#   (`s3://cnpg-backups/coder/`) keeps pointing at the legacy bucket; copy
-#   data to the COSI-provisioned bucket (see cosi README "Bucket cutover"),
-#   then repoint `destinationPath`. Do NOT break existing backups — the
-#   endpoint switch keeps working against the legacy bucket; this claim is
-#   the migration path.
+# - `coder-db` backs the coder-db CNPG Cluster WAL + base backups: the
+#   barmanObjectStore `destinationPath` (`s3://cnpg-backups/coder/`, see
+#   coder-db.yaml) targets the COSI-provisioned bucket. The `s3://` path
+#   prefix must exist before the first Cluster starts (CNPG never creates
+#   buckets).
 # - The BucketAccess (BucketAccessClass/seaweedfs-key, authenticationType
 #   KEY) mints S3 keys into its `credentialsSecretName` Secret in THIS
 #   namespace as a `BucketInfo` JSON file (secretS3.endpoint/region/

@@ -8,12 +8,9 @@
 #   to pre-existing bucket names, so `spec.existingBucketName` is
 #   intentionally unset. Read the live name from the claim's
 #   `status.bucketName` once `status.bucketReady` is true.
-# - Existing out-of-band bucket `rclone-vault` keeps serving traffic until
-#   cutover: the CronJob `SOURCE` (`sw:rclone-vault`) keeps pointing at the
-#   legacy bucket; copy data to the COSI-provisioned bucket (see cosi README
-#   "Bucket cutover"), then repoint `SOURCE`. Do NOT break the existing
-#   sync — the endpoint switch keeps working against the legacy bucket;
-#   this claim is the migration path.
+# - `rclone-vault` backs the vault sync: the CronJob `SOURCE`
+#   (`sw:rclone-vault`, see cronjob.yaml) targets the COSI-provisioned
+#   bucket.
 # - The BucketAccess (BucketAccessClass/seaweedfs-key, authenticationType
 #   KEY) mints S3 keys into its `credentialsSecretName` Secret in THIS
 #   namespace as a `BucketInfo` JSON file (secretS3.endpoint/region/

@@ -1,8 +1,9 @@
 # COSI-managed bucket for the ClickHouse backups (colocated with the
 # consuming component — lands in the `clickhouse` tenant namespace via the
 # Fleet `infra-configs` Kustomization's `targetNamespace`). The apps
-# `clickstack` component shares the same bucket under its own prefix
-# (`clickhouse/clickstack/`), not a separate claim.
+# `clickstack` component has its own dedicated claim (see
+# flux/apps/components/clickstack/base/bucketclaims.yaml), not a prefix on
+# this bucket.
 # - Claim uses BucketClass/seaweedfs, protocol S3. The central controller
 #   creates the cluster-scoped Bucket; the driver (DriverCreateBucket =
 #   req.GetName()) provisions the live bucket in SeaweedFS under a
@@ -10,14 +11,10 @@
 #   to pre-existing bucket names, so `spec.existingBucketName` is
 #   intentionally unset. Read the live name from the claim's
 #   `status.bucketName` once `status.bucketReady` is true.
-# - Existing out-of-band bucket `clickhouse` keeps serving traffic until
-#   cutover: ClickHouse `storage.xml` endpoints
-#   (`http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333/clickhouse/`
-#   + `clickhouse/clickstack/` prefix) keep pointing at the legacy bucket;
-#   copy data to the COSI-provisioned bucket (see cosi README "Bucket
-#   cutover"), then repoint the endpoints. Do NOT break existing backups —
-#   the endpoint switch keeps working against the legacy bucket; this claim
-#   is the migration path.
+# - `clickhouse` backs the infra ClickHouse nightly backups: the CHI
+#   `storage.xml` endpoint
+#   (`http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333/clickhouse/`,
+#   see installation-base.yaml) targets the COSI-provisioned bucket.
 # - The BucketAccess (BucketAccessClass/seaweedfs-key, authenticationType
 #   KEY) mints S3 keys into its `credentialsSecretName` Secret in THIS
 #   namespace as a `BucketInfo` JSON file (secretS3.endpoint/region/
