@@ -3,25 +3,11 @@
 # Auth comes FIRST: day-0 renders the PAT from the vault and day-2 applies
 # it, but failing fast here on a dead pass-cli session beats pushing configs
 # to nodes and only then discovering pass-cli-dependent steps cannot run.
-- name: Assert Proton Pass PAT env var is set
-  # Fail fast before any talosctl call: pass-cli login needs the PAT via env
-  # only (never files). check_mode has no effect on assert, so --check
-  # still validates.
-  ansible.builtin.assert:
-    that:
-      - lookup('ansible.builtin.env', proton_pass_pat_env) | length > 0
-    fail_msg: >-
-      {{ proton_pass_pat_env }} is not set or empty. Export
-      {{ proton_pass_pat_env }}=pst_... and run `pass-cli login` before
-      day-1, then re-run the play.
-    success_msg: "{{ proton_pass_pat_env }} is set."
-
 - name: Check pass-cli session is authenticated
   # Ansible NEVER logs in: probes the existing session via
   # `pass-cli info -o json` (rc==0 + JSON mapping stdout = logged in;
   # logged-out gives rc=1 + a non-JSON error). check_mode:false so
-  # --check still validates auth. On failure, export
-  # PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... and run `pass-cli login`,
+  # --check still validates auth. On failure, run `pass-cli login`,
   # then re-run the play.
   ansible.builtin.command:
     cmd: pass-cli info -o json
@@ -42,8 +28,7 @@
       - talos_bootstrap_pass_session.rc == 0
       - talos_bootstrap_pass_session.stdout | from_json is mapping
     fail_msg: >-
-      No authenticated pass-cli session. Export
-      {{ proton_pass_pat_env }}=pst_... and run `pass-cli login` before
+      No authenticated pass-cli session. Run `pass-cli login` before
       day-1, then re-run the play.
     success_msg: "pass-cli session authenticated."
 

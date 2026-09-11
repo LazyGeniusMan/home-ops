@@ -50,18 +50,15 @@ changes.
 
 ### 0.3 Authenticate to Proton Pass
 
-The PAT env var gates **login only** — secret values are never read from
-the shell. Login prerequisite:
-**Ansible NEVER logs in** — export the PAT and run `pass-cli login` in your
-shell before any play. Every play first asserts the PAT env var is
-set/non-empty, then probes the existing session via `pass-cli info -o json`
-(`rc==0` + JSON mapping stdout = logged in; logged-out gives `rc=1` + a
-non-JSON error, even with the env var set) and fails fast telling you to
-export + `pass-cli login`.
+Secret values are never read from the shell. Login prerequisite:
+**Ansible NEVER logs in** — run `pass-cli login` in your
+shell before any play. Every play probes the existing session via
+`pass-cli info -o json` (`rc==0` + JSON mapping stdout = logged in;
+logged-out gives `rc=1` + a non-JSON error) and fails fast telling you
+to run `pass-cli login`.
 
 ```bash
-# Working dir: anywhere (env is shell-global)
-export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_...
+# Working dir: anywhere
 export PROTON_PASS_AGENT_REASON=talos-render-manual-exec-$(openssl rand -hex 8)
 pass-cli login
 ```
@@ -74,14 +71,13 @@ above is only needed for manual `pass-cli` commands.
 If this step is missed, day-0 fails fast with:
 
 ```text
-No authenticated pass-cli session. Export
-PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... and run `pass-cli login` before
+No authenticated pass-cli session. Run `pass-cli login` before
 rendering secrets, then re-run the play.
 ```
 
-> ⚠️ **Warning — PAT expiry:** a stale/expired token surfaces as
-> `pass-cli inject` failures during day-0 rendering. Re-export a fresh token
-> and run `pass-cli login` again, then re-run the play.
+> ⚠️ **Warning — PAT expiry:** a stale/expired session surfaces as
+> `pass-cli inject` failures during day-0 rendering. Run `pass-cli login`
+> again, then re-run the play.
 >
 > Inject failures name the missing secret directly, e.g.
 > `Failed to fetch secret for pass://<vault>/talos/<field>` + `Field
@@ -340,8 +336,8 @@ ansible-playbook playbooks/day1.yml -i localhost, -e talos_cluster=acme-dev-bdo1
 
 ### 2.1b PAT source (day-0 render) + one-time interactive `agent create`
 
-Day-1 checks the PAT env var, then probes the `pass-cli` session (same
-`info -o json` login check as day-0/day-2) as its FIRST tasks — before any
+Day-1 probes the `pass-cli` session (same
+`info -o json` login check as day-0/day-2) as its FIRST task — before any
 `talosctl apply-config --insecure`, bootstrap, or kubeconfig fetch — as a
 fail-fast login gate. The PAT *value* is NOT read from the shell: day-0
 rendered it via `pass-cli inject` from the cluster's `pat.yml.template`
@@ -376,8 +372,8 @@ Delete an agent by name when retiring it:
 pass-cli agent delete home-ops-eso
 ```
 
-Then run day-1 — the env var is only the login gate; the rendered
-`proton-pass-pat` file carries the webhook value. Expiration enum
+Then run day-1 — only the `pass-cli login` session gates the play; the
+rendered `proton-pass-pat` file carries the webhook value. Expiration enum
 for `--expiration`: `1h, 1d, 1w, 1m, 3m, 6m, 1y` (default `1y`, mirroring
 `-e pat_expiration=...` only feeds the day-2 renew/example strings, it
 never changes the stored file).

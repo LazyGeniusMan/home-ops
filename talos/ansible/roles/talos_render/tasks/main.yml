@@ -1,18 +1,8 @@
 ---
 # Day-0 render: inject secrets, generate machine configs, validate.
-- name: Assert Proton Pass PAT env var is set
-  # Fail fast before any build output or pass-cli exec: the PAT must arrive
-  # via env only (never files). check_mode has no effect on assert, so
-  # --check still validates.
-  ansible.builtin.assert:
-    that:
-      - lookup('ansible.builtin.env', proton_pass_pat_env) | length > 0
-    fail_msg: >-
-      {{ proton_pass_pat_env }} is not set or empty. Export
-      {{ proton_pass_pat_env }}=pst_... and run `pass-cli login` before
-      rendering secrets, then re-run the play.
-    success_msg: "{{ proton_pass_pat_env }} is set."
-
+# Auth comes FIRST: every pass-cli exec below needs a live session, so the
+# `pass-cli info` probe runs before any render. Ansible NEVER logs in —
+# run `pass-cli login` in your shell before the play.
 - name: Ensure build directory exists
   ansible.builtin.file:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}"
@@ -122,8 +112,7 @@
   # Ansible NEVER logs in: this probes the existing session via
   # `pass-cli info -o json` (rc==0 + JSON mapping stdout = logged in;
   # logged-out gives rc=1 + a non-JSON error). check_mode:false so
-  # --check still validates auth. On failure, export
-  # PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... and run `pass-cli login`,
+  # --check still validates auth. On failure, run `pass-cli login`,
   # then re-run the play.
   ansible.builtin.command:
     cmd: pass-cli info -o json
@@ -144,8 +133,7 @@
       - talos_render_pass_session.rc == 0
       - talos_render_pass_session.stdout | from_json is mapping
     fail_msg: >-
-      No authenticated pass-cli session. Export
-      {{ proton_pass_pat_env }}=pst_... and run `pass-cli login` before
+      No authenticated pass-cli session. Run `pass-cli login` before
       rendering secrets, then re-run the play.
     success_msg: "pass-cli session authenticated."
 

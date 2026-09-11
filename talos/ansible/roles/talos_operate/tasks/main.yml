@@ -4,26 +4,11 @@
 # both need a live pass-cli session, so failing fast here beats running
 # health/etcd probes and only then discovering pass-cli cannot run. Cheap
 # no-change probe (check_mode:false, changed_when:false, no_log:true).
-- name: Assert Proton Pass PAT env var is set
-  # Fail fast before any talosctl call: the PAT arrives via env only (never
-  # files). Always checked (even for default read-only runs) since it is a
-  # cheap probe and re-apply/renew need it. check_mode has no effect on
-  # assert, so --check still validates.
-  ansible.builtin.assert:
-    that:
-      - lookup('ansible.builtin.env', proton_pass_pat_env) | length > 0
-    fail_msg: >-
-      {{ proton_pass_pat_env }} is not set or empty. Export
-      {{ proton_pass_pat_env }}=pst_... and run `pass-cli login` before
-      operating the cluster, then re-run the play.
-    success_msg: "{{ proton_pass_pat_env }} is set."
-
 - name: Check pass-cli session is authenticated
   # Ansible NEVER logs in: probes the existing session via
   # `pass-cli info -o json` (rc==0 + JSON mapping stdout = logged in;
   # logged-out gives rc=1 + a non-JSON error). check_mode:false so
-  # --check still validates auth. On failure, export
-  # PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... and run `pass-cli login`,
+  # --check still validates auth. On failure, run `pass-cli login`,
   # then re-run the play.
   ansible.builtin.command:
     cmd: pass-cli info -o json
@@ -44,8 +29,7 @@
       - talos_operate_pass_session.rc == 0
       - talos_operate_pass_session.stdout | from_json is mapping
     fail_msg: >-
-      No authenticated pass-cli session. Export
-      {{ proton_pass_pat_env }}=pst_... and run `pass-cli login` before
+      No authenticated pass-cli session. Run `pass-cli login` before
       operating the cluster, then re-run the play.
     success_msg: "pass-cli session authenticated."
 

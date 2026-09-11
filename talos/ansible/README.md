@@ -18,7 +18,7 @@ used only by the day-2 PAT Secret plane (post-Flux apply + webhook restart).
 ansible/
   ansible.cfg                  # roles_path, transport=local, diff output
   requirements.yml             # collections (community.general for key-value lookups)
-  group_vars/all.yml           # PAT env passthrough, talos version, per-cluster map
+  group_vars/all.yml           # talos version, per-cluster map, shared filenames
   playbooks/day0.yml           # render secrets/configs, gen + validate, install
   playbooks/day1.yml           # insecure-apply, wait gates, bootstrap etcd, kubeconfig
   playbooks/day2.yml           # health, upgrade, patch, VIP/etcd checks (operate)
@@ -30,22 +30,18 @@ ansible/
 
 ## Variables (group_vars/all.yml)
 
-- `proton_pass_pat_env: PROTON_PASS_PERSONAL_ACCESS_TOKEN` — pass-cli
-  login gate. The env var gates **login only**: export it and run
-  `pass-cli login` before any play, because Ansible NEVER logs in —
-  `export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... ; pass-cli login`.
-  The PAT *value* used by the ESO webhook never flows through the
-  shell: day-0 renders it via `pass-cli inject` from the cluster's own
-  `talos/clusters/<cluster>/pat.yml.template` (double-brace ref to
-  `pass://<own-vault>/eso-proton-pass/pat`) into
+- `pass-cli login` session gate. Run `pass-cli login` before any play,
+  because Ansible NEVER logs in. The PAT *value* used by the ESO webhook
+  never flows through the shell: day-0 renders it via `pass-cli inject`
+  from the cluster's own `talos/clusters/<cluster>/pat.yml.template`
+  (double-brace ref to `pass://<own-vault>/eso-proton-pass/pat`) into
   `build/<cluster>/proton-pass-pat` (`0600`, `talos_pat_filename` shared
   var keeps render/store/apply in sync), and day-2 reads/renews it there.
-  Every play first asserts the PAT env var is set/non-empty, then probes
-  the session via `pass-cli info -o json` (`rc==0` + JSON mapping stdout =
-  logged in; logged-out gives `rc=1` + a non-JSON error) and fails fast
-  telling you to export + `pass-cli login`; the env
-  var alone is NOT proof of a session. Day-2 checks unconditionally (even
-  read-only runs); day-1 checks before `apply-config --insecure`.
+  Every play probes the session via `pass-cli info -o json` (`rc==0` +
+  JSON mapping stdout = logged in; logged-out gives `rc=1` + a non-JSON
+  error) and fails fast telling you to run `pass-cli login`. Day-2
+  checks unconditionally (even read-only runs); day-1 checks before
+  `apply-config --insecure`.
   (manual commands can also
   `export PROTON_PASS_AGENT_REASON=talos-render-manual-exec-<16 hex>` for
   audit attribution). Ansible auto-generates a fresh unique

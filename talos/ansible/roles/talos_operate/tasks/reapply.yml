@@ -5,7 +5,7 @@
 # when the change allows it). Day-1's insecure apply is maintenance-only; this
 # is the installed-cluster path. Auth was already probed unconditionally at
 # the top of the operate role (roles/talos_operate/tasks/main.yml), so this
-# file assumes a live pass-cli session and PAT env var.
+# file assumes a live pass-cli session (probed at the top of main.yml).
 - name: Assert re-apply mode is valid
   ansible.builtin.assert:
     that:

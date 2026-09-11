@@ -1,11 +1,11 @@
 ---
-# Shared vars: PAT arrives via env only; cluster map selects vault + nodes.
+# Shared vars: pass-cli session (via `pass-cli login`) gates auth; the PAT
+# value is rendered from the vault via `pass-cli inject`, never the shell.
 #
 # Local-only execution: playbooks run on localhost (connection: local) and
 # reach nodes via `talosctl` over the Talos API — there is no SSH inventory.
 # `talos_clusters` is the single source of truth for node IPs; they are data
 # for `talosctl -n/-e` flags only, never Ansible connection targets.
-proton_pass_pat_env: PROTON_PASS_PERSONAL_ACCESS_TOKEN
 # Shared PAT filename for build/<cluster>/ (0600, gitignored via
 # ansible/build/): day-0 renders it via pass-cli inject, day-2 reads/renews it.
 talos_pat_filename: proton-pass-pat
