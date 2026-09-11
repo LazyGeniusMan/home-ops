@@ -24,8 +24,9 @@ talos_operate_pat_namespace: external-secrets
 talos_operate_pat_secret: proton-pass-pat
 talos_operate_pat_key: pat
 talos_operate_pat_deployment: eso-proton-pass
-# Local PAT store filename under build/<cluster>/ (0600, gitignored).
-talos_operate_pat_filename: proton-pass-pat
+# Local PAT store filename under build/<cluster>/ (0600, gitignored; see
+# {{ talos_pat_filename }} shared var). Day-0 renders it; renew refreshes it.
+talos_operate_pat_filename: "{{ talos_pat_filename }}"
 # Agent identity for the optional renew attempt (needs an interactive user
 # session — pass-cli cannot manage agent tokens inside a PAT/agent session).
 talos_operate_pat_name: home-ops-eso

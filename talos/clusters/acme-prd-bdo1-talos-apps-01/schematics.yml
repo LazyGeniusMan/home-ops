@@ -1,8 +1,8 @@
-# Cluster-shared Image Factory schematic (Talos v1.14).
+# Cluster Image Factory schematic layer (Talos v1.14): additive env-wide
+# entries merged over the _base layer; node layers add node-specific entries.
 # Bare `siderolabs/<name>` entries only — the factory pins extension versions
-# to the Talos release. Per-node schematics.yml files are AUTHORITATIVE for
-# each node's installer image; this file documents the extension(s) shared by
-# all nodes in acme-prd-bdo1-talos-apps-01.
+# to the Talos release. This layer's entries apply to all nodes in
+# acme-prd-bdo1-talos-apps-01.
 # Upload: curl -X POST --data-binary @schematics.yml https://factory.talos.dev/schematics
 customization:
   systemExtensions:

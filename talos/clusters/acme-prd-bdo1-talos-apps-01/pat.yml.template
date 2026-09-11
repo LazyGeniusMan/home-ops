@@ -1,0 +1,4 @@
+# PAT source for acme-prd-bdo1-talos-apps-01: day-0 renders this via pass-cli inject
+# into ../../ansible/build/acme-prd-bdo1-talos-apps-01/<pat filename> (0600, gitignored).
+# Requires item `eso-proton-pass`, field `pat` in the OWN (prd) vault — no cross-env refs.
+{{ pass://acme-prd-bdo1-talos-apps-01/eso-proton-pass/pat }}

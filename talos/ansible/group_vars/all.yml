@@ -6,6 +6,9 @@
 # `talos_clusters` is the single source of truth for node IPs; they are data
 # for `talosctl -n/-e` flags only, never Ansible connection targets.
 proton_pass_pat_env: PROTON_PASS_PERSONAL_ACCESS_TOKEN
+# Shared PAT filename for build/<cluster>/ (0600, gitignored via
+# ansible/build/): day-0 renders it via pass-cli inject, day-2 reads/renews it.
+talos_pat_filename: proton-pass-pat
 talos_version: v1.14.0
 # Pinned Kubernetes version: what day-0's floating talosctl default produced
 # (talosctl gen config --kubernetes-version defaults to 1.37.0; day-0 passes

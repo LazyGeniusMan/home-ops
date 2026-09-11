@@ -1,4 +1,6 @@
-# AUTHORITATIVE Image Factory schematic for bdo-r01-cp-001 (Talos v1.14).
+# Node-specific Image Factory schematic layer for bdo-r01-cp-001 (Talos v1.14).
+# Additive ONLY: entries here merge over the _base + cluster layers (the
+# cluster layer already provides siderolabs/netbird). Keep node-only entries.
 # Node: MSI PRO ADL-U Cubi 5 (MS-B0A8), i3-1215U Alder Lake-U, 64 GiB RAM,
 # RTL8125 2.5GbE (PCI 0000:2d:00.0) + RTL8111 GbE (PCI 0000:2e:00.0),
 # Alder Lake-UP3 GT1 iGPU (i915), install disk /dev/nvme0n1 (512 GB NVMe).
@@ -7,8 +9,7 @@
 # (AHCI controller 0000:00:17.0 is vfio-pci passthrough) -> install MUST be NVMe.
 # Bare `siderolabs/<name>` entries only — factory pins versions to Talos release.
 # Extension names verified against extensions repo (release-1.14 README):
-#   intel-ucode (CPU microcode), i915 (iGPU firmware), realtek-firmware (both NICs),
-#   netbird (overlay mgmt plane, contrib).
+#   intel-ucode (CPU microcode), i915 (iGPU firmware), realtek-firmware (both NICs).
 # Upload: curl -X POST --data-binary @schematics.yml https://factory.talos.dev/schematics
 # Then set the returned ID in patches.yml UnattendedInstallConfig installer.image.
 customization:
@@ -20,4 +21,3 @@ customization:
       - siderolabs/intel-ucode
       - siderolabs/i915
       - siderolabs/realtek-firmware
-      - siderolabs/netbird

@@ -7,8 +7,9 @@ talos_bootstrap_mode: auto
 # 300 chars).
 talos_bootstrap_pass_agent_reason_prefix: talos-bootstrap
 # Local PAT store for the day-2 ESO Secret apply (build/<cluster>/, 0600,
-# gitignored via ansible/build/). Written from PROTON_PASS_PERSONAL_ACCESS_TOKEN.
-talos_bootstrap_pat_filename: proton-pass-pat
+# gitignored via ansible/build/). Day-0 renders it via pass-cli inject from
+# clusters/<cluster>/pat.yml.template ({{ talos_pat_filename }} shared var).
+talos_bootstrap_pat_filename: "{{ talos_pat_filename }}"
 # Documentation only for the one-time interactive agent create command
 # (day-1 never auto-creates: minting a token needs an interactive user
 # session).

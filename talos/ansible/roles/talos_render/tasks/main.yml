@@ -91,6 +91,26 @@
     label: "{{ item.name }}"
   changed_when: true
 
+- name: Render PAT file via pass-cli inject
+  # ESO webhook PAT: single-line source at clusters/<cluster>/pat.yml.template
+  # (double-brace ref to `eso-proton-pass`/`pat` in the OWN cluster vault).
+  # NOTE: intentionally WITHOUT no_log — see the cluster inject task above:
+  # pass-cli prints no secret values in this mode; failures name the
+  # unresolved pass://<vault>/<item>/<field> ref.
+  ansible.builtin.command:
+    cmd: >-
+      pass-cli inject
+      --in-file {{ playbook_dir }}/../../clusters/{{ talos_cluster }}/pat.yml.template
+      --out-file {{ talos_build_dir }}/{{ talos_cluster }}/{{ talos_pat_filename }}
+      --force --file-mode 0600
+    creates: "{{ talos_build_dir }}/{{ talos_cluster }}/{{ talos_pat_filename }}"
+  environment:
+    PROTON_PASS_AGENT_REASON: >-
+      {{ talos_render_pass_agent_reason_prefix }}-{{ talos_cluster }}-exec-{{
+        lookup('community.general.random_string', length=16,
+        override_all='0123456789abcdef') }}
+  changed_when: true
+
 - name: Resolve and upload per-node schematics
   ansible.builtin.include_tasks: schematic.yml
   loop: "{{ talos_clusters[talos_cluster].nodes }}"

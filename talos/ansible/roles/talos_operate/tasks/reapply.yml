@@ -50,6 +50,24 @@
   when: talos_operate_reapply_configs | bool
   changed_when: true
 
+- name: Force re-render PAT file via pass-cli inject
+  # Vault rotations flow on regeneration: same rationale as the forced patch
+  # re-renders above (no creates:, no no_log — inject names the unresolved
+  # ref on failure). Source: clusters/<cluster>/pat.yml.template.
+  ansible.builtin.command:
+    cmd: >-
+      pass-cli inject
+      --in-file {{ playbook_dir }}/../../clusters/{{ talos_cluster }}/pat.yml.template
+      --out-file {{ talos_build_dir }}/{{ talos_cluster }}/{{ talos_pat_filename }}
+      --force --file-mode 0600
+  environment:
+    PROTON_PASS_AGENT_REASON: >-
+      {{ talos_operate_pass_agent_reason_prefix }}-{{ talos_cluster }}-exec-{{
+        lookup('community.general.random_string', length=16,
+        override_all='0123456789abcdef') }}
+  when: talos_operate_reapply_configs | bool
+  changed_when: true
+
 - name: Read per-node schematic IDs for installer image rewrite
   ansible.builtin.slurp:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}/schematic-{{ item.name }}.id"

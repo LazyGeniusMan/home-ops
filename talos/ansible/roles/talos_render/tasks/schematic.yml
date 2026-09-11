@@ -1,5 +1,5 @@
 ---
-# Per-node schematic handling: node -> cluster -> _base fallback (first wins).
+# Per-node schematic handling: deep-merge _base -> cluster -> node layers.
 # Included once per node with loop_var `node` from tasks/main.yml.
 # Outputs per node under build/<cluster>/: schematics-<node>.yml (reference
 # copy), schematic-<node>.id, schematic-<node>.sha256 (upload idempotency).
@@ -7,26 +7,64 @@
   ansible.builtin.set_fact:
     talos_render_schematic_id: ""
 
-- name: Build schematic candidate list for node-cluster-base fallback
-  ansible.builtin.set_fact:
-    talos_render_schematic_files:
-      - "{{ playbook_dir }}/../../clusters/{{ talos_cluster }}/nodes/{{ node.name }}/schematics.yml"
-      - "{{ playbook_dir }}/../../clusters/{{ talos_cluster }}/schematics.yml"
-      - "{{ playbook_dir }}/../../clusters/_base/schematics.yml"
+- name: Slurp base schematic level
+  ansible.builtin.slurp:
+    path: "{{ playbook_dir }}/../../clusters/_base/schematics.yml"
+  check_mode: false
+  failed_when: false
+  register: talos_render_schematic_base_raw
 
-- name: Pick first existing schematic source
+- name: Slurp cluster schematic level
+  ansible.builtin.slurp:
+    path: "{{ playbook_dir }}/../../clusters/{{ talos_cluster }}/schematics.yml"
+  check_mode: false
+  failed_when: false
+  register: talos_render_schematic_cluster_raw
+
+- name: Slurp node schematic level
+  ansible.builtin.slurp:
+    path: "{{ playbook_dir }}/../../clusters/{{ talos_cluster }}/nodes/{{ node.name }}/schematics.yml"
+  check_mode: false
+  failed_when: false
+  register: talos_render_schematic_node_raw
+
+- name: Parse schematic levels to dicts
   ansible.builtin.set_fact:
-    talos_render_schematic_src: "{{ lookup('ansible.builtin.first_found', talos_render_schematic_files, skip=true) }}"
+    talos_render_schematic_base: >-
+      {{ (talos_render_schematic_base_raw.content
+        | default('', true) | b64decode | trim
+        | default('{}', true) | from_yaml) or {} }}
+    talos_render_schematic_cluster: >-
+      {{ (talos_render_schematic_cluster_raw.content
+        | default('', true) | b64decode | trim
+        | default('{}', true) | from_yaml) or {} }}
+    talos_render_schematic_node: >-
+      {{ (talos_render_schematic_node_raw.content
+        | default('', true) | b64decode | trim
+        | default('{}', true) | from_yaml) or {} }}
+
+- name: Deep-merge schematic layers base then cluster then node
+  ansible.builtin.set_fact:
+    talos_render_schematic_merged: >-
+      {{ talos_render_schematic_base
+        | combine(talos_render_schematic_cluster, recursive=true, list_merge='append_rp')
+        | combine(talos_render_schematic_node, recursive=true, list_merge='append_rp') }}
 
 - name: Assert a schematic source exists
   ansible.builtin.assert:
-    that: talos_render_schematic_src | length > 0
-    fail_msg: "No schematics.yml for node {{ node.name }} (looked under nodes/, cluster, _base)."
-    success_msg: "Schematic for {{ node.name }}: {{ talos_render_schematic_src }}"
+    that:
+      - talos_render_schematic_merged | length > 0
+      - talos_render_schematic_merged.customization is defined
+    fail_msg: >-
+      No schematics.yml for node {{ node.name }} (looked under
+      {{ playbook_dir }}/../../clusters/{{ talos_cluster }}/nodes/{{ node.name }}/schematics.yml,
+      {{ playbook_dir }}/../../clusters/{{ talos_cluster }}/schematics.yml,
+      {{ playbook_dir }}/../../clusters/_base/schematics.yml).
+    success_msg: "Schematic for {{ node.name }}: merged _base + cluster {{ talos_cluster }} + node layers."
 
 - name: Stage resolved schematic under build dir
   ansible.builtin.copy:
-    src: "{{ talos_render_schematic_src }}"
+    content: "{{ talos_render_schematic_merged | to_nice_yaml }}"
     dest: "{{ talos_build_dir }}/{{ talos_cluster }}/schematics-{{ node.name }}.yml"
     mode: "0600"
 

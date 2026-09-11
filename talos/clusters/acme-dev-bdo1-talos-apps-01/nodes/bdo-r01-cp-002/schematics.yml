@@ -1,15 +1,16 @@
-# AUTHORITATIVE Image Factory schematic for bdo-r01-cp-002 (Talos v1.14).
+# Node-specific Image Factory schematic layer for bdo-r01-cp-002 (Talos v1.14).
+# Additive ONLY: entries here merge over the _base + cluster layers (the
+# cluster layer already provides siderolabs/netbird). Keep node-only entries.
 # Node: QEMU/KVM VM (evidence: /tmp/lshw-log/lshw.vm.log) — 2 vCPU, virtio NIC,
 # virtio-scsi disks (/dev/sda 20 GiB OS, /dev/sdb 960 GB Samsung passthrough),
 # bochs display. No intel-ucode/i915/realtek-firmware (vCPU microcode, display
 # and NIC are host/emulated responsibilities); qemu-guest-agent enables
 # Proxmox-visible shutdown/IP/freeze-thaw via virtio-console.
 # Bare `siderolabs/<name>` entries only — factory pins versions to Talos release.
-# Both names verified in extensions repo (release-1.14 README).
+# Name verified in extensions repo (release-1.14 README).
 # Upload: curl -X POST --data-binary @schematics.yml https://factory.talos.dev/schematics
 # Then set the returned ID in patches.yml UnattendedInstallConfig installer.image.
 customization:
   systemExtensions:
     officialExtensions:
       - siderolabs/qemu-guest-agent
-      - siderolabs/netbird

@@ -1,4 +1,7 @@
-# Vanilla Image Factory schematic shared by all clusters.
+# Base Image Factory schematic layer shared by all clusters/nodes (Talos v1.14).
+# Layered model: this base layer holds config shared by every node; the
+# cluster layer adds env-wide entries and the node layer adds node-specific
+# entries. Layers deep-merge base -> cluster -> node (dedup union).
 # Bare `siderolabs/<name>` entries only — the factory pins extension versions
 # to the Talos release (see boot-assets.mdx bare-metal example).
 # Upload: curl -X POST --data-binary @schematics.yml
