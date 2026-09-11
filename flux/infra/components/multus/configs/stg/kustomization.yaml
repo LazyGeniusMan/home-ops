@@ -1,3 +1,10 @@
+# STG OVERLAY — RESERVED/UNUSED: no cluster renders ./stg (ENVIRONMENT is
+# dev on acme-dev-bdo1-talos-apps-01 and prd on acme-prd-bdo1-talos-apps-01;
+# ENVIRONMENT=stg exists only on the update automation cluster, which
+# reconciles update-policies — not component overlays). NOTE: unlike most stg overlays
+# (which mirror prd), this one tracks the DEV cluster — see preserved comment
+# below. Inert until a real stg environment is defined. Kept (not removed) so
+# the {base,dev,stg,prd} layout stays uniform (see flux/fleet/README.md).
 # Stg tracks the dev cluster (QEMU/KVM virtio NIC ens18), so the NAD
 # master is repatched from the prd default (enp45s0).
 apiVersion: kustomize.config.k8s.io/v1beta1

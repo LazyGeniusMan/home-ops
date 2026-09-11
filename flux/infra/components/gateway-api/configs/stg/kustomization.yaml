@@ -1,3 +1,11 @@
+# STG OVERLAY — RESERVED/UNUSED: no cluster renders ./stg (ENVIRONMENT is
+# dev on acme-dev-bdo1-talos-apps-01 and prd on acme-prd-bdo1-talos-apps-01;
+# ENVIRONMENT=stg exists only on the update automation cluster, which
+# reconciles update-policies — not component overlays). The patches below
+# mirror prd values so the overlay stays buildable and prd-shaped if a real
+# stg environment is ever defined; until then they are inert. Kept (not
+# removed) so the {base,dev,stg,prd} layout stays uniform (see
+# flux/fleet/README.md).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:

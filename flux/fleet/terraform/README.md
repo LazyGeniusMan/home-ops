@@ -56,6 +56,33 @@ values):
 `tests/prerequisites.tftest.hcl` asserts the Cilium mapping (prd + dev
 VIPs); `tofu test` fails on drift.
 
+## First bootstrap order (the `stable` chicken-and-egg)
+
+The prd `FluxInstance` syncs `ref: stable`, but `stable` does not exist until
+the first `flux-fleet-vX.Y.Z` release is tagged — and cutting that release
+from never-bootstrapped fleet content is a blind bet. Resolve it dev-first:
+
+1. **Bootstrap dev first.** `acme-dev-bdo1-talos-apps-01` syncs `ref: dev`,
+   published from every `main` commit by `flux-fleet-push.yaml` — no release
+   tag needed. `tofu apply` with `cluster_name=acme-dev-bdo1-talos-apps-01`
+   and `cilium_k8s_service_host=192.168.1.248`, then validate end to end on
+   the live cluster: Cilium prerequisite → Flux Operator → infra tenants
+   (Cilium adoption via `flux_adoption_check`, CoreDNS `kube-dns` answering
+   at `10.96.0.10`).
+2. **Publish stable.** Tag `flux-fleet-vX.Y.Z` once dev is green — the release
+   workflow pushes `stable` + `stable-<version>` and cosigns them, which is
+   exactly what the prd verify pin
+   (`flux-instance.yaml` → `flux-fleet-release.yaml@refs/tags/...`) expects.
+3. **Bootstrap prd pinned to stable.** `tofu apply` with
+   `cluster_name=acme-prd-bdo1-talos-apps-01` and
+   `cilium_k8s_service_host=192.168.1.198`. The Job reads the prd
+   `instance_yaml` verbatim — it already says `stable`, now resolvable.
+
+The bootstrap Job itself is ref-agnostic (it consumes local files, never
+pulls the OCI tag), so this order is purely about making `stable` exist and
+trustworthy before prd points at it. Later bootstraps (recovery, new prd
+hardware) skip straight to step 3.
+
 ## Usage (manual, no live apply in CI)
 
 ```shell

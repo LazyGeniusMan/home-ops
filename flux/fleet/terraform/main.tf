@@ -48,6 +48,14 @@
 # After the bootstrap Job completes, Flux owns the operator HelmRelease and
 # the FluxInstance; Terraform only re-runs the Job on input change or when
 # bootstrap_revision is bumped.
+#
+# FIRST BOOTSTRAP ORDER (the `stable` chicken-and-egg): the prd FluxInstance
+# syncs ref `stable`, which does not exist until the first flux-fleet-vX.Y.Z
+# release is tagged. Bootstrap the DEV cluster first (syncs ref `dev`,
+# published from every main commit — no tag needed), validate end to end,
+# then tag the release (publishing + cosigning `stable`) and bootstrap prd
+# pinned to it. See README.md "First bootstrap order". The Job itself is
+# ref-agnostic (consumes local files, never pulls the OCI tag).
 terraform {
   required_version = ">= 1.11"
 

@@ -3,8 +3,15 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Prd Talos K8s API VIP (Layer2VIP .198) — see base/cilium.yaml
-  # placeholder __TALOS_API_VIP__.
+  # STG OVERLAY — RESERVED/UNUSED: no cluster renders ./stg (ENVIRONMENT is
+  # dev on acme-dev-bdo1-talos-apps-01 and prd on acme-prd-bdo1-talos-apps-01;
+  # ENVIRONMENT=stg exists only on the update automation cluster, which
+  # reconciles update-policies — not component overlays). This patch mirrors
+  # the PRD Talos K8s API VIP (Layer2VIP .198 — NOT an stg VIP; no stg VIP
+  # exists) — see base/cilium.yaml placeholder __TALOS_API_VIP__ — so the
+  # overlay stays buildable and prd-shaped if a real stg environment (with
+  # its own VIP) is ever defined; until then it is inert. Kept (not removed)
+  # so the {base,dev,stg,prd} layout stays uniform (see flux/fleet/README.md).
   - patch: |
       - op: replace
         path: /spec/values/k8sServiceHost

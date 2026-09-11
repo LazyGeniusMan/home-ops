@@ -3,8 +3,13 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Prd LB VIP (.199) + prd node NIC (enp45s0) — see base/lb-pool.yaml
-  # placeholders __LB_VIP__ / __NODE_NIC__.
+  # STG OVERLAY — RESERVED/UNUSED: no cluster renders ./stg (see note in
+  # controllers/stg/kustomization.yaml). These patches mirror the PRD LB VIP
+  # (.199, single-IP pool — NOT an stg VIP; no stg VIP exists) + prd node NIC
+  # (enp45s0) — see base/lb-pool.yaml placeholders __LB_VIP__ / __NODE_NIC__ —
+  # so the overlay stays buildable and prd-shaped if a real stg environment
+  # is ever defined; until then they are inert. Kept (not removed) so the
+  # {base,dev,stg,prd} layout stays uniform (see flux/fleet/README.md).
   - patch: |
       - op: replace
         path: /spec/blocks/0/start

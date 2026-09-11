@@ -1,10 +1,10 @@
 # kube-dns front door + RBAC for the Flux-managed CoreDNS (§8.3).
 # Talos-managed CoreDNS is disabled (KubeCoreDNSConfig enabled: false), so no
-# kube-dns Service exists; kubelets default clusterDNS to 10.96.0.10 (Talos
-# default service subnet; no repo overrides), which must resolve
-# *.cluster.local. This static-ClusterIP Service selects the chart pods; its
-# selector pins the stable app.kubernetes.io labels so it keeps matching
-# across the isClusterService flip (which adds the k8s-app label to pods).
+# kube-dns Service exists; kubelets default clusterDNS to 10.96.0.10, which
+# must resolve *.cluster.local. This static-ClusterIP Service selects the
+# chart pods; its selector pins the stable app.kubernetes.io labels so it
+# keeps matching across the isClusterService flip (which adds the k8s-app
+# label to pods).
 # The explicit `namespace: kube-system` survives the tenant targetNamespace
 # (cf. multus precedent for explicit kube-system namespaces).
 # RBAC mirrors the chart's own ClusterRole (endpoints/services/pods/
@@ -23,6 +23,12 @@ metadata:
     kubernetes.io/cluster-service: "true"
     kubernetes.io/name: CoreDNS
 spec:
+  # Static DNS IP = 10th address of the Talos default service subnet
+  # 10.96.0.0/12 (K8s convention: kubeadm/Talos allocate the API at .1 and
+  # pass --cluster-dns 10.96.0.10 to kubelets; nothing in talos/ overrides
+  # serviceSubnet, so the Talos default holds). If a serviceSubnet override
+  # is ever added, this MUST move to the 10th address of the new range or
+  # kubelets will point at a non-existent DNS IP.
   clusterIP: 10.96.0.10
   ports:
     - name: dns

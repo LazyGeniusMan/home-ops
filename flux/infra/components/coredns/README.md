@@ -48,7 +48,23 @@ dig @<coredns-svc-ip> example.com +short
 
 Deployed at bootstrap alongside Cilium (§8.2, initial wave) so cluster DNS is
 live before any workload that resolves the LAN names lands. Base carries the
-full chain; `prd`/`stg` inherit `../base` unchanged.
+full chain with `__BASE_DOMAIN__` / `__LB_VIP__` placeholders; each env
+overlay (`dev`/`stg`/`prd`) replaces the LAN zone block with its domain + VIP
+(env-independent `cluster.local` / `.` blocks ride along unchanged).
+
+## kube-dns Service IP assumption (break-glass)
+
+`controllers/base/kube-dns.yaml` pins `clusterIP: 10.96.0.10` — the 10th
+address of the Talos **default** service subnet `10.96.0.0/12` (K8s
+convention: API at `.1`, kubelets default `--cluster-dns` to `.10`; nothing
+in `talos/` overrides `serviceSubnet`, so the default holds and kubelets need
+no per-node `clusterDNS`). This is a validated assumption, not a guess — but
+it is silent-break: if a `serviceSubnet` override is ever added to
+`talos/`, the kube-dns `clusterIP` MUST move to the 10th address of the new
+range or every kubelet will point at a non-existent DNS IP. Making it
+configurable was considered and rejected: nothing consumes a variable here
+(the IP is a literal inside a static Service manifest), so a comment + this
+note is the honest record.
 
 ## Telemetry-off / monitoring / updates
 
