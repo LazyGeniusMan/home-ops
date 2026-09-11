@@ -4,13 +4,19 @@ GitOps-managed object-storage provisioning on SeaweedFS: the central COSI
 controller (release-0.2, `objectstorage.k8s.io/v1alpha1`) plus the SeaweedFS
 COSI driver, with default `BucketClass/seaweedfs` +
 `BucketAccessClass/seaweedfs-key`. `BucketClaim`/`BucketAccess` pairs are
-colocated with their consumers (one pair per live bucket: `cnpg-backups`,
-`dragonfly-backups`, `clickhouse`, `rclone-vault`):
+colocated with their consumers (one pair per live bucket — 9 claims: 4
+shared/owner claims + 5 dedicated per-instance claims):
 
-- `flux/infra/components/cnpg/configs/base/bucketclaims.yaml`
-- `flux/infra/components/dragonfly/configs/base/bucketclaims.yaml`
-- `flux/infra/components/clickhouse/configs/base/bucketclaims.yaml`
-- `flux/apps/components/rclone/base/bucketclaims.yaml`
+- Owner claims: `flux/infra/components/cnpg/configs/base/bucketclaims.yaml`
+  (`cnpg-backups`), `flux/infra/components/dragonfly/configs/base/bucketclaims.yaml`
+  (`dragonfly-backups`), `flux/infra/components/clickhouse/configs/base/bucketclaims.yaml`
+  (`clickhouse`), `flux/apps/components/rclone/base/bucketclaims.yaml`
+  (`rclone-vault`).
+- Dedicated per-instance claims: `flux/infra/components/zitadel/configs/base/bucketclaims.yaml`
+  (`zitadel-db`, `zitadel-cache`),
+  `flux/apps/components/coder/base/bucketclaims.yaml` (`coder-db`),
+  `flux/apps/components/clickstack/base/bucketclaims.yaml` (`ferretdb`,
+  `clickstack`).
 
 Driver, RBAC, and classes stay central in the seaweedfs component's
 `configs/base/` (`driver.yaml`, `driver-rbac.yaml`, `bucketclasses.yaml`)
@@ -96,38 +102,46 @@ needless TLS termination).
 ## Bucket cutover (COSI-provisioned names differ)
 
 The driver provisions the live bucket under a controller-generated name
-(`bc-<uuid>`, from `DriverCreateBucket = req.GetName()`), so the claims do
-NOT adopt the pre-existing out-of-band buckets (`cnpg-backups`,
+(`bc-<uuid>`, from `DriverCreateBucket = req.GetName()`), so the owner
+claims do NOT adopt the pre-existing out-of-band buckets (`cnpg-backups`,
 `dragonfly-backups`, `clickhouse`, `rclone-vault` — one day to be deleted).
 Cutover per bucket: read the live name from the claim's
 `status.bucketName`, copy data (`rclone sync` against the internal
 endpoint, or SeaweedFS `s3.copy`), repoint the consumer at the new
-bucket/prefix, then delete the legacy bucket.
+bucket/prefix, then delete the legacy bucket. The dedicated per-instance
+claims cut over from the shared legacy prefixes instead (e.g.
+`cnpg-backups/zitadel/` → the `zitadel-db` bucket); the legacy buckets
+stay until every sharer has moved.
 
 ## Credential bridge (COSI secret → consumers)
 
 Each `BucketAccess` mints keys into its `credentialsSecretName` Secret in
 the CLAIM namespace (the namespace the claim lands in via the Fleet
-`targetNamespace` — `cnpg`, `dragonfly`, `clickhouse`, `rclone` — NOT a
+`targetNamespace` — `cnpg`, `dragonfly`, `clickhouse`, `rclone`,
+`zitadel`, `coder`, `clickstack` — NOT a
 `cosi` namespace) as a `BucketInfo` JSON file (`secretS3.endpoint/region/
 accessKeyID/accessSecretKey`). Consumers read those keys through ESO
 Kubernetes-provider stores with GJSON `property`
 (`BucketInfo.spec.secretS3.accessKeyID/accessSecretKey`):
 
-- Same-namespace (in-namespace `SecretStore` + `eso-k8s-reader` SA/Role
-  colocated with the claim): `cnpg-s3-credentials` (cnpg),
-  `dragonfly-s3-credentials` (dragonfly), `clickhouse-s3-backup`
-  (clickhouse), `rclone-cosi-s3` (rclone).
-- Cross-namespace sharers — same bucket, own prefix, NO per-namespace
-  claim (a second claim would fork a second `bc-<uuid>` bucket):
-  `ClusterSecretStore/cosi-cnpg` serves `cnpg-s3-credentials` in
-  `zitadel` (zitadel-db), `coder` (coder-db), and `clickstack`
-  (ferretdb); `cosi-dragonfly` serves `dragonfly-s3-credentials` in
-  `zitadel` (zitadel-cache); `cosi-clickhouse` serves
-  `clickhouse-s3-backup` in `clickstack` (CHI). The stores pin the
-  claim-namespace `eso-k8s-reader` SA (least-privilege Role already covers
-  the `*-cosi-creds` Secret + `selfsubjectrulesreviews` create, so no new
-  RBAC) with `caProvider.namespace` set (mandatory on a ClusterSecretStore).
+- Every claim has an in-namespace `SecretStore` + `eso-k8s-reader`
+  SA/Role colocated with it (the `cosi-keys.yaml` beside each
+  `bucketclaims.yaml`). No `ClusterSecretStore` remains — the former
+  cross-namespace bridges (`cosi-cnpg`, `cosi-dragonfly`,
+  `cosi-clickhouse`, which let zitadel/coder/clickstack read the owners'
+  shared-bucket keys under their own prefixes) were retired once each
+  consumer got a dedicated claim:
+  | Claim ns | Claim | Creds Secret | Store | Consumer ExternalSecret |
+  |---|---|---|---|---|
+  | `cnpg` | `cnpg-backups` | `cnpg-backups-cosi-creds` | `cnpg-cosi` | `cnpg-s3-credentials` (postgres-base) |
+  | `dragonfly` | `dragonfly-backups` | `dragonfly-backups-cosi-creds` | `dragonfly-cosi` | `dragonfly-s3-credentials` (dragonfly-base) |
+  | `clickhouse` | `clickhouse` | `clickhouse-cosi-creds` | `clickhouse-cosi` | `clickhouse-s3-backup` (CHI) |
+  | `rclone` | `rclone-vault` | `rclone-vault-cosi-creds` | `rclone-cosi` | `rclone-cosi-s3` |
+  | `zitadel` | `zitadel-db` | `zitadel-db-cosi-creds` | `zitadel-cosi` | `cnpg-s3-credentials` (zitadel-db) |
+  | `zitadel` | `zitadel-cache` | `zitadel-cache-cosi-creds` | `zitadel-cosi` | `dragonfly-s3-credentials` (zitadel-cache) |
+  | `coder` | `coder-db` | `coder-db-cosi-creds` | `coder-cosi` | `cnpg-s3-credentials` (coder-db) |
+  | `clickstack` | `ferretdb` | `ferretdb-cosi-creds` | `clickstack-cosi` | `cnpg-s3-credentials` (ferretdb) |
+  | `clickstack` | `clickstack` | `clickstack-cosi-creds` | `clickstack-cosi` | `clickhouse-s3-backup` (CHI) |
 
 Target literal keys are unchanged everywhere, so no consumer workload
 manifest changed — only the ExternalSecret `secretStoreRef`/`remoteRef`.

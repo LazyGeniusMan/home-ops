@@ -90,16 +90,15 @@ consumer needs (also stated in `dragonfly-base.yaml`):
   this component. The bucket backing `s3://dragonfly-backups/` must exist
   **before** the first Dragonfly object starts (Dragonfly never creates
   buckets). Its COSI `BucketClaim`/`BucketAccess` pair lives here in
-  `configs/base/bucketclaims.yaml` (also serves the `zitadel-cache`
-  snapshot prefix — shared bucket, one claim).
+  `configs/base/bucketclaims.yaml`. (Former cross-namespace sharer
+  `zitadel-cache` moved to a dedicated in-namespace claim; see the cosi
+  README.)
 - Credentials: `ExternalSecret/dragonfly-s3-credentials` syncs
   `ACCESS_KEY_ID`/`SECRET_ACCESS_KEY` from the COSI-minted BucketInfo JSON
   (Secret `dragonfly-backups-cosi-creds`) through the in-namespace
   `dragonfly-cosi` SecretStore — GJSON `property` extracts
   `spec.secretS3.accessKeyID/accessSecretKey`. Target literal keys are
-  unchanged. The cross-namespace sharer (`zitadel-cache` — same bucket, own
-  prefix) reads the same keys through the `cosi-dragonfly`
-  ClusterSecretStore (no per-namespace claim). The Proton Pass
+  unchanged. The Proton Pass
   `pass://…/dragonfly/s3-*` entries stay seeded as rollback.
 - S3-compatible quirk: `--s3_endpoint` overrides the AWS endpoint and the
   `AWS_REGION` env satisfies the SDK credential chain for non-AWS backends

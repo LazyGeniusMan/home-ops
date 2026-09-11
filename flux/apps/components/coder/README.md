@@ -157,9 +157,9 @@ via the `coder-k8s` SecretStore — see the OIDC secret-handoff runbook above;
 pass:// entry left), `coder-db-credentials` + `coder-db-app-secret`
 (same-password pair, see `coder-secrets.yaml`), `cnpg-s3-credentials` +
 `cloudflare-api-token`. `cnpg-s3-credentials` (coder-db) is COSI-minted:
-it syncs from the `cnpg-backups-cosi-creds` BucketInfo JSON through the
-`cosi-cnpg` ClusterSecretStore (same bucket, own prefix — no
-per-namespace claim; see the cosi README). The `pass://…/cnpg/s3-*`
+it syncs from the `coder-db-cosi-creds` BucketInfo JSON through the
+in-namespace `coder-cosi` SecretStore (dedicated claim `coder-db` — see
+`base/bucketclaims.yaml` and the cosi README). The `pass://…/cnpg/s3-*`
 entries stay seeded as rollback, and `cloudflare-api-token` follows the
 §9 vault path so the DNS-01 secret exists in this namespace too. Seed
 each remaining vault entry with pass-cli.

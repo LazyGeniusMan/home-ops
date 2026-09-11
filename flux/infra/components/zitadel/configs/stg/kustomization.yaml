@@ -4,7 +4,7 @@ resources:
   - ../base
 patches:
   # Stg (prd values) DB/cache S3 endpoints. (S3 keys are COSI-minted via the
-  # cosi-cnpg / cosi-dragonfly ClusterSecretStores — no per-env vault ref
+  # in-namespace zitadel-cosi SecretStore — no per-env vault ref
   # patch.)
   - patch: |
       - op: replace

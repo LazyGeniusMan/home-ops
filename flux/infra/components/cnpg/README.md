@@ -63,9 +63,9 @@ OCI is the upstream source of truth, verified by pull:
   **before** the first Cluster starts (Barman Cloud ≥3.16 only creates the
   bucket on the check-wal-archive path). Its COSI
   `BucketClaim`/`BucketAccess` pair lives here in
-  `configs/base/bucketclaims.yaml` (also serves the `zitadel`, `coder`,
-  and `ferretdb` clusters' `destinationPath` prefixes — shared bucket,
-  one claim). COSI-managed replacement buckets live under
+  `configs/base/bucketclaims.yaml`. (Former cross-namespace sharers —
+  `zitadel-db`, `coder-db`, `ferretdb` — moved to dedicated in-namespace
+  claims; see the cosi README.) COSI-managed replacement buckets live under
   controller-generated names — see the cosi README "Bucket cutover"
   before repointing `destinationPath`.
 - Credentials: `ExternalSecret/cnpg-s3-credentials` syncs
@@ -73,9 +73,7 @@ OCI is the upstream source of truth, verified by pull:
   (Secret `cnpg-backups-cosi-creds`) through the in-namespace `cnpg-cosi`
   SecretStore — GJSON `property` extracts
   `spec.secretS3.accessKeyID/accessSecretKey`. Target literal keys are
-  unchanged. The cross-namespace sharers (`zitadel-db`, `coder-db`,
-  `ferretdb` — same bucket, own prefix) read the same keys through the
-  `cosi-cnpg` ClusterSecretStore (no per-namespace claim). The Proton Pass
+  unchanged. The Proton Pass
   `pass://…/cnpg/s3-*` entries stay seeded as rollback.
 - S3-compatible quirk per upstream docs: if boto3 checksum errors appear
   (`x-amz-content-sha256`), set `spec.env` `AWS_REQUEST_CHECKSUM_CALCULATION`
