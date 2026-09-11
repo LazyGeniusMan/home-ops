@@ -20,31 +20,25 @@ resources:
   - ../../apps.yaml
   - ../../infra.yaml
   - ../../policies.yaml
-# EXAMPLE (disabled by default): skip the heavy KubeVirt VM apps on dev.
-# The dev box does not need the Windows 11 VM or its Talos sibling.
-# To enable, uncomment the block below.
-# Why the `test` ops: ResourceSet inputs are an ORDERED list and RFC 6902
-# `remove` is index-based. Each removal is guarded by a `test` on the tenant
+# Dev exception (active): skip the Windows 11 VM on dev.
+# The dev box does not need the Windows 11 VM; talos-vm still deploys here.
+# Why the `test` op: ResourceSet inputs are an ORDERED list and RFC 6902
+# `remove` is index-based. The removal is guarded by a `test` on the tenant
 # name at that index, so the build FAILS LOUDLY (instead of silently dropping
-# the wrong tenant) if someone reorders tenants/apps.yaml. Remove from the
-# HIGHEST index first so earlier removals do not shift the later target.
+# the wrong tenant) if someone reorders tenants/apps.yaml. Single-index
+# removal needs no descending-order trick.
 # Current apps.yaml order (0-based):
 #   0 rclone, 1 win11-vm, 2 talos-vm, 3 clickstack, 4 hubble-ui,
 #   5 flux-operator-ui, 6 headlamp, 7 coder
-# patches:
-#   - target:
-#       group: fluxcd.controlplane.io
-#       version: v1
-#       kind: ResourceSet
-#       name: apps
-#     patch: |-
-#       - op: test
-#         path: /spec/inputs/2/tenant
-#         value: talos-vm
-#       - op: remove
-#         path: /spec/inputs/2
-#       - op: test
-#         path: /spec/inputs/1/tenant
-#         value: win11-vm
-#       - op: remove
-#         path: /spec/inputs/1
+patches:
+  - target:
+      group: fluxcd.controlplane.io
+      version: v1
+      kind: ResourceSet
+      name: apps
+    patch: |-
+      - op: test
+        path: /spec/inputs/1/tenant
+        value: win11-vm
+      - op: remove
+        path: /spec/inputs/1

@@ -46,9 +46,40 @@ win11-vm's SecureBoot+SMM shape would refuse to boot here.
   the `multus` tenant namespace — see multus README single-writer contract).
   The guest DHCPs against the router at 192.168.1.1.
 
+## Static MAC addresses
+
+The `lan` bridge interface carries a static MAC per env so the router
+(192.168.1.1) hands each VM a stable DHCP lease / reservation. The MAC is a
+literal on the VM spec (`macAddress` is a plain string field ESO cannot
+inject); Proton Pass mirrors the same value, and the `talos-vm-network`
+ExternalSecret syncs it into a `talos-vm-network` Secret (`lan-mac` key)
+for operational consumers (router DHCP reservations).
+
+Safety rules for every MAC below:
+
+- Unicast: first-octet LSB is 0 — never multicast/broadcast.
+- QEMU-OUI `52:54:00` prefix (KubeVirt-assigned range, no clash with real
+  NICs).
+- Unique per L2: dev+stg+prd share 192.168.1.0/24 with win11-vm, so every
+  static MAC repo-wide must differ.
+
+| env | MAC | vault path |
+| --- | --- | --- |
+| dev | `52:54:00:01:0A:01` | `pass://acme-dev-bdo1-talos-apps-01/talos-vm/lan-mac` |
+| stg | `52:54:00:02:0A:01` | `pass://acme-prd-bdo1-talos-apps-01/talos-vm/lan-mac` |
+| prd | `52:54:00:03:0A:01` | `pass://acme-prd-bdo1-talos-apps-01/talos-vm/lan-mac` |
+
+Mirror warning: the per-env patch literal, the vault value, and the synced
+`talos-vm-network` Secret must all agree — if either side changes, update
+both. User action: create a `lan-mac` item holding the env's MAC under
+`<vault>/talos-vm/` in Proton Pass.
+
 ## Environments
 
-`prd` and `stg` track `../base` with no patches.
+- `dev`: minimal specs (1 core / 1Gi / 10Gi — boot+DHCP minimum) + static
+  `lan` MAC via `talos-vm-dev-patch.yaml`.
+- `stg` / `prd`: base specs (2 cores / 4Gi / 20Gi) + static `lan` MAC via
+  the per-env patch.
 
 ## Telemetry-off / monitoring / updates
 

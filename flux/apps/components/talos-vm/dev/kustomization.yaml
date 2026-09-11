@@ -1,8 +1,23 @@
-# Dev is a passthrough of ../base: VM keeps the production name (talos-vm)
-# — dev and prd are separate clusters, so no name clash is possible.
-# runStrategy Manual, NAD multus/lan-dhcp and local-ssd-nvme storage are
-# unchanged (§14 batch 3c).
+# Dev tracks ../base with minimal specs (1 core / 1Gi / 10Gi — v1.14 worker
+# minima, boot+DHCP only) + a static `lan` MAC via talos-vm-dev-patch.yaml.
+# VM keeps the production name (talos-vm) — dev and prd are separate
+# clusters, so no name clash is possible. runStrategy Manual, NAD
+# multus/lan-dhcp and local-ssd-nvme storage class are unchanged.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../base
+patches:
+  - path: talos-vm-dev-patch.yaml
+    target:
+      kind: VirtualMachine
+      name: talos-vm
+  # Substitute the vault literal (coder ESO idiom): base holds
+  # `__PROTON_PASS_BASE__/...` remoteRefs only, never values.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/talos-vm/lan-mac
+    target:
+      kind: ExternalSecret
+      name: talos-vm-network

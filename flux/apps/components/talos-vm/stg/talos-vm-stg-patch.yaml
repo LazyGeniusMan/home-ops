@@ -1,0 +1,10 @@
+# Stg-only talos-vm patch: static `lan` bridge MAC (specs unchanged from
+# base). The MAC is a literal here because KubeVirt `macAddress` is a plain
+# string ESO cannot inject — mirror the SAME value in Proton Pass at
+# pass://acme-prd-bdo1-talos-apps-01/talos-vm/lan-mac (vault = source of
+# truth; the talos-vm-network ExternalSecret syncs it for router DHCP
+# reservations). If either side changes, update both.
+- op: add
+  path: /spec/template/spec/domain/devices/interfaces/1/macAddress
+  # vault: pass://acme-prd-bdo1-talos-apps-01/talos-vm/lan-mac
+  value: 52:54:00:02:0A:01

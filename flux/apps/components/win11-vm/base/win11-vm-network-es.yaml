@@ -1,0 +1,27 @@
+# win11-vm network identity (§13.4): mirrors the static `lan` MAC into a
+# `win11-vm-network` Secret (`lan-mac` key) for operational consumers
+# (router DHCP reservations).
+# The MAC itself is assigned per-env as a literal `macAddress` on the VM spec
+# via overlay patches — KubeVirt `macAddress` is a plain string field ESO
+# cannot inject. Proton Pass is the human source of truth: keep the value in
+# `<vault>/win11-vm/lan-mac` identical to the per-env patch literal.
+# Git holds remoteRefs only, never values (coder ESO idiom).
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: win11-vm-network
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: win11-vm-network
+    template:
+      data:
+        lan-mac: "{{ .lanMac }}"
+  data:
+    - secretKey: lanMac
+      remoteRef:
+        key: __PROTON_PASS_BASE__/win11-vm/lan-mac

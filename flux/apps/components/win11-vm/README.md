@@ -44,6 +44,35 @@ Microsoft licensing means the ISO URL is never committed. To provision:
   the `multus` tenant namespace — see multus README single-writer contract).
   The guest DHCPs against the router at 192.168.1.1.
 
+## Static MAC addresses
+
+`stg` and `prd` carry a static MAC on the `lan` bridge interface so the
+router (192.168.1.1) hands each VM a stable DHCP lease / reservation (`dev`
+is a passthrough with no static MAC). The MAC is a literal on the VM spec
+(`macAddress` is a plain string field ESO cannot inject); Proton Pass
+mirrors the same value, and the `win11-vm-network` ExternalSecret syncs it
+into a `win11-vm-network` Secret (`lan-mac` key) for operational consumers
+(router DHCP reservations).
+
+Safety rules for every MAC below:
+
+- Unicast: first-octet LSB is 0 — never multicast/broadcast.
+- QEMU-OUI `52:54:00` prefix (KubeVirt-assigned range, no clash with real
+  NICs).
+- Unique per L2: dev+stg+prd share 192.168.1.0/24 with talos-vm, so every
+  static MAC repo-wide must differ.
+
+| env | MAC | vault path |
+| --- | --- | --- |
+| dev | — (passthrough, router-assigned) | n/a |
+| stg | `52:54:00:02:0B:01` | `pass://acme-prd-bdo1-talos-apps-01/win11-vm/lan-mac` |
+| prd | `52:54:00:03:0B:01` | `pass://acme-prd-bdo1-talos-apps-01/win11-vm/lan-mac` |
+
+Mirror warning: the per-env patch literal, the vault value, and the synced
+`win11-vm-network` Secret must all agree — if either side changes, update
+both. User action: create a `lan-mac` item holding the env's MAC under
+`<vault>/win11-vm/` in Proton Pass.
+
 ## Firmware
 
 UEFI (`q35` + `firmware.bootloader.efi`) with `secureBoot: true` and
@@ -52,7 +81,8 @@ auto-enabled — set explicitly). Contrast talos-vm, which disables it.
 
 ## Environments
 
-`prd` and `stg` track `../base` with no patches.
+`dev` is a passthrough of `../base` (no static MAC); `stg` and `prd` add a
+static `lan` MAC patch each — base specs (4 cores / 8Gi / 80Gi) unchanged.
 
 ## Telemetry-off / monitoring / updates
 
