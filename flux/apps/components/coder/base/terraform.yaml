@@ -68,11 +68,24 @@ spec:
   path: ./terraform
   # Plain (non-sensitive) per-env values; secrets come from varsFrom below.
   # varsFrom overrides vars on key collision (upstream GenerateVarsForTF).
+  # Normal users ride `vars` as an HCL list (tofu-controller renders nested
+  # YAML values as HCL — no JSON encoding needed). `user_emails` stays LAST:
+  # the dev/stg/prd overlays patch /spec/vars/0 (domain) + /spec/vars/1
+  # (app_host) by position, so this entry must remain at index 2.
+  # No `user_initial_password` var is set (Terraform default null = no
+  # initial password): first sign-in goes through the Zitadel invite/reset
+  # flow — never commit passwords; seed pass:// + ESO wiring only if a
+  # shared initial password is ever wanted (same shape as the zitadel
+  # bootstrap `admin_initial_password`).
   vars:
     - name: domain
       value: __ZITADEL_HOST__
     - name: app_host
       value: __SERVICE_HOST__
+    - name: user_emails
+      value:
+        - git@yansyah.my.id
+        - git@lazygeniusman.my.id
   varsFrom:
     - kind: Secret
       name: coder-terraform-vars

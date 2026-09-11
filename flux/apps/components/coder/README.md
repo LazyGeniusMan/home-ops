@@ -94,10 +94,15 @@ from their OIDC claims (email prefix → username when no
 | Zitadel SSO identity | Operator identity | Coder username | Groups |
 |---|---|---|---|
 | `admin@home-ops.yansyah.my.id` | `git@yansyah.my.id` | `admin` | `coder-admin` |
-| `user@home-ops.yansyah.my.id` | `git@lazygeniusman.my.id` | `user` | `coder-user` |
+| `git@yansyah.my.id` | `git@yansyah.my.id` | `git` | `coder-user` |
+| `git@lazygeniusman.my.id` | `git@lazygeniusman.my.id` | `git` | `coder-user` |
 
 First OIDC login claims instance ownership — perform it as
-`admin@home-ops.yansyah.my.id` before inviting anyone else.
+`admin@home-ops.yansyah.my.id` before inviting anyone else. Note: both
+`git@…` addresses share the email prefix `git`, so the default
+email-prefix username derivation collides — verify on the second user's
+first login and, if Coder rejects the duplicate username, set
+`CODER_OIDC_USERNAME_FIELD=email` in `base/coder.yaml`.
 
 Follow-up (do NOT edit zitadel files here): if distinct `git@…` IdP
 identities are later added in the zitadel terraform, extend this table and
