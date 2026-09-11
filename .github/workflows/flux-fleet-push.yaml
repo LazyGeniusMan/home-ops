@@ -1,16 +1,7 @@
 # Fleet OCI delivery (main branch -> tags dev + dev-<sha>).
 # Owner: flux/fleet
-# Future repo: home-ops-fleet
 # Self-contained: all steps are inline in this file; no local composite
 # actions are referenced (only pinned external owner/repo@sha actions).
-# Migration to the dedicated repo (home-ops-fleet):
-#   1. Copy this file -> <new-repo>/.github/workflows/push.yaml (only file needed).
-#   2. Flip the monorepo path value to the split value: `path: "./flux/fleet"` -> `"./"`.
-#   3. Broaden the trigger path filter: `paths: ['flux/fleet/**']` -> `['**']`
-#      (or drop the paths filter entirely).
-#   4. Optionally restore the split-ready `workflow_call` inputs (repository,
-#      path; defaults `''`/`'./'`) that the old area-local
-#      area-local push.yaml carried (removed in consolidation) for cross-repo calls.
 name: flux-fleet-push
 
 # OCI: oci://ghcr.io/<owner>/home-ops/fleet:dev + dev-<sha> (main commits).

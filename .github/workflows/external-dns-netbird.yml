@@ -1,15 +1,7 @@
 # external-dns-netbird publish.
 # Owner: projects/external-dns-netbird
-# Future repo: external-dns-netbird
 # Self-contained: all steps are inline in this file; no local composite
 # actions are referenced (only pinned external owner/repo@sha actions).
-# Migration to the dedicated repo (external-dns-netbird):
-#   1. Copy this file -> <new-repo>/.github/workflows/publish.yml (only file needed).
-#   2. Flip the monorepo path values to the split values:
-#      `context: projects/external-dns-netbird` -> `.`,
-#      `file: projects/external-dns-netbird/Dockerfile` -> `./Dockerfile`.
-#   3. Broaden the trigger path filter: `paths: ['projects/external-dns-netbird/**']` -> `['**']`
-#      (or drop the paths filter; keep the `external-dns-netbird-v*` tag filter).
 name: external-dns-netbird
 
 on:

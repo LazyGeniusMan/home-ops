@@ -1,17 +1,7 @@
 # Apps validation.
 # Owner: flux/apps
-# Future repo: home-ops-apps
 # Self-contained: all steps are inline in this file; no local composite
 # actions are referenced (only pinned external owner/repo@sha actions).
-# Migration to the dedicated repo (home-ops-apps):
-#   1. Copy this file -> <new-repo>/.github/workflows/validate.yaml, plus
-#      flux/scripts/validate.sh -> <new-repo>/scripts/validate.sh (only files needed).
-#   2. Flip the monorepo path values to the split values:
-#      `run: ./flux/scripts/validate.sh` -> `./scripts/validate.sh`,
-#      `run: ... -d flux/apps` -> `-d .`.
-#   3. Broaden the trigger path filters: `paths: ['flux/apps/**',
-#      'flux/fleet/tenants/apps.yaml']` -> `['components/**', 'tenants/apps.yaml']`
-#      (after copying the tenants file) or drop the paths filters entirely.
 name: flux-apps-validate
 
 on:

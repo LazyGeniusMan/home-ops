@@ -1,15 +1,7 @@
 # eso-proton-pass publish.
 # Owner: projects/eso-proton-pass
-# Future repo: eso-proton-pass
 # Self-contained: all steps are inline in this file; no local composite
 # actions are referenced (only pinned external owner/repo@sha actions).
-# Migration to the dedicated repo (eso-proton-pass):
-#   1. Copy this file -> <new-repo>/.github/workflows/publish.yml (only file needed).
-#   2. Flip the monorepo path values to the split values:
-#      `context: projects/eso-proton-pass` -> `.`,
-#      `file: projects/eso-proton-pass/Dockerfile` -> `./Dockerfile`.
-#   3. Broaden the trigger path filter: `paths: ['projects/eso-proton-pass/**']` -> `['**']`
-#      (or drop the paths filter; keep the `eso-proton-pass-v*` tag filter).
 name: eso-proton-pass
 
 on:

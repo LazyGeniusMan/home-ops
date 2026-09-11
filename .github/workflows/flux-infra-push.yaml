@@ -1,20 +1,10 @@
 # Per-component infra OCI delivery (main -> tags dev + dev-<sha>).
 # Owner: flux/infra
-# Future repo: home-ops-infra
 # Self-contained: all steps are inline in this file; no local composite
 # actions are referenced (only pinned external owner/repo@sha actions).
 # To onboard a component (§§8-14): add its directory name to the components
 # matrix here AND add a matching tenant input in flux/fleet/tenants/infra.yaml.
 # Unchanged components are no-ops (push action only pushes on diff).
-# Migration to the dedicated repo (home-ops-infra):
-#   1. Copy this file -> <new-repo>/.github/workflows/push.yaml (only file needed).
-#   2. Flip the monorepo path value to the split value:
-#      `path: flux/infra/components/<component>` -> `components/<component>`.
-#   3. Broaden the trigger path filter: `paths: ['flux/infra/**']` -> `['components/**']`
-#      (or `['**']`, or drop the paths filter entirely).
-#   4. Optionally restore the split-ready `workflow_call` inputs
-#      (repository-prefix, source-prefix; defaults `''`/`'components'`) that the
-#      old area-local push.yaml carried (removed in consolidation) for cross-repo calls.
 name: flux-infra-push
 
 # OCI: oci://ghcr.io/<owner>/home-ops/infra/<component>:dev + dev-<sha>.

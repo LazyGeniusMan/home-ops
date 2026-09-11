@@ -2,20 +2,10 @@
 # oci://ghcr.io/<owner>/home-ops/fleet with tags stable + stable-X.Y.Z
 # (version stripped from the git ref).
 # Owner: flux/fleet
-# Future repo: home-ops-fleet
 # Self-contained: all steps are inline in this file; no local composite
 # actions are referenced (only pinned external owner/repo@sha actions).
 # The prd cluster verifies this workflow + tag via the cosign subject pinned
 # in flux/fleet/clusters/acme-prd-bdo1-talos-apps-01/flux-system/flux-instance.yaml.
-# Migration to the dedicated repo (home-ops-fleet):
-#   1. Copy this file -> <new-repo>/.github/workflows/release.yaml (only file needed).
-#   2. Flip the monorepo path value to the split value: `path: "./flux/fleet"` -> `"./"`.
-#   3. Update the cosign subject path: the flux-instance.yaml pin moves with
-#      flux/fleet, so the subject stays `clusters/acme-prd-bdo1-talos-apps-01/...`
-#      (drop the `flux/fleet/` prefix) after the split.
-#   4. Optionally restore the split-ready `workflow_call` inputs (repository,
-#      path; defaults `''`/`'./'`) that the old area-local
-#      area-local release.yaml carried (removed in consolidation) for cross-repo calls.
 name: flux-fleet-release
 
 # OCI: oci://ghcr.io/<owner>/home-ops/fleet:stable + stable-<version>.

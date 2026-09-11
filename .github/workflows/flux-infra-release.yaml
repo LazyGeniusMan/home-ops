@@ -4,18 +4,8 @@
 # workflow + tag via the cosign subject pinned in
 # flux/fleet/tenants/infra.yaml (refs/tags/flux-infra-v\d+\.\d+\.\d+).
 # Owner: flux/infra
-# Future repo: home-ops-infra
 # Self-contained: all steps are inline in this file; no local composite
 # actions are referenced (only pinned external owner/repo@sha actions).
-# Migration to the dedicated repo (home-ops-infra):
-#   1. Copy this file -> <new-repo>/.github/workflows/release.yaml (only file needed).
-#   2. Flip the monorepo path value to the split value:
-#      `path: flux/infra/components/<component>` -> `components/<component>`.
-#   3. Copy flux/fleet/tenants/infra.yaml -> <new-repo>/tenants/infra.yaml and update
-#      the cosign subject pin (drop the `flux/fleet/` prefix).
-#   4. Optionally restore the split-ready `workflow_call` inputs
-#      (repository-prefix, source-prefix; defaults `''`/`'components'`) that the
-#      old area-local release.yaml carried (removed in consolidation) for cross-repo calls.
 name: flux-infra-release
 
 # OCI: oci://ghcr.io/<owner>/home-ops/infra/<component>:stable + stable-<version>.
