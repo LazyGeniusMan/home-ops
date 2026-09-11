@@ -32,6 +32,21 @@
       | regex_findall('siderolabs/kubelet:v([0-9]+\.[0-9]+\.[0-9]+)')) + ['unknown']) | first }}
   when: talos_operate_kubernetes_version | length > 0
 
+- name: Warn when drift detection cannot read the rendered config
+  # The kubelet-image regex found nothing ('unknown'): the rendered machine
+  # config is missing (fresh clone without a day-0 render?) or unparseable.
+  # The old logic coerced this to drift=false — a silent skip that hid a
+  # broken build/. Warn loudly instead so the operator re-renders day-0.
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: Kubernetes drift detection read no kubelet version from {{
+      talos_operate_k8s_config_path }} (missing or unparseable — rendered
+      'unknown'). Skipping upgrade-k8s; re-run day-0 to render machine
+      configs, then re-run day-2.
+  when:
+    - talos_operate_kubernetes_version | length > 0
+    - talos_operate_rendered_k8s == 'unknown'
+
 - name: Decide whether Kubernetes upgrade is needed
   ansible.builtin.set_fact:
     talos_operate_k8s_drift: "{{ talos_operate_rendered_k8s != 'unknown' and talos_operate_rendered_k8s != talos_operate_kubernetes_version }}"

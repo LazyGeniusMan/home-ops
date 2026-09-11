@@ -238,12 +238,12 @@ Each node runs NFS server daemons for LAN clients (ports `2049`, `20048`,
   lines (`/var/mnt/nvme-data 192.168.1.0/24(rw,sync,no_subtree_check,
   fsid=0,crossmnt)` + `/var/mnt/sata-data 192.168.1.0/24(rw,sync,
   no_subtree_check)`); prd a single `/var/mnt/nvme-data ...(fsid=0,
-  crossmnt)` line (`sata-data` waits on a SATA disk this host does not
-  have — add its line only if/when that disk appears). `fsid=0` marks the
-  NFSv4 pseudo-root on `nvme-data`; `crossmnt` lets clients traverse into
-  the second export. Plus `EtcFileConfig` `netconfig` (libtirpc IPv4
-  server table). No `ExtensionServiceConfig`: the service takes no env,
-  so it needs no service config document.
+  crossmnt)` line (no `sata-data` volume — the host has no SATA disk;
+  re-add the volume + its line only when that disk appears). `fsid=0`
+  marks the NFSv4 pseudo-root on `nvme-data`; `crossmnt` lets clients
+  traverse into the second export. Plus `EtcFileConfig` `netconfig`
+  (libtirpc IPv4 server table). No `ExtensionServiceConfig`: the service
+  takes no env, so it needs no service config document.
 - **Backing store**: none dedicated — no `nfs` volume. The export paths
   resolve against the existing `nvme-data` (+ `sata-data` on dev)
   `UserVolumeConfig` volumes (`<name>` mounts at `/var/mnt/<name>`);
@@ -263,7 +263,12 @@ talosctl --talosconfig build/$C/talosconfig -n 192.168.1.201 \
 ### 1.7 Re-run / reset
 
 Day-0 is guarded by `creates:` — re-running without changes skips the
-inject/secrets steps and regenerates + revalidates configs. To **force** a
+inject/secrets steps and regenerates + revalidates configs. A render
+freshness preflight compares each source against its render by mtime: when a
+source `patches.yml` / `pat.yml.template` is newer than its `build/` output,
+day-0 fails fast naming the exact `rm` below instead of rendering +
+validating stale configs as if fresh. (Vault value rotations are invisible
+to the mtime check — still delete + re-run after a rotation.) To **force** a
 re-render after editing a source patch, schematic, or secret reference,
 delete the corresponding `build/<cluster>` file(s) and re-run:
 
@@ -299,7 +304,8 @@ day-0 real run** for the same cluster.
 Role step order (`talos_bootstrap`): auth check (PAT env + `pass-cli`
 session) → `apply-config --insecure` per node →
 readiness wait (TCP 50000 per node, then authenticated `talosctl version`
-poll on `nodes[0]`) → `bootstrap` on `nodes[0]` (retried) → `kubeconfig`
+poll on **every** node) → control-plane assert on `nodes[0]` → `bootstrap`
+on `nodes[0]` (retried) → `kubeconfig`
 fetch (retried) → marker files. The PAT arrives via the day-0 render
 (`proton-pass-pat` is written by `talos_render`, not day-1) — day-1's auth
 check stays only as a fail-fast login gate.
@@ -413,7 +419,10 @@ cluster, re-apply with an authenticated `talosctl apply-config`
 > `talos_clusters[talos_cluster].nodes[0]`, not "any healthy control-plane".
 > With today's single-node clusters that is the only control-plane; on a
 > future multi-node cluster, node order in `group_vars/all.yml` decides who
-> bootstraps.
+> bootstraps. Day-1 asserts `nodes[0]` is a control-plane node before
+> bootstrapping, and the L2 `talosctl version` poll covers **every** node
+> (a non-zero node still installing fails the play instead of bootstrapping
+> around it).
 
 ### 2.4 Verify
 
@@ -515,7 +524,10 @@ kubectl --kubeconfig build/$C/kubeconfig get nodes -o wide
 Compares `-e kubernetes_version=<ver>` (no leading `v`) against the kubelet
 image recorded in the rendered machine config; skips when they match.
 Always prints the `--dry-run` plan before the real `upgrade-k8s --to`.
-Targets `nodes[0]` (today's clusters are single control-plane).
+Targets `nodes[0]` (today's clusters are single control-plane). When the
+rendered machine config is missing or unparseable, drift detection warns
+loudly (no kubelet version found — re-run day-0) instead of silently
+skipping the upgrade.
 
 ```bash
 # Working dir: talos/ansible/
@@ -547,7 +559,10 @@ apply is maintenance-only. This is the installed-cluster path: force
 re-render of edited patches (needs the PAT, like day-0) **plus** a forced
 re-render of the PAT file itself (`pass-cli inject` over
 `pat.yml.template` — no `creates:` guard, so vault rotations flow on
-re-apply), regenerate machine configs, then authenticated
+re-apply), a live schematic refresh via the day-0 schematic plane
+(hash-changed schematics re-upload to the Image Factory and persist fresh
+`.id`/`.sha256`, so the installer image never goes stale), regenerate
+machine configs, then authenticated
 `apply-config --mode <reapply_mode>` (default `staged` — applies without
 reboot when the change allows it; one of `auto`, `no-reboot`, `staged`,
 `try`). Re-apply also asserts each node's `.id` resolves (re-run day-0 if
@@ -672,19 +687,23 @@ rendered file(s) first (next table).
 ### 4.3 `creates:`-skip staleness — when to delete what
 
 Every `creates:` guard trades idempotency for staleness: the task never
-re-runs while its file exists, even if the **source** changed.
+re-runs while its file exists, even if the **source** changed. Day-0 now
+fails fast with an mtime preflight when a source `patches.yml` /
+`pat.yml.template` is newer than its render, naming the exact `rm` below —
+but vault value rotations stay invisible to it (still delete + re-run after
+a rotation).
 
 | Guard file (`build/<cluster>/...`) | Skipped task | Goes stale when… | Recovery |
 | --- | --- | --- | --- |
 | `patches.yml` | cluster `pass-cli inject` | source cluster `patches.yml` or vault values change | `rm build/<c>/patches.yml`, re-run day-0 |
 | `nodes-<node>-patches.yml` | per-node `pass-cli inject` (+ ID-rewrite target) | source node `patches.yml`, vault values, or schematic changes | `rm build/<c>/nodes-*-patches.yml`, re-run day-0 |
 | `proton-pass-pat` | PAT `pass-cli inject` (day-0 `creates:`; day-2 re-apply is forced) | vault `eso-proton-pass`/`pat` rotated | `rm build/<c>/proton-pass-pat`, re-run day-0 (or day-2 `-e reapply_configs=true`, which re-renders without deleting) |
-| `schematic-<node>.id` / `.sha256` | factory upload (hash-guarded, not `creates:`) | re-uploads automatically on content change | none needed; honest hash comparison |
+| `schematic-<node>.id` / `.sha256` | factory upload (hash-guarded, not `creates:`) | re-uploads automatically on content change | none needed; honest hash comparison. A hash-match with a missing/empty `.id` (or an upload that yields no parseable ID) now fails fast naming the `rm` + re-run day-0 recovery instead of silently falling back to `pending-schematic-upload` |
 | `secrets.bundle.yml` | `gen secrets` | **never** refreshes while present | `rm` + re-run day-0 only pre-install (rotation breaks live clusters) |
 | `talosconfig`, `nodes/<n>/*.yaml` | `gen config` (no guard — always regenerates) | n/a (fresh every run) | n/a |
 | `.installed-<node>` | insecure apply for that node | config re-rendered but node never re-applied | `rm build/<c>/.installed-<node>` + re-run day-1 (maintenance only) / manual secure apply if installed |
 | `.bootstrapped` | etcd bootstrap | never re-run by design | `rm` only to **re-bootstrap a fresh cluster**; never on a live one (would split-brain etcd) |
-| `kubeconfig` | kubeconfig fetch | cluster re-bootstrapped / certs rotated | `rm build/<c>/kubeconfig`, re-run day-1 |
+| `kubeconfig` | kubeconfig fetch | cluster re-bootstrapped / certs rotated | `rm build/<c>/kubeconfig`, re-run day-1 — or refresh in place with day-2 `-e regen_kubeconfig=true` (§3.5) |
 
 ### 4.4 Re-apply after a patch change (installed cluster)
 

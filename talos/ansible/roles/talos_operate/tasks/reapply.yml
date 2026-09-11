@@ -68,7 +68,33 @@
   when: talos_operate_reapply_configs | bool
   changed_when: true
 
+- name: Refresh per-node schematic IDs from the Image Factory
+  # Day-2 re-apply never touches schematics.yml sources, so a schematic edit
+  # would otherwise render installable configs with a STALE installer image
+  # (the .id embeds the old extension set). Reuse the day-0 schematic plane
+  # (tasks_from — cross-role include_tasks paths do not resolve; include_role
+  # does via roles_path) with the day-2 factory URL so hash changes re-upload
+  # and persist fresh .id/.sha256. IDs accumulate in the shared
+  # talos_render_schematic_ids host fact. Same check-mode behavior as day-0:
+  # upload skipped, placeholder expected.
+  ansible.builtin.include_role:
+    name: talos_render
+    tasks_from: schematic
+    public: true
+  vars:
+    talos_render_schematic_factory_url: "{{ talos_operate_schematic_factory_url }}"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    loop_var: node
+    label: "{{ node.name }}"
+  when: talos_operate_reapply_configs | bool
+
 - name: Read per-node schematic IDs for installer image rewrite
+  # IDs now land in the shared talos_render_schematic_ids fact via the
+  # schematic plane above; this slurp is the offline fallback when no
+  # upload ran (build/<cluster> restored without a factory round-trip).
+  # When both disagree the upload-fresh IDs win (next task), matching the
+  # render-plane precedence.
   ansible.builtin.slurp:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}/schematic-{{ item.name }}.id"
   loop: "{{ talos_clusters[talos_cluster].nodes }}"
@@ -91,7 +117,18 @@
     - talos_operate_reapply_configs | bool
     - item.content is defined
 
+- name: Prefer schematic-plane IDs refreshed this run over file reads
+  # The schematic plane above persists fresh .id files when it uploads, so
+  # these wins apply to hash-changed nodes even mid-loop.
+  ansible.builtin.set_fact:
+    talos_operate_reapply_ids: "{{ (talos_operate_reapply_ids | default({})) | combine(talos_render_schematic_ids | default({})) }}"
+  when: talos_operate_reapply_configs | bool
+
 - name: Assert schematic IDs resolve for re-apply
+  # Explicit schematic-layer failure (not a silent stale reuse): the IDs
+  # above already passed through the render-plane freshness guards, so a
+  # miss here means build/<cluster> lost its .id files offline — re-run
+  # day-0 to re-upload from the factory.
   ansible.builtin.assert:
     that:
       - (talos_operate_reapply_ids | default({})).get(item.name, '') | length > 0

@@ -91,7 +91,10 @@ all three levels, merges them, then stages a reference copy at
 and persists `schematic-<node>.id` + `schematic-<node>.sha256`. Merged
 bytes change → new factory ID on the next day-0 (hash-gated). Upload is
 idempotent: skipped when the schematic hash is unchanged (re-upload only on
-content change). The rendered node patch copies under
+content change). A hash-match with a missing/empty `.id`, or an upload that
+yields no parseable ID, fails fast naming the `rm` + re-run day-0 recovery
+instead of silently rendering `pending-schematic-upload`. The rendered node
+patch copies under
 `build/<cluster>/nodes-<node>-patches.yml` get their
 `PLACEHOLDER_SCHEMATIC_ID` rewritten to the resolved per-node ID, so each
 node's `UnattendedInstallConfig.installer.image` is correct.
@@ -132,9 +135,10 @@ cluster), so each node gets only its own patches, scoped to its role:
 
 Each node also runs an NFS server stack: the node schematic layer adds
 `siderolabs/nfsd` + `nfs-utils` + `nfs-server`, configured by
-`EtcFileConfig` `exports` (existing `nvme-data` (+ `sata-data` on dev)
-volumes, LAN-only `192.168.1.0/24`, `root_squash`, `fsid=0` pseudo-root
-on `nvme-data`) + `netconfig` — no dedicated volume
+`EtcFileConfig` `exports` (existing `nvme-data` (+ `sata-data` on dev —
+prd has no `sata-data`: the host has no SATA disk, so the unsatisfiable
+selector was removed) volumes, LAN-only `192.168.1.0/24`, `root_squash`,
+`fsid=0` pseudo-root on `nvme-data`) + `netconfig` — no dedicated volume
 (see `RUNBOOK.md` §1.6).
 
 ## Inventory (local-only — no node inventory)

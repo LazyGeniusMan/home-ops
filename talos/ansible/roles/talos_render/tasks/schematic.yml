@@ -125,6 +125,22 @@
       else (talos_render_schematic_upload.content | trim | replace('\"', '')) }}"
   when: talos_render_schematic_need_upload and not ansible_check_mode
 
+- name: Fail when the uploaded schematic yields no ID
+  # Upload returned 2xx but the ID could not be parsed (non-JSON body without
+  # a usable ID). Without this, gen config silently renders
+  # pending-schematic-upload and nothing is persisted, so every re-run
+  # repeats the silent fallback. Delete the staged artifacts and re-run day-0.
+  ansible.builtin.assert:
+    that:
+      - talos_render_schematic_id | length > 0
+    fail_msg: >-
+      Image Factory upload for {{ node.name }} returned no parseable
+      schematic ID. Delete
+      build/{{ talos_cluster }}/schematic-{{ node.name }}.sha256 (and the
+      .id if present) and re-run day-0 to force a fresh factory upload.
+    success_msg: "Schematic upload yielded an ID for {{ node.name }}."
+  when: talos_render_schematic_need_upload and not ansible_check_mode
+
 - name: Read stored schematic ID
   ansible.builtin.slurp:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}/schematic-{{ node.name }}.id"
@@ -137,6 +153,25 @@
   ansible.builtin.set_fact:
     talos_render_schematic_id: "{{ talos_render_schematic_stored_id.content | b64decode | trim }}"
   when: not talos_render_schematic_need_upload and talos_render_schematic_stored_id.content is defined
+
+- name: Fail when the schematic hash matches but no ID resolves
+  # Missing-file hole guard: hash unchanged (no upload ran) yet
+  # schematic-<node>.id is missing/empty (deleted, or an upload returned an
+  # unparsable body). Without this, gen config silently falls back to
+  # pending-schematic-upload. Delete the .sha256 (+ .id) and re-run day-0 to
+  # force a fresh factory upload. Skipped in check mode (no upload runs
+  # there by design, so the placeholder is expected — see RUNBOOK §1.1).
+  ansible.builtin.assert:
+    that:
+      - talos_render_schematic_id | length > 0
+    fail_msg: >-
+      Schematic for {{ node.name }} unchanged (no factory upload ran) but
+      build/{{ talos_cluster }}/schematic-{{ node.name }}.id is missing or
+      empty. Delete
+      build/{{ talos_cluster }}/schematic-{{ node.name }}.sha256 (and the
+      .id if present) and re-run day-0 to force a fresh factory upload.
+    success_msg: "Schematic ID resolves for {{ node.name }}."
+  when: not (talos_render_schematic_need_upload | bool) and not ansible_check_mode
 
 - name: Persist schematic ID
   ansible.builtin.copy:

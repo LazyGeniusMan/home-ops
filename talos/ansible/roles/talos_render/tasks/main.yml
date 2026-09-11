@@ -19,6 +19,105 @@
     state: directory
     mode: "0700"
 
+- name: Stat cluster patch source for render freshness preflight
+  # The inject tasks below carry `creates:` guards: they never re-run while
+  # the rendered file exists, even when the SOURCE changed (RUNBOOK §4.3).
+  # Compare mtimes and fail fast naming the exact rm from §1.7 instead of
+  # rendering + validating stale configs as if fresh.
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/../../clusters/{{ talos_cluster }}/patches.yml"
+  check_mode: false
+  register: talos_render_preflight_cluster_src
+
+- name: Stat rendered cluster patch for render freshness preflight
+  ansible.builtin.stat:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/patches.yml"
+  check_mode: false
+  register: talos_render_preflight_cluster_out
+
+- name: Fail when the cluster patch source is newer than its render
+  ansible.builtin.assert:
+    that:
+      - not (talos_render_preflight_cluster_src.stat.exists | default(false))
+        or not (talos_render_preflight_cluster_out.stat.exists | default(false))
+        or (talos_render_preflight_cluster_src.stat.mtime | default(0)) <= (talos_render_preflight_cluster_out.stat.mtime | default(0))
+    fail_msg: >-
+      build/{{ talos_cluster }}/patches.yml is older than its source
+      (clusters/{{ talos_cluster }}/patches.yml changed after the last
+      render) and the inject task would skip it via creates:. Delete the
+      stale file(s) and re-run day-0 (RUNBOOK §1.7):
+      rm build/{{ talos_cluster }}/patches.yml
+      build/{{ talos_cluster }}/nodes-*-patches.yml
+    success_msg: "Cluster patch render is fresh."
+
+- name: Stat PAT template for render freshness preflight
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/../../clusters/{{ talos_cluster }}/pat.yml.template"
+  check_mode: false
+  register: talos_render_preflight_pat_src
+
+- name: Stat rendered PAT for render freshness preflight
+  ansible.builtin.stat:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/{{ talos_pat_filename }}"
+  check_mode: false
+  register: talos_render_preflight_pat_out
+
+- name: Fail when the PAT template is newer than its render
+  # Vault rotations are undetectable here (values live outside the repo);
+  # this covers template edits only. A rotation still needs an explicit
+  # rm build/<cluster>/proton-pass-pat + re-run day-0 (RUNBOOK §4.3).
+  ansible.builtin.assert:
+    that:
+      - not (talos_render_preflight_pat_src.stat.exists | default(false))
+        or not (talos_render_preflight_pat_out.stat.exists | default(false))
+        or (talos_render_preflight_pat_src.stat.mtime | default(0)) <= (talos_render_preflight_pat_out.stat.mtime | default(0))
+    fail_msg: >-
+      build/{{ talos_cluster }}/{{ talos_pat_filename }} is older than its
+      source (pat.yml.template changed after the last render) and the inject
+      task would skip it via creates:. Delete the stale file and re-run
+      day-0 (RUNBOOK §1.7):
+      rm build/{{ talos_cluster }}/{{ talos_pat_filename }}
+    success_msg: "PAT render is fresh."
+
+- name: Stat node patch sources for render freshness preflight
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/../../clusters/{{ talos_cluster }}/nodes/{{ item.name }}/patches.yml"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  check_mode: false
+  register: talos_render_preflight_node_src
+
+- name: Stat rendered node patches for render freshness preflight
+  ansible.builtin.stat:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  check_mode: false
+  register: talos_render_preflight_node_out
+
+- name: Fail when a node patch source is newer than its render
+  # Indexed pairing (not zip): node list order is stable, so src/out result
+  # indices align 1:1 with the node loop above.
+  ansible.builtin.assert:
+    that:
+      - not (talos_render_preflight_node_src.results[idx].stat.exists | default(false))
+        or not (talos_render_preflight_node_out.results[idx].stat.exists | default(false))
+        or (talos_render_preflight_node_src.results[idx].stat.mtime | default(0)) <= (talos_render_preflight_node_out.results[idx].stat.mtime | default(0))
+    fail_msg: >-
+      build/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml is
+      older than its source (clusters/{{ talos_cluster }}/nodes/{{
+      item.name }}/patches.yml changed after the last render) and the
+      inject task would skip it via creates:. Delete the stale file and
+      re-run day-0 (RUNBOOK §1.7):
+      rm build/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml
+    success_msg: "Node patch render is fresh for {{ item.name }}."
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+    index_var: idx
+
 - name: Check pass-cli session is authenticated
   # Ansible NEVER logs in: this probes the existing session via
   # `pass-cli info -o json` (rc==0 + JSON mapping stdout = logged in;

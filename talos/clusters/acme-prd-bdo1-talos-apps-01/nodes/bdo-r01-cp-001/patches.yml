@@ -10,8 +10,12 @@
 #   KubeNodeConfig{nodeIP.validSubnets, labels}.
 # Disk CEL: disk.dev_path / disk.transport (sata evidenced in
 # disk-management/layout.mdx) / !system_disk (system.mdx:46,83).
-# sata-data provisions when a SATA disk is present; the host AHCI controller is
-# currently vfio-pci passthrough, so this volume waits for a disk.
+# No sata-data volume: the host has no SATA disk (AHCI controller 0000:00:17.0
+# is vfio-pci passthrough — see node schematics.yml), so a
+# disk.dev_path == "/dev/sda" selector would never match and the
+# UserVolumeConfig would block provisioning waiting for a disk.
+# Re-add a sata-data UserVolumeConfig (+ its /var/mnt/sata-data exports line)
+# only when a SATA disk is physically present.
 ---
 apiVersion: v1alpha1
 kind: HostnameConfig
@@ -53,16 +57,6 @@ provisioning:
 filesystem:
   type: xfs
 ---
-apiVersion: v1alpha1
-kind: UserVolumeConfig
-name: sata-data
-provisioning:
-  diskSelector:
-    match: disk.dev_path == "/dev/sda"
-  minSize: 1GiB
-filesystem:
-  type: xfs
----
 # NFS server stack (nfs-server README §Requirements + Configuration).
 # Exports the existing user volume — no dedicated nfs volume.
 # UserVolumeConfig <name> mounts at /var/mnt/<name>, so this path resolves
@@ -75,9 +69,9 @@ contents: |
   /var/mnt/nvme-data 192.168.1.0/24(rw,sync,no_subtree_check,fsid=0,crossmnt)
 # LAN-only 192.168.1.0/24; default root_squash kept (no no_root_squash).
 # fsid=0 marks the NFSv4 pseudo-root, crossmnt kept so a second export can
-# attach later. nvme-data is the only live volume — sata-data waits on a
-# SATA disk that does not exist (host AHCI is vfio-pci passthrough); add
-# its line only if/when that disk appears.
+# attach later. nvme-data is the only volume — no sata-data (host has no
+# SATA disk; AHCI is vfio-pci passthrough). Add its export line only with a
+# sata-data UserVolumeConfig when that disk appears.
 ---
 apiVersion: v1alpha1
 kind: EtcFileConfig

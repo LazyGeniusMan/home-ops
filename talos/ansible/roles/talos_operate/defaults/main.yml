@@ -36,3 +36,7 @@ talos_operate_pat_expiration: 1y
 # keeps day-2 read-only; renew additionally needs talos_operate_pat_renew.
 talos_operate_pat_apply: false
 talos_operate_pat_renew: false
+# Image Factory endpoint for the re-apply schematic refresh (passed into the
+# render schematic plane — the render role defaults are not loaded on day-2).
+# Must stay in sync with talos_render_schematic_factory_url.
+talos_operate_schematic_factory_url: https://factory.talos.dev/schematics
