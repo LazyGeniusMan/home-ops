@@ -19,7 +19,7 @@ func clearEnv(t *testing.T) {
 	t.Helper()
 	for _, k := range []string{"NETBIRD_PAT_FILE", "NETBIRD_BASE_URL", "DOMAIN_FILTER", "WEBHOOK_ADDR", "METRICS_ADDR", "DEFAULT_TTL", "LOG_LEVEL"} {
 		t.Setenv(k, "")
-		os.Unsetenv(k)
+		_ = os.Unsetenv(k)
 	}
 }
 

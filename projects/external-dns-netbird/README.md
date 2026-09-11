@@ -56,5 +56,5 @@ golangci-lint run ./...
 docker build -t external-dns-netbird:dev .
 ```
 
-Image: `ghcr.io/<owner>/home-ops/infra/external-dns-netbird` (`:dev` on main,
-`:latest` + version on `external-dns-netbird-v*` tags).
+Image: `ghcr.io/lazygeniusman/home-ops/infra/external-dns-netbird` (`:dev`
+on any branch push, `:latest` + version on `external-dns-netbird-v*` tags).

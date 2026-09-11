@@ -1,10 +1,10 @@
 // Command eso-proton-pass is the External Secrets Operator (ESO) webhook
 // provider for Proton Pass.
 //
-// It is a pull-only HTTP service: ESO's generic webhook provider issues GET
-// (and HEAD for Validate) requests and resolves secrets with the pass-cli
-// backend. Push operations are not implemented and return an explicit
-// TODO/unimplemented response.
+// It is a pull-only HTTP service: ESO's generic webhook provider pulls
+// secrets with GET /get?key=... (or POST /get with a JSON remoteRef body;
+// HEAD / and GET / for Validate) and resolves them with the pass-cli
+// backend. Push operations are not implemented and return 501.
 //
 // Secret addressing (see README.md):
 //
@@ -26,10 +26,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/LazyGeniusMan/home-ops/eso-proton-pass/internal/config"
-	"github.com/LazyGeniusMan/home-ops/eso-proton-pass/internal/passclient"
-	"github.com/LazyGeniusMan/home-ops/eso-proton-pass/internal/provider"
-	"github.com/LazyGeniusMan/home-ops/eso-proton-pass/internal/server"
+	"github.com/LazyGeniusMan/home-ops/projects/eso-proton-pass/internal/config"
+	"github.com/LazyGeniusMan/home-ops/projects/eso-proton-pass/internal/passclient"
+	"github.com/LazyGeniusMan/home-ops/projects/eso-proton-pass/internal/provider"
+	"github.com/LazyGeniusMan/home-ops/projects/eso-proton-pass/internal/server"
 )
 
 func main() {
@@ -55,6 +55,7 @@ func run() error {
 	client := passclient.New(passclient.Options{
 		BinaryPath: cfg.PassCLIBinary,
 		SessionDir: cfg.SessionDir,
+		Timeout:    cfg.ExecTimeout,
 		Logger:     logger,
 	})
 

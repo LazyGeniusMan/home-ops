@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/LazyGeniusMan/home-ops/eso-proton-pass/internal/provider"
+	"github.com/LazyGeniusMan/home-ops/projects/eso-proton-pass/internal/provider"
 )
 
 type fakeProvider struct {
@@ -118,7 +118,7 @@ func TestValidateHealthMetrics(t *testing.T) {
 	}
 }
 
-func TestPushReturns501TODO(t *testing.T) {
+func TestPushReturns501(t *testing.T) {
 	srv := testServer(&fakeProvider{value: "x"}).Handler()
 	req := httptest.NewRequest(http.MethodPost, "/push", strings.NewReader(`{}`))
 	rec := httptest.NewRecorder()
@@ -126,7 +126,7 @@ func TestPushReturns501TODO(t *testing.T) {
 	if rec.Code != http.StatusNotImplemented {
 		t.Fatalf("status = %d, want 501", rec.Code)
 	}
-	if !strings.Contains(rec.Body.String(), "TODO") {
-		t.Errorf("push body should mention TODO: %s", rec.Body.String())
+	if !strings.Contains(rec.Body.String(), "push is not implemented (pull-only provider)") {
+		t.Errorf("push body should state pull-only: %s", rec.Body.String())
 	}
 }

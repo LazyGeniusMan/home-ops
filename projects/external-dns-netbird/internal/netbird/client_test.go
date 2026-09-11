@@ -67,8 +67,8 @@ func TestAPIErrorNotFoundNotRetryable(t *testing.T) {
 
 func TestCRUDRoundTrip(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == http.MethodPost:
+		switch r.Method {
+		case http.MethodPost:
 			var rec CreateRecord
 			if err := json.NewDecoder(r.Body).Decode(&rec); err != nil {
 				w.WriteHeader(http.StatusBadRequest)
@@ -76,10 +76,10 @@ func TestCRUDRoundTrip(t *testing.T) {
 			}
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(Record{ID: "new", Name: rec.Name, Type: rec.Type, Content: rec.Content, TTL: rec.TTL})
-		case r.Method == http.MethodPut:
+		case http.MethodPut:
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode(Record{ID: "r1", Name: "www.example.com", Type: "A", Content: "10.0.0.2", TTL: 60})
-		case r.Method == http.MethodDelete:
+		case http.MethodDelete:
 			w.WriteHeader(http.StatusNoContent)
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)

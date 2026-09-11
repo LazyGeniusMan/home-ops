@@ -27,11 +27,15 @@ const (
 	maxBodyBytes   = 8 << 20 // 8 MiB safety cap on API response bodies
 )
 
-// Zone is a NetBird custom DNS zone.
+// Zone is a NetBird custom DNS zone. Only ID, Name, Domain, and Records
+// drive provider behavior; the remaining fields are decode-only/reserved —
+// populated from API responses but never read — and are kept so list
+// responses decode without loss.
 type Zone struct {
-	ID                 string   `json:"id"`
-	Name               string   `json:"name"`
-	Domain             string   `json:"domain"`
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Domain string `json:"domain"`
+	// Decode-only/reserved: present in API responses, unused by the provider.
 	Enabled            bool     `json:"enabled"`
 	EnableSearchDomain bool     `json:"enable_search_domain"`
 	DistributionGroups []string `json:"distribution_groups"`
@@ -92,15 +96,6 @@ func (c *Client) ListZones(ctx context.Context) ([]Zone, error) {
 		return nil, err
 	}
 	return zones, nil
-}
-
-// GetZone returns a single zone (GET /api/dns/zones/{zoneId}).
-func (c *Client) GetZone(ctx context.Context, zoneID string) (*Zone, error) {
-	var zone Zone
-	if err := c.do(ctx, http.MethodGet, "/api/dns/zones/"+url.PathEscape(zoneID), nil, &zone); err != nil {
-		return nil, err
-	}
-	return &zone, nil
 }
 
 // ListRecords returns all DNS records in a zone (GET /api/dns/zones/{zoneId}/records).
@@ -176,7 +171,7 @@ func (c *Client) do(ctx context.Context, method, path string, body any, out any)
 	if err != nil {
 		return fmt.Errorf("netbird: %s %s: %w", method, path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	limited := io.LimitReader(resp.Body, maxBodyBytes+1)
 	respBody, err := io.ReadAll(limited)

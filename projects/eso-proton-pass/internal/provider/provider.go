@@ -7,7 +7,7 @@
 //     JSON body {"remoteRef": {"key": ...}}) → 200 {"value": "<secret>"}.
 //     Unknown keys → 404 so ESO applies the ExternalSecret deletionPolicy.
 //   - Validate: HEAD / (also GET /) → 200.
-//   - Push: not implemented; POST /push → 501 with an explicit TODO message.
+//   - Push: not implemented; POST /push → 501 (pull-only provider).
 package provider
 
 import (
@@ -21,8 +21,8 @@ import (
 // ErrNotFound is returned when the referenced secret does not exist.
 var ErrNotFound = errors.New("secret not found")
 
-// ErrPushUnimplemented is returned for push attempts (TODO: push support).
-var ErrPushUnimplemented = errors.New("TODO: push is not implemented (pull-only provider)")
+// ErrPushUnimplemented is returned for push attempts (pull-only provider).
+var ErrPushUnimplemented = errors.New("push is not implemented (pull-only provider)")
 
 // Resolver resolves a pass:// URI to its secret value.
 type Resolver interface {

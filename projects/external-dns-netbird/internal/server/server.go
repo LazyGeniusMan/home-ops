@@ -139,7 +139,7 @@ func (s *Server) handleRecords(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleApplyChanges(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 	var changes plan.Changes
 	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 	if err := json.NewDecoder(r.Body).Decode(&changes); err != nil {
@@ -158,7 +158,7 @@ func (s *Server) handleApplyChanges(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAdjustEndpoints(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 	var eps []*endpoint.Endpoint
 	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 	if err := json.NewDecoder(r.Body).Decode(&eps); err != nil {

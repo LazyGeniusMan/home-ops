@@ -1,3 +1,3 @@
-module github.com/LazyGeniusMan/home-ops/eso-proton-pass
+module github.com/LazyGeniusMan/home-ops/projects/eso-proton-pass
 
 go 1.26.7

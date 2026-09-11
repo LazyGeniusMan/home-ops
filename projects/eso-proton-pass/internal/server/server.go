@@ -6,7 +6,7 @@
 //	HEAD /  | GET /                         validate path → 200
 //	GET  /healthz                            liveness → 200 {"status":"ok"}
 //	GET  /metrics                            Prometheus metrics (text)
-//	POST /push                               → 501 TODO (pull-only)
+//	POST /push                               → 501 (pull-only, not implemented)
 //
 // All pull responses use the {"value": ...} envelope so ESO can extract the
 // secret with result.jsonPath "$.value".
@@ -21,7 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/LazyGeniusMan/home-ops/eso-proton-pass/internal/provider"
+	"github.com/LazyGeniusMan/home-ops/projects/eso-proton-pass/internal/provider"
 )
 
 // Server is the HTTP front end for the provider.
@@ -144,8 +144,6 @@ func (s *Server) handleGetPost(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "missing remoteRef.key"})
 		return
 	}
-	r.URL.RawQuery = "key=" + body.RemoteRef.Key
-	// Reuse the GET path by forwarding the extracted key.
 	value, err := s.prov.GetSecret(r, body.RemoteRef.Key)
 	if err != nil {
 		s.count(false)
@@ -194,7 +192,7 @@ func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 	_, _ = fmt.Fprintf(w, "eso_proton_pass_uptime_seconds %d\n", int64(time.Since(s.started).Seconds()))
 }
 
-// handlePush rejects pushes: pull-only provider (TODO).
+// handlePush rejects pushes: pull-only provider.
 func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeJSON(w, http.StatusMethodNotAllowed, errorResponse{Error: "method not allowed: use POST"})

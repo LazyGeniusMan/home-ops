@@ -23,7 +23,7 @@ Routes (see `internal/server/server.go`):
 | GET    | `/`       | Validate path → 200                                  |
 | GET    | `/healthz` | Liveness → `{"status":"ok"}`                        |
 | GET    | `/metrics` | Prometheus metrics (text exposition)                |
-| POST   | `/push`   | → 501 TODO (pull-only, never implemented)            |
+| POST   | `/push`   | → 501 (pull-only, not implemented)                   |
 
 All pull responses use the `{"value": "…"}` envelope, so ESO extracts the
 secret with `result.jsonPath: "$.value"`. Templated ESO usage:
@@ -84,10 +84,10 @@ Three independent layers, all asserting `PROTON_PASS_DISABLE_TELEMETRY=1`:
 ## Image
 
 Published to `ghcr.io/lazygeniusman/home-ops/infra/eso-proton-pass` by
-`.github/workflows/eso-proton-pass.yml` (shared steps in
-`.github/actions/eso-proton-pass-publish/`):
+the self-contained `.github/workflows/eso-proton-pass.yml` (no local
+actions):
 
-- branch push → `:dev`
+- any branch push → `:dev`
 - tag `eso-proton-pass-v*` → `:latest` plus the stripped version
   (e.g. `eso-proton-pass-v1.2.3` → `:1.2.3`)
 
