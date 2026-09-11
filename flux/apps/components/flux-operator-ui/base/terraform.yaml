@@ -1,7 +1,7 @@
 # Flux Operator UI SSO identity (§11.4), machine-applied by Tofu Controller.
 # Owns ONLY this app's slice: the `flux-operator-ui` Zitadel project +
-# project-scoped roles (flux-operator-ui-admin/flux-operator-ui-user) + user
-# grants + the `flux-operator-ui` OIDC client. Project-scoped means
+# project-scoped admin role (flux-operator-ui-admin) + admin grant + the
+# `flux-operator-ui` OIDC client. Project-scoped means
 # flux-operator-ui-admin NEVER implies org admin.
 #
 # Ordering: this object ships in the app Kustomization (fleet `apps`

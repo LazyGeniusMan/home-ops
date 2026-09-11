@@ -50,14 +50,6 @@ resource "zitadel_project_role" "admin" {
   group        = "flux-operator-ui"
 }
 
-resource "zitadel_project_role" "user" {
-  org_id       = data.zitadel_org.home_ops.id
-  project_id   = zitadel_project.flux_operator_ui.id
-  role_key     = "flux-operator-ui-user"
-  display_name = "Flux Operator UI User"
-  group        = "flux-operator-ui"
-}
-
 # Admin user comes from the zitadel bootstrap remote-state output (stored ID —
 # no email lookup needed). Admin (super-admin, ORG_OWNER) gets
 # flux-operator-ui-admin. Only the admin role passes the oauth2-proxy

@@ -50,14 +50,6 @@ resource "zitadel_project_role" "admin" {
   group        = "hubble-ui"
 }
 
-resource "zitadel_project_role" "user" {
-  org_id       = data.zitadel_org.home_ops.id
-  project_id   = zitadel_project.hubble_ui.id
-  role_key     = "hubble-ui-user"
-  display_name = "Hubble UI User"
-  group        = "hubble-ui"
-}
-
 # Admin user comes from the zitadel bootstrap remote-state output (stored ID —
 # no email lookup needed). Admin (super-admin, ORG_OWNER) gets hubble-ui-admin.
 # The proxy gate stays admin-only (--allowed-group=hubble-ui-admin), so only

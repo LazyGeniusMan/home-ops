@@ -1,6 +1,6 @@
 # Hubble-ui SSO identity (§11.3), machine-applied by Tofu Controller.
 # Owns ONLY this app's slice: the `hubble-ui` Zitadel project + project-scoped
-# roles (hubble-ui-admin/hubble-ui-user) + user grants + the `hubble` OIDC
+# admin role (hubble-ui-admin) + admin grant + the `hubble` OIDC
 # client (relocated from the central zitadel module).
 # Project-scoped means hubble-ui-admin NEVER implies org admin.
 #

@@ -1,6 +1,6 @@
 # Clickstack SSO identity (§11.2), machine-applied by Tofu Controller.
 # Owns ONLY this app's slice: the `clickstack` Zitadel project +
-# project-scoped roles (clickstack-admin/clickstack-user) + user grants + the
+# project-scoped admin role (clickstack-admin) + admin grant + the
 # `clickstack` OIDC client. Project-scoped means clickstack-admin NEVER
 # implies org admin.
 #

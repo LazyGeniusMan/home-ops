@@ -55,14 +55,6 @@ resource "zitadel_project_role" "admin" {
   group        = "seaweedfs"
 }
 
-resource "zitadel_project_role" "user" {
-  org_id       = local.org_id
-  project_id   = zitadel_project.seaweedfs.id
-  role_key     = "seaweedfs-user"
-  display_name = "SeaweedFS User"
-  group        = "seaweedfs"
-}
-
 # Grant binds the stored bootstrap admin ID directly (no email lookups).
 # Admin (super-admin) gets seaweedfs-admin. The filer UI stays admin-only via
 # the proxy's --allowed-group=seaweedfs-admin (see ui-auth.yaml; no user

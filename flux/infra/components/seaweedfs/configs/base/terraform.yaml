@@ -1,7 +1,7 @@
 # SeaweedFS filer-UI SSO identity (§12 follow-up), machine-applied by Tofu
 # Controller. Owns ONLY this component's slice: the `seaweedfs` Zitadel
-# project + project-scoped roles (seaweedfs-admin/seaweedfs-user) + user
-# grants + the `seaweedfs` OIDC client for the oauth2-proxy UI gate.
+# project + project-scoped admin role (seaweedfs-admin) + admin grant
+# + the `seaweedfs` OIDC client for the oauth2-proxy UI gate.
 # Project-scoped means seaweedfs-admin NEVER implies org admin.
 #
 # Ordering: this object ships in configs/ (fleet `infra-configs`
