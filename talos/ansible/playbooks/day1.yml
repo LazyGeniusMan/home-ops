@@ -1,5 +1,5 @@
 ---
-# Day-1 single-node: install, bootstrap etcd, fetch kubeconfig.
+# Day-1 single-node: insecure-apply per node, wait gates, bootstrap etcd, fetch kubeconfig.
 # Local-only: ansible-playbook playbooks/day1.yml -i localhost,
 #   -e talos_cluster=acme-dev-bdo1-talos-apps-01
 - name: Day-1 install and bootstrap Talos cluster

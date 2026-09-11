@@ -112,7 +112,7 @@ talosctl get disks --insecure -n 192.168.1.201
 
 Confirm the link name matches the node patch (`ens18` on dev/QEMU,
 `enp45s0` on prd/bare metal) and the disk layout matches (dev: `/dev/sda`
-32 GiB OS + `/dev/sdb` 64 GiB data; prd: `/dev/nvme0n1` 512 GiB NVMe).
+20 GiB OS + `/dev/sdb` 960 GB data; prd: `/dev/nvme0n1` 512 GiB NVMe).
 
 ---
 
@@ -403,11 +403,10 @@ marker/output exists:
 | Etcd bootstrap | `build/<cluster>/.bootstrapped` | `talosctl bootstrap` ran on `nodes[0]`; never re-bootstraps. |
 | Kubeconfig | `build/<cluster>/kubeconfig` | Admin kubeconfig fetched via `talosctl kubeconfig -n/-e nodes[0] -f`. |
 
-> ⚠️ **Warning — header vs reality:** the day-1 play header mentions
-> "apply node patches", but the role performs **no post-bootstrap secure
-> apply**. Day-1 is insecure-apply → bootstrap → kubeconfig only. After a
-> patch change on an installed cluster, re-apply with an authenticated
-> `talosctl apply-config` manually (see Troubleshooting).
+Day-1 performs no post-bootstrap secure apply — insecure-apply →
+bootstrap → kubeconfig only. After a patch change on an installed
+cluster, re-apply with an authenticated `talosctl apply-config`
+(see §3.6 / Troubleshooting §4.4).
 
 > ⚠️ **Warning — `nodes[0]` pinning:** bootstrap, kubeconfig fetch, and the
 > day-2 health `--init-node` / etcd queries all target
@@ -734,7 +733,7 @@ Automated equivalent (re-renders + pushes in one play, default mode
 | Cluster | Endpoint (VIP) | Node | IP | Role | Hardware / NIC / disks |
 | --- | --- | --- | --- | --- | --- |
 | `acme-prd-bdo1-talos-apps-01` | `https://192.168.1.198:6443` | `bdo-r01-cp-001` | `192.168.1.101` | `controlplane` | Bare metal (MSI Cubi 5); link `enp45s0` (RTL8125); install `/dev/nvme0n1` 512 GiB NVMe |
-| `acme-dev-bdo1-talos-apps-01` | `https://192.168.1.248:6443` | `bdo-r01-cp-002` | `192.168.1.201` | `controlplane` | QEMU/KVM VM; link `ens18` (virtio); `/dev/sda` 32 GiB OS + `/dev/sdb` 64 GiB data |
+| `acme-dev-bdo1-talos-apps-01` | `https://192.168.1.248:6443` | `bdo-r01-cp-002` | `192.168.1.201` | `controlplane` | QEMU/KVM VM; link `ens18` (virtio); `/dev/sda` 20 GiB OS + `/dev/sdb` 960 GB data |
 
 Per-node schematics carry extensions (deep-merged base → cluster → node):
 prd `intel-ucode, i915, realtek-firmware` (node) + `netbird` (cluster) +

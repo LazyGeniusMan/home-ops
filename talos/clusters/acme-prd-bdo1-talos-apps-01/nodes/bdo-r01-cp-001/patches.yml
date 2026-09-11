@@ -1,8 +1,7 @@
 # Node patch: bdo-r01-cp-001 — acme-prd-bdo1-talos-apps-01 (Talos v1.14).
 # Applied last: --config-patch @nodes/bdo-r01-cp-001/patches.yml
-# Static IP 192.168.1.101/24 on the RTL8125 link; Proxmox lshw logical names
-# (nic0/nic1) do not survive into Talos — systemd predictable name for PCI
-# 0000:2d:00.0 is enp45s0 (0x2d = 45). Day-0 verifies with
+# Static IP 192.168.1.101/24 on the RTL8125 link (systemd predictable name
+# for PCI 0000:2d:00.0 is enp45s0). Manual pre-flight:
 # `talosctl get links --insecure -n 192.168.1.101` before first apply.
 # Field evidence (config.schema.json + reference/configuration):
 #   HostnameConfig{hostname}, LinkConfig{name, addresses[]:{address}, routes[]:{gateway}},
@@ -33,7 +32,7 @@ installer:
   image: factory.talos.dev/metal-installer/PLACEHOLDER_SCHEMATIC_ID:v1.14.0 # set from schematic upload
 provisioning:
   diskSelector:
-    match: disk.dev_path == "/dev/nvme0"
+    match: disk.dev_path == "/dev/nvme0n1"
   wipe: true
 ---
 apiVersion: v1alpha1
@@ -74,12 +73,11 @@ name: exports
 mode: 0o644
 contents: |
   /var/mnt/nvme-data 192.168.1.0/24(rw,sync,no_subtree_check,fsid=0,crossmnt)
-# Conservative: default root_squash kept (no no_root_squash); fsid=0 marks the
-# NFSv4 pseudo-root, crossmnt kept so a second export can attach later.
-# nvme-data is the only live volume — sata-data waits on a SATA disk that
-# does not exist (host AHCI is vfio-pci passthrough); add its line only
-# if/when that disk appears. CIDR tightened from the README's 10.0.0.0/8
-# placeholder to the live LAN both nodes serve (192.168.1.0/24).
+# LAN-only 192.168.1.0/24; default root_squash kept (no no_root_squash).
+# fsid=0 marks the NFSv4 pseudo-root, crossmnt kept so a second export can
+# attach later. nvme-data is the only live volume — sata-data waits on a
+# SATA disk that does not exist (host AHCI is vfio-pci passthrough); add
+# its line only if/when that disk appears.
 ---
 apiVersion: v1alpha1
 kind: EtcFileConfig
@@ -96,6 +94,8 @@ kind: KubeNodeConfig
 nodeIP:
   validSubnets:
     - 192.168.1.0/24
+# Note: no node-role.acme.io/env label here — only the dev node carries
+# env: dev. Prd workloads select on tier: apps + zone: bdo1.
 labels:
   topology.kubernetes.io/zone: bdo1
   node-role.acme.io/tier: apps

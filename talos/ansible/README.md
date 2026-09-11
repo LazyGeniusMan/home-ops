@@ -23,7 +23,7 @@ ansible/
   playbooks/day1.yml           # insecure-apply, wait gates, bootstrap etcd, kubeconfig
   playbooks/day2.yml           # health, upgrade, patch, VIP/etcd checks (operate)
   roles/talos_render/          # inject + gen config + validate (day-0)
-  roles/talos_bootstrap/       # bootstrap + kubeconfig + apply (day-1)
+  roles/talos_bootstrap/       # insecure-apply + bootstrap + kubeconfig (day-1)
   roles/talos_operate/         # health/upgrade/patch (day-2)
   build/                       # GITIGNORED rendered output
 ```

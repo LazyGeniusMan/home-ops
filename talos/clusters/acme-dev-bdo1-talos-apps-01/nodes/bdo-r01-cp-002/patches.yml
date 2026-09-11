@@ -1,8 +1,9 @@
 # Node patch: bdo-r01-cp-002 — acme-dev-bdo1-talos-apps-01 (Talos v1.14).
-# QEMU/KVM VM: virtio NIC (ens18), /dev/sda 32 GB install target,
-# /dev/sdb 64 GB data disk. Install selector pins the OS disk by size so the
-# data disk is never picked; app-data XFS volume provisions on the 64 GB disk.
-# Day-0 verifies link name + sizes with `talosctl get links/disks --insecure`.
+# QEMU/KVM VM: virtio NIC (ens18), install disk /dev/sda (20 GiB OS),
+# data disk /dev/sdb (960 GB passthrough). Install selector pins /dev/sda;
+# EPHEMERAL capped at 32GiB on the system disk; nvme-data (system disk) +
+# sata-data (/dev/sdb) XFS volumes. Manual pre-flight:
+# `talosctl get links/disks --insecure -n 192.168.1.201`.
 ---
 apiVersion: v1alpha1
 kind: HostnameConfig
@@ -64,10 +65,9 @@ mode: 0o644
 contents: |
   /var/mnt/nvme-data 192.168.1.0/24(rw,sync,no_subtree_check,fsid=0,crossmnt)
   /var/mnt/sata-data 192.168.1.0/24(rw,sync,no_subtree_check)
-# Conservative: default root_squash kept (no no_root_squash); fsid=0 marks the
-# NFSv4 pseudo-root on nvme-data, crossmnt lets clients traverse into the
-# sata-data export. CIDR tightened from the README's 10.0.0.0/8 placeholder
-# to the live LAN both nodes serve (192.168.1.0/24).
+# LAN-only 192.168.1.0/24; default root_squash kept (no no_root_squash).
+# fsid=0 marks the NFSv4 pseudo-root on nvme-data; crossmnt lets clients
+# traverse into the sata-data export.
 ---
 apiVersion: v1alpha1
 kind: EtcFileConfig

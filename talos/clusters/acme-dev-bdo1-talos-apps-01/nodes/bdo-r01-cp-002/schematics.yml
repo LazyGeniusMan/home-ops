@@ -16,7 +16,7 @@ customization:
       - siderolabs/qemu-guest-agent
       # NFS server stack (all three required together — nfs-server README
       # §Requirements): nfsd (kernel module), nfs-utils (rpcbind/rpc.statd),
-      # nfs-server (server daemons). Node exports via /var/mnt/nfs.
+      # nfs-server (server daemons). Node exports via /var/mnt/nvme-data + /var/mnt/sata-data.
       - siderolabs/nfsd
       - siderolabs/nfs-utils
       - siderolabs/nfs-server

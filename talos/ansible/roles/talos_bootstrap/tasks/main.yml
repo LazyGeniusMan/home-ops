@@ -1,5 +1,5 @@
 ---
-# Day-1: install, bootstrap etcd, fetch kubeconfig, apply node config.
+# Day-1: insecure-apply per node, wait gates, bootstrap etcd, fetch kubeconfig.
 # Auth comes FIRST: day-0 renders the PAT from the vault and day-2 applies
 # it, but failing fast here on a dead pass-cli session beats pushing configs
 # to nodes and only then discovering pass-cli-dependent steps cannot run.

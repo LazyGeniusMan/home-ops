@@ -19,8 +19,8 @@ talos/
     <cluster-name>/                   # e.g. acme-prd-bdo1-talos-apps-01
       patches.yml                    # multi-doc: v1alpha1 SMP + split-doc kinds
       schematics.yml                 # cluster-shared schematic (e.g. netbird)
-      secrets.yml.template           # committed; render to secrets.yml via pass-cli inject
-      secrets.yml                    # GITIGNORED: `talosctl gen secrets` output + rendered creds
+      secrets.yml.template           # committed; manual `talosctl gen secrets` notes (output never committed)
+      secrets.yml                    # GITIGNORED manual output (day-0 automation writes ansible/build/<cluster>/secrets.bundle.yml)
       nodes/<node-name>/
         patches.yml                  # node multi-doc: hostname, LinkConfig, install, volumes
         schematics.yml               # AUTHORITATIVE schematic for this node's installer image
@@ -44,27 +44,34 @@ documents — the base ships zero manifests.
   `{{ pass://acme-prd-bdo1-talos-apps-01/talos/docker-password }}`.
   Only `pass-cli inject` / `pass-cli item view` resolve them — bare `pass://`
   URIs are never dereferenced by Talos or Ansible directly.
-- Render: `pass-cli inject --in-file patches.yml --out-file build/patches.yml`
+- Render: `pass-cli inject --in-file clusters/<cluster>/patches.yml --out-file ansible/build/<cluster>/patches.yml` (per-node: `clusters/<cluster>/nodes/<node>/patches.yml` → `ansible/build/<cluster>/nodes-<node>-patches.yml`)
 - Authenticate: `export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_...` (`pass-cli login`).
-- `secrets.yml`, `talosconfig`, `kubeconfig`, rendered `build/` output are gitignored.
+- `secrets.bundle.yml`, `talosconfig`, `kubeconfig`, rendered `ansible/build/` output are gitignored.
 - Binary is `pass-cli` (not `proton-pass-cli`).
 
 ## Workflow (talosctl only — no kubectl here)
 
 ```bash
-# 1. Upload node schematic, note the schematic ID
-curl -X POST --data-binary @clusters/<cluster>/nodes/<node>/schematics.yml \
+# 1. Upload the node's merged schematic, note the schematic ID
+curl -X POST --data-binary @ansible/build/<cluster>/schematics-<node>.yml \
   https://factory.talos.dev/schematics
-# 2. Put factory.talos.dev/metal-installer/<ID>:v1.14.0 in the node's
-#    UnattendedInstallConfig installer.image, then generate:
-talosctl gen secrets -o clusters/<cluster>/secrets.yml
+# 2. Day-0 rewrites PLACEHOLDER_SCHEMATIC_ID to that ID, then generates:
+talosctl gen secrets -o ansible/build/<cluster>/secrets.bundle.yml
 talosctl gen config <cluster> https://<VIP>:6443 \
-  --with-secrets clusters/<cluster>/secrets.yml \
+  --with-secrets ansible/build/<cluster>/secrets.bundle.yml \
   --config-patch @clusters/_base/patches.yml \
-  --config-patch @clusters/<cluster>/patches.yml \
-  --config-patch @clusters/<cluster>/nodes/<node>/patches.yml \
-  -o /tmp/<cluster>
-talosctl validate -c /tmp/<cluster>/controlplane.yaml -m metal
+  --config-patch @ansible/build/<cluster>/patches.yml \
+  -t talosconfig \
+  -o ansible/build/<cluster>/talosconfig
+talosctl gen config <cluster> https://<VIP>:6443 \
+  --with-secrets ansible/build/<cluster>/secrets.bundle.yml \
+  --config-patch @clusters/_base/patches.yml \
+  --config-patch @ansible/build/<cluster>/patches.yml \
+  --config-patch-control-plane @ansible/build/<cluster>/nodes-<node>-patches.yml \
+  --install-image factory.talos.dev/metal-installer/<ID>:v1.14.0 \
+  -t controlplane \
+  -o ansible/build/<cluster>/nodes/<node>/controlplane.yaml
+talosctl validate -c ansible/build/<cluster>/nodes/<node>/controlplane.yaml -m metal
 # 3. Or run the Ansible day-0 playbook (does all of the above idempotently).
 ```
 
