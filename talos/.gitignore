@@ -1,6 +1,21 @@
+# Blanket rule: all rendered day-0/1/2 output lives under ansible/build/.
 ansible/build/
-clusters/*/secrets.bundle.yml
-clusters/*/talosconfig
-clusters/*/kubeconfig
-clusters/*/controlplane.yaml
-clusters/*/worker.yaml
+# Real build outputs (also catch strays outside build/):
+# gen secrets bundle, rendered configs, kubeconfigs, PAT store.
+secrets.bundle.yml
+talosconfig
+kubeconfig
+proton-pass-pat
+# Rendered per-node patches + Image Factory schematic outputs.
+nodes-*-patches.yml
+schematics-*.yml
+schematic-*.id
+schematic-*.sha256
+# Generated per-node machine configs.
+**/nodes/*/*.yaml
+# Day-1/day-2 marker files.
+.installed-*
+.bootstrapped
+.healthy
+# Never-commit cluster PKI next to its template.
+clusters/*/secrets.yml

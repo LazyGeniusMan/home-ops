@@ -18,11 +18,9 @@ used only by the day-2 PAT Secret plane (post-Flux apply + webhook restart).
 ansible/
   ansible.cfg                  # roles_path, transport=local, diff output
   requirements.yml             # collections (community.general for key-value lookups)
-  inventory.example            # COMMITTED localhost-only stub (nodes live in group_vars, not inventory)
   group_vars/all.yml           # PAT env passthrough, talos version, per-cluster map
-  group_vars/vault.template.yml# double-brace pass:// refs (render via pass-cli inject)
   playbooks/day0.yml           # render secrets/configs, gen + validate, install
-  playbooks/day1.yml           # bootstrap etcd, kubeconfig, apply node patches
+  playbooks/day1.yml           # insecure-apply, wait gates, bootstrap etcd, kubeconfig
   playbooks/day2.yml           # health, upgrade, patch, VIP/etcd checks (operate)
   roles/talos_render/          # inject + gen config + validate (day-0)
   roles/talos_bootstrap/       # bootstrap + kubeconfig + apply (day-1)
@@ -36,7 +34,7 @@ ansible/
   login gate. The env var gates **login only**: export it and run
   `pass-cli login` before any play, because Ansible NEVER logs in —
   `export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... ; pass-cli login`.
-  The PAT *value* used by the ESO webhook no longer flows through the
+  The PAT *value* used by the ESO webhook never flows through the
   shell: day-0 renders it via `pass-cli inject` from the cluster's own
   `talos/clusters/<cluster>/pat.yml.template` (double-brace ref to
   `pass://<own-vault>/eso-proton-pass/pat`) into
@@ -59,8 +57,8 @@ ansible/
   `endpoint` (VIP URL), `nodes: [{name, ip, role}]`. This map is the single
   source of truth for node IPs — they are data for `talosctl -n/-e` flags
   only, never Ansible connection targets. `role` is `controlplane` or
-  `worker`; `talos_machine_roles` maps it to the Talos machine type of the
-  same name (`controlplane` — inventory spelling — maps to `controlplane`).
+  `worker`; `talos_machine_roles` maps it to the `talosctl gen config -t`
+  machine type of the same name.
 - `talos_talosconfig` — explicit `--talosconfig` path
   (`build/<cluster>/talosconfig`) passed on every bootstrap/operate
   `talosctl` call instead of an ambient `TALOSCONFIG` or `~/.talos/config`.
@@ -144,9 +142,8 @@ on `nvme-data`) + `netconfig` — no dedicated volume
 Every playbook runs on `hosts: localhost` with `connection: local` (plus
 `transport = local` in `ansible.cfg`); all node contact is `talosctl` over
 the Talos API — no SSH (`kubectl --kubeconfig build/<cluster>/kubeconfig`
-only for the day-2 ESO PAT Secret plane). There are no node entries in any
-inventory:
-`inventory.example` is an unused localhost-only stub, and
+only for the day-2 ESO PAT Secret plane). Run with an inline localhost
+inventory (`-i localhost,`); no inventory files are needed:
 `group_vars/all.yml` (`talos_clusters`) remains the single IP source.
 
 ```bash

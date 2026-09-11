@@ -14,8 +14,7 @@ talos/
   .gitignore                         # build/, secrets bundles, kubeconfigs
   clusters/
     _base/
-      patches.yml                    # shared barebone patch (CNI none, CoreDNS off, discovery off)
-      kube-proxy-override.yml        # opt-in patch: disable kube-proxy (Cilium clusters)
+      patches.yml                    # shared barebone patch (CNI none, CoreDNS off, discovery off, kube-proxy iptables)
       schematics.yml                 # vanilla Image Factory schematic (no extensions)
     <cluster-name>/                   # e.g. acme-prd-bdo1-talos-apps-01
       patches.yml                    # multi-doc: v1alpha1 SMP + split-doc kinds

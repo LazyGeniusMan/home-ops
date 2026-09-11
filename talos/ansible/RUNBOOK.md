@@ -373,8 +373,8 @@ pass-cli agent delete home-ops-eso
 Then run day-1 — the env var is only the login gate; the rendered
 `proton-pass-pat` file carries the webhook value. Expiration enum
 for `--expiration`: `1h, 1d, 1w, 1m, 3m, 6m, 1y` (default `1y`, mirroring
-`talos_bootstrap_pat_expiration` — doc-only; `-e pat_expiration=...` only
-feeds the day-2 renew/example strings, it never changes the stored file).
+`-e pat_expiration=...` only feeds the day-2 renew/example strings, it
+never changes the stored file).
 
 ### 2.2 What "insecure-first-boot" means
 
@@ -457,11 +457,9 @@ and `talosctl etcd members` (against `nodes[0]`), both with
 `failed_when: false` — they report via debug output and never fail the play.
 No changes are made without one of the §3.2 flags.
 
-> ⚠️ **Warning — health runs once ever:** the health task carries
-> `creates: build/<cluster>/.healthy`, so after its first successful run the
-> task is **skipped on every later day-2 invocation** (report shows
-> "health check skipped or unavailable"). Delete
-> `build/<cluster>/.healthy` to force a fresh health check.
+Health runs on **every** day-2 invocation (a former `creates:
+build/<cluster>/.healthy` guard used to skip it after the first run;
+removed — skip explicitly with `-e skip_health=true`).
 
 ### 3.2 Flags (opt-in upgrades, regen, re-apply)
 
@@ -688,7 +686,6 @@ re-runs while its file exists, even if the **source** changed.
 | `.installed-<node>` | insecure apply for that node | config re-rendered but node never re-applied | `rm build/<c>/.installed-<node>` + re-run day-1 (maintenance only) / manual secure apply if installed |
 | `.bootstrapped` | etcd bootstrap | never re-run by design | `rm` only to **re-bootstrap a fresh cluster**; never on a live one (would split-brain etcd) |
 | `kubeconfig` | kubeconfig fetch | cluster re-bootstrapped / certs rotated | `rm build/<c>/kubeconfig`, re-run day-1 |
-| `.healthy` | day-2 health | **every** later day-2 run (runs once ever) | `rm build/<c>/.healthy` to force a fresh health check |
 
 ### 4.4 Re-apply after a patch change (installed cluster)
 
@@ -728,15 +725,6 @@ Automated equivalent (re-renders + pushes in one play, default mode
 > node today** — both clusters are single control-plane. Treat any future
 > worker onboarding as untested until exercised end-to-end.
 
-### 4.7 Dead flow: `group_vars/vault.template.yml`
-
-> ⚠️ **Warning — dead flow:** `group_vars/vault.template.yml` describes
-> rendering to `../build/vault.yml`, but **no role task reads or writes
-> `build/vault.yml`**. The live secrets flow is `pass-cli inject` over
-> `talos/clusters/<cluster>[/nodes/<node>]/patches.yml` into
-> `build/<cluster>/`. Ignore `vault.template.yml` / `build/vault.yml` until
-> a play consumes them.
-
 ---
 
 ## 5. Reference
@@ -771,7 +759,6 @@ nfsd stack (node). VIP advertises from the control-plane node
 | `proton-pass-pat` (`0600`) | day-0 `pass-cli inject` from `pat.yml.template` (`creates:`); day-2 re-render is forced on `reapply_configs` | Rendered PAT for the day-2 ESO Secret apply — never committed (see §6 for backup) |
 | `.installed-<node>` (`0600`) | day-1 marker | Insecure apply done for that node |
 | `.bootstrapped` (`0600`) | day-1 marker | Etcd bootstrap done (nodes[0]) |
-| `.healthy` | day-2 marker | Health ran once; delete to re-run |
 
 ### 5.3 Extra vars
 
@@ -785,10 +772,11 @@ nfsd stack (node). VIP advertises from the control-plane node
 | `regen_talosconfig` | day-2 | `false` | Rebuilds talosconfig from existing secrets bundle (see §3.5). |
 | `regen_kubeconfig` | day-2 | `false` | Re-fetches admin kubeconfig (see §3.5). |
 | `reapply_configs` (+ `reapply_mode`, default `staged`) | day-2 | `false` | Re-renders patches + pushes via `apply-config --mode` (see §3.6). |
+| `skip_health` | day-2 | `false` | Skips the always-on `talosctl health` probe. |
 | `pat_apply` | day-2 | `false` (stays read-only) | Applies stored PAT to `external-secrets/proton-pass-pat` + conditional webhook restart (see §3.7). |
 | `pat_renew` | day-2 | `false` (needs `pat_apply=true`) | Attempts `pass-cli agent renew` first; blocked agent sessions skip with the interactive command (see §3.7). |
 | `pat_name` | day-2 | `home-ops-eso` | PAT identity for renew. |
-| `pat_expiration` | day-1 (doc-only) / day-2 | `1y` | Expiration enum (`1h,1d,1w,1m,3m,6m,1y`) for the manual create + renew commands. |
+| `pat_expiration` | day-2 | `1y` | Expiration enum (`1h,1d,1w,1m,3m,6m,1y`) for the renew command. |
 ---
 
 ## 6. Backup / save — surviving a fresh clone
@@ -811,8 +799,8 @@ Regenerable from repo + network (no backup needed): rendered
 `patches.yml` / `nodes-<node>-patches.yml` (day-0 inject), staged
 `schematics-<node>.yml` + `.id` / `.sha256` (factory upload — same bytes
 → same ID), per-node `nodes/<node>/*.yaml` (day-0 `gen config`,
-drift-detect by diffing), markers (`.installed-*`, `.bootstrapped`,
-`.healthy` — but see the `.bootstrapped` caveat in §6.4).
+drift-detect by diffing), markers (`.installed-*`, `.bootstrapped` — but
+see the `.bootstrapped` caveat in §6.4).
 
 Back up (example — encrypted archive off-machine, per cluster):
 

@@ -22,7 +22,7 @@ endpoint: https://192.168.1.198:6443
 ---
 apiVersion: v1alpha1
 kind: KubeProxyConfig
-enabled: false # Cilium replaces kube-proxy (same as _base/kube-proxy-override.yml)
+enabled: false # Cilium replaces kube-proxy (off: no managed kube-proxy deployment)
 ---
 apiVersion: v1alpha1
 kind: KubeNodeConfig
@@ -32,17 +32,11 @@ taints:
 apiVersion: v1alpha1
 kind: Layer2VIPConfig
 name: 192.168.1.198 # K8s API VIP, advertised from the control-plane node
-link: enp45s0 # RTL8125 2.5GbE (PCI 0000:2d:00.0 -> enp45s0); day-0 verifies via `talosctl get links`
+link: enp45s0 # RTL8125 2.5GbE (PCI 0000:2d:00.0 -> enp45s0); confirm via manual pre-flight `talosctl get links --insecure -n 192.168.1.101`
 ---
 apiVersion: v1alpha1
 kind: RegistryAuthConfig
 name: docker.io
-username: "{{ pass://acme-prd-bdo1-talos-apps-01/talos/docker-username }}"
-password: "{{ pass://acme-prd-bdo1-talos-apps-01/talos/docker-password }}"
----
-apiVersion: v1alpha1
-kind: RegistryAuthConfig
-name: dhi.io
 username: "{{ pass://acme-prd-bdo1-talos-apps-01/talos/docker-username }}"
 password: "{{ pass://acme-prd-bdo1-talos-apps-01/talos/docker-password }}"
 ---

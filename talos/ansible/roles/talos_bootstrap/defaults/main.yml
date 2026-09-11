@@ -6,16 +6,6 @@ talos_bootstrap_mode: auto
 # (mirrors eso-proton-pass NewAgentReason: 8 random bytes hex, max
 # 300 chars).
 talos_bootstrap_pass_agent_reason_prefix: talos-bootstrap
-# Local PAT store for the day-2 ESO Secret apply (build/<cluster>/, 0600,
-# gitignored via ansible/build/). Day-0 renders it via pass-cli inject from
-# clusters/<cluster>/pat.yml.template ({{ talos_pat_filename }} shared var).
-talos_bootstrap_pat_filename: "{{ talos_pat_filename }}"
-# Documentation only for the one-time interactive agent create command
-# (day-1 never auto-creates: minting a token needs an interactive user
-# session).
-# Example: pass-cli agent create <agent-name>
-#   --expiration {{ talos_bootstrap_pat_expiration }} [--vault <cluster-vault>]
-talos_bootstrap_pat_expiration: 1y
 # Day-1 readiness gate tuning: after `apply-config --insecure` each node
 # installs + reboots, so bootstrapping immediately races the reboot window
 # (`FailedPrecondition: bootstrap is not available yet`). L1: TCP 50000
