@@ -17,19 +17,20 @@
 # First-run prerequisite (one-time, manual): the chart has NO FirstInstance
 # bootstrap stanza, so create the IAM_OWNER service user via the Zitadel
 # FirstInstance machine user, download its key JSON, and seed
-# `pass://<env-vault>/zitadel/terraform-jwt-profile-json` (+ initial
-# passwords) BEFORE this CR first reconciles. Without the key the runner
+# `pass://<env-vault>/zitadel/terraform-jwt-profile-json` (+ initial admin
+# password) BEFORE this CR first reconciles. Without the key the runner
 # fails auth and retries on interval.
 # Backend: in-cluster Kubernetes default (state Secrets in the zitadel
 # namespace) — no backendConfig needed. Drift detection stays on (default).
 # Rotation: update the Proton Pass entries; ESO syncs the Secret and the next
-# reconcile picks the new values up (password rotation takes effect on next
-# user-resource change; JWT rotation is immediate).
-# Outputs: org_id + project_id + admin_user_id land in
+# reconcile picks the new values up (admin password rotation takes effect on
+# next user-resource change; JWT rotation is immediate).
+# Outputs: org_id + admin_user_id land in
 # `zitadel-bootstrap-outputs` for the later per-app Terraform task (plain IDs,
-# non-sensitive — consumed via CR varsFrom, never ESO; only JWT/passwords stay
-# in ESO). Per-app slices read the three IDs from that Secret into their CR
-# `vars` (literal, non-sensitive) instead of looking users up by email.
+# non-sensitive — consumed via CR varsFrom, never ESO; only the admin password
+# + JWT stay in ESO). Per-app slices read the two IDs from that Secret into
+# their CR `vars` (literal, non-sensitive) instead of looking users up by
+# email.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -45,15 +46,11 @@ spec:
     template:
       data:
         admin_initial_password: "{{ .admin_password }}"
-        user_initial_password: "{{ .user_password }}"
         jwt_profile_json: "{{ .jwt_profile_json }}"
   data:
     - secretKey: admin_password
       remoteRef:
         key: __PROTON_PASS_BASE__/zitadel/terraform-admin-initial-password
-    - secretKey: user_password
-      remoteRef:
-        key: __PROTON_PASS_BASE__/zitadel/terraform-user-initial-password
     - secretKey: jwt_profile_json
       remoteRef:
         key: __PROTON_PASS_BASE__/zitadel/terraform-jwt-profile-json
@@ -85,5 +82,4 @@ spec:
     name: zitadel-bootstrap-outputs
     outputs:
       - org_id
-      - project_id
       - admin_user_id

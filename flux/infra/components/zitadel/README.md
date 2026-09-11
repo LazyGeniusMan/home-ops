@@ -133,14 +133,14 @@ v1alpha2, chart 0.16.5 — see the `tofu-controller` component):
   vault paths + `domain`/email `vars` land in the `dev`/`prd`/`stg` overlays.
   Rotate by updating the vault entries — ESO syncs and the next reconcile
   picks them up.
-- Outputs: `org_id` + `project_id` + `admin_user_id` land
+- Outputs: `org_id` + `admin_user_id` land
   in the bootstrap state Secret
   (`tfstate-default-zitadel-bootstrap-identity` in the `zitadel` namespace,
   mirrored to `zitadel-bootstrap-outputs` via `writeOutputsToSecret`) for
-  the later per-app Terraform task. All three are plain IDs (non-sensitive)
+  the later per-app Terraform task. Both are plain IDs (non-sensitive)
   — per-app slices read them via `data.terraform_remote_state` (in-cluster
   Kubernetes backend, `namespace: zitadel`), never via ESO/`pass://`. Only
-  JWT/passwords stay in ESO. The read runs as each app's tofu runner SA
+  the admin password + JWT stay in ESO. The read runs as each app's tofu runner SA
   under a narrow cross-namespace Role + RoleBinding (get+list on the
   bootstrap state Secret only, owned by the app component) — CR `varsFrom`
   has no namespace field and cannot cross namespaces. Consumer pattern:
@@ -151,7 +151,7 @@ v1alpha2, chart 0.16.5 — see the `tofu-controller` component):
 One-time prerequisite (manual): the chart has NO FirstInstance bootstrap
 stanza, so before the first reconcile provision the IAM_OWNER service user
 via the FirstInstance machine user, download its key JSON, and seed the
-vault entries above (initial passwords + `terraform-jwt-profile-json`).
+vault entries above (initial admin password + `terraform-jwt-profile-json`).
 Without the key the runner fails auth and retries on interval.
 
 Manual fallback: `terraform init && terraform apply` from `terraform/` with

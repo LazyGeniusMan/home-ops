@@ -53,7 +53,6 @@ data:
       roles: [admin]
   groups: |
     - admin
-    - users
   clients: |
     owned-by: per-app terraform slices (this bootstrap slice owns no clients)
     - coder owns client `coder`: https://coder.__BASE_DOMAIN__/*
