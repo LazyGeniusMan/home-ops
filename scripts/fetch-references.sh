@@ -9,7 +9,7 @@ cd /tmp/home-ops-docs
 git clone https://github.com/siderolabs/docs -b main --depth 1 talos-docs
 
 # /tmp/home-ops-docs/talos-system-extension-docs/README.md
-git clone https://github.com/siderolabs/extensions -b release-1.14 --depth 1 talos-system-extension-docs
+git clone https://github.com/siderolabs/extensions -b main --depth 1 talos-system-extension-docs
 
 # /tmp/home-ops-docs/kubectl-kustomize-docs/site/content/en
 git clone https://github.com/kubernetes-sigs/cli-experimental -b master --depth 1 kubectl-kustomize-docs
