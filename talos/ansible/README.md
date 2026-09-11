@@ -134,9 +134,10 @@ cluster), so each node gets only its own patches, scoped to its role:
 
 Each node also runs an NFS server stack: the node schematic layer adds
 `siderolabs/nfsd` + `nfs-utils` + `nfs-server`, configured by
-`EtcFileConfig` `exports` (`/var/mnt/nfs`, LAN-only `192.168.1.0/24`,
-`root_squash`, `fsid=0`) + `netconfig` and a `UserVolumeConfig` named
-`nfs` (see `RUNBOOK.md` §1.6).
+`EtcFileConfig` `exports` (existing `nvme-data` (+ `sata-data` on dev)
+volumes, LAN-only `192.168.1.0/24`, `root_squash`, `fsid=0` pseudo-root
+on `nvme-data`) + `netconfig` — no dedicated volume
+(see `RUNBOOK.md` §1.6).
 
 ## Inventory (local-only — no node inventory)
 

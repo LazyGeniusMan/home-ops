@@ -233,29 +233,22 @@ Each node runs NFS server daemons for LAN clients (ports `2049`, `20048`,
   `nfs-server` (daemons) — all three together, per the nfs-server README
   requirements. Merged bytes change the schematic hash → new factory ID on
   the next day-0.
-- **Config** (node `patches.yml`): `EtcFileConfig` `exports`
-  (`/var/mnt/nfs 192.168.1.0/24(rw,sync,no_subtree_check,fsid=0)` —
-  LAN-only, default `root_squash` kept, `fsid=0` marks the NFSv4
-  pseudo-root) + `EtcFileConfig` `netconfig` (libtirpc IPv4 server table).
-  No `ExtensionServiceConfig`: the service takes no env, so it needs no
-  service config document.
-- **Backing store** (node `patches.yml`): `UserVolumeConfig` named `nfs`
-  (the name matters — it mounts at `/var/mnt/nfs`, which is the path the
-  exports line serves). Dev shares `/dev/sdb` with `sata-data` as a second
-  partition; prd partitions `system_disk` (`/dev/nvme0n1`) alongside
-  `nvme-data`.
+- **Config** (node `patches.yml`): `EtcFileConfig` `exports` serves the
+  existing data volumes (LAN-only, default `root_squash` kept) — dev two
+  lines (`/var/mnt/nvme-data 192.168.1.0/24(rw,sync,no_subtree_check,
+  fsid=0,crossmnt)` + `/var/mnt/sata-data 192.168.1.0/24(rw,sync,
+  no_subtree_check)`); prd a single `/var/mnt/nvme-data ...(fsid=0,
+  crossmnt)` line (`sata-data` waits on a SATA disk this host does not
+  have — add its line only if/when that disk appears). `fsid=0` marks the
+  NFSv4 pseudo-root on `nvme-data`; `crossmnt` lets clients traverse into
+  the second export. Plus `EtcFileConfig` `netconfig` (libtirpc IPv4
+  server table). No `ExtensionServiceConfig`: the service takes no env,
+  so it needs no service config document.
+- **Backing store**: none dedicated — no `nfs` volume. The export paths
+  resolve against the existing `nvme-data` (+ `sata-data` on dev)
+  `UserVolumeConfig` volumes (`<name>` mounts at `/var/mnt/<name>`);
+  exports consume no extra disk.
 
-Day-0 storage check — verify free space before installing (a second
-partition on a full disk leaves provisioning short):
-
-```bash
-# Working dir: talos/ansible/
-talosctl get volumestatus --insecure -n 192.168.1.201
-talosctl get disks --insecure -n 192.168.1.201
-```
-
-If the data volume reports insufficient space, cap the sibling volume with
-`maxSize` (dev: `sata-data`; prd: `nvme-data`) before re-running day-0.
 Readiness (after day-1 install) — NFS threads up and ports listening:
 
 ```bash
@@ -264,7 +257,7 @@ C=acme-dev-bdo1-talos-apps-01
 talosctl --talosconfig build/$C/talosconfig -n 192.168.1.201 \
   read /proc/fs/nfsd/threads            # nonzero = server threads running
 talosctl --talosconfig build/$C/talosconfig -n 192.168.1.201 \
-  list /var/mnt/nfs                     # export path resolves
+  list /var/mnt/nvme-data               # export path resolves
 ```
 
 ### 1.7 Re-run / reset
