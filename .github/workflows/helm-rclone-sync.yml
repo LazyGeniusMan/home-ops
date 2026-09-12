@@ -1,0 +1,112 @@
+# helm-rclone-sync publish.
+# Owner: projects/helm-rclone-sync
+# Self-contained: all steps are inline in this file; no local composite
+# actions are referenced (only pinned external owner/repo@sha actions).
+#
+# Docker-to-Helm adaptation of eso-proton-pass.yml: this workflow publishes a
+# Helm chart, not a container image, so there is no docker/build-push-action
+# step and no Dockerfile context. The OCI artifact is produced with
+# `helm package` and pushed with `helm push` to the chart OCI repository.
+#
+# Tag mapping mirrors the eso metadata tags: branch pushes publish a `dev`
+# alias, `helm-rclone-sync-v<X.Y.Z>` tags publish chart version `<X.Y.Z>`
+# plus a `latest` alias. Helm OCI tags must be semver chart versions, so the
+# floating `dev`/`latest` aliases are applied after the push with `oras tag`.
+name: helm-rclone-sync
+
+on:
+  push:
+    paths:
+      - 'projects/helm-rclone-sync/**'
+    tags:
+      - 'helm-rclone-sync-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: helm-rclone-sync-publish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: projects/helm-rclone-sync
+    strategy:
+      fail-fast: false
+      matrix:
+        # Representative rclone sync directions rendered by the chart.
+        direction: [push, pull]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5
+
+      - name: Lint
+        run: helm lint .
+
+      - name: Template (${{ matrix.direction }})
+        # The chart is expected to expose a `direction` value; `--set` on a
+        # differently-named key still renders defaults, so this stays a safe
+        # smoke test if the values schema names it otherwise.
+        run: >
+          helm template helm-rclone-sync .
+          --set direction=${{ matrix.direction }}
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: test
+    env:
+      OCI_REPO: ghcr.io/lazygeniusman/home-ops/helm-rclone-sync
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5
+
+      - name: Set up ORAS
+        # v2.0.1
+        uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve chart version
+        id: version
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            # helm-rclone-sync-v<X.Y.Z> -> <X.Y.Z>
+            VERSION="${GITHUB_REF_NAME#helm-rclone-sync-v}"
+          else
+            # Branch pushes and manual dispatches publish a dev snapshot.
+            VERSION="0.0.0-dev"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Package and push
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          helm package projects/helm-rclone-sync --version "${VERSION}"
+          helm push "helm-rclone-sync-${VERSION}.tgz" "oci://${OCI_REPO}"
+
+      - name: Apply floating tags
+        # Mirrors the eso dev/latest metadata tags via registry retagging.
+        # Reuses the docker/login-action credentials via the Docker config.
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            oras tag "${OCI_REPO}:${VERSION}" latest
+          else
+            oras tag "${OCI_REPO}:${VERSION}" dev
+          fi
