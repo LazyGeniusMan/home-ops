@@ -309,3 +309,4 @@ for f in projects/helm-rclone-sync/ci/values-*.yaml; do
 done | grep -ri rclone.conf   # must print nothing
 ```
 <!-- ci-trigger: no-op comment to exercise helm-rclone-sync workflow (no behavior change) -->
+<!-- ci-trigger-2: verify branches:main fix -->

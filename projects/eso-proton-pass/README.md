@@ -96,3 +96,4 @@ Multi-stage build: pinned `golang:1.26.7` toolchain (digest-pinned) with
 verified) → pinned `distroless/base-debian13` runtime (digest-pinned, no
 shell), running as the non-root `nonroot:nonroot` user (65532), exposing 8080.
 <!-- ci-trigger: no-op to exercise eso-proton-pass workflow on push -->
+<!-- ci-trigger-2: verify branches:main fix -->

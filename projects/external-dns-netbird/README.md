@@ -59,3 +59,4 @@ docker build -t external-dns-netbird:dev .
 Image: `ghcr.io/lazygeniusman/home-ops/infra/external-dns-netbird` (`:dev`
 on any branch push, `:latest` + version on `external-dns-netbird-v*` tags).
 <!-- ci-trigger: force external-dns-netbird workflow on push -->
+<!-- ci-trigger-2: verify branches:main fix -->
