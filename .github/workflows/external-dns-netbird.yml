@@ -6,6 +6,8 @@ name: external-dns-netbird
 
 on:
   push:
+    branches:
+      - 'main'
     paths:
       - 'projects/external-dns-netbird/**'
     tags:

@@ -6,6 +6,8 @@ name: eso-proton-pass
 
 on:
   push:
+    branches:
+      - 'main'
     paths:
       - 'projects/eso-proton-pass/**'
     tags:
