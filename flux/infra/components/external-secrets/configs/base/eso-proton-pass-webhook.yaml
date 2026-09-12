@@ -67,7 +67,7 @@ spec:
           # stays deferred until the first eso-proton-pass-v* tagged release
           # exists (policy infra:eso-proton-pass in
           # update-policies/external-secrets.yaml tracks :dev in alignment).
-          image: ghcr.io/lazygeniusman/home-ops/infra/eso-proton-pass:dev # {"$imagepolicy": "infra:eso-proton-pass"}
+          image: ghcr.io/lazygeniusman/home-ops/projects/eso-proton-pass:dev # {"$imagepolicy": "infra:eso-proton-pass"}
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

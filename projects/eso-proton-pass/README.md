@@ -83,7 +83,7 @@ Three independent layers, all asserting `PROTON_PASS_DISABLE_TELEMETRY=1`:
 
 ## Image
 
-Published to `ghcr.io/lazygeniusman/home-ops/infra/eso-proton-pass` by
+Published to `ghcr.io/lazygeniusman/home-ops/projects/eso-proton-pass` by
 the self-contained `.github/workflows/eso-proton-pass.yml` (no local
 actions):
 

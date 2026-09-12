@@ -2,7 +2,7 @@
 
 External Secrets Operator v2.10.0 + in-cluster Proton Pass webhook
 (`projects/eso-proton-pass`, image
-`ghcr.io/lazygeniusman/home-ops/infra/eso-proton-pass:dev`).
+`ghcr.io/lazygeniusman/home-ops/projects/eso-proton-pass:dev`).
 
 ## Layout
 
