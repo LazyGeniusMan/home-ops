@@ -118,9 +118,10 @@ spec:
           nodeSelector:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.affinity }}
+          {{- $affinity := include "helm-rclone-sync.affinity" . | trim }}
+          {{- if $affinity }}
           affinity:
-            {{- toYaml . | nindent 12 }}
+            {{ $affinity | nindent 12 }}
           {{- end }}
           {{- with .Values.tolerations }}
           tolerations:

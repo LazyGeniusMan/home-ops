@@ -101,6 +101,15 @@ destination:
     region:
       value: us-east-1
 
+# -- Co-locate sync Pods with the owning workload (recommended for pvc-rwo).
+# When matchLabels/matchExpressions select the owning workload's pods, the
+# CronJob renders a required podAffinity term (topologyKey
+# kubernetes.io/hostname by default) so sync Pods schedule onto the owner's
+# node instead of Pending on multi-attach. The generated term merges with
+# .affinity below, never replacing it. Empty (default) = no generated
+# affinity; for pvc-rwo, pin the node manually (see README "RWO same-node
+# caveat"). E.g. coLocateWith: {matchLabels: {app: my-db}}
+coLocateWith: {}
 # -- Scheduling helpers. Useful for pvc-rwo: pin the Job Pod to the node that
 # holds the RWO volume (the claim's own access mode still governs attach).
 nodeSelector: {}

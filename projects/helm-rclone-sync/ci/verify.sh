@@ -41,6 +41,16 @@ if render sources-all-four -f "$CI/values-sources-all-four.yaml"; then
 else
   bad "render four-value-source fixture"
 fi
+if render colocate-rwo -f "$CI/values-colocate-rwo.yaml"; then
+  ok "render RWO co-location fixture"
+else
+  bad "render RWO co-location fixture"
+fi
+if render colocate-rwo-merge -f "$CI/values-colocate-rwo-merge.yaml"; then
+  ok "render RWO co-location merge fixture"
+else
+  bad "render RWO co-location merge fixture"
+fi
 
 # -- 3. env-only: no rclone.conf in ANY rendered manifest -------------------
 # shellcheck disable=SC2068
@@ -93,6 +103,27 @@ else
 fi
 grep -q 'readOnly: true' "$OUT/dir-01.yaml" \
   && ok "dir-01 source mount readOnly" || bad "dir-01 source mount readOnly"
+
+# RWO co-location: podAffinity renders with owner selector + hostname topology
+grep -q 'podAffinity' "$OUT/colocate-rwo.yaml" \
+  && ok "colocate-rwo renders podAffinity" || bad "colocate-rwo renders podAffinity"
+grep -q 'requiredDuringSchedulingIgnoredDuringExecution' "$OUT/colocate-rwo.yaml" \
+  && ok "colocate-rwo affinity is required (not preferred)" || bad "colocate-rwo affinity is required (not preferred)"
+grep -q 'app: my-db' "$OUT/colocate-rwo.yaml" \
+  && ok "colocate-rwo selects owner pods (app: my-db)" || bad "colocate-rwo selects owner pods (app: my-db)"
+grep -q 'topologyKey: kubernetes.io/hostname' "$OUT/colocate-rwo.yaml" \
+  && ok "colocate-rwo topologyKey is hostname" || bad "colocate-rwo topologyKey is hostname"
+# Merge case: generated podAffinity coexists with user-supplied nodeAffinity
+grep -q 'nodeAffinity' "$OUT/colocate-rwo-merge.yaml" \
+  && ok "colocate-rwo-merge keeps user nodeAffinity" || bad "colocate-rwo-merge keeps user nodeAffinity"
+grep -q 'podAffinity' "$OUT/colocate-rwo-merge.yaml" \
+  && ok "colocate-rwo-merge adds podAffinity" || bad "colocate-rwo-merge adds podAffinity"
+grep -q 'disktype' "$OUT/colocate-rwo-merge.yaml" \
+  && ok "colocate-rwo-merge keeps user node selector terms" || bad "colocate-rwo-merge keeps user node selector terms"
+# Absence: no podAffinity without coLocateWith (RWO default, RWX, remote-remote)
+for d in dir-01 dir-07 dir-05 dir-10; do
+  if grep -q 'podAffinity' "$OUT/$d.yaml"; then bad "$d injects no podAffinity without coLocateWith"; else ok "$d injects no podAffinity without coLocateWith"; fi
+done
 
 # remote args render as REMOTE:path
 grep -q 'DST:bucket1/nightly' "$OUT/dir-01.yaml" \

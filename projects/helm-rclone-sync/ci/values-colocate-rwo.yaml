@@ -1,0 +1,26 @@
+# RWO co-location proof: pvc-rwo source + coLocateWith renders a required
+# podAffinity term (topologyKey kubernetes.io/hostname) selecting the owning
+# workload's pods, so sync Pods land on the owner's node.
+schedule: "15 2 * * *"
+coLocateWith:
+  matchLabels:
+    app: my-db
+source:
+  type: pvc-rwo
+  uri:
+    value: data-rwo
+destination:
+  type: s3
+  uri:
+    value: bucket1/nightly
+  credentials:
+    provider:
+      value: AWS
+    accessKeyId:
+      value: AKIAIOSFODNN7EXAMPLE
+    secretAccessKey:
+      secretRef:
+        name: rclone-s3-credentials
+        key: secret-access-key
+    region:
+      value: us-east-1

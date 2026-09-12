@@ -355,6 +355,41 @@ volumes:
 {{- end -}}
 {{- end -}}
 
+{{/*
+Merged pod `affinity:` block (YAML, or "" when neither source is set).
+User-supplied .Values.affinity is the base; when .Values.coLocateWith selects
+the owning workload's pods ({matchLabels, matchExpressions, optional
+topologyKey, optional namespaces}), a required podAffinity term (topologyKey
+kubernetes.io/hostname by default) is appended to any user-supplied
+requiredDuringScheduling terms — merged, never replacing them. Expects the
+root context.
+*/}}
+{{- define "helm-rclone-sync.affinity" -}}
+{{- $user := .Values.affinity | default dict -}}
+{{- $sel := .Values.coLocateWith | default dict -}}
+{{- if $sel -}}
+{{- if not (kindIs "map" $sel) }}{{ fail "coLocateWith must be a map with matchLabels and/or matchExpressions selecting the owning workload's pods (see README \"RWO same-node caveat\")" }}{{ end -}}
+{{- $ml := $sel.matchLabels | default dict -}}
+{{- $me := $sel.matchExpressions | default list -}}
+{{- if and (empty $ml) (empty $me) }}{{ fail "coLocateWith requires matchLabels and/or matchExpressions selecting the owning workload's pods (see README \"RWO same-node caveat\")" }}{{ end -}}
+{{- $ls := dict -}}
+{{- if not (empty $ml) }}{{ $ls = set $ls "matchLabels" $ml }}{{ end -}}
+{{- if not (empty $me) }}{{ $ls = set $ls "matchExpressions" $me }}{{ end -}}
+{{- $term := dict "labelSelector" $ls "topologyKey" ($sel.topologyKey | default "kubernetes.io/hostname") -}}
+{{- if $sel.namespaces }}{{ $term = set $term "namespaces" $sel.namespaces }}{{ end -}}
+{{- $merged := deepCopy $user -}}
+{{- $podAff := $merged.podAffinity | default dict -}}
+{{- $existing := $podAff.requiredDuringSchedulingIgnoredDuringExecution | default list -}}
+{{- $podAff = set $podAff "requiredDuringSchedulingIgnoredDuringExecution" (concat $existing (list $term)) -}}
+{{- $merged = set $merged "podAffinity" $podAff -}}
+{{ $merged | toYaml }}
+{{- else -}}
+{{- if $user }}
+{{ $user | toYaml }}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
 {{/* Full `volumeMounts:` block for the container, or "" when neither side is a PVC. */}}
 {{- define "helm-rclone-sync.volumeMounts" -}}
 {{- $src := include "helm-rclone-sync.endpointVolumeMount" (dict "endpoint" .source "role" "source" "vol" "src" "slot" "src" "readOnly" "true") | trim -}}

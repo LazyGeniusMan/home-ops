@@ -192,17 +192,33 @@ existing claim by name only. Two mechanisms keep concurrent access safe:
 
 For `pvc-rwo`, the claim can attach to only one node at a time. If the volume
 is already mounted by its owning workload on node A, the sync Pod must land on
-node A too, or it will stay `Pending`. Pin it with the standard knobs:
+node A too, or it will stay `Pending` (FailedAttachVolume/multi-attach);
+with the default `concurrencyPolicy: Forbid`, a stuck Pending run then blocks
+later schedules and syncs are missed. Prefer `coLocateWith` over a static
+hostname pin: it selects the owning workload's pods, so the scheduler follows
+the owner when it moves instead of going stale:
 
 ```yaml
-nodeSelector: {kubernetes.io/hostname: worker-1}
-# or: affinity: {nodeAffinity: {...}}, tolerations: [...]
+coLocateWith:
+  matchLabels: {app: my-db}   # owning workload's pod labels
+  # matchExpressions: [...]   # or expressions; optional topologyKey
+                              # (default kubernetes.io/hostname) + namespaces
 ```
+
+This renders a required `podAffinity` term (`topologyKey:
+kubernetes.io/hostname` by default) that is **merged** with any user-supplied
+`affinity` — your `nodeAffinity`/etc. is kept, the generated term is
+appended. When `coLocateWith` is empty (default) no affinity is generated;
+fall back to manual pinning (`nodeSelector:
+{kubernetes.io/hostname: worker-1}`, `affinity: {nodeAffinity: {...}}`,
+`tolerations: [...]`), which works but goes stale when the owner moves.
 
 `pvc-rwx` has no such constraint (multi-node attach is the point of RWX), but
 the same knobs work if you want locality. Either way, the `pvc-rwo` vs
 `pvc-rwx` distinction is honoured in values and documented here; the chart
 mounts both identically and lets the claim's own access mode govern attach.
+The chart never creates, resizes, force-detaches, or evicts PVCs or their
+owning workloads — it only mounts the existing claim by name.
 
 ## values.schema.json
 
