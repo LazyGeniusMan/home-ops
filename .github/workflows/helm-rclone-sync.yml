@@ -36,11 +36,6 @@ jobs:
     defaults:
       run:
         working-directory: projects/helm-rclone-sync
-    strategy:
-      fail-fast: false
-      matrix:
-        # Representative rclone sync directions rendered by the chart.
-        direction: [push, pull]
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -51,13 +46,16 @@ jobs:
       - name: Lint
         run: helm lint .
 
-      - name: Template (${{ matrix.direction }})
-        # The chart is expected to expose a `direction` value; `--set` on a
-        # differently-named key still renders defaults, so this stays a safe
-        # smoke test if the values schema names it otherwise.
-        run: >
-          helm template helm-rclone-sync .
-          --set direction=${{ matrix.direction }}
+      - name: Template (all fixtures)
+        # Directions are expressed via source.type/destination.type, not a
+        # `direction` value (see ci/values-direction-*.yaml). Render every
+        # direction fixture plus the four-value-source fixture, mirroring
+        # ci/verify.sh (renders only; assertions live there).
+        run: |
+          for f in ci/values-direction-*.yaml; do
+            helm template helm-rclone-sync . -f "$f" > /dev/null
+          done
+          helm template helm-rclone-sync . -f ci/values-sources-all-four.yaml > /dev/null
 
   publish:
     runs-on: ubuntu-latest
