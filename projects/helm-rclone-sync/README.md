@@ -220,6 +220,56 @@ mounts both identically and lets the claim's own access mode govern attach.
 The chart never creates, resizes, force-detaches, or evicts PVCs or their
 owning workloads — it only mounts the existing claim by name.
 
+## Snapshot staging (optional, external)
+
+Point-in-time reads beat live reads. Syncing a live claim means rclone can
+copy files mid-write (torn reads); syncing a restored snapshot means rclone
+reads a frozen, crash-consistent point-in-time copy. A restored staging
+volume also has no owning workload attached, so there is no multi-attach
+contender — drop `coLocateWith` and let the sync Pod schedule anywhere.
+
+The chart creates **no** `VolumeSnapshot` objects: Helm templates static
+objects (a snapshot would freeze at install/upgrade, not per tick), and a
+true per-run snapshot lifecycle (create, poll-until-ready, restore, clean
+up) would need initContainers plus snapshot RBAC, breaking the chart's
+zero-RBAC single-container contract. The pattern below needs **zero chart
+changes** — an external snapshot scheduler maintains the staging claim, and
+the chart just points at it via `source.uri.value` (any claim name works).
+See `examples/snapshot-staging.yaml` for a static, non-chart illustration.
+
+Prerequisites (all external to the chart):
+
+- A snapshot-capable CSI driver with the external-snapshotter sidecars
+  deployed and a `VolumeSnapshotClass` for that driver.
+- **Not** the default `local-ssd-nvme` class (rancher
+  local-path-provisioner, hostPath): hostPath volumes are explicitly not
+  snapshottable, so local-path claims can never participate. Those syncs
+  stay on the live-claim + `coLocateWith` path above. Verify your driver's
+  snapshot support before relying on this pattern.
+
+Pattern: before each tick, the external scheduler creates a `VolumeSnapshot`
+of the live claim, restores it to a staging PVC (same namespace as the
+restore rules require; size >= source; RWX preferred so no co-location is
+ever needed), and lets the CronJob sync from the staging claim:
+
+```yaml
+source:
+  type: pvc-rwx            # staging claim; no coLocateWith needed
+  uri: {value: my-db-snap-staging}
+```
+
+Caveats:
+
+- Snapshots are crash-consistent only, unless you quiesce first
+  (`pg_start_backup` / `fsfreeze` / app quiet, or a native
+  dump-to-PVC taken before the snapshot for app-consistency).
+- Budget ~2x transient storage plus snapshot/restore latency against the
+  `concurrencyPolicy: Forbid` window — a restore that overruns the schedule
+  blocks the next tick.
+- Snapshot/restore/cleanup lifecycle and orphan cleanup are the external
+  scheduler's responsibility, not the chart's. Restores must land in the
+  same namespace as the snapshot's source rules allow.
+
 ## values.schema.json
 
 Omitted on purpose: this repo has no `values.schema.json` convention (zero

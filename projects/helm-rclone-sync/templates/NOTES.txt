@@ -15,6 +15,7 @@ Smoke check (exec into a Job Pod created by this CronJob):
 {{ if eq .Values.source.type "pvc-rwo" -}}
 Note: source is pvc-rwo: co-locate this CronJob with the owning workload via
 coLocateWith (or pin the node via nodeSelector/affinity; see README "RWO same-node caveat").
+For snapshot-capable CSI, README "Snapshot staging (optional, external)" offers a co-location-free alternative.
 {{ end -}}
 {{ if eq .Values.destination.type "pvc-rwo" -}}
 Note: destination is pvc-rwo: co-locate this CronJob with the owning workload via
