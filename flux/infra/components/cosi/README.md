@@ -4,14 +4,13 @@ GitOps-managed object-storage provisioning on SeaweedFS: the central COSI
 controller (release-0.2, `objectstorage.k8s.io/v1alpha1`) plus the SeaweedFS
 COSI driver, with default `BucketClass/seaweedfs` +
 `BucketAccessClass/seaweedfs-key`. `BucketClaim`/`BucketAccess` pairs are
-colocated with their consumers (one pair per live bucket — 9 claims: 4
+colocated with their consumers (one pair per live bucket — 8 claims: 3
 owner claims + 5 dedicated per-instance claims):
 
 - Owner claims: `flux/infra/components/cnpg/configs/base/bucketclaims.yaml`
   (`cnpg-backups`), `flux/infra/components/dragonfly/configs/base/bucketclaims.yaml`
   (`dragonfly-backups`), `flux/infra/components/clickhouse/configs/base/bucketclaims.yaml`
-  (`clickhouse`), `flux/apps/components/rclone/base/bucketclaims.yaml`
-  (`rclone-vault`).
+  (`clickhouse`).
 - Dedicated per-instance claims: `flux/infra/components/zitadel/configs/base/bucketclaims.yaml`
   (`zitadel-db`, `zitadel-cache`),
   `flux/apps/components/coder/base/bucketclaims.yaml` (`coder-db`),
@@ -91,7 +90,7 @@ In-cluster traffic MUST use the internal S3 service
 resolves cluster-wide without relying on CoreDNS search expansion).
 Port 8333 + plain HTTP: the S3 Deployment
 serves HTTP only, so URL clients (CNPG `endpointURL`, ClickHouse
-`storage.xml`, rclone `RCLONE_CONFIG_SW_ENDPOINT`) take the full
+`storage.xml`, S3 client endpoint env vars) take the full
 `http://…:8333` URL while Dragonfly's `--s3_endpoint` takes the bare host
 (`seaweed-main-s3.seaweedfs:8333`) plus `--s3_use_https=false` (its
 `s3_use_https` flag defaults true). The public
@@ -105,10 +104,10 @@ The driver provisions the live bucket under a controller-generated name
 (`bc-<uuid>`, from `DriverCreateBucket = req.GetName()`), so claim/access
 names do NOT equal the backing SeaweedFS bucket names — read the live name
 from the claim's `status.bucketName` once `status.bucketReady` is true
-(`rclone sync` against the internal endpoint, or SeaweedFS `s3.copy`,
-moves data between buckets when re-homing a consumer). The four owner
+(`aws s3 sync` against the internal endpoint, or SeaweedFS `s3.copy`,
+moves data between buckets when re-homing a consumer). The three owner
 claims back the long-lived backup buckets (`cnpg-backups`,
-`dragonfly-backups`, `clickhouse`, `rclone-vault`); each dedicated
+`dragonfly-backups`, `clickhouse`); each dedicated
 per-instance claim backs its own bucket (e.g. `zitadel-db` backs Zitadel's
 Postgres WAL + base backups).
 
@@ -116,7 +115,7 @@ Postgres WAL + base backups).
 
 Each `BucketAccess` mints keys into its `credentialsSecretName` Secret in
 the CLAIM namespace (the namespace the claim lands in via the Fleet
-`targetNamespace` — `cnpg`, `dragonfly`, `clickhouse`, `rclone`,
+`targetNamespace` — `cnpg`, `dragonfly`, `clickhouse`,
 `zitadel`, `coder`, `clickstack` — NOT a
 `cosi` namespace) as a `BucketInfo` JSON file (`secretS3.endpoint/region/
 accessKeyID/accessSecretKey`). Consumers read those keys through ESO
@@ -132,7 +131,6 @@ Kubernetes-provider stores with GJSON `property`
   | `cnpg` | `cnpg-backups` | `cnpg-backups-cosi-creds` | `cnpg-cosi` | `cnpg-s3-credentials` (postgres-base) |
   | `dragonfly` | `dragonfly-backups` | `dragonfly-backups-cosi-creds` | `dragonfly-cosi` | `dragonfly-s3-credentials` (dragonfly-base) |
   | `clickhouse` | `clickhouse` | `clickhouse-cosi-creds` | `clickhouse-cosi` | `clickhouse-s3-backup` (CHI) |
-  | `rclone` | `rclone-vault` | `rclone-vault-cosi-creds` | `rclone-cosi` | `rclone-cosi-s3` |
   | `zitadel` | `zitadel-db` | `zitadel-db-cosi-creds` | `zitadel-cosi` | `cnpg-s3-credentials` (zitadel-db) |
   | `zitadel` | `zitadel-cache` | `zitadel-cache-cosi-creds` | `zitadel-cosi` | `dragonfly-s3-credentials` (zitadel-cache) |
   | `coder` | `coder-db` | `coder-db-cosi-creds` | `coder-cosi` | `cnpg-s3-credentials` (coder-db) |

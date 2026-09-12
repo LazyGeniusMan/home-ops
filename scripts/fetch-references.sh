@@ -109,9 +109,6 @@ git clone https://github.com/kubernetes-sigs/container-object-storage-interface 
 # /tmp/home-ops-docs/seaweedfs-cosi-docs/README.md
 git clone https://github.com/seaweedfs/seaweedfs-cosi-driver -b main --depth 1 seaweedfs-cosi-docs
 
-# /tmp/home-ops-docs/rclone-docs/docs/content
-git clone https://github.com/rclone/rclone -b master --depth 1 rclone-docs
-
 # /tmp/home-ops-docs/multus-docs/docs
 git clone https://github.com/k8snetworkplumbingwg/multus-cni -b master --depth 1 multus-docs
 

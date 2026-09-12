@@ -5,7 +5,7 @@
 # clickstack-secrets.yaml, so the SA/Role/Binding ship here and stay
 # unrestricted: secrets get/list/watch with NO resourceNames +
 # selfsubjectrulesreviews create, in-namespace only). Same pattern as the
-# cnpg/clickhouse/rclone cosi-keys: server.url omitted (defaults to
+# cnpg/clickhouse cosi-keys: server.url omitted (defaults to
 # kubernetes.default), kube-root-ca.crt supplies the API CA. One store
 # serves BOTH ExternalSecrets (cnpg-s3-credentials in ferretdb-postgres.yaml
 # + clickhouse-s3-backup in clickstack-secrets.yaml), which use GJSON

@@ -3,7 +3,7 @@
 # via the eso-k8s-reader ServiceAccount. The SA/Role/Binding already exist
 # in coder-secrets.yaml (shared with the `coder-k8s` store — the Role is
 # unrestricted in-namespace, so no second copy is registered here). Same
-# pattern as the rclone-cosi store: server.url omitted (defaults to
+# pattern as the other cosi stores: server.url omitted (defaults to
 # kubernetes.default), kube-root-ca.crt supplies the API CA. The
 # cnpg-s3-credentials ExternalSecret (in coder-db.yaml) uses GJSON
 # `property` (BucketInfo.spec.secretS3.accessKeyID/accessSecretKey) —

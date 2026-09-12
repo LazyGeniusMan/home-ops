@@ -28,8 +28,8 @@ resources:
 # the wrong tenant) if someone reorders tenants/apps.yaml. Single-index
 # removal needs no descending-order trick.
 # Current apps.yaml order (0-based):
-#   0 rclone, 1 win11-vm, 2 talos-vm, 3 clickstack, 4 hubble-ui,
-#   5 flux-operator-ui, 6 headlamp, 7 coder
+#   0 win11-vm, 1 talos-vm, 2 clickstack, 3 hubble-ui,
+#   4 flux-operator-ui, 5 headlamp, 6 coder
 patches:
   - target:
       group: fluxcd.controlplane.io
@@ -38,7 +38,7 @@ patches:
       name: apps
     patch: |-
       - op: test
-        path: /spec/inputs/1/tenant
+        path: /spec/inputs/0/tenant
         value: win11-vm
       - op: remove
-        path: /spec/inputs/1
+        path: /spec/inputs/0

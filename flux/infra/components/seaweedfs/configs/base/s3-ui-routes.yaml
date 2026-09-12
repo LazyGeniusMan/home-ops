@@ -5,7 +5,7 @@
 # 443 with the in-namespace wildcard Secret. The S3 endpoint
 # https://__SEAWEEDFS_S3_HOST__ is THE contract other
 # components use (see README) and stays proxy-free on purpose: it is a
-# SigV4-gated machine endpoint (rclone + CNPG/clickhouse/dragonfly backup
+# SigV4-gated machine endpoint (CNPG/clickhouse/dragonfly backup
 # writers address it directly), and browser-cookie OIDC would break them.
 ---
 apiVersion: gateway.networking.k8s.io/v1

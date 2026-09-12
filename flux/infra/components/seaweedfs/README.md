@@ -56,19 +56,18 @@ Path-style buckets only; every bucket consumer needs an IAM identity:
 
 - Buckets are COSI-managed (`BucketClaim`/`BucketAccess` colocated with
   each consumer — one pair per bucket: `cnpg-backups` (cnpg),
-  `dragonfly-backups` (dragonfly), `clickhouse` (clickhouse),
-  `rclone-vault` (rclone); shared prefixes ride the owner's claim, e.g.
+  `dragonfly-backups` (dragonfly), `clickhouse` (clickhouse);
+  shared prefixes ride the owner's claim, e.g.
   `zitadel`/`coder`/`ferretdb` on `cnpg-backups`, `clickstack` on
   `clickhouse`); legacy out-of-band buckets (`weed shell` / S3 API
   against the cluster) remain only until cutover (see the cosi README).
-  The convention is one bucket per consumer, e.g. `rclone-vault`,
-  `appname-media`.
+  The convention is one bucket per consumer, e.g. `appname-media`.
 - Credentials: create the S3 identity via the operator's S3 config and
   store it in Proton Pass under
   `pass://acme-prd-bdo1-talos-apps-01/seaweedfs/<consumer>/…`
   (`s3-access-key`, `s3-secret-key`); clusters consume them through an
-  `ExternalSecret` in their own namespace (same pattern as the rclone
-  component). Never commit keys.
+  `ExternalSecret` in their own namespace (same pattern as the other
+  components). Never commit keys.
 
 ## Auth (Zitadel OIDC, admin-only UI)
 
@@ -111,7 +110,7 @@ Path-style buckets only; every bucket consumer needs an IAM identity:
   API route (`seaweedfs-s3-tls`) stays DIRECT to `seaweed-main-s3:8333`
   on purpose: S3 is a SigV4-gated machine endpoint (access/secret keys
   distributed via ESO from Proton Pass), and browser-cookie OIDC would
-  break SigV4 clients (rclone + the CNPG/clickhouse/dragonfly backup
+  break SigV4 clients (the CNPG/clickhouse/dragonfly backup
   writers address the public S3 hostname directly). Admin-only on S3 is
   enforced by credential distribution, not by the Gateway.
 - In-cluster clients SHOULD use the direct Services

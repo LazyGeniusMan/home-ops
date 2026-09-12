@@ -23,7 +23,6 @@ jobs:
       fail-fast: false
       matrix:
         component:
-          - rclone
           - win11-vm
           - talos-vm
           - clickstack
