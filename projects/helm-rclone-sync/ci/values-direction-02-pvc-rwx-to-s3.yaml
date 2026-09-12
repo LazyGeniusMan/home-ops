@@ -1,0 +1,24 @@
+# (2) RWX PVC -> S3. Proves: pvc-rwx mounts the same way as pvc-rwo (the
+# access-mode distinction is honoured by the claim itself; chart behaviour is
+# identical). Also proves the plain-string shorthand for a literal uri.
+schedule: "30 2 * * *"
+source:
+  type: pvc-rwx
+  uri: media-rwx
+destination:
+  type: s3
+  uri:
+    value: bucket2/media
+  credentials:
+    provider:
+      value: AWS
+    accessKeyId:
+      value: AKIAIOSFODNN7EXAMPLE
+    secretAccessKey:
+      secretRef:
+        name: rclone-s3-credentials
+        key: secret-access-key
+    region:
+      value: eu-west-1
+    endpoint:
+      value: https://s3.eu-west-1.amazonaws.com

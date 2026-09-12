@@ -1,0 +1,20 @@
+# (8) ProtonDrive -> RWO PVC (restore). Proves: source URI from a ref source
+# renders the SRC_PATH env entry + SRC:$(SRC_PATH) arg (kube $(VAR) expansion).
+schedule: "0 4 * * *"
+source:
+  type: proton-drive
+  uri:
+    configMapRef:
+      name: rclone-paths
+      key: proton-backup-path
+  credentials:
+    username:
+      value: user@example.com
+    password:
+      secretRef:
+        name: rclone-proton-credentials
+        key: password
+destination:
+  type: pvc-rwo
+  uri:
+    value: data-rwo

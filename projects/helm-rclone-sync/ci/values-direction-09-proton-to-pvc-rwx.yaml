@@ -1,0 +1,30 @@
+# (9) ProtonDrive -> RWX PVC (restore). Proves: the existingSecret alias for
+# the ESO/consume-existing-Secret source + Proton client-token fields.
+schedule: "15 4 * * *"
+source:
+  type: proton-drive
+  uri:
+    value: /media
+  credentials:
+    username:
+      existingSecret:
+        name: rclone-proton-eso
+        key: username
+    password:
+      esoRef:
+        name: rclone-proton-eso
+        key: password
+    clientUid:
+      value: abc123
+    clientAccessToken:
+      secretRef:
+        name: rclone-proton-credentials
+        key: client-access-token
+    clientRefreshToken:
+      secretRef:
+        name: rclone-proton-credentials
+        key: client-refresh-token
+destination:
+  type: pvc-rwx
+  uri:
+    value: media-rwx

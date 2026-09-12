@@ -1,0 +1,18 @@
+apiVersion: v2
+name: helm-rclone-sync
+description: >-
+  Env-only rclone periodic sync (CronJob). Remotes are built exclusively from
+  RCLONE_CONFIG_* environment variables; no rclone.conf file exists anywhere.
+type: application
+version: 0.1.0
+appVersion: "1.75.0"
+keywords:
+  - rclone
+  - sync
+  - backup
+home: https://github.com/lazygeniusman/home-ops
+sources:
+  - https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-rclone-sync
+maintainers:
+  - name: lazygeniusman
+kubeVersion: ">= 1.27"

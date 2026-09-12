@@ -1,0 +1,24 @@
+# (1) RWO PVC -> S3. Proves: pvc-rwo renders an existingClaim volume + readOnly
+# source mount; S3 remote built from RCLONE_CONFIG_DST_* env vars.
+schedule: "15 2 * * *"
+source:
+  type: pvc-rwo
+  uri:
+    value: data-rwo
+destination:
+  type: s3
+  uri:
+    value: bucket1/nightly
+  credentials:
+    provider:
+      value: AWS
+    accessKeyId:
+      value: AKIAIOSFODNN7EXAMPLE
+    secretAccessKey:
+      secretRef:
+        name: rclone-s3-credentials
+        key: secret-access-key
+    region:
+      value: us-east-1
+    envAuth:
+      value: "false"

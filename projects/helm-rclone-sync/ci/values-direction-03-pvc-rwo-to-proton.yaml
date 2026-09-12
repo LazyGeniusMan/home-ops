@@ -1,0 +1,26 @@
+# (3) RWO PVC -> ProtonDrive. Proves: proton-drive remote built from
+# RCLONE_CONFIG_DST_* env vars incl. obscured secrets via all ref sources.
+schedule: "45 2 * * *"
+source:
+  type: pvc-rwo
+  uri:
+    value: data-rwo
+destination:
+  type: proton-drive
+  uri:
+    value: /backups/nightly
+  credentials:
+    username:
+      value: user@example.com
+    password:
+      secretRef:
+        name: rclone-proton-credentials
+        key: password
+    mailboxPassword:
+      esoRef:
+        name: rclone-proton-eso
+        key: mailbox-password
+    otpSecretKey:
+      configMapRef:
+        name: rclone-proton-config
+        key: otp-secret-key

@@ -1,0 +1,30 @@
+# (5) S3 -> ProtonDrive (remote-to-remote). Proves: zero PVC volumes and zero
+# volumeMounts when neither side is a PVC; both remotes from env vars.
+schedule: "15 3 * * *"
+source:
+  type: s3
+  remoteName: archive
+  uri:
+    value: source-bucket/prefix
+  credentials:
+    provider:
+      value: AWS
+    accessKeyId:
+      value: AKIAIOSFODNN7EXAMPLE
+    secretAccessKey:
+      esoRef:
+        name: rclone-s3-eso
+        key: secret-access-key
+    region:
+      value: us-east-1
+destination:
+  type: proton-drive
+  uri:
+    value: /from-s3
+  credentials:
+    username:
+      value: user@example.com
+    password:
+      secretRef:
+        name: rclone-proton-credentials
+        key: password

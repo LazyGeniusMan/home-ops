@@ -1,0 +1,128 @@
+{{- /*
+One generic CronJob for every sync direction. The shape of .Values.source and
+.Values.destination (pvc-rwo | pvc-rwx | s3 | proton-drive on either side)
+drives all rendering through the helm-rclone-sync.* helpers; there are no
+per-direction manifests.
+
+Env-only contract: the ONLY rclone configuration mechanism is
+RCLONE_CONFIG_* environment variables, and RCLONE_CONFIG=/dev/null guarantees
+no config file is read or auto-created. This template must never gain an
+rclone.conf ConfigMap/Secret, volume, mount, or --config flag.
+*/ -}}
+{{- /*
+Null (or absent) endpoints must fail the render, so there is no usable
+bare-defaults render: every invocation supplies full source/destination maps.
+The guards below use hasKey on .Values (not `required`, which only rejects
+missing/null — a chart default of {} would slip through) so a map-typed
+default can never silently satisfy them.
+*/ -}}
+{{- if not (hasKey .Values "source") }}{{ fail "source is required: set source.type/uri (destination likewise)" }}{{ end -}}
+{{- if not (hasKey .Values "destination") }}{{ fail "destination is required: set destination.type/uri (source likewise)" }}{{ end -}}
+{{- $src := .Values.source -}}
+{{- $dst := .Values.destination -}}
+{{- if not (kindIs "map" $src) }}{{ fail "source is required: set source.type/uri (destination likewise)" }}{{ end -}}
+{{- if not (kindIs "map" $dst) }}{{ fail "destination is required: set destination.type/uri (source likewise)" }}{{ end -}}
+{{- include "helm-rclone-sync.validateType" (dict "type" $src.type "role" "source") -}}
+{{- include "helm-rclone-sync.validateType" (dict "type" $dst.type "role" "destination") -}}
+{{- include "helm-rclone-sync.requireUri" (dict "endpoint" $src "role" "source") -}}
+{{- include "helm-rclone-sync.requireUri" (dict "endpoint" $dst "role" "destination") -}}
+{{- $fullname := include "helm-rclone-sync.fullname" . -}}
+{{- $image := include "helm-rclone-sync.image" . -}}
+{{- $operation := include "helm-rclone-sync.operation" . -}}
+{{- $restartPolicy := include "helm-rclone-sync.restartPolicy" . -}}
+{{- $concurrencyPolicy := include "helm-rclone-sync.concurrencyPolicy" . -}}
+{{- $srcArg := include "helm-rclone-sync.endpointArg" (dict "endpoint" $src "role" "source" "prefix" "SRC" "slot" "src") -}}
+{{- $dstArg := include "helm-rclone-sync.endpointArg" (dict "endpoint" $dst "role" "destination" "prefix" "DST" "slot" "dst") -}}
+{{- $schedule := required "schedule is required (cron expression, e.g. \"0 2 * * *\")" .Values.schedule -}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "helm-rclone-sync.labels" . | nindent 4 }}
+  {{- with .Values.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  schedule: {{ $schedule | quote }}
+  {{- if .Values.timeZone }}
+  timeZone: {{ .Values.timeZone | quote }}
+  {{- end }}
+  suspend: {{ .Values.suspend }}
+  concurrencyPolicy: {{ $concurrencyPolicy }}
+  successfulJobsHistoryLimit: {{ .Values.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      {{- if .Values.ttlSecondsAfterFinished }}
+      ttlSecondsAfterFinished: {{ .Values.ttlSecondsAfterFinished }}
+      {{- end }}
+      {{- if .Values.activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ .Values.activeDeadlineSeconds }}
+      {{- end }}
+      backoffLimit: {{ .Values.backoffLimit }}
+      template:
+        metadata:
+          labels:
+            {{- include "helm-rclone-sync.selectorLabels" . | nindent 12 }}
+        spec:
+          restartPolicy: {{ $restartPolicy }}
+          {{- with .Values.podSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- $volumes := include "helm-rclone-sync.volumes" (dict "source" $src "destination" $dst) | trim }}
+          {{- if $volumes }}
+          {{ $volumes | nindent 10 }}
+          {{- end }}
+          containers:
+            - name: sync
+              image: {{ $image | quote }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              args:
+                - {{ $operation }}
+                {{- range .Values.rclone.extraArgs }}
+                - {{ . | quote }}
+                {{- end }}
+                - {{ $srcArg | quote }}
+                - {{ $dstArg | quote }}
+              env:
+                # Guard: no config file is ever read or auto-created; remotes
+                # come exclusively from RCLONE_CONFIG_* variables below.
+                # (RCLONE_CONFIG overrides the config file path entirely, so
+                # pointing it at /dev/null disables the file.)
+                - name: RCLONE_CONFIG
+                  value: /dev/null
+                {{- $srcEnv := include "helm-rclone-sync.endpointEnv" (dict "endpoint" $src "role" "source" "prefix" "SRC") | trim }}
+                {{- if $srcEnv }}
+                {{ $srcEnv | nindent 16 }}
+                {{- end }}
+                {{- $dstEnv := include "helm-rclone-sync.endpointEnv" (dict "endpoint" $dst "role" "destination" "prefix" "DST") | trim }}
+                {{- if $dstEnv }}
+                {{ $dstEnv | nindent 16 }}
+                {{- end }}
+              {{- $mounts := include "helm-rclone-sync.volumeMounts" (dict "source" $src "destination" $dst) | trim }}
+              {{- if $mounts }}
+              {{ $mounts | nindent 14 }}
+              {{- end }}
+              {{- with .Values.resources }}
+              resources:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              {{- with .Values.securityContext }}
+              securityContext:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}

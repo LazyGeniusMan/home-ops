@@ -1,0 +1,20 @@
+# (4) RWX PVC -> ProtonDrive. Proves: lowercase remoteName is uppercased into
+# the RCLONE_CONFIG_BACKUPPROTON_* prefix.
+schedule: "0 3 * * *"
+source:
+  type: pvc-rwx
+  uri:
+    value: media-rwx
+destination:
+  type: proton-drive
+  remoteName: backupproton
+  uri:
+    value: /media
+  credentials:
+    username:
+      value: user@example.com
+    # rclone-obscured password (produce with `rclone obscure '...'`).
+    password:
+      value: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    twoFa:
+      value: "off"

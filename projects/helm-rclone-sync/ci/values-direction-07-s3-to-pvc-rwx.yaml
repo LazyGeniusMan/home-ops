@@ -1,0 +1,33 @@
+# (7) S3 -> RWX PVC (restore). Proves: version/schedule/k8s knobs render
+# (rclone.version override, timeZone, history limits, nodeSelector).
+schedule: "45 3 * * *"
+timeZone: America/New_York
+rclone:
+  version: 1.75.0
+  operation: copy
+  extraArgs:
+    - --transfers=4
+    - --stats-one-line
+successfulJobsHistoryLimit: 5
+failedJobsHistoryLimit: 5
+nodeSelector:
+  kubernetes.io/hostname: worker-1
+source:
+  type: s3
+  uri:
+    value: bucket2/media
+  credentials:
+    provider:
+      value: AWS
+    accessKeyId:
+      value: AKIAIOSFODNN7EXAMPLE
+    secretAccessKey:
+      secretRef:
+        name: rclone-s3-credentials
+        key: secret-access-key
+    region:
+      value: eu-west-1
+destination:
+  type: pvc-rwx
+  uri:
+    value: media-rwx

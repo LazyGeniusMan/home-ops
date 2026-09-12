@@ -1,0 +1,22 @@
+# (6) S3 -> RWO PVC (restore). Proves: writable destination mount
+# (readOnly: false); source remote args render as SRC:bucket/path.
+schedule: "30 3 * * *"
+source:
+  type: s3
+  uri:
+    value: bucket1/nightly
+  credentials:
+    provider:
+      value: AWS
+    accessKeyId:
+      value: AKIAIOSFODNN7EXAMPLE
+    secretAccessKey:
+      secretRef:
+        name: rclone-s3-credentials
+        key: secret-access-key
+    region:
+      value: us-east-1
+destination:
+  type: pvc-rwo
+  uri:
+    value: data-rwo

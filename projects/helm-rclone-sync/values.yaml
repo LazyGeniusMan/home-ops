@@ -1,0 +1,123 @@
+# Default values for helm-rclone-sync.
+#
+# Env-only rclone periodic sync. Every remote is built exclusively from
+# RCLONE_CONFIG_* environment variables. This chart never creates an
+# rclone.conf file (no ConfigMap/Secret/volume/mount for one) and sets
+# RCLONE_CONFIG=/dev/null so no config file can be read or auto-created.
+
+# -- Container image for the sync job. Tag must be an exact pin, never "latest".
+image:
+  repository: rclone/rclone
+  tag: "1.75.0"
+  pullPolicy: IfNotPresent
+
+rclone:
+  # -- Overrides image.tag when set (exact pin, never "latest"). Empty = use image.tag.
+  version: ""
+  # -- One-shot command: sync (mirror, deletes extras at destination) or copy.
+  operation: sync
+  # -- Extra CLI flags appended before the source/destination args,
+  # e.g. ["--transfers=4", "--checkers=8", "--stats=60s", "--stats-one-line"]
+  extraArgs: []
+
+# -- Cron schedule for the CronJob (also used for `spec.schedule` verbatim).
+schedule: "0 2 * * *"
+# -- IANA timezone for the schedule, e.g. "America/New_York". Empty = cluster default.
+# Out of scope only in the sense that the controller must support spec.timeZone (>= K8s 1.27).
+timeZone: ""
+# -- When true, the CronJob is suspended (no new Jobs are started).
+suspend: false
+# -- CronJob concurrency policy. Keep Forbid so overlapping runs never fight
+# over the same destination (see README "Overlap safety").
+concurrencyPolicy: Forbid
+# -- Job retry budget and history pruning.
+backoffLimit: 3
+successfulJobsHistoryLimit: 3
+failedJobsHistoryLimit: 3
+# -- Delete finished Jobs (and their Pods) this many seconds after completion.
+ttlSecondsAfterFinished: 86400
+# -- Kill a single sync run that exceeds this many seconds. Null = no deadline.
+activeDeadlineSeconds: null
+# -- Pod restartPolicy for the Job. Must be OnFailure or Never (Jobs requirement).
+restartPolicy: OnFailure
+
+# ---------------------------------------------------------------------------
+# Endpoints.
+#
+# source and destination share one shape; every sync direction is expressed
+# purely via source.type / destination.type (no per-direction manifests):
+#
+#   type:  pvc-rwo | pvc-rwx | s3 | proton-drive
+#   remoteName:  override for the RCLONE_CONFIG_<REMOTE>_* prefix (uppercased).
+#     Empty defaults to SRC (source) / DST (destination).
+#   uri:  meaning depends on type:
+#     pvc-rwo/pvc-rwx -> PersistentVolumeClaim name (must be a literal;
+#                        claimName cannot use valueFrom, so ref sources fail fast).
+#     s3              -> bucket/path appended as REMOTE:bucket/path ("" = remote root).
+#     proton-drive    -> path appended as REMOTE:path ("" = remote root).
+#   credentials: per-type secret material (ignored for pvc-*):
+#     s3:           provider, accessKeyId, secretAccessKey, region (required);
+#                   endpoint, envAuth (optional).
+#     proton-drive: username, password (required); mailboxPassword, otpSecretKey,
+#                   twoFa, clientUid, clientAccessToken, clientRefreshToken (optional).
+#
+# Four value sources for EVERY uri + credential field. Each field accepts either
+# a plain-string literal shorthand, or a map with exactly one of:
+#   value:         literal, e.g. {value: "my-bucket/backups"}
+#   secretRef:     {name: some-secret, key: some-key}          -> secretKeyRef
+#   configMapRef:  {name: some-configmap, key: some-key}       -> configMapKeyRef
+#   esoRef:        {name: eso-synced-secret, key: some-key}    -> secretKeyRef
+#                  (consumes a Secret that External Secrets Operator already
+#                  synced; the chart creates NO ExternalSecret objects).
+#                  `existingSecret` is an accepted alias for `esoRef`.
+# ---------------------------------------------------------------------------
+# Demo endpoints (pvc-rwo -> s3). MUST be overridden for real use — every
+# sync direction is expressed by replacing source/destination with one of the
+# ci/values-direction-*.yaml fixtures or equivalent --set invocations.
+# (Lint-safe placeholder defaults are required because `helm lint` renders
+# with bare defaults; fail-fast guards in the templates still reject missing
+# or ref-sourced PVC uris and missing required credentials.)
+source:
+  type: pvc-rwo
+  remoteName: ""
+  uri:
+    value: data
+  credentials: {}
+
+destination:
+  type: s3
+  remoteName: ""
+  uri:
+    value: my-bucket/backups
+  credentials:
+    provider:
+      value: AWS
+    accessKeyId:
+      value: CHANGEME
+    secretAccessKey:
+      secretRef:
+        name: rclone-s3-credentials
+        key: secret-access-key
+    region:
+      value: us-east-1
+
+# -- Scheduling helpers. Useful for pvc-rwo: pin the Job Pod to the node that
+# holds the RWO volume (the claim's own access mode still governs attach).
+nodeSelector: {}
+affinity: {}
+tolerations: []
+
+# -- Resource requests/limits for the sync container.
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+
+podSecurityContext: {}
+securityContext: {}
+
+# -- Annotations added to the CronJob metadata.
+annotations: {}
+
+nameOverride: ""
+fullnameOverride: ""

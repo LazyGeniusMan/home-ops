@@ -1,0 +1,22 @@
+helm-rclone-sync {{ .Chart.Version }} installed as {{ include "helm-rclone-sync.fullname" . }}.
+
+Direction: {{ .Values.source.type }} -> {{ .Values.destination.type }}
+Schedule:  {{ .Values.schedule | quote }}{{ if .Values.timeZone }} ({{ .Values.timeZone }}){{ end }}
+Operation: rclone {{ include "helm-rclone-sync.operation" . }}
+Image:     {{ include "helm-rclone-sync.image" . }}
+
+Env-only: remotes come exclusively from RCLONE_CONFIG_* env vars;
+RCLONE_CONFIG=/dev/null guarantees no rclone.conf file is used.
+
+Smoke check (exec into a Job Pod created by this CronJob):
+  rclone listremotes -vv
+  rclone about {{ include "helm-rclone-sync.endpointArg" (dict "endpoint" .Values.destination "role" "destination" "prefix" "DST" "slot" "dst") }} -vv
+
+{{ if eq .Values.source.type "pvc-rwo" -}}
+Note: source is pvc-rwo: pin this CronJob to the volume's node via
+nodeSelector/affinity (see README "RWO same-node caveat").
+{{ end -}}
+{{ if eq .Values.destination.type "pvc-rwo" -}}
+Note: destination is pvc-rwo: pin this CronJob to the volume's node via
+nodeSelector/affinity (see README "RWO same-node caveat").
+{{ end -}}

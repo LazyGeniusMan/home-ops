@@ -1,0 +1,31 @@
+# (10) ProtonDrive -> S3 (remote-to-remote). Proves: zero PVC volumes when the
+# destination is a remote with a ref-sourced uri (DST_PATH env indirection).
+schedule: "30 4 * * *"
+source:
+  type: proton-drive
+  uri:
+    value: /from-proton
+  credentials:
+    username:
+      value: user@example.com
+    password:
+      esoRef:
+        name: rclone-proton-eso
+        key: password
+destination:
+  type: s3
+  uri:
+    secretRef:
+      name: rclone-s3-paths
+      key: destination-bucket-path
+  credentials:
+    provider:
+      value: AWS
+    accessKeyId:
+      value: AKIAIOSFODNN7EXAMPLE
+    secretAccessKey:
+      secretRef:
+        name: rclone-s3-credentials
+        key: secret-access-key
+    region:
+      value: us-east-1
