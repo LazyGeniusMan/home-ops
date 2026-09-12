@@ -95,3 +95,4 @@ Multi-stage build: pinned `golang:1.26.7` toolchain (digest-pinned) with
 `CGO_ENABLED=0`, downloading pinned `pass-cli` 2.3.3 (per-arch SHA-256
 verified) → pinned `distroless/base-debian13` runtime (digest-pinned, no
 shell), running as the non-root `nonroot:nonroot` user (65532), exposing 8080.
+<!-- ci-trigger: no-op to exercise eso-proton-pass workflow on push -->
