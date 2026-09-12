@@ -22,12 +22,12 @@ behind the `helm-rclone-sync.*` prefix and is invoked with
 ## Install / upgrade
 
 Published as an OCI artifact at
-`ghcr.io/lazygeniusman/home-ops/helm-rclone-sync` (chart version = SemVer,
+`ghcr.io/lazygeniusman/home-ops/projects/helm-rclone-sync` (chart version = SemVer,
 e.g. `0.1.0`):
 
 ```bash
 helm upgrade --install rclone-nightly \
-  oci://ghcr.io/lazygeniusman/home-ops/helm-rclone-sync \
+  oci://ghcr.io/lazygeniusman/home-ops/projects/helm-rclone-sync \
   --version 0.1.0 \
   --values my-sync-values.yaml
 ```
