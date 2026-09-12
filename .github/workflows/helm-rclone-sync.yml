@@ -49,13 +49,16 @@ jobs:
       - name: Template (all fixtures)
         # Directions are expressed via source.type/destination.type, not a
         # `direction` value (see ci/values-direction-*.yaml). Render every
-        # direction fixture plus the four-value-source fixture, mirroring
-        # ci/verify.sh (renders only; assertions live there).
+        # direction fixture plus the four-value-source and RWO co-location
+        # fixtures, mirroring ci/verify.sh (renders only; assertions live there).
         run: |
           for f in ci/values-direction-*.yaml; do
             helm template helm-rclone-sync . -f "$f" > /dev/null
           done
           helm template helm-rclone-sync . -f ci/values-sources-all-four.yaml > /dev/null
+          for f in ci/values-colocate-*.yaml; do
+            helm template helm-rclone-sync . -f "$f" > /dev/null
+          done
 
   publish:
     runs-on: ubuntu-latest
