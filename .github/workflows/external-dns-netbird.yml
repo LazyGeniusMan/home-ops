@@ -88,7 +88,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
-          images: ghcr.io/lazygeniusman/home-ops/infra/external-dns-netbird
+          images: ghcr.io/lazygeniusman/home-ops/projects/external-dns-netbird
           flavor: |
             latest=false
           # Branch leg: dev + dev-<sha>. Tag leg: stable + <semver>.
@@ -114,4 +114,4 @@ jobs:
         shell: bash
         run: cosign sign --yes "$IMAGE_DIGEST_URL"
         env:
-          IMAGE_DIGEST_URL: ghcr.io/lazygeniusman/home-ops/infra/external-dns-netbird@${{ steps.build.outputs.digest }}
+          IMAGE_DIGEST_URL: ghcr.io/lazygeniusman/home-ops/projects/external-dns-netbird@${{ steps.build.outputs.digest }}

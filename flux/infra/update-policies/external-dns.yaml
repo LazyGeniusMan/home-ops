@@ -31,7 +31,7 @@ kind: ImageRepository
 metadata:
   name: external-dns-netbird
 spec:
-  image: "ghcr.io/lazygeniusman/home-ops/infra/external-dns-netbird"
+  image: "ghcr.io/lazygeniusman/home-ops/projects/external-dns-netbird"
   interval: 12h
   provider: generic
 ---

@@ -105,7 +105,7 @@ spec:
       name: webhook
       webhook:
         image:
-          repository: ghcr.io/lazygeniusman/home-ops/infra/external-dns-netbird
+          repository: ghcr.io/lazygeniusman/home-ops/projects/external-dns-netbird
           tag: dev # {"$imagepolicy": "infra:external-dns-netbird:tag"}
         env:
           - name: NETBIRD_PAT_FILE
