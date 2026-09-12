@@ -1,19 +1,29 @@
 # Infra area releases: tag flux-infra-vX.Y.Z to publish every
 # matrix component as oci://ghcr.io/<owner>/home-ops/infra/<component> with
-# tags stable + stable-X.Y.Z (version stripped from the git ref). The prd cluster verifies this
-# workflow + tag via the cosign subject pinned in
+# tags stable + X.Y.Z (version stripped from the git ref and semver-gated below).
+# The prd cluster verifies this workflow + tag via the cosign subject pinned in
 # flux/fleet/tenants/infra.yaml (refs/tags/flux-infra-v\d+\.\d+\.\d+).
 # Owner: flux/infra
 # Self-contained: all steps are inline in this file; no local composite
 # actions are referenced (only pinned external owner/repo@sha actions).
+# Consumers pin the static `stable` OCI tag (not the version tag), so adding
+# the bare-version tag is additive and needs no consumer ref change.
+# Keep this matrix in parity with flux-infra-push.yaml (incl. cosi).
 name: flux-infra-release
 
-# OCI: oci://ghcr.io/<owner>/home-ops/infra/<component>:stable + stable-<version>.
+# OCI: oci://ghcr.io/<owner>/home-ops/infra/<component>:stable + <version>.
+
+permissions: {} # deny-all default; publish/sign scopes granted per job below.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true # release tags are unique refs; safe to supersede.
 
 on:
   push:
     tags:
       - 'flux-infra-v*'
+      - 'flux-infra-v[0-9]*' # defense-in-depth; in-job semver gate is authoritative.
 
 jobs:
   flux-push:
@@ -37,6 +47,7 @@ jobs:
           - multus
           - kubevirt
           - zitadel
+          - cosi
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -46,7 +57,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install flux
-        uses: controlplaneio-fluxcd/distribution/actions/setup@1eaaa7f67ad253af88d4fac2f349ed8e7d801b83 # main
+        uses: controlplaneio-fluxcd/distribution/actions/setup@746d36fb6147fcb558c0e3e1c8c37d849b56b550 # v2.9.5
       - name: Install cosign
         uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
       - name: Login to GitHub Container Registry
@@ -57,20 +68,26 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Compute stable version
         shell: bash
+        env:
+          TAG_NAME: ${{ github.ref_name }}
         run: |
-          REF="${{ github.ref_name }}"
-          echo "STABLE_VERSION=${REF##*-v}" >> "$GITHUB_ENV"
+          VERSION="${TAG_NAME##*-v}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Tag '$TAG_NAME' is not semver (expected *-vX.Y.Z)."
+            exit 1
+          fi
+          echo "STABLE_VERSION=$VERSION" >> "$GITHUB_ENV"
       - name: Lowercase repository
         shell: bash
         run: echo "REPO_LC=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
       - name: Push artifact
-        uses: controlplaneio-fluxcd/distribution/actions/push@1eaaa7f67ad253af88d4fac2f349ed8e7d801b83 # main
+        uses: controlplaneio-fluxcd/distribution/actions/push@746d36fb6147fcb558c0e3e1c8c37d849b56b550 # v2.9.5
         id: push
         with:
           repository: ghcr.io/${{ env.REPO_LC }}/infra/${{ matrix.component }}
           path: flux/infra/components/${{ matrix.component }}
           diff-tag: stable
-          tags: stable-${{ env.STABLE_VERSION }}
+          tags: ${{ env.STABLE_VERSION }}
       - name: Sign artifact
         if: steps.push.outputs.pushed == 'true'
         shell: bash

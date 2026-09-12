@@ -6,6 +6,12 @@ name: flux-fleet-push
 
 # OCI: oci://ghcr.io/<owner>/home-ops/fleet:dev + dev-<sha> (main commits).
 
+permissions: {} # deny-all default; publish/sign scopes granted per job below.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true # main pushes supersede; only the latest dev matters.
+
 on:
   workflow_dispatch:
   push:
@@ -25,7 +31,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install flux
-        uses: controlplaneio-fluxcd/distribution/actions/setup@1eaaa7f67ad253af88d4fac2f349ed8e7d801b83 # main
+        uses: controlplaneio-fluxcd/distribution/actions/setup@746d36fb6147fcb558c0e3e1c8c37d849b56b550 # v2.9.5
       - name: Install cosign
         uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
       - name: Login to GitHub Container Registry
@@ -41,7 +47,7 @@ jobs:
         shell: bash
         run: echo "REPO_LC=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
       - name: Push artifact
-        uses: controlplaneio-fluxcd/distribution/actions/push@1eaaa7f67ad253af88d4fac2f349ed8e7d801b83 # main
+        uses: controlplaneio-fluxcd/distribution/actions/push@746d36fb6147fcb558c0e3e1c8c37d849b56b550 # v2.9.5
         id: push
         with:
           repository: ghcr.io/${{ env.REPO_LC }}/fleet
