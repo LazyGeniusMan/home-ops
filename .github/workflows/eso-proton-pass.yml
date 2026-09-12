@@ -14,7 +14,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: eso-proton-pass-publish-${{ github.ref }}
@@ -47,9 +46,22 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     needs: test
+    permissions:
+      packages: write # for pushing
+      id-token: write # for signing
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Validate tag semver
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#eso-proton-pass-v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Tag '$GITHUB_REF_NAME' yields non-semver version '$version'; expected eso-proton-pass-v<semver>." >&2
+            exit 1
+          fi
 
       - name: Log in to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -61,6 +73,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
@@ -68,12 +83,16 @@ jobs:
           images: ghcr.io/lazygeniusman/home-ops/infra/eso-proton-pass
           flavor: |
             latest=false
+          # Branch leg: dev + dev-<sha>. Tag leg: stable + <semver>.
+          # BREAKING: tags publish `stable` instead of `latest`.
           tags: |
             type=raw,value=dev,enable=${{ github.ref_type == 'branch' }}
-            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
+            type=sha,format=short,prefix=dev-,enable=${{ github.ref_type == 'branch' }}
+            type=raw,value=stable,enable=${{ github.ref_type == 'tag' }}
             type=match,pattern=eso-proton-pass-v(.*),group=1,enable=${{ github.ref_type == 'tag' }}
 
       - name: Build and push
+        id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: projects/eso-proton-pass
@@ -81,3 +100,10 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Sign image
+        if: steps.build.outputs.digest != ''
+        shell: bash
+        run: cosign sign --yes "$IMAGE_DIGEST_URL"
+        env:
+          IMAGE_DIGEST_URL: ghcr.io/lazygeniusman/home-ops/infra/eso-proton-pass@${{ steps.build.outputs.digest }}
