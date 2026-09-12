@@ -1,6 +1,6 @@
 # GitHub Actions
 
-All executable CI lives in `.github/workflows/` (12 self-contained
+All executable CI lives in `.github/workflows/` (13 self-contained
 workflows). Each workflow inlines every step it runs — only pinned
 external `owner/repo@sha` actions are referenced.
 
@@ -23,6 +23,7 @@ belongs to). Summary:
 | `workflows/flux-apps-validate.yaml` | `flux/apps` |
 | `workflows/eso-proton-pass.yml` | `projects/eso-proton-pass` |
 | `workflows/external-dns-netbird.yml` | `projects/external-dns-netbird` |
+| `workflows/helm-rclone-sync.yml` | `projects/helm-rclone-sync` |
 
 ## Ignored `.github` paths
 

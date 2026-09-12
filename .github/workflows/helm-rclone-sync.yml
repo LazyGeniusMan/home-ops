@@ -8,10 +8,25 @@
 # step and no Dockerfile context. The OCI artifact is produced with
 # `helm package` and pushed with `helm push` to the chart OCI repository.
 #
-# Tag mapping mirrors the eso metadata tags: branch pushes publish a `dev`
-# alias, `helm-rclone-sync-v<X.Y.Z>` tags publish chart version `<X.Y.Z>`
-# plus a `latest` alias. Helm OCI tags must be semver chart versions, so the
-# floating `dev`/`latest` aliases are applied after the push with `oras tag`.
+# Tag mapping mirrors the eso metadata tags, adapted for Helm semver:
+#   branch pushes -> chart version 0.0.0-dev.<sha> + `dev`, `dev-<sha>` aliases
+#   helm-rclone-sync-v<X.Y.Z> tags -> chart version <X.Y.Z> + `stable` alias
+# Semver-vs-convention exception: Helm OCI tags must be semver chart
+# versions, so the floating `dev` / `dev-<sha>` / `stable` aliases are
+# applied after the push with `oras tag` (the registry alias, not the chart
+# version, carries the floating name). Neither leg publishes `latest`.
+#
+# Signing: `helm push` prints the pushed manifest digest; cosign signs the
+# digest-pinned ref (`cosign sign --yes <repo>@<digest>`), which covers every
+# alias pointing at that manifest. OCI cosign signatures work on any OCI
+# manifest, including Helm chart manifests, so no exception is needed; Helm
+# provenance (.prov) sidecars are not uploaded because `helm push` to OCI
+# has no provenance transport -- cosign on the digest is the integrity
+# record, deliberately, not a skipped step.
+#
+# Efficiency: no dependency cache -- helm lint/template downloads nothing
+# beyond the pinned setup-helm tool; runs stay cheap via path-gating and
+# superseded runs cancel through the concurrency group below.
 name: helm-rclone-sync
 
 on:
@@ -24,7 +39,8 @@ on:
 
 permissions:
   contents: read
-  packages: write
+  packages: write # helm push + oras tag
+  id-token: write # cosign keyless signing
 
 concurrency:
   group: helm-rclone-sync-publish-${{ github.ref }}
@@ -78,6 +94,9 @@ jobs:
         # v2.0.1
         uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+
       - name: Log in to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
@@ -87,29 +106,60 @@ jobs:
 
       - name: Resolve chart version
         id: version
+        env:
+          REF_TYPE: ${{ github.ref_type }}
         run: |
-          if [ "${{ github.ref_type }}" = "tag" ]; then
+          if [ "${REF_TYPE}" = "tag" ]; then
             # helm-rclone-sync-v<X.Y.Z> -> <X.Y.Z>
             VERSION="${GITHUB_REF_NAME#helm-rclone-sync-v}"
           else
             # Branch pushes and manual dispatches publish a dev snapshot.
-            VERSION="0.0.0-dev"
+            # Helm chart versions must be semver, so the dev floating name
+            # cannot be the version itself: package 0.0.0-dev.<sha> and
+            # retag `dev` + `dev-<sha>` aliases with oras below.
+            SHORT_SHA="$(echo "${GITHUB_SHA}" | cut -c1-7)"
+            VERSION="0.0.0-dev.${SHORT_SHA}"
+          fi
+          SEMVER='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
+          if ! echo "${VERSION}" | grep -Eq "${SEMVER}"; then
+            echo "Refusing to publish non-semver chart version: ${VERSION}" >&2
+            exit 1
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Package and push
+        id: push
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           helm package projects/helm-rclone-sync --version "${VERSION}"
-          helm push "helm-rclone-sync-${VERSION}.tgz" "oci://${OCI_REPO}"
+          PUSH_OUT="$(helm push "helm-rclone-sync-${VERSION}.tgz" "oci://${OCI_REPO}" 2>&1)"
+          echo "${PUSH_OUT}"
+          DIGEST="$(echo "${PUSH_OUT}" | grep -Eo 'sha256:[0-9a-f]{64}' | head -n 1)"
+          if [ -z "${DIGEST}" ]; then
+            echo "Could not extract pushed digest from helm push output" >&2
+            exit 1
+          fi
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Sign chart artifact
+        shell: bash
+        run: cosign sign --yes "${OCI_REPO}@${DIGEST}"
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
 
       - name: Apply floating tags
-        # Mirrors the eso dev/latest metadata tags via registry retagging.
-        # Reuses the docker/login-action credentials via the Docker config.
+        # Mirrors the flux push dev + dev-<sha> convention (branch leg) and
+        # the eso floating-alias idea (tag leg uses `stable`, not `latest`,
+        # so pre-release tag legs stay unambiguous). Reuses the
+        # docker/login-action credentials via the Docker config.
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            oras tag "${OCI_REPO}:${VERSION}" latest
+          if [ "${REF_TYPE}" = "tag" ]; then
+            oras tag "${OCI_REPO}:${VERSION}" stable
           else
             oras tag "${OCI_REPO}:${VERSION}" dev
+            oras tag "${OCI_REPO}:${VERSION}" "dev-${GITHUB_SHA::7}"
           fi

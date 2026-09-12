@@ -7,6 +7,16 @@
 # Self-contained: all steps are inline in this file; no local composite
 # actions are referenced (only pinned external owner/repo@sha actions,
 # plus the gh CLI which is preinstalled on ubuntu-latest runners).
+#
+# Hardening: create + dispatch only, no pull_request_target; job-level
+# permissions contents:read + pull-requests:write (least privilege); create
+# runs are branch-gated by the job `if:` to image-updates-infra/apps;
+# checkout is SHA-pinned; gh args pass via env vars, never ${{ }}
+# interpolation into run:; GITHUB_TOKEN travels via env only, never echoed.
+# Efficiency: concurrency serializes per-branch PR creation without cancelling
+# (cancel-in-progress:false -- an in-flight `gh pr create` must finish so a
+# retry sees the existing PR instead of racing it); no dependency cache --
+# the job shells out to the preinstalled gh CLI with nothing worth caching.
 
 name: flux-image-updates
 
@@ -14,9 +24,16 @@ on:
   workflow_dispatch:
   create:
 
+concurrency:
+  group: flux-image-updates-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   pull-request:
-    if: github.event_name != 'create' || github.ref_name == 'image-updates-infra' || github.ref_name == 'image-updates-apps'
+    if: >-
+      github.event_name != 'create' ||
+      github.ref_name == 'image-updates-infra' ||
+      github.ref_name == 'image-updates-apps'
     runs-on: ubuntu-latest
     permissions:
       contents: read

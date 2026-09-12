@@ -2,6 +2,16 @@
 # Owner: flux/fleet
 # Self-contained: all steps are inline in this file; no local composite
 # actions are referenced (only pinned external owner/repo@sha actions).
+#
+# Hardening: pull_request + push(main) + dispatch only, no
+# pull_request_target; top-level permissions contents:read; every uses: is
+# SHA-pinned; no ${{ }} interpolation into run: scripts (fixed validate.sh
+# args); no secrets consumed.
+# Efficiency: concurrency cancels superseded runs; path-gating limits runs to
+# flux/fleet/**; no dependency cache -- the steps shell out to prebuilt
+# yq/kubeconform/kustomize/tofu binaries with nothing worth caching.
+# Overlap note: push(main) runs here AND in flux-fleet-push.yaml by design --
+# validate gates the manifests, push ships them.
 name: flux-fleet-validate
 
 on:
@@ -16,6 +26,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: flux-fleet-validate-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   manifests:
