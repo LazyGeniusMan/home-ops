@@ -41,11 +41,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Setup yq
-        uses: fluxcd/pkg/actions/yq@6d8d5d9e03f8da11e9685652e205f20aeb99c4ba # main
+        uses: fluxcd/pkg/actions/yq@6d8d5d9e03f8da11e9685652e205f20aeb99c4ba # sha-pinned, no upstream tag at time of pinning
       - name: Setup kubeconform
-        uses: fluxcd/pkg/actions/kubeconform@6d8d5d9e03f8da11e9685652e205f20aeb99c4ba # main
+        uses: fluxcd/pkg/actions/kubeconform@6d8d5d9e03f8da11e9685652e205f20aeb99c4ba # sha-pinned, no upstream tag at time of pinning
       - name: Setup kustomize
-        uses: fluxcd/pkg/actions/kustomize@6d8d5d9e03f8da11e9685652e205f20aeb99c4ba # main
+        uses: fluxcd/pkg/actions/kustomize@6d8d5d9e03f8da11e9685652e205f20aeb99c4ba # sha-pinned, no upstream tag at time of pinning
       - name: Validate manifests
         shell: bash
         run: ./flux/scripts/validate.sh -d flux/infra
