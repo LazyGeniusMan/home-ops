@@ -1,0 +1,160 @@
+# S3→ProtonDrive off-site backup for the COSI BucketClaim/clickhouse (§10.2).
+# Every COSI claim gets a colocated sync to home-ops/backup/<cluster>/<ns>/<bucket>;
+# this file owns the clickhouse leg (namespace clickhouse via the Fleet
+# infra-configs Kustomization targetNamespace — no namespace fields below).
+# - Source is the LIVE COSI bucket, not the claim name: the driver provisions
+#   under a controller-generated name (DriverCreateBucket = req.GetName() →
+#   bc-<uuid>), so ExternalSecret/rclone-sync-clickhouse-paths reads
+#   BucketInfo.spec.bucketName out of clickhouse-cosi-creds through the
+#   in-namespace clickhouse-cosi SecretStore (cosi-keys.yaml) and templates the
+#   full S3 path <bc-uuid>/clickhouse — the CHI storage prefix
+#   (installation-base.yaml endpoint .../clickhouse/). Nightly snapshots land
+#   under the nightly/ subpath (backup-cronjob.yaml BACKUP TO
+#   Disk('backups_s3', 'nightly/')), so syncing the clickhouse/ prefix captures
+#   them; the destination embeds the live bucket name to keep dev/prd (and
+#   re-provisioned buckets) distinct.
+# - S3 keys are NOT committed: the chart's source credentials esoRef-consume the
+#   ESO-synced clickhouse-s3-backup Secret (s3-credentials.yaml via
+#   clickhouse-cosi — access-key-id/secret-access-key literals unchanged).
+# - Proton credentials are NOT committed:
+#   ExternalSecret/rclone-proton-credentials (ClusterSecretStore/proton-pass)
+#   syncs username + password. SEEDING (manual, once per env vault, then patch
+#   the __PROTON_PASS_BASE__ keys in the dev/prd overlays): store the Proton
+#   account username and the `rclone obscure` OUTPUT (run rclone ≥ 1.75 locally
+#   or via the chart image 1.75.0 — the protondrive backend rejects plaintext)
+#   at <vault>/clickhouse/rclone-proton-username and
+#   <vault>/clickhouse/rclone-proton-password. Never commit plain or obscured
+#   values here.
+# - Schedule "30 4 * * *" runs AFTER the "0 3 * * *" nightly BACKUP
+#   (backup-cronjob.yaml — never collide with it); concurrencyPolicy Forbid so
+#   overlapping runs never fight over the Proton destination; operation sync
+#   (mirror). Internal S3 endpoint only (no hairpin, per the COSI README).
+# - Ordering: the ExternalSecrets live alongside the release in this same
+#   Kustomization, so the first install attempt pends until ESO syncs them and
+#   Flux retries (RetryOnFailure below) — same pattern as headlamp/coder.
+# - Chart: oci://ghcr.io/lazygeniusman/home-ops/projects/helm-rclone-sync tag
+#   0.1.0, direction-05 shape (s3→proton-drive, remote-to-remote, zero volumes;
+#   see projects/helm-rclone-sync/ci/values-direction-05-s3-to-proton.yaml).
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: rclone-proton-credentials
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: rclone-proton-credentials
+    template:
+      data:
+        username: "{{ .username }}"
+        password: "{{ .password }}"
+  data:
+    - secretKey: username
+      remoteRef:
+        key: __PROTON_PASS_BASE__/clickhouse/rclone-proton-username
+    - secretKey: password
+      remoteRef:
+        key: __PROTON_PASS_BASE__/clickhouse/rclone-proton-password
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: rclone-sync-clickhouse-paths
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: clickhouse-cosi
+    kind: SecretStore
+  target:
+    name: rclone-sync-clickhouse-paths
+    template:
+      data:
+        source-path: "{{ .bucketName }}/clickhouse"
+        # __CLUSTER_NAME__ is a per-env placeholder (no Flux substitution for
+        # it): the dev/prd overlays patch the full dest-path literal with the
+        # cluster name (same placeholder→patch convention as
+        # __PROTON_PASS_BASE__/__S3_ENDPOINT_URL__ elsewhere in this repo).
+        dest-path: "/home-ops/backup/__CLUSTER_NAME__/clickhouse/{{ .bucketName }}"
+  data:
+    - secretKey: bucketName
+      remoteRef:
+        key: clickhouse-cosi-creds
+        property: BucketInfo.spec.bucketName
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: helm-rclone-sync-chart
+spec:
+  interval: 1h
+  url: oci://ghcr.io/lazygeniusman/home-ops/projects/helm-rclone-sync
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: 0.1.0
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: rclone-sync-clickhouse
+spec:
+  interval: 1h
+  releaseName: rclone-sync-clickhouse
+  serviceAccountName: flux
+  chartRef:
+    kind: OCIRepository
+    name: helm-rclone-sync-chart
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-rclone-sync
+  values:
+    schedule: "30 4 * * *"
+    concurrencyPolicy: Forbid
+    rclone:
+      operation: sync
+    source:
+      type: s3
+      uri:
+        esoRef:
+          name: rclone-sync-clickhouse-paths
+          key: source-path
+      credentials:
+        provider:
+          value: AWS
+        accessKeyId:
+          esoRef:
+            name: clickhouse-s3-backup
+            key: access-key-id
+        secretAccessKey:
+          esoRef:
+            name: clickhouse-s3-backup
+            key: secret-access-key
+        region:
+          value: us-east-1
+        endpoint:
+          value: http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333
+    destination:
+      type: proton-drive
+      uri:
+        esoRef:
+          name: rclone-sync-clickhouse-paths
+          key: dest-path
+      credentials:
+        username:
+          esoRef:
+            name: rclone-proton-credentials
+            key: username
+        password:
+          esoRef:
+            name: rclone-proton-credentials
+            key: password

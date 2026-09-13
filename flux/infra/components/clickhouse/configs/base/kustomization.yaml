@@ -7,3 +7,4 @@ resources:
   - wildcard-certificate.yaml
   - backup-cronjob.yaml
   - bucketclaims.yaml
+  - rclone-sync-clickhouse.yaml
