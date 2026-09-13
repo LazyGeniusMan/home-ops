@@ -30,6 +30,19 @@ Envs are `dev` / `prd` only: dev and prd TXT scope (`txtOwnerId`,
 configs/{dev,prd} — so no second writer can fight prd over the TXT
 registry/domain.
 
+## Environments
+
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | 1 per instance (cloudflare + netbird singletons) | TXT scope `home-ops-dev-*`, `domainFilters` `homelab-dev.yansyah.my.id`, dev vault keys |
+| `prd` | 2 recommended per instance (survive a node loss once multi-node) | TXT scope `home-ops-prd-*`, `domainFilters` `home-ops.yansyah.my.id`, prd vault keys |
+
+No replica patches ship yet; scale each ExternalDNS Deployment to 2 in
+`prd` when the second node lands (`policy: sync` + distinct
+`txtOwnerId` keep the pair from fighting).
+
+Upstream reference (read-only): `/tmp/home-ops-docs/external-dns-docs`.
+
 ## Wildcard record
 
 Sources include Gateway API routes, so the §8 Gateway/HTTPRoutes produce

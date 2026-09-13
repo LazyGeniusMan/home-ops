@@ -52,6 +52,16 @@ full chain with `__BASE_DOMAIN__` / `__LB_VIP__` placeholders; each env
 overlay (`dev`/`prd`) replaces the LAN zone block with its domain + VIP
 (env-independent `cluster.local` / `.` blocks ride along unchanged).
 
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | 1 (single-instance) | Corefile LAN zone `homelab-dev.yansyah.my.id` → `.249` |
+| `prd` | 2 recommended (survive a node loss once multi-node) | Corefile LAN zone `home-ops.yansyah.my.id` → `.199` |
+
+No replica patches ship yet; scale the Deployment to 2 in `prd` when the
+second node lands.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/coredns-docs`.
+
 ## kube-dns Service IP assumption (break-glass)
 
 `controllers/base/kube-dns.yaml` pins `clusterIP: 10.96.0.10` — the 10th

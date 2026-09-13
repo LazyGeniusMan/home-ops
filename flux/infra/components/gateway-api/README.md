@@ -31,11 +31,17 @@ hostname matches dots to the left per the Gateway API spec, covering both
 
 ## Environments
 
-`dev` and `prd` overlays each carry per-env patches (Gateway TLS
-secret, hostnames, wildcard `Certificate`); the `Certificate` uses the
-shared `ClusterIssuer/letsencrypt` whose ACME server is set per
-environment by the cert-manager overlays. Controllers track `../base`
-with no patches.
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | data-plane per-node via Cilium (N/A) | Gateway TLS `wildcard-homelab-dev-tls`, hostnames `homelab-dev.yansyah.my.id`, wildcard `Certificate` |
+| `prd` | data-plane per-node via Cilium (N/A) | Gateway TLS `wildcard-home-ops-tls`, hostnames `home-ops.yansyah.my.id`, wildcard `Certificate` |
+
+The `Certificate` uses the shared `ClusterIssuer/letsencrypt` whose ACME
+server is set per environment by the cert-manager overlays. Controllers
+track `../base` with no patches — the Gateway data-plane scales with the
+Cilium agent, not with a replica count here.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/k8s-gateway-api-docs`.
 
 ## Telemetry-off / monitoring / updates
 

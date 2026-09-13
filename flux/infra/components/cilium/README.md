@@ -53,3 +53,16 @@ ImageUpdateAutomation opens PRs via the `$imagepolicy` marker on the
 
 Cilium ships in the initial tenant wave (`dependsOn` policies) before
 workloads — pods need the CNI + LB pool before anything schedules.
+
+## Environments
+
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | DaemonSet per-node (N/A) + operator 1 | Talos K8s API VIP `192.168.1.248`, LB pool `.249`, node NIC `ens18` |
+| `prd` | DaemonSet per-node (N/A) + operator 2 recommended | Talos K8s API VIP `192.168.1.198`, LB pool `.199`, node NIC `enp45s0` |
+
+The agent is a DaemonSet — one pod per node by design, no replica
+concept. Operator scales to 2 in `prd` once multi-node. Hostnames/VIPs
+ride the per-env controller + configs patches above.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/cilium-docs`.

@@ -21,3 +21,15 @@ storage); the StorageClasses alone are not a backup story.
 - No reporting knobs upstream. The chart exposes no metrics endpoint; watch
   volumes via kubelet/kube-state-metrics once monitoring lands.
 - Chart bumps: `update-policies/local-path-provisioner.yaml` → PR automation.
+
+## Environments
+
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | 1 (helper + provisioner singletons) | none — inherits `../base` unchanged |
+| `prd` | 1 (helper + provisioner singletons) | none — inherits `../base` unchanged |
+
+Node-local provisioner: exactly 1 of each Deployment in every env by
+design — never scale it.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/local-path-provisioner-docs`.

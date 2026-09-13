@@ -133,6 +133,14 @@ client traffic over TLS.
 
 ## Environments
 
-`dev` and `prd` each carry per-env patches (S3 host + wildcard DNS);
-controllers inherit `../base` unchanged. Per-env tuning (replica count,
-snapshot schedule, storage size) lands with the first real instance, not here.
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | `replicas: 1` (single-instance, no failover) | S3 host + wildcard DNS; `replicas` → 1 on `Dragonfly/dragonfly-base` |
+| `prd` | `replicas: 3` (recommended production: 1 primary + 2 replicas) | S3 host + wildcard DNS; `replicas` → 3 on `Dragonfly/dragonfly-base` |
+
+Controllers inherit `../base` unchanged. Snapshot schedule and storage
+size ride the same per-env patches once instances diverge.
+Rclone sync (`rclone-sync-dragonfly-backups` CronJob): 1 per
+instance/schedule, `concurrencyPolicy: Forbid` — no scaling.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/dragonfly-operator-docs`.

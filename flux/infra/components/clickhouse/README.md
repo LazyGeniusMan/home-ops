@@ -39,12 +39,22 @@ README.)
 
 ## Environments
 
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | Keeper 1, CHI 1 shard x 1 replica (single-instance, no quorum) | S3 endpoint + wildcard DNS; `replicasCount` → 1 on keeper + CHI |
+| `prd` | Keeper 3, CHI 2 shards x 2 replicas (recommended production) | S3 endpoint + wildcard DNS; `replicasCount` → 3 (keeper) / 2 (CHI); data volumes 100Gi per replica |
+
 - Base: 2 shards x 2 replicas, 50Gi data / 5Gi log per replica, nightly backup
   CronJob enabled.
 - `prd`: data volumes grow to 100Gi per replica (patch on
   `ClickHouseInstallation/clickhouse`).
 - `dev` carries its own S3 endpoint + wildcard DNS patches; controllers
   in both envs inherit `../base` unchanged.
+- Rclone sync (`CronJob/rclone-sync-clickhouse`): 1 per instance/schedule,
+  `concurrencyPolicy: Forbid` — no scaling; overlapping runs must never
+  fight over the Proton destination.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/altinity-clickhouse-operator-docs`.
 
 ## HA
 

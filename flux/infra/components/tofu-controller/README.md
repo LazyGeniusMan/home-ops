@@ -108,5 +108,11 @@ leave the cluster.
 
 ## Environments
 
-`dev` and `prd` currently inherit `../base` unchanged (same shape as
-cert-manager before per-env divergence).
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | `replicaCount: 1` (singleton; leader-elected, safe at 1) | none — inherits `../base` unchanged |
+| `prd` | `replicaCount: 1` (singleton; raise to 2–3 only once multi-node HA is wanted) | none yet — inherits `../base` unchanged |
+
+Runner namespaces and the in-cluster Kubernetes backend are env-independent.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/flux-tofu-controller-docs/docs/`.

@@ -48,8 +48,16 @@ address, check the router's DHCP pool/scope before suspecting Multus.
 
 ## Environments
 
-`dev` and `prd` controllers track `../base` with no patches;
-both configs overlays patch the NAD master to `enp45s0` (above).
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | DaemonSet per-node (N/A) | NAD master → `enp45s0` |
+| `prd` | DaemonSet per-node (N/A) | NAD master → `enp45s0` |
+
+Multus is a thick-plugin DaemonSet — one pod per node by design, no
+replica concept. Controllers track `../base` with no patches in both
+envs.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/multus-docs`.
 
 ## Telemetry-off / monitoring / updates
 

@@ -113,6 +113,14 @@ client traffic over TLS.
 
 ## Environments
 
-`dev` and `prd` each carry per-env patches (S3 endpoint + wildcard
-DNS); controllers inherit `../base` unchanged. Per-env Cluster tuning
-(size, schedule, retention) lands with the first real cluster, not here.
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | `instances: 1` (single-instance, no failover) | S3 endpoint + wildcard DNS; `instances` → 1 on `Cluster/postgres-base` |
+| `prd` | `instances: 3` (recommended production: 1 primary + 2 sync standbys) | S3 endpoint + wildcard DNS; `instances` → 3 on `Cluster/postgres-base` |
+
+Controllers inherit `../base` unchanged. Size/schedule/retention tuning
+rides the same per-env patches once real clusters diverge.
+Rclone sync (`rclone-sync-cnpg-backups` CronJob): 1 per
+instance/schedule, `concurrencyPolicy: Forbid` — no scaling.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/cnpg-docs`.

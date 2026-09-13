@@ -79,3 +79,16 @@ login fails first). Rotate at most yearly; an early rotation is just steps
   `ServiceMonitor` with `renderMode: skipIfMissing` (safe pre-Prometheus).
 - Chart bumps: `update-policies/external-secrets.yaml` (+ `:dev` webhook
   image via `infra:eso-proton-pass` policy) → update-cluster PR automation.
+
+## Environments
+
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | controller 1, webhook `eso-proton-pass` 1 (singleton) | `eso-proton-pass` `replicas` → 1 pinned in `configs/dev`; vault refs per env |
+| `prd` | controller 2 recommended, webhook `eso-proton-pass` 1 (stays singleton) | `eso-proton-pass` `replicas` → 1 pinned in `configs/prd`; vault refs per env |
+
+The Proton Pass webhook is a singleton in every env (pinned `replicas: 1`
+in both overlays — never scale it). Scale the ESO controller to 2 in
+`prd` once multi-node.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/external-secret-operator-docs`.

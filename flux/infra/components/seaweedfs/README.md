@@ -148,11 +148,17 @@ from the same Proton Pass entry as cert-manager. S3 identities: see
 
 ## Environments
 
-Base holds the full cluster shape; `dev` and `prd` configs each
-carry per-env patches (UI/S3 hostnames, proxy OIDC wiring, SSO vars,
-token vault, wildcard DNS) while controllers track `../base`
-with no patches (capacity/affinity tuning lands here when the
-second site exists).
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | all 1 (master 1, volume nvme 1, volume sata-bulk 1, filer 1, s3 1, ui-auth 1, driver 1 — single-instance, no quorum) | UI/S3 hostnames, proxy OIDC wiring, SSO vars, token vault, wildcard DNS + every `replicas` → 1 |
+| `prd` | master 3, volume nvme 3, volume sata-bulk 3, filer 2, s3 2, ui-auth 2, driver 1 (recommended production) | UI/S3 hostnames, proxy OIDC wiring, SSO vars, token vault, wildcard DNS + production counts pinned |
+
+Base holds the full cluster shape; controllers track `../base` with no
+patches. The COSI driver stays a singleton (1) in every env — never
+scale it.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/seaweedfs-docs` (+
+`seaweedfs-operator-docs`, `seaweedfs-cosi-docs`).
 
 ## Telemetry-off / monitoring / updates
 

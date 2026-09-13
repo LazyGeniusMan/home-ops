@@ -144,9 +144,15 @@ The Proton Pass `s3-*`/`sw-*` entries stay seeded in the vault as rollback
 
 ## Environments
 
-`dev`/`prd` inherit `../base` unchanged (same shape as cert-manager).
-Per-env class tuning (e.g. replication per site)
-lands here when the second site exists.
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | 1 (central controller + SeaweedFS driver singletons) | none — inherits `../base` unchanged |
+| `prd` | 2 recommended (controller + driver HA once multi-node) | none yet — inherits `../base` unchanged |
+
+Per-env class tuning (e.g. replication per site) lands here when the
+second site exists.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/k8s-cosi-docs`.
 
 ## Telemetry-off / monitoring / updates
 

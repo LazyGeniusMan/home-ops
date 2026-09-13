@@ -62,8 +62,18 @@ ServiceMonitor creation.
 
 ## Environments
 
-`dev` and `prd` (controllers + configs) track `../base` with no
-patches — a single-node fleet has one KVM host profile.
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | control-plane 2 (operator default), virt pods per-node | none — inherits `../base` unchanged |
+| `prd` | control-plane 2 (operator default), virt pods per-node | none — inherits `../base` unchanged |
+
+A single-node fleet has one KVM host profile: `dev` and `prd`
+(controllers + configs) track `../base` with no patches. The
+operator's infra replicas default to 2 in the vendored manifest;
+virt-handler/virt-controller scale with the cluster, not with a replica
+count here.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/kubevirt-docs`.
 
 ## runStrategy ownership (coordination with §13.4/§13.5)
 
