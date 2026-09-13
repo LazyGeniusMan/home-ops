@@ -49,6 +49,8 @@ spec:
       retryInterval: 5m
   # https://github.com/kubernetes-sigs/headlamp/tree/main/charts/headlamp
   values:
+    # Chart schema `replicaCount` (default 1).
+    replicaCount: 1 # placeholder - overridden by dev/prd
     # Chart 0.45.0 = app 0.45.0 (lockstep); image.tag defaults to
     # v<appVersion>, pinned explicitly so update automation owns it via
     # update-policies/headlamp.yaml (marker below). On automation PRs bump

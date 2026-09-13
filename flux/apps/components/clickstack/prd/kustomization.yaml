@@ -162,3 +162,46 @@ patches:
     target:
       kind: Terraform
       name: clickstack-sso
+  # Prd replica counts: stateless HA (2), proxies/singletons stay 1, CNPG 3, CHI 2.
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+    target:
+      kind: Deployment
+      name: clickstack
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+    target:
+      kind: Deployment
+      name: clickstack-otel-collector
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: oauth2-proxy
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: ferretdb
+  - patch: |
+      - op: replace
+        path: /spec/instances
+        value: 3
+    target:
+      kind: Cluster
+      name: ferretdb
+  - patch: |
+      - op: replace
+        path: /spec/configuration/clusters/0/layout/replicasCount
+        value: 2
+    target:
+      kind: ClickHouseInstallation
+      name: clickstack

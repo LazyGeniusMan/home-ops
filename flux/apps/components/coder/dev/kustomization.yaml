@@ -134,3 +134,18 @@ patches:
     target:
       kind: HelmRelease
       name: coder
+  # Dev replica counts: minimal single-replica footprint.
+  - patch: |
+      - op: replace
+        path: /spec/values/coder/replicaCount
+        value: 1
+    target:
+      kind: HelmRelease
+      name: coder
+  - patch: |
+      - op: replace
+        path: /spec/instances
+        value: 1
+    target:
+      kind: Cluster
+      name: coder-db

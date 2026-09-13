@@ -134,3 +134,18 @@ patches:
     target:
       kind: HelmRelease
       name: coder
+  # Prd replica counts: stateless HA (2), CNPG 3.
+  - patch: |
+      - op: replace
+        path: /spec/values/coder/replicaCount
+        value: 2
+    target:
+      kind: HelmRelease
+      name: coder
+  - patch: |
+      - op: replace
+        path: /spec/instances
+        value: 3
+    target:
+      kind: Cluster
+      name: coder-db

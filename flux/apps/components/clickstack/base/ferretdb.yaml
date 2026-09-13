@@ -20,7 +20,7 @@ metadata:
     app.kubernetes.io/name: ferretdb
     app.kubernetes.io/part-of: clickstack
 spec:
-  replicas: 1
+  replicas: 1 # placeholder - overridden by dev/prd
   selector:
     matchLabels:
       app.kubernetes.io/name: ferretdb

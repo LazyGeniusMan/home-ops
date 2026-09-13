@@ -51,3 +51,11 @@ patches:
     target:
       kind: Certificate
       name: wildcard-home-ops
+  # Prd replica counts: stateless HA (2).
+  - patch: |
+      - op: replace
+        path: /spec/values/replicaCount
+        value: 2
+    target:
+      kind: HelmRelease
+      name: headlamp

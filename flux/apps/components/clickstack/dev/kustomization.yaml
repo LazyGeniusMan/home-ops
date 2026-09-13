@@ -162,3 +162,46 @@ patches:
     target:
       kind: Terraform
       name: clickstack-sso
+  # Dev replica counts: minimal single-replica footprint.
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: clickstack
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: clickstack-otel-collector
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: oauth2-proxy
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: ferretdb
+  - patch: |
+      - op: replace
+        path: /spec/instances
+        value: 1
+    target:
+      kind: Cluster
+      name: ferretdb
+  - patch: |
+      - op: replace
+        path: /spec/configuration/clusters/0/layout/replicasCount
+        value: 1
+    target:
+      kind: ClickHouseInstallation
+      name: clickstack

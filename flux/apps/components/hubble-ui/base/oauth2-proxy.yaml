@@ -19,7 +19,7 @@ metadata:
     app.kubernetes.io/name: oauth2-proxy
     app.kubernetes.io/part-of: hubble-ui
 spec:
-  replicas: 1
+  replicas: 1 # placeholder - overridden by dev/prd
   selector:
     matchLabels:
       app.kubernetes.io/name: oauth2-proxy

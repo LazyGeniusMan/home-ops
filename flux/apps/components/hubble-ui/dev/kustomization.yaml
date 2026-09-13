@@ -79,3 +79,18 @@ patches:
     target:
       kind: Deployment
       name: oauth2-proxy
+  # Dev replica counts: minimal single-replica footprint.
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: hubble-ui
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: oauth2-proxy

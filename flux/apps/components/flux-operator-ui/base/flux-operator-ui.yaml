@@ -48,3 +48,5 @@ spec:
     installCRDs: false
     web:
       serverOnly: true
+      # Chart schema `web.serverReplicas` (default 1; only applies with serverOnly).
+      serverReplicas: 1 # placeholder - overridden by dev/prd

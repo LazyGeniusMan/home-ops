@@ -60,7 +60,7 @@ kind: Cluster
 metadata:
   name: coder-db
 spec:
-  instances: 3
+  instances: 3 # placeholder - overridden by dev/prd
 
   postgresql:
     synchronous:

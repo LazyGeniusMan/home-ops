@@ -50,6 +50,8 @@ spec:
   # https://coder.com/docs/install/kubernetes
   values:
     coder:
+      # Chart schema `coder.replicaCount` (default 1; HA needs >1 + Enterprise).
+      replicaCount: 1 # placeholder - overridden by dev/prd
       image:
         repo: ghcr.io/coder/coder
         tag: v2.37.0 # {"$imagepolicy": "apps:coder:tag"}

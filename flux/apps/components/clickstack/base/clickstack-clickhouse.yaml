@@ -46,7 +46,7 @@ spec:
       - name: main
         layout:
           shardsCount: 1
-          replicasCount: 2
+          replicasCount: 2 # placeholder - overridden by dev/prd
     settings:
       backups/allowed_disk: backups_s3
     files:

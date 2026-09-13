@@ -51,3 +51,11 @@ patches:
     target:
       kind: Certificate
       name: wildcard-homelab-dev
+  # Dev replica counts: minimal single-replica footprint.
+  - patch: |
+      - op: replace
+        path: /spec/values/replicaCount
+        value: 1
+    target:
+      kind: HelmRelease
+      name: headlamp

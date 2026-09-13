@@ -68,3 +68,18 @@ patches:
     target:
       kind: Deployment
       name: oauth2-proxy
+  # Prd replica counts: stateless HA (2), proxy sidecar stays 1.
+  - patch: |
+      - op: replace
+        path: /spec/values/web/serverReplicas
+        value: 2
+    target:
+      kind: HelmRelease
+      name: flux-operator-ui
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: oauth2-proxy

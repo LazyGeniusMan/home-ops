@@ -14,7 +14,7 @@ kind: Deployment
 metadata:
   name: oauth2-proxy
 spec:
-  replicas: 1
+  replicas: 1 # placeholder - overridden by dev/prd
   selector:
     matchLabels:
       app: oauth2-proxy
