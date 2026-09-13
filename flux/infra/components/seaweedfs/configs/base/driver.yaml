@@ -28,7 +28,7 @@ metadata:
     app.kubernetes.io/component: objectstorage-provisioner
     app.kubernetes.io/part-of: container-object-storage-interface
 spec:
-  replicas: 1
+  replicas: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
   selector:
     matchLabels:
       app.kubernetes.io/name: seaweedfs-cosi-driver

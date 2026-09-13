@@ -15,7 +15,7 @@ kind: Cluster
 metadata:
   name: postgres-base
 spec:
-  instances: 3
+  instances: 3 # placeholder - overridden by dev/prd overlays
 
   # Streaming replication: synchronous commit across a quorum of standbys so
   # a failover never loses acknowledged writes. number specifies the standby

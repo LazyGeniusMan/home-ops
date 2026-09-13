@@ -41,3 +41,11 @@ patches:
     target:
       kind: Certificate
       name: wildcard-dragonfly
+  # Prd production HA: pin the stateful placeholder to 3 replicas.
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+    target:
+      kind: Dragonfly
+      name: dragonfly-base

@@ -57,3 +57,18 @@ patches:
     target:
       kind: ExternalSecret
       name: rclone-sync-clickhouse-paths
+  # Prd production HA: pin the Keeper ensemble (3) and shard replicas (2).
+  - patch: |
+      - op: replace
+        path: /spec/configuration/clusters/0/layout/replicasCount
+        value: 3
+    target:
+      kind: ClickHouseKeeperInstallation
+      name: clickhouse-keeper
+  - patch: |
+      - op: replace
+        path: /spec/configuration/clusters/0/layout/replicasCount
+        value: 2
+    target:
+      kind: ClickHouseInstallation
+      name: clickhouse

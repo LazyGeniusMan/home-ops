@@ -17,7 +17,7 @@ spec:
     clusters:
       - name: keeper
         layout:
-          replicasCount: 3
+          replicasCount: 3 # placeholder - overridden by dev/prd overlays
     settings:
       listen_host: "0.0.0.0"
       keeper_server/four_letter_word_white_list: "*"
@@ -79,7 +79,7 @@ spec:
       - name: main
         layout:
           shardsCount: 2
-          replicasCount: 2
+          replicasCount: 2 # placeholder - overridden by dev/prd overlays
     settings:
       backups/allowed_disk: backups_s3
     files:

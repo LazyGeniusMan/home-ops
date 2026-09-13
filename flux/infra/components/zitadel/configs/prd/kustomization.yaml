@@ -140,6 +140,21 @@ patches:
     target:
       kind: HTTPRoute
       name: zitadel-login
+  # Prd production HA: pin the stateful placeholders (DB 3, cache 3).
+  - patch: |
+      - op: replace
+        path: /spec/instances
+        value: 3
+    target:
+      kind: Cluster
+      name: zitadel-db
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+    target:
+      kind: Dragonfly
+      name: zitadel-cache
   # Prd identity intent: annotation key, users, client ownership.
   - patch: |
       - op: remove

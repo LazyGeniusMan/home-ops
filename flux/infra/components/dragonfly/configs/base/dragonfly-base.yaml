@@ -25,7 +25,7 @@ kind: Dragonfly
 metadata:
   name: dragonfly-base
 spec:
-  replicas: 3
+  replicas: 3 # placeholder - overridden by dev/prd overlays
 
   # Persistent local disk for tiered entries (see header note for why the
   # snapshot PVC is NOT used here — S3 owns snapshots in this design).

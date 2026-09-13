@@ -2,3 +2,12 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../base
+patches:
+  # Dev scaling: the eso-proton-pass webhook is a singleton in every env.
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: eso-proton-pass

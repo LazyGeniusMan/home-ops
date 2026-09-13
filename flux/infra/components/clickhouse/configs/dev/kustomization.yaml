@@ -51,3 +51,18 @@ patches:
     target:
       kind: ExternalSecret
       name: rclone-sync-clickhouse-paths
+  # Dev single-instance scaling: stateful HA placeholders -> 1.
+  - patch: |
+      - op: replace
+        path: /spec/configuration/clusters/0/layout/replicasCount
+        value: 1
+    target:
+      kind: ClickHouseKeeperInstallation
+      name: clickhouse-keeper
+  - patch: |
+      - op: replace
+        path: /spec/configuration/clusters/0/layout/replicasCount
+        value: 1
+    target:
+      kind: ClickHouseInstallation
+      name: clickhouse

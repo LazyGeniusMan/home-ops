@@ -74,3 +74,54 @@ patches:
     target:
       kind: Certificate
       name: wildcard-seaweedfs
+  # Dev single-instance scaling: stateful HA placeholders -> 1.
+  # The COSI driver stays a singleton (1) in both envs.
+  - patch: |
+      - op: replace
+        path: /spec/master/replicas
+        value: 1
+    target:
+      kind: Seaweed
+      name: seaweed-main
+  - patch: |
+      - op: replace
+        path: /spec/volume/replicas
+        value: 1
+    target:
+      kind: Seaweed
+      name: seaweed-main
+  - patch: |
+      - op: replace
+        path: /spec/volumeTopology/sata-bulk/replicas
+        value: 1
+    target:
+      kind: Seaweed
+      name: seaweed-main
+  - patch: |
+      - op: replace
+        path: /spec/filer/replicas
+        value: 1
+    target:
+      kind: Seaweed
+      name: seaweed-main
+  - patch: |
+      - op: replace
+        path: /spec/s3/replicas
+        value: 1
+    target:
+      kind: Seaweed
+      name: seaweed-main
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: ui-auth
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: seaweedfs-cosi-driver

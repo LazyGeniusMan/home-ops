@@ -140,6 +140,21 @@ patches:
     target:
       kind: HTTPRoute
       name: zitadel-login
+  # Dev single-instance scaling: stateful HA placeholders -> 1.
+  - patch: |
+      - op: replace
+        path: /spec/instances
+        value: 1
+    target:
+      kind: Cluster
+      name: zitadel-db
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Dragonfly
+      name: zitadel-cache
   # Dev identity intent: annotation key, users, client ownership.
   - patch: |
       - op: remove

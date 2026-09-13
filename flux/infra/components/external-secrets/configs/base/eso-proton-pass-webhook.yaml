@@ -44,7 +44,7 @@ metadata:
   labels:
     app.kubernetes.io/name: eso-proton-pass
 spec:
-  replicas: 1
+  replicas: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
   selector:
     matchLabels:
       app.kubernetes.io/name: eso-proton-pass

@@ -41,3 +41,11 @@ patches:
     target:
       kind: Certificate
       name: wildcard-postgres
+  # Prd production HA: pin the stateful placeholder to 3 instances.
+  - patch: |
+      - op: replace
+        path: /spec/instances
+        value: 3
+    target:
+      kind: Cluster
+      name: postgres-base

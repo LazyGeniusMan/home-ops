@@ -74,3 +74,54 @@ patches:
     target:
       kind: Certificate
       name: wildcard-seaweedfs
+  # Prd production HA: pin the stateful placeholders (master/volume 3,
+  # filer/s3/ui-auth 2, COSI driver singleton 1).
+  - patch: |
+      - op: replace
+        path: /spec/master/replicas
+        value: 3
+    target:
+      kind: Seaweed
+      name: seaweed-main
+  - patch: |
+      - op: replace
+        path: /spec/volume/replicas
+        value: 3
+    target:
+      kind: Seaweed
+      name: seaweed-main
+  - patch: |
+      - op: replace
+        path: /spec/volumeTopology/sata-bulk/replicas
+        value: 3
+    target:
+      kind: Seaweed
+      name: seaweed-main
+  - patch: |
+      - op: replace
+        path: /spec/filer/replicas
+        value: 2
+    target:
+      kind: Seaweed
+      name: seaweed-main
+  - patch: |
+      - op: replace
+        path: /spec/s3/replicas
+        value: 2
+    target:
+      kind: Seaweed
+      name: seaweed-main
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+    target:
+      kind: Deployment
+      name: ui-auth
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: seaweedfs-cosi-driver

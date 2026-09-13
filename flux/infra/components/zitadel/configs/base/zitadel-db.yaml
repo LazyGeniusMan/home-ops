@@ -59,7 +59,7 @@ kind: Cluster
 metadata:
   name: zitadel-db
 spec:
-  instances: 3
+  instances: 3 # placeholder - overridden by dev/prd overlays
 
   postgresql:
     synchronous:
