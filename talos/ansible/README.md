@@ -97,7 +97,7 @@ node's `UnattendedInstallConfig.installer.image` is correct.
 
 Each node's `talosctl gen config` receives
 `--install-image factory.talos.dev/metal-installer/<that-node-ID>:<talos_version>`
-(`talos_version` already carries the leading `v`, e.g. `v1.14.0`, so the
+(`talos_version` already carries the leading `v`, e.g. `v1.15.0-alpha.0`, so the
 ref has exactly one `v`).
 Schematic IDs are not secrets but task output is kept tidy.
 

@@ -33,10 +33,10 @@ routes:
 apiVersion: v1alpha1
 kind: UnattendedInstallConfig
 installer:
-  image: factory.talos.dev/metal-installer/PLACEHOLDER_SCHEMATIC_ID:v1.14.0 # set from schematic upload
+  image: factory.talos.dev/metal-installer/PLACEHOLDER_SCHEMATIC_ID:v1.15.0-alpha.0 # set from schematic upload
 provisioning:
   diskSelector:
-    match: disk.dev_path == "/dev/nvme0n1"
+    match: disk.dev_path == "/dev/nvme0"
   wipe: true
 ---
 apiVersion: v1alpha1
@@ -46,7 +46,7 @@ provisioning:
   diskSelector:
     match: system_disk
   grow: false
-  maxSize: 64GiB
+  maxSize: -400GiB
 ---
 apiVersion: v1alpha1
 kind: UserVolumeConfig
@@ -54,24 +54,105 @@ name: nvme-data
 provisioning:
   diskSelector:
     match: system_disk
+  grow: true
+  maxSize: 400GiB
 filesystem:
   type: xfs
 ---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: sata-data
+provisioning:
+  diskSelector:
+    match: disk.dev_path == "/dev/sda"
+  grow: true
+  minSize: 64GiB
+filesystem:
+  type: xfs
+---
+apiVersion: v1alpha1
+kind: SysctlConfig
+params:
+  # 1. SunRPC Slot Tables (Concurreny depth per connection)
+  sunrpc.tcp_slot_table_entries: "64"
+  sunrpc.tcp_max_slot_table_entries: "64"
+
+  # 2. Network Core Socket Buffers (Optimized for 10GbE+)
+  net.core.rmem_max: "33554432"          # 32MB
+  net.core.wmem_max: "33554432"          # 32MB
+  net.core.rmem_default: "1048576"
+  net.core.wmem_default: "1048576"
+  net.core.netdev_max_backlog: "10000"
+  net.core.somaxconn: "4096"
+
+  # 3. TCP Memory Buffer Limits (Min, Default, Max)
+  net.ipv4.tcp_rmem: "4096 87380 33554432"
+  net.ipv4.tcp_wmem: "4096 65536 33554432"
+  net.ipv4.tcp_slow_start_after_idle: "0"
+
+  # 4. Virtual Memory Writeback Flushing
+  vm.dirty_background_ratio: "5"
+  vm.dirty_ratio: "10"
+---
+apiVersion: v1alpha1
+kind: KernelModuleConfig
+name: nfsd
+---
+apiVersion: v1alpha1
+kind: EtcFileConfig
+name: nfs.conf
+mode: 0o644
+contents: |
+  [nfsd]
+  threads = 64
+  # vers2 = n
+  # vers3 = n
+  # vers4 = y
+  # vers4.0 = n
+  # vers4.1 = y
+  # vers4.2 = y
+
+  [mountd]
+  manage-gids = y
+---
+apiVersion: v1alpha1
+kind: ExtensionServiceConfig
+name: nfs-server
+environment:
+  - RPCNFSDCOUNT=32
+---
 # NFS server stack (nfs-server README §Requirements + Configuration).
-# Exports the existing user volume — no dedicated nfs volume.
-# UserVolumeConfig <name> mounts at /var/mnt/<name>, so this path resolves
-# against the nvme-data volume above.
+# Exports the existing user volumes — no dedicated nfs volume.
+# UserVolumeConfig <name> mounts at /var/mnt/<name>, so these paths resolve
+# against the nvme-data + sata-data volumes above.
+# Linux Client Example
+# fstab
+# 192.168.1.101:/var/mnt/sata-data /mnt/sata-data nfs4 nfsvers=4.2,hard,timeo=600,retrans=2,rsize=1048576,wsize=1048576,nconnect=8,noatime,nodiratime,nosuid,nodev 0 0
+# mount
+# sudo mount -t nfs4 -o nfsvers=4.2,hard,timeo=600,retrans=2,rsize=1048576,wsize=1048576,nconnect=8,noatime,nodiratime,nosuid,nodev 192.168.1.101:/mnt/sata-data /mnt/sata-data
+# Kubernetes Client Example
+# mountOptions:
+#   - nfsvers=4.2
+#   - hard
+#   - timeo=600
+#   - retrans=2
+#   - rsize=1048576
+#   - wsize=1048576
+#   - nconnect=8
+#   - noatime
+#   - nodiratime
+#   - noresvport                        # Essential for Kubernetes containers
 apiVersion: v1alpha1
 kind: EtcFileConfig
 name: exports
 mode: 0o644
 contents: |
-  /var/mnt/nvme-data 192.168.1.0/24(rw,sync,no_subtree_check,fsid=0,crossmnt)
+  /var 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=0)
+  /var/mnt/nvme-data 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=1)
+  /var/mnt/sata-data 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=2) 
 # LAN-only 192.168.1.0/24; default root_squash kept (no no_root_squash).
-# fsid=0 marks the NFSv4 pseudo-root, crossmnt kept so a second export can
-# attach later. nvme-data is the only volume — no sata-data (host has no
-# SATA disk; AHCI is vfio-pci passthrough). Add its export line only with a
-# sata-data UserVolumeConfig when that disk appears.
+# fsid=0 marks the NFSv4 pseudo-root on nvme-data; crossmnt lets clients
+# traverse into the sata-data export.
 ---
 apiVersion: v1alpha1
 kind: EtcFileConfig

@@ -19,14 +19,14 @@ Default cluster (when `-e talos_cluster=...` is omitted) is
 
 ### 0.1 Enter the flox environment (repo root)
 
-The repo-root flox hook installs `talosctl` v1.14.0 into the flox cache
+The repo-root flox hook installs `talosctl` v1.15.0-alpha.0 into the flox cache
 `bin/` (added to `PATH` via the profile script) and `cd`s you back to the
 project root.
 
 ```bash
 # Working dir: repo root (where .flox/ lives)
 flox activate
-talosctl version --client   # expect v1.14.0
+talosctl version --client   # expect v1.15.0-alpha.0
 ```
 
 Then move into the Ansible tree — **all playbook commands run from here**:
@@ -153,7 +153,7 @@ ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=acme-prd-bdo1
 > ⚠️ **Warning — check-mode placeholder:** in `--check` mode the Image
 > Factory upload is skipped, so no schematic ID is known and `gen config`
 > renders `--install-image
-> factory.talos.dev/metal-installer/pending-schematic-upload:v1.14.0`.
+> factory.talos.dev/metal-installer/pending-schematic-upload:v1.15.0-alpha.0`.
 > Check-mode output proves template/plumbing, **not** an installable config.
 > Always follow with a real run below.
 
@@ -203,7 +203,7 @@ table):
   `controlplane.yaml`, `worker` → `worker.yaml`). Built from base patch +
   cluster patch (generic `--config-patch`) + **only that node's** patch
   (`--config-patch-control-plane` / `--config-patch-worker`), with
-  `--install-image factory.talos.dev/metal-installer/<that-node-ID>:v1.14.0`.
+  `--install-image factory.talos.dev/metal-installer/<that-node-ID>:v1.15.0-alpha.0`.
   Each file is validated (`talosctl validate -c <file> -m metal`).
 
 ### 1.4 How to verify outputs
@@ -779,7 +779,7 @@ nfsd stack (node). VIP advertises from the control-plane node
 | --- | --- | --- | --- |
 | `talos_cluster` | all | `acme-dev-bdo1-talos-apps-01` | Selects `talos_clusters[<name>]` (vault, endpoint, nodes). Always pass explicitly except for dev. |
 | `talos_bootstrap_mode` | day-1 | `auto` | `--mode` for insecure `apply-config` (`auto` / `no-reboot` / …). |
-| `upgrade_image` | day-2 | `""` (no upgrade) | Maps to `talos_operate_upgrade_image`; when set, each node runs `talosctl upgrade -n <ip> -i <image>`. Example: `factory.talos.dev/metal-installer/<id-from-build-schematic-*.id>:v1.14.0`. |
+| `upgrade_image` | day-2 | `""` (no upgrade) | Maps to `talos_operate_upgrade_image`; when set, each node runs `talosctl upgrade -n <ip> -i <image>`. Example: `factory.talos.dev/metal-installer/<id-from-build-schematic-*.id>:v1.15.0-alpha.0`. |
 | `upgrade_talos_version` | day-2 | `""` (no upgrade) | Auto-builds installer per node from `build/<cluster>/schematic-<node>.id`. Adjacent minors only. Example: `v1.15.0` (see §3.3). |
 | `kubernetes_version` | day-2 | `1.37.0` (group default) | `--dry-run` plan then `upgrade-k8s --to`; drift-only. Example: `1.38.0` (see §3.4). |
 | `regen_talosconfig` | day-2 | `false` | Rebuilds talosconfig from existing secrets bundle (see §3.5). |

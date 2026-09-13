@@ -70,7 +70,7 @@ on-activate = '''
     mkdir -p "$cache_dir/bin"
     if [ ! -x "$cache_dir/bin/talosctl" ]; then
       curl -L -o "$cache_dir/bin/talosctl" \
-        "https://github.com/siderolabs/talos/releases/download/v1.14.0/talosctl-linux-amd64"
+        "https://github.com/siderolabs/talos/releases/download/v1.15.0-alpha.0/talosctl-linux-amd64"
       chmod +x "$cache_dir/bin/talosctl"
     fi
   }

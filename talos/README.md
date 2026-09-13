@@ -68,7 +68,7 @@ talosctl gen config <cluster> https://<VIP>:6443 \
   --config-patch @clusters/_base/patches.yml \
   --config-patch @ansible/build/<cluster>/patches.yml \
   --config-patch-control-plane @ansible/build/<cluster>/nodes-<node>-patches.yml \
-  --install-image factory.talos.dev/metal-installer/<ID>:v1.14.0 \
+  --install-image factory.talos.dev/metal-installer/<ID>:v1.15.0-alpha.0 \
   -t controlplane \
   -o ansible/build/<cluster>/nodes/<node>/controlplane.yaml
 talosctl validate -c ansible/build/<cluster>/nodes/<node>/controlplane.yaml -m metal

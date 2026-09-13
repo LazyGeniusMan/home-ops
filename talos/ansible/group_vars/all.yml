@@ -9,7 +9,7 @@
 # Shared PAT filename for build/<cluster>/ (0600, gitignored via
 # ansible/build/): day-0 renders it via pass-cli inject, day-2 reads/renews it.
 talos_pat_filename: proton-pass-pat
-talos_version: v1.14.0
+talos_version: v1.15.0-alpha.0
 # Pinned Kubernetes version: day-0 passes no --kubernetes-version flag, so
 # gen config uses the talosctl default; 1.37.0 is what day-0 last rendered
 # (confirmed in the rendered kubelet image). Day-2 compares this desired

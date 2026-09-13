@@ -112,7 +112,7 @@
       "PROTON_PASS_KEY_PROVIDER": "fs"
     },
     "hook": {
-      "on-activate": "  install_talosctl() {\n    cache_dir=\"${FLOX_ENV_CACHE:-$FLOX_ENV_PROJECT/.flox/cache}\"\n    mkdir -p \"$cache_dir/bin\"\n    if [ ! -x \"$cache_dir/bin/talosctl\" ]; then\n      curl -L -o \"$cache_dir/bin/talosctl\" \\\n        \"https://github.com/siderolabs/talos/releases/download/v1.14.0/talosctl-linux-amd64\"\n      chmod +x \"$cache_dir/bin/talosctl\"\n    fi\n  }\n  install_talosctl\n  cd \"$FLOX_ENV_PROJECT\" || return\n"
+      "on-activate": "  install_talosctl() {\n    cache_dir=\"${FLOX_ENV_CACHE:-$FLOX_ENV_PROJECT/.flox/cache}\"\n    mkdir -p \"$cache_dir/bin\"\n    if [ ! -x \"$cache_dir/bin/talosctl\" ]; then\n      curl -L -o \"$cache_dir/bin/talosctl\" \\\n        \"https://github.com/siderolabs/talos/releases/download/v1.15.0-alpha.0/talosctl-linux-amd64\"\n      chmod +x \"$cache_dir/bin/talosctl\"\n    fi\n  }\n  install_talosctl\n  cd \"$FLOX_ENV_PROJECT\" || return\n"
     },
     "profile": {
       "common": "  export PATH=\"$FLOX_ENV_CACHE/bin:$PATH\"\n  alias terraform=tofu\n"
