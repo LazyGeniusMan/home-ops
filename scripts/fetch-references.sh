@@ -8,9 +8,36 @@
 #   http  git clone over HTTPS (default, preserves historical behavior)
 #   ssh   git clone over SSH (git@github.com:, for SSH-auth environments)
 #   zip   download the branch ZIP over HTTPS and extract it (no git needed)
-set -euo pipefail
+set -Eeuo pipefail
 
 FETCH_MODE="${FETCH_MODE:-http}"
+
+# Globals for error-identifiable logging. The ERR trap runs in the caller's
+# context, so the current fetch target is tracked in globals (not locals).
+_CURRENT_DEST=""
+_CURRENT_URL=""
+_CURRENT_BRANCH=""
+_TMP_PATHS=()
+
+log() {
+  printf '%s [fetch-references][%s] %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$FETCH_MODE" "$*"
+}
+
+log_error() {
+  printf '%s [fetch-references][%s] ERROR: %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$FETCH_MODE" "$*" >&2
+}
+
+on_error() {
+  log_error "FAILED: ${_CURRENT_DEST:-unknown} mode=${FETCH_MODE} url=${_CURRENT_URL:-unknown} branch=${_CURRENT_BRANCH:-<default>}"
+}
+trap on_error ERR
+
+cleanup_tmps() {
+  if ((${#_TMP_PATHS[@]})); then
+    rm -rf "${_TMP_PATHS[@]}" 2>/dev/null || true
+  fi
+}
+trap cleanup_tmps EXIT
 
 usage() {
   cat <<'EOF'
@@ -75,13 +102,34 @@ fetch_repo() {
   local dest="$1"
   local http_url="$2"
   local branch="${3:-}"
-  local path ssh_url zip_url tmp_zip tmp_dir
+  local path ssh_url zip_url tmp_zip tmp_dir resolved_url
   local -a extracted
 
   http_url="${http_url%/}"
   path="${http_url#https://github.com/}"
   path="${path%.git}"
   ssh_url="git@github.com:${path}.git"
+
+  case "$FETCH_MODE" in
+    http)
+      resolved_url="$http_url"
+      ;;
+    ssh)
+      resolved_url="$ssh_url"
+      ;;
+    zip)
+      if [[ -n "$branch" ]]; then
+        resolved_url="https://github.com/${path}/archive/refs/heads/${branch}.zip"
+      else
+        resolved_url="https://github.com/${path}/archive/HEAD.zip"
+      fi
+      ;;
+  esac
+
+  _CURRENT_DEST="$dest"
+  _CURRENT_URL="$resolved_url"
+  _CURRENT_BRANCH="$branch"
+  log "==> [${FETCH_MODE}] ${dest} (${resolved_url})"
 
   case "$FETCH_MODE" in
     http)
@@ -99,13 +147,10 @@ fetch_repo() {
       fi
       ;;
     zip)
-      if [[ -n "$branch" ]]; then
-        zip_url="https://github.com/${path}/archive/refs/heads/${branch}.zip"
-      else
-        zip_url="https://github.com/${path}/archive/HEAD.zip"
-      fi
+      zip_url="$resolved_url"
       tmp_zip="$(mktemp /tmp/fetch-references-XXXXXX.zip)"
       tmp_dir="$(mktemp -d /tmp/fetch-references-XXXXXX)"
+      _TMP_PATHS+=("$tmp_zip" "$tmp_dir")
       curl -fsSL -o "$tmp_zip" "$zip_url"
       unzip -q "$tmp_zip" -d "$tmp_dir"
       rm -f "$tmp_zip"
@@ -116,6 +161,30 @@ fetch_repo() {
       rm -rf "$tmp_dir"
       ;;
   esac
+
+  log "ok: ${dest}"
+  _CURRENT_DEST=""
+  _CURRENT_URL=""
+  _CURRENT_BRANCH=""
+}
+
+# fetch_pdf <dest-file> <url>
+# Downloads a single file (used for the two PDF guides) with the same
+# start/ok/FAILED logging as fetch_repo.
+fetch_pdf() {
+  local dest="$1"
+  local url="$2"
+
+  _CURRENT_DEST="$dest"
+  _CURRENT_URL="$url"
+  _CURRENT_BRANCH=""
+  log "==> [${FETCH_MODE}] ${dest} (${url})"
+  mkdir -p "$(dirname "$dest")"
+  curl -fSL -o "$dest" "$url"
+  log "ok: ${dest}"
+  _CURRENT_DEST=""
+  _CURRENT_URL=""
+  _CURRENT_BRANCH=""
 }
 
 rm -rf /tmp/home-ops-docs
@@ -138,15 +207,13 @@ fetch_repo helm-docs https://github.com/helm/helm-www main
 fetch_repo flux-docs https://github.com/fluxcd/website v2-9
 
 # /tmp/home-ops-docs/flux-d2-docs/d2.pdf
-mkdir -p /tmp/home-ops-docs/flux-d2-docs
-curl -o /tmp/home-ops-docs/flux-d2-docs/d2.pdf https://raw.githubusercontent.com/controlplaneio-fluxcd/distribution/main/guides/ControlPlane_Flux_D2_Reference_Architecture_Guide.pdf
+fetch_pdf /tmp/home-ops-docs/flux-d2-docs/d2.pdf https://raw.githubusercontent.com/controlplaneio-fluxcd/distribution/main/guides/ControlPlane_Flux_D2_Reference_Architecture_Guide.pdf
 fetch_repo flux-d2-docs/d2-fleet https://github.com/controlplaneio-fluxcd/d2-fleet main
 fetch_repo flux-d2-docs/d2-infra https://github.com/controlplaneio-fluxcd/d2-infra main
 fetch_repo flux-d2-docs/d2-apps https://github.com/controlplaneio-fluxcd/d2-apps main
 
 # /tmp/home-ops-docs/flux-d1-docs/d1.pdf
-mkdir -p /tmp/home-ops-docs/flux-d1-docs
-curl -o /tmp/home-ops-docs/flux-d1-docs/d1.pdf https://raw.githubusercontent.com/controlplaneio-fluxcd/distribution/main/guides/ControlPlane_Flux_D1_Reference_Architecture_Guide.pdf
+fetch_pdf /tmp/home-ops-docs/flux-d1-docs/d1.pdf https://raw.githubusercontent.com/controlplaneio-fluxcd/distribution/main/guides/ControlPlane_Flux_D1_Reference_Architecture_Guide.pdf
 
 # /tmp/home-ops-docs/flux-operator-docs/docs
 fetch_repo flux-operator-docs https://github.com/controlplaneio-fluxcd/flux-operator main
