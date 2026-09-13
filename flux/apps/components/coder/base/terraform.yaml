@@ -70,7 +70,7 @@ spec:
   # varsFrom overrides vars on key collision (upstream GenerateVarsForTF).
   # Normal users ride `vars` as an HCL list (tofu-controller renders nested
   # YAML values as HCL — no JSON encoding needed). `user_emails` stays LAST:
-  # the dev/stg/prd overlays patch /spec/vars/0 (domain) + /spec/vars/1
+  # the dev/prd overlays patch /spec/vars/0 (domain) + /spec/vars/1
   # (app_host) by position, so this entry must remain at index 2.
   # No `user_initial_password` var is set (Terraform default null = no
   # initial password): first sign-in goes through the Zitadel invite/reset
