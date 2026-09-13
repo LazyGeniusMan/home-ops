@@ -102,7 +102,7 @@ locals {
   # HelmRelease spec.values re-encoded for the prerequisite chart, with the
   # per-cluster Talos API VIP substituted for the __TALOS_API_VIP__
   # placeholder (same value the controllers/<env>/ kustomization patches in
-  # per environment: prd/stg .198, dev .248). Only the scalar
+  # per environment: prd .198, dev .248). Only the scalar
   # k8sServiceHost key carries the placeholder, so merge it explicitly —
   # a generic value-walk would break HCL type unification on nested maps.
   cilium_values = merge(

@@ -30,7 +30,7 @@ run "cilium_prerequisite_matches_gitops_prd" {
 
   assert {
     condition     = output.test_cilium_values["k8sServiceHost"] == "192.168.1.198"
-    error_message = "Prd bootstrap must pass the prd Talos API VIP (192.168.1.198), matching controllers/prd + controllers/stg kustomization patches."
+    error_message = "Prd bootstrap must pass the prd Talos API VIP (192.168.1.198), matching the controllers/prd kustomization patch."
   }
 
   assert {

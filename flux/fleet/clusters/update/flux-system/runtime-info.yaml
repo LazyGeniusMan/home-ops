@@ -9,5 +9,5 @@ metadata:
     kustomize.toolkit.fluxcd.io/ssa: "Merge"
 data:
   ARTIFACT_TAG: "dev"
-  ENVIRONMENT: "stg"
+  ENVIRONMENT: "dev"
   CLUSTER_NAME: "update-1"

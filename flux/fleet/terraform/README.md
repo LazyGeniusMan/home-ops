@@ -35,7 +35,7 @@ in-cluster DNS before CoreDNS lands.
 
 Per-cluster prerequisite differences: only `var.cilium_k8s_service_host`
 (the Talos K8s API VIP / Layer2VIP baked into the Cilium
-`k8sServiceHost` value) — `192.168.1.198` for prd/stg, `192.168.1.248`
+`k8sServiceHost` value) — `192.168.1.198` for prd, `192.168.1.248`
 for dev, matching the `controllers/<env>/` kustomization patches. It is
 not the LB pool VIP (`.199` prd / `.249` dev). The variable validates to
 one of the two known VIPs.
