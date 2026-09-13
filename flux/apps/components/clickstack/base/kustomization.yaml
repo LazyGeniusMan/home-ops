@@ -10,6 +10,7 @@ resources:
   - clickstack-httproute.yaml
   - clickstack.yaml
   - ferretdb.yaml
+  - rclone-sync-buckets.yaml
   - oauth2-proxy.yaml
   - terraform.yaml
   - zitadel-handoff-rbac.yaml

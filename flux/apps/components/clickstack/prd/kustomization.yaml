@@ -19,7 +19,36 @@ patches:
       kind: ExternalSecret
       name: clickstack-hyperdx
   # (S3 keys are COSI-minted via the in-namespace clickstack-cosi
-  # SecretStore — no per-env vault ref patch for clickhouse-s3-backup.)
+  # SecretStore — no per-env vault ref patch for clickhouse-s3-backup,
+  # cnpg-s3-credentials, rclone-ferretdb-s3(+path), or rclone-clickstack-s3(+path).)
+  # Prd rclone-sync-buckets identity: Proton Pass vault keys + the Proton
+  # Drive destination cluster segments (base holds __PROTON_PASS_BASE__ /
+  # __CLUSTER_NAME__ placeholders; both HelmReleases share the one
+  # rclone-proton-credentials ExternalSecret, so one patch covers both).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/clickstack/rclone-proton-username
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/clickstack/rclone-proton-password
+    target:
+      kind: ExternalSecret
+      name: rclone-proton-credentials
+  - patch: |
+      - op: replace
+        path: /spec/values/destination/uri/value
+        value: /home-ops/backup/acme-prd-bdo1-talos-apps-01/clickstack/ferretdb
+    target:
+      kind: HelmRelease
+      name: rclone-sync-ferretdb
+  - patch: |
+      - op: replace
+        path: /spec/values/destination/uri/value
+        value: /home-ops/backup/acme-prd-bdo1-talos-apps-01/clickstack/clickstack
+    target:
+      kind: HelmRelease
+      name: rclone-sync-clickstack
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
