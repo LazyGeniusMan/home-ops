@@ -3,6 +3,42 @@ kind: Kustomization
 resources:
   - ../base
 patches:
+  # Dev Proton Pass base + rclone-sync cluster segment + Proton refs. Base
+  # carries __PROTON_PASS_BASE__/__CLUSTER_NAME__ placeholders (same
+  # convention as __S3_ENDPOINT_URL__/__S3_HOST__); dev fills the vault base
+  # (pass://acme-dev-bdo1-talos-apps-01) and the cluster segment
+  # (acme-dev-bdo1-talos-apps-01).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/zitadel/rclone-proton-username
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/zitadel/rclone-proton-password-obscured
+    target:
+      kind: ExternalSecret
+      name: zitadel-rclone-proton
+  - patch: |
+      - op: replace
+        path: /spec/values/destination/uri/value
+        value: /home-ops/backup/acme-dev-bdo1-talos-apps-01/zitadel/zitadel-db
+    target:
+      kind: HelmRelease
+      name: zitadel-db-rclone-sync
+  - patch: |
+      - op: replace
+        path: /spec/values/destination/uri/value
+        value: /home-ops/backup/acme-dev-bdo1-talos-apps-01/zitadel/zitadel-cache
+    target:
+      kind: HelmRelease
+      name: zitadel-cache-rclone-sync
+  - patch: |
+      - op: replace
+        path: /spec/values/destination/uri/value
+        value: /home-ops/backup/acme-dev-bdo1-talos-apps-01/zitadel/zitadel-assets
+    target:
+      kind: HelmRelease
+      name: zitadel-assets-rclone-sync
   # Dev DB/cache/asset S3 endpoints. (S3 keys are COSI-minted via the
   # in-namespace zitadel-cosi SecretStore — no per-env vault ref patch.
   # The asset endpoint below is the same internal S3 literal as base; kept

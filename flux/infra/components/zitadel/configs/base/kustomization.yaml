@@ -6,6 +6,7 @@ resources:
   - zitadel-cache.yaml
   - cosi-keys.yaml
   - bucketclaims.yaml
+  - rclone-sync-buckets.yaml
   - wildcard-certificate.yaml
   - zitadel-httproute.yaml
   - org-users.yaml
