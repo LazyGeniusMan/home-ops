@@ -5,7 +5,29 @@ resources:
   - cloudflare-api-token.yaml
 patches:
   # Dev S3 endpoint + wildcard DNS. (S3 keys are COSI-minted via the
-  # in-namespace cnpg-cosi SecretStore — no per-env vault ref patch.)
+  # in-namespace cnpg-cosi SecretStore — no per-env vault ref patch for
+  # cnpg-s3-credentials, rclone-cnpg-backups-s3, or
+  # rclone-cnpg-backups-s3-path.)
+  # Dev rclone-sync-cnpg-backups identity: Proton Pass vault keys + the
+  # Proton Drive destination cluster segment (base holds __PROTON_PASS_BASE__
+  # / __CLUSTER_NAME__ placeholders).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/cnpg/rclone-proton-username
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/cnpg/rclone-proton-password
+    target:
+      kind: ExternalSecret
+      name: rclone-proton-credentials
+  - patch: |
+      - op: replace
+        path: /spec/values/destination/uri/value
+        value: /home-ops/backup/acme-dev-bdo1-talos-apps-01/cnpg/cnpg-backups
+    target:
+      kind: HelmRelease
+      name: rclone-sync-cnpg-backups
   - patch: |
       - op: replace
         path: /spec/backup/barmanObjectStore/endpointURL
