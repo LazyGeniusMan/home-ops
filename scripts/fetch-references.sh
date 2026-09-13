@@ -83,13 +83,16 @@ git clone https://github.com/Altinity/clickhouse-operator -b master --depth 1 al
 git clone https://github.com/clickhouse/clickhouse -b master --depth 1 clickhouse-docs
 
 # /tmp/home-ops-docs/clickstack-helm-docs/README.md
-git clone https://github.com/ClickHouse/ClickStack-helm-charts -b main --depth 1 clickstack-helm-docs
+git clone https://github.com/ClickHouse/ClickStack-helm-charts -b main --depth 1 clickstack-helm-charts-docs
 
 # /tmp/home-ops-docs/dragonfly-operator-docs/docs
 git clone https://github.com/dragonflydb/documentation -b main --depth 1 dragonfly-operator-docs
 
 # /tmp/home-ops-docs/zitadel-docs/apps/docs/content
 git clone https://github.com/zitadel/zitadel -b main --depth 1  zitadel-docs
+
+# /tmp/home-ops-docs/zitadel-docs/README.md
+git clone https://github.com/zitadel/zitadel-charts -b main --depth 1  zitadel-helm-charts-docs
 
 # /tmp/home-ops-docs/oauth2-proxy-docs/docs/versioned_docs/version-7.15.x
 git clone https://github.com/oauth2-proxy/oauth2-proxy -b master --depth 1 oauth2-proxy-docs
