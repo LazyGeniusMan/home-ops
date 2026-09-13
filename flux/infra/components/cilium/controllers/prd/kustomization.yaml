@@ -12,3 +12,11 @@ patches:
     target:
       kind: HelmRelease
       name: cilium
+  # Prd HA scaling: operator placeholder -> 2 (chart default).
+  - patch: |
+      - op: replace
+        path: /spec/values/operator/replicas
+        value: 2
+    target:
+      kind: HelmRelease
+      name: cilium

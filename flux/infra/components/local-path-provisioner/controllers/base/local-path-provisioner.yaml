@@ -48,6 +48,9 @@ spec:
       retryInterval: 5m
   # https://github.com/rancher/local-path-provisioner/tree/master/deploy/chart/local-path-provisioner
   values:
+    # Singleton placeholder: provisioner runs with LeaderElection(false);
+    # pinned to 1 in dev/prd overlays.
+    replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
     storageClass:
       create: false
     storageClassConfigs:

@@ -2,3 +2,18 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../base
+patches:
+  # Dev single-instance scaling: controller/certController/webhook placeholders -> 1.
+  - patch: |
+      - op: replace
+        path: /spec/values/replicaCount
+        value: 1
+      - op: replace
+        path: /spec/values/webhook/replicaCount
+        value: 1
+      - op: replace
+        path: /spec/values/certController/replicaCount
+        value: 1
+    target:
+      kind: HelmRelease
+      name: external-secrets

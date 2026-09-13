@@ -12,3 +12,11 @@ patches:
     target:
       kind: HelmRelease
       name: cilium
+  # Dev single-instance scaling: operator placeholder -> 1.
+  - patch: |
+      - op: replace
+        path: /spec/values/operator/replicas
+        value: 1
+    target:
+      kind: HelmRelease
+      name: cilium

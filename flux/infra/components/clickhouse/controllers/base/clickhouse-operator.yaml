@@ -43,6 +43,9 @@ spec:
       name: RetryOnFailure
       retryInterval: 5m
   # https://github.com/Altinity/clickhouse-operator/tree/master/deploy/helm/clickhouse-operator
+  # NOTE: the chart exposes no operator replica knob (the Deployment template
+  # hardcodes `replicas: 1`); no values key to pin here, so dev/prd carry no
+  # replica patches for this release.
   values:
     metrics:
       enabled: true

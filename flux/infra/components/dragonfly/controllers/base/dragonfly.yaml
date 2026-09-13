@@ -42,6 +42,8 @@ spec:
     crds: CreateReplace
   # https://github.com/dragonflydb/dragonfly-operator/tree/v1.6.1/charts/dragonfly-operator
   values:
+    # Replica placeholder - overridden by dev/prd overlays.
+    replicaCount: 1 # placeholder - overridden by dev/prd overlays
     crds:
       install: true
       keep: true

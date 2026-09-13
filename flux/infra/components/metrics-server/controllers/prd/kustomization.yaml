@@ -2,3 +2,12 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../base
+patches:
+  # Prd HA scaling: metrics-server placeholder -> 2.
+  - patch: |
+      - op: replace
+        path: /spec/values/replicas
+        value: 2
+    target:
+      kind: HelmRelease
+      name: metrics-server

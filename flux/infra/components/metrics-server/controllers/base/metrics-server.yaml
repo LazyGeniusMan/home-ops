@@ -40,6 +40,8 @@ spec:
       retryInterval: 5m
   # https://github.com/kubernetes-sigs/metrics-server/blob/master/charts/metrics-server/values.yaml
   values:
+    # Replica placeholder (chart key is `replicas`) - overridden by dev/prd overlays.
+    replicas: 1 # placeholder - overridden by dev/prd overlays
     apiService:
       create: true
     metrics:

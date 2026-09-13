@@ -43,6 +43,8 @@ spec:
       retryInterval: 5m
   # https://github.com/coredns/helm/tree/master/charts/coredns
   values:
+    # Replica placeholder - overridden by dev/prd overlays.
+    replicaCount: 1 # placeholder - overridden by dev/prd overlays
     image:
       repository: coredns/coredns
       tag: 1.14.7

@@ -50,15 +50,16 @@ spec:
       retryInterval: 5m
   # https://zitadel.com/docs/self-hosting/deploy/kubernetes
   values:
-    # Two API replicas survive a node loss; the login UI keeps one (stateless
-    # Next.js front for /ui/v2/login — scale with the first real load, not here).
-    replicaCount: 2
+    # Replica placeholders - overridden by dev/prd overlays. Two API replicas
+    # survive a node loss; the login UI keeps one (stateless Next.js front
+    # for /ui/v2/login — scale with the first real load, not here).
+    replicaCount: 2 # placeholder - overridden by dev/prd overlays
     image:
       repository: ghcr.io/zitadel/zitadel
       tag: v4.17.1
       pullPolicy: IfNotPresent
     login:
-      replicaCount: 1
+      replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
       image:
         repository: ghcr.io/zitadel/zitadel-login
         tag: v4.17.1

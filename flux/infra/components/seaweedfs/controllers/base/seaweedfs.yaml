@@ -47,6 +47,8 @@ spec:
       retryInterval: 5m
   # https://github.com/seaweedfs/seaweedfs-operator/tree/master/deploy/helm
   values:
+    # Replica placeholder - overridden by dev/prd overlays.
+    replicaCount: 1 # placeholder - overridden by dev/prd overlays
     crds:
       create: true
     csiDriver:
@@ -92,6 +94,10 @@ spec:
       retryInterval: 5m
   # https://github.com/seaweedfs/seaweedfs-csi-driver/tree/master/deploy/helm/seaweedfs-csi-driver
   values:
+    # Controller replica placeholder - overridden by dev/prd overlays
+    # (node plugin + mount service are DaemonSets, N/A).
+    controller:
+      replicas: 1 # placeholder - overridden by dev/prd overlays
     driverName: seaweedfs-csi-driver
     seaweedfsFiler: "seaweed-main-filer.seaweedfs:8888"
     # Empty disables the chart's single built-in class; the tiered

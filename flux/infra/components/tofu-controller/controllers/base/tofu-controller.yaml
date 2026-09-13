@@ -59,10 +59,10 @@ spec:
     crds: CreateReplace
   # https://github.com/flux-iac/tofu-controller (chart 0.16.5, app v0.16.5)
   values:
-    # Chart default (upstream release.yaml uses 3). The controller is stateless
-    # and leader-elected, so raising this to 2-3 is safe once multi-node HA is
-    # wanted; 1 keeps the footprint small on the current clusters.
-    replicaCount: 1
+    # Replica placeholder - overridden by dev/prd overlays. Upstream default
+    # is 3 and the controller is stateless + leader-elected, but this repo
+    # pins the singleton 1 in both envs per scope (upstream single).
+    replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
     concurrency: 24
     # Resource envelope mirrors upstream docs/release.yaml (chart defaults are
     # 1000m/1Gi limits, 200m/64Mi requests).

@@ -2,3 +2,19 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../base
+patches:
+  # Dev single-instance scaling: operator + CSI controller placeholders -> 1.
+  - patch: |
+      - op: replace
+        path: /spec/values/replicaCount
+        value: 1
+    target:
+      kind: HelmRelease
+      name: seaweedfs-operator
+  - patch: |
+      - op: replace
+        path: /spec/values/controller/replicas
+        value: 1
+    target:
+      kind: HelmRelease
+      name: seaweedfs-csi-driver

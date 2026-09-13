@@ -2,3 +2,12 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../base
+patches:
+  # Prd HA scaling: dragonfly placeholder -> 2.
+  - patch: |
+      - op: replace
+        path: /spec/values/replicaCount
+        value: 2
+    target:
+      kind: HelmRelease
+      name: dragonfly

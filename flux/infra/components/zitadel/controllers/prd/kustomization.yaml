@@ -11,3 +11,14 @@ patches:
     target:
       kind: HelmRelease
       name: zitadel
+  # Prd HA scaling: API placeholder -> 2, login stays singleton 1.
+  - patch: |
+      - op: replace
+        path: /spec/values/replicaCount
+        value: 2
+      - op: replace
+        path: /spec/values/login/replicaCount
+        value: 1
+    target:
+      kind: HelmRelease
+      name: zitadel

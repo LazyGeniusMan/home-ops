@@ -40,6 +40,8 @@ spec:
       retryInterval: 5m
   # https://github.com/cloudnative-pg/charts/tree/main/charts/cloudnative-pg
   values:
+    # Replica placeholder - overridden by dev/prd overlays.
+    replicaCount: 1 # placeholder - overridden by dev/prd overlays
     crds:
       create: true
     monitoring:

@@ -47,3 +47,19 @@ patches:
     target:
       kind: HelmRelease
       name: external-dns-netbird
+  # Prd scaling: external-dns has no leader election (chart schema caps
+  # replicaCount at 1), so prd stays singleton like dev.
+  - patch: |
+      - op: replace
+        path: /spec/values/replicaCount
+        value: 1
+    target:
+      kind: HelmRelease
+      name: external-dns-cloudflare
+  - patch: |
+      - op: replace
+        path: /spec/values/replicaCount
+        value: 1
+    target:
+      kind: HelmRelease
+      name: external-dns-netbird

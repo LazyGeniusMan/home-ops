@@ -93,6 +93,9 @@ spec:
         serviceMonitor:
           enabled: false
     operator:
+      # Operator replica placeholder - overridden by dev/prd overlays
+      # (agent is a DaemonSet, N/A).
+      replicas: 1 # placeholder - overridden by dev/prd overlays
       prometheus:
         enabled: true
         serviceMonitor:

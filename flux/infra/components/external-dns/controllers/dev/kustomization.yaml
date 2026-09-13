@@ -47,3 +47,19 @@ patches:
     target:
       kind: HelmRelease
       name: external-dns-netbird
+  # Dev single-instance scaling: both instances are singletons (no leader
+  # election caps replicaCount at 1); pin placeholders -> 1.
+  - patch: |
+      - op: replace
+        path: /spec/values/replicaCount
+        value: 1
+    target:
+      kind: HelmRelease
+      name: external-dns-cloudflare
+  - patch: |
+      - op: replace
+        path: /spec/values/replicaCount
+        value: 1
+    target:
+      kind: HelmRelease
+      name: external-dns-netbird
