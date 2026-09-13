@@ -26,7 +26,7 @@ tenant namespace.
 
 `controllers/base/` (vendored release-0.2 CRDs + central controller) +
 `configs/base/` (driver RBAC + Deployment + classes) + plain `../base`
-passthroughs in `controllers/{dev,stg,prd}` and `configs/{dev,stg,prd}`;
+passthroughs in `controllers/{dev,prd}` and `configs/{dev,prd}`;
 tenant is `infra/cosi` via `flux/infra/update-policies/cosi.yaml`.
 
 ## Sources (all vendored — no remote kustomize URLs)
@@ -144,7 +144,7 @@ The Proton Pass `s3-*`/`sw-*` entries stay seeded in the vault as rollback
 
 ## Environments
 
-`dev`/`stg`/`prd` inherit `../base` unchanged (same shape as cert-manager).
+`dev`/`prd` inherit `../base` unchanged (same shape as cert-manager).
 Per-env class tuning (e.g. replication per site)
 lands here when the second site exists.
 

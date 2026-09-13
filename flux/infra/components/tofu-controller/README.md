@@ -38,11 +38,11 @@ first.
 
 ## Layout
 
-Mirrors cert-manager/metrics-server: `controllers/{base,dev,prd,stg}`
+Mirrors cert-manager/metrics-server: `controllers/{base,dev,prd}`
 (OCIRepository + HelmRelease, env overlays inherit base unchanged) and
-`configs/{base,dev,prd,stg}` (empty base for now — **no `kind: Terraform`
+`configs/{base,dev,prd}` (empty base for now — **no `kind: Terraform`
 objects ship yet**; later tasks add them here once the controller is live).
-`dev`/`prd`/`stg` controllers currently inherit base with no patches; per-env
+`dev`/`prd` controllers currently inherit base with no patches; per-env
 divergence (replica counts, runner namespaces) lands with the first real
 divergence, not here.
 
@@ -108,5 +108,5 @@ leave the cluster.
 
 ## Environments
 
-`dev`, `prd`, and `stg` currently inherit `../base` unchanged (same shape as
+`dev` and `prd` currently inherit `../base` unchanged (same shape as
 cert-manager before per-env divergence).

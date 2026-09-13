@@ -13,8 +13,8 @@ zitadel.
 ```text
 flux/infra/
 ├── components/<name>/
-│   ├── controllers/{base,dev,stg,prd}/  # Helm OCI sources + HelmReleases
-│   └── configs/{base,dev,stg,prd}/      # component configuration overlays
+│   ├── controllers/{base,dev,prd}/  # Helm OCI sources + HelmReleases
+│   └── configs/{base,dev,prd}/      # component configuration overlays
 └── update-policies/<name>.yaml                 # ImageRepository + ImagePolicy per component
 ```
 
@@ -29,8 +29,8 @@ release workflow subject.
 
 ## Onboarding
 
-1. Create `components/<name>/` with `controllers/{base,dev,stg,prd}/` and
-   `configs/{base,dev,stg,prd}/`, Helm OCI only (`OCIRepository` +
+1. Create `components/<name>/` with `controllers/{base,dev,prd}/` and
+   `configs/{base,dev,prd}/`, Helm OCI only (`OCIRepository` +
    `layerSelector`, `HelmRelease.chartRef`). Telemetry stays off by
    default; enable monitoring per component.
 2. Add the `tenant: <name>` input to `flux/fleet/tenants/infra.yaml`.

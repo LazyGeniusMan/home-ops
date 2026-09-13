@@ -8,7 +8,7 @@ StorageClasses and S3 + filer-UI Gateway routes.
 
 `controllers/base/seaweedfs.yaml` (HelmRepository + HelmRelease pair for
 the operator chart 0.1.40 and the CSI chart 0.2.36) +
-`controllers/{prd,stg}` and `configs/{base,prd,stg}`
+`controllers/{base,dev,prd}` and `configs/{base,dev,prd}`
 overlays; tenant is `infra/seaweedfs` via
 `flux/infra/update-policies/seaweedfs.yaml`.
 
@@ -147,8 +147,10 @@ from the same Proton Pass entry as cert-manager. S3 identities: see
 
 ## Environments
 
-Base holds the full cluster shape; `prd`/`stg` are plain
-`../base` passthroughs (capacity/affinity tuning lands here when the
+Base holds the full cluster shape; `dev` and `prd` configs each
+carry per-env patches (UI/S3 hostnames, proxy OIDC wiring, SSO vars,
+token vault, wildcard DNS) while controllers track `../base`
+with no patches (capacity/affinity tuning lands here when the
 second site exists).
 
 ## Telemetry-off / monitoring / updates

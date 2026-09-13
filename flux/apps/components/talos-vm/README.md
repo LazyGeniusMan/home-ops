@@ -60,13 +60,12 @@ Safety rules for every MAC below:
 - Unicast: first-octet LSB is 0 — never multicast/broadcast.
 - QEMU-OUI `52:54:00` prefix (KubeVirt-assigned range, no clash with real
   NICs).
-- Unique per L2: dev+stg+prd share 192.168.1.0/24 with win11-vm, so every
+- Unique per L2: dev+prd share 192.168.1.0/24 with win11-vm, so every
   static MAC repo-wide must differ.
 
 | env | MAC | vault path |
 | --- | --- | --- |
 | dev | `52:54:00:01:0A:01` | `pass://acme-dev-bdo1-talos-apps-01/talos-vm/lan-mac` |
-| stg | `52:54:00:02:0A:01` | `pass://acme-prd-bdo1-talos-apps-01/talos-vm/lan-mac` |
 | prd | `52:54:00:03:0A:01` | `pass://acme-prd-bdo1-talos-apps-01/talos-vm/lan-mac` |
 
 Mirror warning: the per-env patch literal and the vault value must agree —
@@ -78,7 +77,7 @@ under `<vault>/talos-vm/` in Proton Pass.
 
 - `dev`: minimal specs (1 core / 1Gi / 10Gi — boot+DHCP minimum) + static
   `lan` MAC via `talos-vm-dev-patch.yaml`.
-- `stg` / `prd`: base specs (2 cores / 4Gi / 20Gi) + static `lan` MAC via
+- `prd`: base specs (2 cores / 4Gi / 20Gi) + static `lan` MAC via
   the per-env patch.
 
 ## Telemetry-off / monitoring / updates

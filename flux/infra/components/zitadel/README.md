@@ -33,8 +33,8 @@ OCI is the upstream source of truth, verified by pull:
 ## Layout
 
 Mirrors the cert-manager component file-for-file:
-`controllers/{base,prd,stg}` (OCIRepository + HelmRelease, env overlays
-inherit base unchanged) and `configs/{base,prd,stg}` (secrets, DB, cache,
+`controllers/{base,dev,prd}` (OCIRepository + HelmRelease, env overlays
+inherit base unchanged) and `configs/{base,dev,prd}` (secrets, DB, cache,
 certificate, routes, identity intent + Terraform bootstrap CR).
 
 ## Dependencies
@@ -137,7 +137,7 @@ v1alpha2, chart 0.16.5 — see the `tofu-controller` component):
 - Secrets (`admin_initial_password`,
   `jwt_profile_json`) flow via the ESO `zitadel-terraform-vars` ExternalSecret
   (Proton Pass `pass://<env-vault>/zitadel/terraform-*`, never Git); per-env
-  vault paths + `domain`/email `vars` land in the `dev`/`prd`/`stg` overlays.
+  vault paths + `domain`/email `vars` land in the `dev`/`prd` overlays.
   Rotate by updating the vault entries — ESO syncs and the next reconcile
   picks them up.
 - Outputs: `org_id` + `admin_user_id` land
@@ -182,7 +182,8 @@ Proton Pass (never Git).
 
 ## Environments
 
-`prd` and `stg` currently inherit `../base` unchanged (same shape
-as cert-manager before per-env divergence). Per-env tuning (replica count,
+`dev` and `prd` each carry per-env patches (external domain, DB/cache
+endpoints, vault refs, hostnames, SSO vars); controllers add only the
+external-domain patch each. Per-env tuning (replica count,
 ExternalDomain hostnames, storage size) lands with the first real divergence,
 not here.

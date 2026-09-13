@@ -9,7 +9,7 @@ Cluster (Mongo-wire, no embedded DBs in Git).
 `base/` holds every manifest (`clickstack.yaml` (HyperDX app + OTel
 Collector) + `ferretdb.yaml` + `oauth2-proxy.yaml` workload, plus secrets,
 ClickHouseInstallation, FerretDB CNPG Cluster, wildcard certificate,
-HTTPRoute); env overlays `{dev,stg,prd}/` patch hostnames, vault
+HTTPRoute); env overlays `{dev,prd}/` patch hostnames, vault
 refs, and endpoints via `resources: [../base]`. Tenant is `apps/clickstack`
 via `flux/apps/update-policies/clickstack.yaml`.
 
@@ -133,6 +133,6 @@ Secrets are namespace-local).
 
 ## Environments
 
-`prd` and `stg` currently inherit `../base` unchanged (same shape
-as cert-manager before per-env divergence). Per-env tuning (replica count,
-schedule knobs) lands with the first real divergence, not here.
+`dev` and `prd` carry per-env patches (vault refs, hostnames, endpoints);
+per-env tuning (replica count, schedule knobs) lands with the first real
+divergence, not here.

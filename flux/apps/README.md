@@ -12,9 +12,8 @@ talos-vm, win11-vm.
 flux/apps/
 ├── components/<name>/
 │   ├── base/                  # Helm OCI source + HelmRelease
-│   ├── prd/                   # kustomize patches over ../base
-│   ├── stg/
-│   └── dev/
+│   ├── dev/                   # kustomize patches over ../base
+│   └── prd/                   # kustomize patches over ../base
 └── update-policies/<name>.yaml  # ImageRepository + ImagePolicy per app
 ```
 
@@ -29,7 +28,7 @@ release workflow subject.
 
 ## Onboarding
 
-1. Create `components/<name>/` with `base/`, `dev/`, `stg/`, `prd/`
+1. Create `components/<name>/` with `base/`, `dev/`, `prd/`
    overlays, Helm OCI only (`OCIRepository` + `layerSelector`,
    `HelmRelease.chartRef` with drift detection). Telemetry stays off by
    default; enable monitoring per app.

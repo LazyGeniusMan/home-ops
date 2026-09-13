@@ -49,7 +49,7 @@ dig @<coredns-svc-ip> example.com +short
 Deployed at bootstrap alongside Cilium (§8.2, initial wave) so cluster DNS is
 live before any workload that resolves the LAN names lands. Base carries the
 full chain with `__BASE_DOMAIN__` / `__LB_VIP__` placeholders; each env
-overlay (`dev`/`stg`/`prd`) replaces the LAN zone block with its domain + VIP
+overlay (`dev`/`prd`) replaces the LAN zone block with its domain + VIP
 (env-independent `cluster.local` / `.` blocks ride along unchanged).
 
 ## kube-dns Service IP assumption (break-glass)

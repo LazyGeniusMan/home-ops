@@ -14,7 +14,7 @@ only when a custom template is required; none is).
 
 `base/` holds every manifest (`coder.yaml` HelmRepository + HelmRelease,
 secrets, CNPG Cluster, wildcard certificates, HTTPRoutes); env overlays
-`{dev,stg,prd}/` patch hostnames, vault refs, and chart values
+`{dev,prd}/` patch hostnames, vault refs, and chart values
 via `resources: [../base]`. Tenant is `apps/coder` (wired by the fleet tenant
 file, not here — no tenant/workflow edits in this change).
 
@@ -173,9 +173,9 @@ each remaining vault entry with pass-cli.
 
 ## Environments
 
-`prd` and `stg` inherit `../base` unchanged (same shape as
-cert-manager before per-env divergence). Per-env tuning (replicas,
-storage size, `CODER_DISABLE_PASSWORD_AUTH`) lands with the first real
+`dev` and `prd` carry per-env patches (vault refs, hostnames, chart
+values). Per-env tuning (replicas, storage size,
+`CODER_DISABLE_PASSWORD_AUTH`) lands with the first real
 divergence, not here.
 
 ## Telemetry-off / monitoring / updates

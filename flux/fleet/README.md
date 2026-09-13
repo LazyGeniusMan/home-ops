@@ -20,7 +20,7 @@ flux/fleet/
 │   │   ├── flux-system/
 │   │   └── tenants.yaml # tenants Kustomization (renders tenants/overlays/acme-dev-bdo1-talos-apps-01)
 │   └── update/          # image-automation cluster, NOT a Talos cluster
-│                        # (ENVIRONMENT=stg, syncs OCI tag dev)
+│                        # (ENVIRONMENT=dev, syncs OCI tag dev)
 │       ├── flux-system/
 │       └── automation.yaml  # ImageUpdateAutomation ResourceSet for infra + apps areas
 ├── tenants/
@@ -34,7 +34,7 @@ flux/fleet/
 └── terraform/           # OpenTofu bootstrap of the Flux Operator (no live apply in CI)
 ```
 
-Envs are `dev` / `stg` / `prd` (component overlays are `{base,dev,stg,prd}/`).
+Envs are `dev` / `prd` (component overlays are `{base,dev,prd}/`).
 
 ## Bootstrap on barebone Talos
 

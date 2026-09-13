@@ -31,9 +31,11 @@ hostname matches dots to the left per the Gateway API spec, covering both
 
 ## Environments
 
-`prd` and `stg` overlays both track `../base` with no patches;
-the `Certificate` uses the shared `ClusterIssuer/letsencrypt` whose ACME
-server is set per environment by the cert-manager overlays.
+`dev` and `prd` overlays each carry per-env patches (Gateway TLS
+secret, hostnames, wildcard `Certificate`); the `Certificate` uses the
+shared `ClusterIssuer/letsencrypt` whose ACME server is set per
+environment by the cert-manager overlays. Controllers track `../base`
+with no patches.
 
 ## Telemetry-off / monitoring / updates
 

@@ -43,8 +43,8 @@ README.)
   CronJob enabled.
 - `prd`: data volumes grow to 100Gi per replica (patch on
   `ClickHouseInstallation/clickhouse`).
-- `stg`: single shard / single replica, 20Gi data, backup CronJob
-  suspended (patch on `CronJob/clickhouse-backup`).
+- `dev` carries its own S3 endpoint + wildcard DNS patches; controllers
+  in both envs inherit `../base` unchanged.
 
 ## HA
 

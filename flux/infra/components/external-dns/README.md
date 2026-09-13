@@ -25,10 +25,10 @@ until ESO syncs — heals via `refreshInterval` + Flux `retryInterval`.
 Alert past ~10m. Verify: `kubectl get clustersecretstore proton-pass`;
 `kubectl -n external-dns get externalsecret,secret`.
 
-`stg/` is RESERVED/UNUSED (see the headers in configs/stg and
-controllers/stg) — no cluster renders it, so it cannot fight prd over the
-TXT registry/domain. Dev and prd TXT scope (`txtOwnerId`, `domainFilters`)
-lives in controllers/{dev,prd}; vault keys live in configs/{dev,prd}.
+Envs are `dev` / `prd` only: dev and prd TXT scope (`txtOwnerId`,
+`domainFilters`) lives in controllers/{dev,prd}; vault keys live in
+configs/{dev,prd} — so no second writer can fight prd over the TXT
+registry/domain.
 
 ## Wildcard record
 

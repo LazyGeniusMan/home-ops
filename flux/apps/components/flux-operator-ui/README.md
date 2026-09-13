@@ -8,7 +8,7 @@ resources are never touched here (see "Update automation" below).
 
 `base/` holds every manifest (`flux-operator-ui.yaml` OCIRepository +
 HelmRelease, `oauth2-proxy.yaml` Deployment + Service, proxy credentials,
-wildcard certificate, HTTPRoutes); env overlays `{dev,stg,prd}/`
+wildcard certificate, HTTPRoutes); env overlays `{dev,prd}/`
 patch hostnames, vault refs, and proxy args via `resources: [../base]`.
 Tenant is `apps/flux-operator-ui` via
 `flux/apps/update-policies/flux-operator-ui.yaml`.

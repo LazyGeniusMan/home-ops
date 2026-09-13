@@ -113,6 +113,6 @@ client traffic over TLS.
 
 ## Environments
 
-`prd` and `stg` currently inherit `../base` unchanged (same shape as
-cert-manager). Per-env Cluster tuning (size,
-schedule, retention) lands with the first real cluster, not here.
+`dev` and `prd` each carry per-env patches (S3 endpoint + wildcard
+DNS); controllers inherit `../base` unchanged. Per-env Cluster tuning
+(size, schedule, retention) lands with the first real cluster, not here.

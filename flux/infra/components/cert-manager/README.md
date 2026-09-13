@@ -11,8 +11,9 @@ token needs Zone:Read + DNS:Edit). Seed the vault entry with pass-cli.
 
 ## Environments
 
-Base issuer carries no ACME server; `prd` sets LE production,
-`stg` sets LE staging (patch on `ClusterIssuer/letsencrypt`).
+Base issuer carries no ACME server; `dev` and `prd` each set the LE
+production server (patch on `ClusterIssuer/letsencrypt`, with per-env
+vault ref, ACME email, and wildcard `Certificate`).
 
 ## Gateway TLS (§8 coordination)
 

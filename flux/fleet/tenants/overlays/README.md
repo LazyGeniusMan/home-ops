@@ -98,7 +98,7 @@ already plumbed to every tenant namespace: each ResourceSet copies
 therefore consume `${CLUSTER_NAME}` / `${CLUSTER_DOMAIN}` today (e.g.
 Ingress hosts, external-dns hostnames, per-cluster labels) with **zero
 fleet changes** — add the variable reference in the component's
-`base/` or `{dev,stg,prd}/` overlay and the substitution happens at
+`base/` or `{dev,prd}/` overlay and the substitution happens at
 reconcile time. No component currently does so, which is intentional:
 `CLUSTER_NAME` has zero consumers by default so behavior is identical on
 both clusters until an operator opts a component in.

@@ -46,7 +46,7 @@ Microsoft licensing means the ISO URL is never committed. To provision:
 
 ## Static MAC addresses
 
-`stg` and `prd` carry a static MAC on the `lan` bridge interface so the
+`prd` carries a static MAC on the `lan` bridge interface so the
 router (192.168.1.1) hands each VM a stable DHCP lease / reservation (`dev`
 is a passthrough with no static MAC). The MAC lives only as a literal on the
 per-env overlay patch (`macAddress` is a plain string field — no ESO, no
@@ -58,13 +58,12 @@ Safety rules for every MAC below:
 - Unicast: first-octet LSB is 0 — never multicast/broadcast.
 - QEMU-OUI `52:54:00` prefix (KubeVirt-assigned range, no clash with real
   NICs).
-- Unique per L2: dev+stg+prd share 192.168.1.0/24 with talos-vm, so every
+- Unique per L2: dev+prd share 192.168.1.0/24 with talos-vm, so every
   static MAC repo-wide must differ.
 
 | env | MAC | vault path |
 | --- | --- | --- |
 | dev | — (passthrough, router-assigned) | n/a |
-| stg | `52:54:00:02:0B:01` | `pass://acme-prd-bdo1-talos-apps-01/win11-vm/lan-mac` |
 | prd | `52:54:00:03:0B:01` | `pass://acme-prd-bdo1-talos-apps-01/win11-vm/lan-mac` |
 
 Mirror warning: the per-env patch literal and the vault value must agree —
@@ -80,8 +79,8 @@ auto-enabled — set explicitly). Contrast talos-vm, which disables it.
 
 ## Environments
 
-`dev` is a passthrough of `../base` (no static MAC); `stg` and `prd` add a
-static `lan` MAC patch each — base specs (4 cores / 8Gi / 80Gi) unchanged.
+`dev` is a passthrough of `../base` (no static MAC); `prd` adds a
+static `lan` MAC patch — base specs (4 cores / 8Gi / 80Gi) unchanged.
 
 ## Telemetry-off / monitoring / updates
 
