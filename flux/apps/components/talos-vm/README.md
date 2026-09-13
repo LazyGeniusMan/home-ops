@@ -83,6 +83,8 @@ under `<vault>/talos-vm/` in Proton Pass.
 VMs are singletons by design — there is no replica count to tune;
 `dev`/`prd` differ only in sizing and MAC.
 
+Upstream reference (read-only): `/tmp/home-ops-docs/talos-docs` (guest image/ISO shape).
+
 ## Telemetry-off / monitoring / updates
 
 - Talos ships no phone-home; no guest reporting is configured here.

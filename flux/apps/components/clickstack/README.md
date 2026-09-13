@@ -141,3 +141,5 @@ Secrets are namespace-local).
 oauth2-proxy and FerretDB stay singletons (1) in every env — never scale
 them. Rclone sync (`ferretdb` + `clickstack` legs): 1 per
 instance/schedule, `concurrencyPolicy: Forbid` — no scaling.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/clickstack-helm-charts-docs`.

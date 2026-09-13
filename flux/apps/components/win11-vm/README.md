@@ -86,6 +86,8 @@ auto-enabled — set explicitly). Contrast talos-vm, which disables it.
 
 VMs are singletons by design — there is no replica count to tune.
 
+Upstream reference (read-only): `/tmp/home-ops-docs/kubevirt-docs` (guest shape; ISO itself is licensed, never committed).
+
 ## Telemetry-off / monitoring / updates
 
 - No guest-agent reporting is configured; Windows telemetry is out of scope
