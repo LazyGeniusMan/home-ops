@@ -162,6 +162,21 @@ fetch_repo() {
       fi
       ;;
     zip)
+      if [[ "$path" == *.wiki ]]; then
+        log ".wiki repo: falling back to git clone in zip mode (${dest})"
+        fail_msg="FAILED: ${dest} mode=${FETCH_MODE} url=${http_url} branch=${branch:-<default>}"
+        if [[ -n "$branch" ]]; then
+          if ! git clone "$http_url" -b "$branch" --depth 1 "$dest"; then
+            log_error "$fail_msg"
+            return 1
+          fi
+        else
+          if ! git clone "$http_url" --depth 1 "$dest"; then
+            log_error "$fail_msg"
+            return 1
+          fi
+        fi
+      else
       zip_url="$resolved_url"
       tmp_zip="$(mktemp /tmp/fetch-references-XXXXXX.zip)"
       tmp_dir="$(mktemp -d /tmp/fetch-references-XXXXXX)"
@@ -195,6 +210,7 @@ fetch_repo() {
         return 1
       fi
       rm -rf "$tmp_dir"
+      fi
       ;;
   esac
 
