@@ -60,15 +60,17 @@ provider: `eso-k8s-reader` SA + in-namespace Role/RoleBinding,
 No `headlamp/oidc-client-*` vault entries exist or are needed; rotation is
 automatic on the next `headlamp-sso` reconcile (refreshInterval 1h).
 
-JWT prerequisite (one-time, manual): the `headlamp-terraform-vars`
-ExternalSecret mirrors the shared instance key
-`pass://<env-vault>/zitadel/terraform-jwt-profile-json` (same IAM_OWNER
-service-user key the zitadel bootstrap uses — mirrored per namespace like
-the cloudflare-api-token mirrors). That JWT key is the ONLY remaining
-pass:// dependency for SSO. Without the key the CR retries on interval.
-Upstream identity (org_id + admin user ID) flows from the zitadel bootstrap
-slice via `data.terraform_remote_state` (in-cluster Kubernetes backend) —
-no `org_id` var, no manual per-env fill, no email lookups. Normal users are
+Zero-UI prerequisite: the chart setup Job mints the IAM_OWNER machine key
+and ESO mirrors both handoff Secrets (`zitadel-bootstrap-credentials` for
+provider auth, `zitadel-bootstrap-outputs` for org_id + admin_user_id) into
+`headlamp-terraform-vars` — no vault seeding, no console step, no pass://
+dependency left for SSO. Without the mirrored Secret the CR retries on
+interval.
+Upstream identity (org_id + admin user ID) mirrors from the FirstInstance
+handoff via the ESO-synced `headlamp-terraform-vars` Secret (same-namespace
+`varsFrom` + cross-namespace `headlamp-zitadel` SecretStore) — no `org_id`
+literal in git, no manual per-env fill, no email lookups, no remote-state
+read. Normal users are
 owned by this slice (`zitadel_human_user.users`, created from
 `var.user_emails`; empty = admin-only).
 

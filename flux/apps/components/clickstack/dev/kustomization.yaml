@@ -120,16 +120,9 @@ patches:
     target:
       kind: Deployment
       name: oauth2-proxy
-  # Dev Clickstack SSO Terraform identity: vault ref for the shared instance
-  # JWT key + CR vars (issuer host, emails, app host). org_id and
-  # user IDs come from the zitadel bootstrap remote-state outputs (no var).
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-dev-bdo1-talos-apps-01/zitadel/terraform-jwt-profile-json
-    target:
-      kind: ExternalSecret
-      name: clickstack-terraform-vars
+  # Dev Clickstack SSO Terraform identity: CR vars (issuer host, app host).
+  # org_id + admin ID mirror from the FirstInstance handoff via the
+  # cross-namespace SecretStore — no vault ref patch, no per-env ID literals.
   - patch: |
       - op: replace
         path: /spec/vars/0/value

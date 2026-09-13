@@ -54,10 +54,10 @@ in-Tofu) from the `hubble-ui-sso-outputs` Secret through the in-cluster
 `hubble-ui-k8s` SecretStore (stored outputs, end-to-end — NO pass:// seeding
 for OIDC creds). The Zitadel `hubble` client is owned by this app's
 `hubble-ui-sso` Terraform CR (upstream identity — org_id + admin ID —
-flows from the zitadel bootstrap slice via `data.terraform_remote_state`, no
-`org_id` var, no email lookups). The JWT provider key
-(`pass://<env-vault>/zitadel/terraform-jwt-profile-json`) is the ONLY
-remaining pass:// SSO dependency.
+mirrors from the FirstInstance handoff via the ESO-synced
+`hubble-ui-terraform-vars` Secret, no `org_id` literal in git, no email
+lookups; provider auth mirrors from the chart-kept handoff the same way).
+Zero-UI: no pass:// SSO dependency remains.
 
 ## Routing
 

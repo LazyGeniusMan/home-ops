@@ -1,0 +1,51 @@
+# Narrow cross-namespace handoff grant for the hubble-ui ESO reader (§11.3).
+# ESO mirrors the FirstInstance handoff Secrets (`zitadel-bootstrap-credentials`
+# + `zitadel-bootstrap-outputs`, both in the `zitadel` namespace) into this
+# namespace's `hubble-ui-terraform-vars` Secret through the cross-namespace
+# `hubble-ui-zitadel` SecretStore (base/terraform.yaml) — replacing the retired
+# `data.terraform_remote_state` read off
+# `tfstate-default-zitadel-bootstrap-identity` (owned by the deleted bootstrap
+# Terraform CR) and its `hubble-ui-terraform-remote-state-reader` grant.
+# The store authenticates as THIS namespace SA `eso-zitadel-handoff-reader`,
+# so the SA needs get/list/watch on the two handoff Secrets only
+# (resourceNames pins both) plus selfsubjectrulesreviews create (ESO
+# Kubernetes-provider validation) — and nothing else.
+# Ownership note: the Role + RoleBinding below carry explicit
+# `metadata.namespace: zitadel` but are OWNED BY the hubble-ui component — they
+# ship in the hubble-ui base dir so they reconcile (and prune) with the app.
+# Same-namespace `varsFrom` CANNOT cross namespaces (no namespace field),
+# which is why the ESO mirror + this RBAC is the mechanism.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hubble-ui-zitadel-handoff-reader
+  namespace: zitadel
+  labels:
+    app.kubernetes.io/name: hubble-ui
+    app.kubernetes.io/part-of: hubble-ui
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["zitadel-bootstrap-credentials", "zitadel-bootstrap-outputs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["selfsubjectrulesreviews"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hubble-ui-zitadel-handoff-reader
+  namespace: zitadel
+  labels:
+    app.kubernetes.io/name: hubble-ui
+    app.kubernetes.io/part-of: hubble-ui
+subjects:
+  - kind: ServiceAccount
+    name: eso-zitadel-handoff-reader
+    namespace: hubble-ui
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hubble-ui-zitadel-handoff-reader

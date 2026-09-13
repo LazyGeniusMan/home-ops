@@ -4,36 +4,29 @@
 # roles + user grants + the `seaweedfs` OIDC client for the oauth2-proxy UI
 # gate. The public S3 API route stays DIRECT (SigV4-gated machine endpoint,
 # see the component README §12 decision) — no client needed for S3.
-# Provider auth: a service user with IAM_OWNER (FirstInstance machine user) via
-# JWT profile — the controller injects var.jwt_profile_json from the ESO-synced
-# `seaweedfs-terraform-vars` Secret (Proton Pass, never Git); for manual runs
-# pass -var jwt_profile_json="$(cat <key>.json)" instead.
+# Provider auth: the FirstInstance machine user (`zitadel-bootstrap-sa`,
+# IAM_OWNER) via JWT profile — the controller injects var.jwt_profile_json from
+# the ESO-synced `seaweedfs-terraform-vars` Secret (Kubernetes-provider mirror of
+# the chart handoff `zitadel-bootstrap-credentials` in the `zitadel` namespace,
+# never Git, never Proton Pass); for manual runs pass
+# -var jwt_profile_json="$(cat <key>.json)" instead.
 provider "zitadel" {
   domain           = var.domain
   jwt_profile_json = var.jwt_profile_json
 }
 
-# Org + user anchor: IDs come from the zitadel bootstrap state
-# (`tfstate-default-zitadel-bootstrap-identity`, zitadel namespace) via the
-# in-cluster kubernetes backend — no org_id literal, no email lookups, no
-# ESO/pass:// for any ID. The tf-runner reads that Secret through the narrow
-# Role/RoleBinding shipped in configs/base/rbac.yaml
-# (system:serviceaccount:seaweedfs:tf-runner → get on that Secret only).
-# Own state keeps the default backend (state Secrets in the seaweedfs
-# namespace); only this data source reaches cross-namespace.
-data "terraform_remote_state" "zitadel_bootstrap" {
-  backend = "kubernetes"
-
-  config = {
-    secret_suffix     = "zitadel-bootstrap-identity"
-    namespace         = "zitadel"
-    in_cluster_config = true
-  }
-}
-
+# Org + user anchor: IDs come from the FirstInstance handoff
+# (`zitadel-bootstrap-outputs` Secret in the `zitadel` namespace: org_id +
+# admin_user_id, operator-created once per the zitadel README runbook) via the
+# ESO-synced `seaweedfs-terraform-vars` Secret (same-namespace `varsFrom` in
+# configs/base/terraform.yaml — a cross-namespace `seaweedfs-zitadel` SecretStore + the
+# narrow `seaweedfs-zitadel-handoff-reader` Role in configs/base/zitadel-handoff-rbac.yaml do the mirroring). No
+# org_id literal in git, no email lookups, no remote-state read off the retired
+# bootstrap state. Own state keeps the default backend (state Secrets in the
+# seaweedfs namespace).
 locals {
-  org_id        = data.terraform_remote_state.zitadel_bootstrap.outputs.org_id
-  admin_user_id = data.terraform_remote_state.zitadel_bootstrap.outputs.admin_user_id
+  org_id        = var.org_id
+  admin_user_id = var.admin_user_id
 }
 
 # Component project: the roles/grants below are scoped HERE, so
@@ -55,7 +48,7 @@ resource "zitadel_project_role" "admin" {
   group        = "seaweedfs"
 }
 
-# Grant binds the stored bootstrap admin ID directly (no email lookups).
+# Grant binds the stored handoff admin ID directly (no email lookups).
 # Admin (super-admin) gets seaweedfs-admin. The filer UI stays admin-only via
 # the proxy's --allowed-group=seaweedfs-admin (see ui-auth.yaml; no user
 # grant).

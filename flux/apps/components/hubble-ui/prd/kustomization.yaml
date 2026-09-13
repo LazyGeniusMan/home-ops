@@ -14,13 +14,9 @@ patches:
   # No oauth2-proxy vault patches: client_id + client_secret + cookie_secret
   # flow end-to-end from the hubble-ui-sso outputs Secret via the in-cluster
   # `hubble-ui-k8s` SecretStore (base/hubble-secrets.yaml).
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/zitadel/terraform-jwt-profile-json
-    target:
-      kind: ExternalSecret
-      name: hubble-ui-terraform-vars
+  # Prd SSO CR vars (issuer host, app host). Provider auth + org_id + admin ID
+  # mirror from the FirstInstance handoff via the cross-namespace
+  # `hubble-ui-zitadel` SecretStore — no vault ref patch, no per-env ID literals.
   - patch: |
       - op: replace
         path: /spec/vars/0/value

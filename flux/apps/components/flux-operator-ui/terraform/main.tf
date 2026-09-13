@@ -2,33 +2,26 @@
 # `flux-operator-ui-sso` Terraform CR (base/terraform.yaml, Tofu Controller)
 # — owns ONLY this app's slice: its Zitadel project + project-scoped roles +
 # user grants + OIDC client.
-# Provider auth: a service user with IAM_OWNER (FirstInstance machine user) via
-# JWT profile — the controller injects var.jwt_profile_json from the ESO-synced
-# `flux-operator-ui-terraform-vars` Secret (Proton Pass, never Git); for manual
-# runs pass -var jwt_profile_json="$(cat <key>.json)" instead.
+# Provider auth: the FirstInstance machine user (`zitadel-bootstrap-sa`,
+# IAM_OWNER) via JWT profile — the controller injects var.jwt_profile_json from
+# the ESO-synced `flux-operator-ui-terraform-vars` Secret (Kubernetes-provider mirror of
+# the chart handoff `zitadel-bootstrap-credentials` in the `zitadel` namespace,
+# never Git, never Proton Pass); for manual runs pass
+# -var jwt_profile_json="$(cat <key>.json)" instead.
 provider "zitadel" {
   domain           = var.domain
   jwt_profile_json = var.jwt_profile_json
 }
 
-# Org anchor: the ID flows from the zitadel bootstrap slice via remote state
-# (state Secret `tfstate-default-zitadel-bootstrap-identity` in the `zitadel`
-# namespace, read with the in-cluster Kubernetes backend) — no literal org_id
-# var, no manual per-env fill. The read runs as the flux-operator-ui-namespace
-# tofu runner SA, whose narrow RBAC (Role + RoleBinding in the zitadel
-# namespace, owned by this component in base/terraform-remote-state-rbac.yaml)
-# grants get+list on the bootstrap state Secret only.
-data "terraform_remote_state" "zitadel" {
-  backend = "kubernetes"
-  config = {
-    secret_suffix     = "zitadel-bootstrap-identity"
-    namespace         = "zitadel"
-    in_cluster_config = true
-  }
-}
-
+# Org anchor: IDs flow from the FirstInstance handoff (`zitadel-bootstrap-outputs`
+# Secret in the `zitadel` namespace: org_id + admin_user_id, operator-created once
+# per the zitadel README runbook) via the ESO-synced `flux-operator-ui-terraform-vars`
+# Secret (same-namespace `varsFrom` in base/terraform.yaml — a cross-namespace
+# `flux-operator-ui-zitadel` SecretStore + the narrow `flux-operator-ui-zitadel-handoff-reader` Role in
+# base/zitadel-handoff-rbac.yaml do the mirroring). No literal org_id in git, no
+# manual per-env fill, no remote-state read off the retired bootstrap state.
 data "zitadel_org" "home_ops" {
-  id = data.terraform_remote_state.zitadel.outputs.org_id
+  id = var.org_id
 }
 
 # App project: the roles/grants below are scoped HERE, so
@@ -50,12 +43,12 @@ resource "zitadel_project_role" "admin" {
   group        = "flux-operator-ui"
 }
 
-# Admin user comes from the zitadel bootstrap remote-state output (stored ID —
+# Admin user comes from the FirstInstance handoff var (stored ID —
 # no email lookup needed). Admin (super-admin, ORG_OWNER) gets
 # flux-operator-ui-admin. Only the admin role passes the oauth2-proxy
 # `--allowed-group` gate (admin-only UI, no user grant).
 locals {
-  admin_user_id = data.terraform_remote_state.zitadel.outputs.admin_user_id
+  admin_user_id = var.admin_user_id
 }
 
 resource "zitadel_user_grant" "admin" {

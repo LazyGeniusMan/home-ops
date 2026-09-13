@@ -95,16 +95,17 @@ Path-style buckets only; every bucket consumer needs an IAM identity:
   component's Zitadel slice (project + project-scoped roles
   `seaweedfs-admin`/`seaweedfs-user` + the admin grant + the `seaweedfs` OIDC
   client; admin-only UI, no user grant). Upstream IDs (org_id + admin user ID)
-  come from the
-  zitadel bootstrap state (`tfstate-default-zitadel-bootstrap-identity`,
-  zitadel ns) via `data.terraform_remote_state` (in-cluster Kubernetes
-  backend) — no org_id literal, no email data-source lookups, no ESO
-  for any ID. The read runs as `system:serviceaccount:seaweedfs:tf-runner`
+  mirror from the FirstInstance handoff (`zitadel-bootstrap-outputs` Secret,
+  zitadel ns, operator-created once per the zitadel README runbook) via the
+  ESO-synced `seaweedfs-terraform-vars` Secret (same-namespace `varsFrom` +
+  the cross-namespace `seaweedfs-zitadel` SecretStore) — no org_id literal in
+  git, no email data-source lookups, no remote-state read. The mirror runs
   through the narrow Role/RoleBinding in
-  `configs/base/terraform-remote-state-rbac.yaml` (explicit
-  `metadata.namespace: zitadel`, get+list on the bootstrap state Secret
-  only). Only the IAM_OWNER JWT provider key stays in Proton Pass
-  (same pattern as the zitadel bootstrap).
+  `configs/base/zitadel-handoff-rbac.yaml` (explicit
+  `metadata.namespace: zitadel`, get/list/watch on the two handoff Secrets
+  only). Provider auth (`jwt_profile_json`) mirrors from the chart-kept
+  `zitadel-bootstrap-credentials` the same way — zero-UI, no Proton Pass
+  for any SSO input.
 - `s3-ui-routes.yaml`: `seaweedfs-ui-tls` points at the `ui-auth`
   Service — the filer UI is reachable ONLY through the proxy. The S3
   API route (`seaweedfs-s3-tls`) stays DIRECT to `seaweed-main-s3:8333`

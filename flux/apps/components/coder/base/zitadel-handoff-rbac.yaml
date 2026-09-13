@@ -1,0 +1,51 @@
+# Narrow cross-namespace handoff grant for the coder ESO reader (§13.6).
+# ESO mirrors the FirstInstance handoff Secrets (`zitadel-bootstrap-credentials`
+# + `zitadel-bootstrap-outputs`, both in the `zitadel` namespace) into this
+# namespace's `coder-terraform-vars` Secret through the cross-namespace
+# `coder-zitadel` SecretStore (base/terraform.yaml) — replacing the retired
+# `data.terraform_remote_state` read off
+# `tfstate-default-zitadel-bootstrap-identity` (owned by the deleted bootstrap
+# Terraform CR) and its `coder-terraform-remote-state-reader` grant.
+# The store authenticates as THIS namespace SA `eso-zitadel-handoff-reader`,
+# so the SA needs get/list/watch on the two handoff Secrets only
+# (resourceNames pins both) plus selfsubjectrulesreviews create (ESO
+# Kubernetes-provider validation) — and nothing else.
+# Ownership note: the Role + RoleBinding below carry explicit
+# `metadata.namespace: zitadel` but are OWNED BY the coder component — they
+# ship in the coder base dir so they reconcile (and prune) with the app.
+# Same-namespace `varsFrom` CANNOT cross namespaces (no namespace field),
+# which is why the ESO mirror + this RBAC is the mechanism.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-zitadel-handoff-reader
+  namespace: zitadel
+  labels:
+    app.kubernetes.io/name: coder
+    app.kubernetes.io/part-of: coder
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["zitadel-bootstrap-credentials", "zitadel-bootstrap-outputs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["selfsubjectrulesreviews"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-zitadel-handoff-reader
+  namespace: zitadel
+  labels:
+    app.kubernetes.io/name: coder
+    app.kubernetes.io/part-of: coder
+subjects:
+  - kind: ServiceAccount
+    name: eso-zitadel-handoff-reader
+    namespace: coder
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-zitadel-handoff-reader

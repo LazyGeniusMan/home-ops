@@ -6,16 +6,11 @@ patches:
   # No coder-oidc vault patches: client_id + client_secret flow end-to-end
   # from the coder-sso outputs Secret via the in-cluster `coder-k8s`
   # SecretStore (base/coder-secrets.yaml) — no Proton Pass seeding.
-  # Dev Coder SSO Terraform identity: vault ref for the shared instance JWT
-  # key + CR vars (dev issuer host, dev emails, dev app host). org_id and
-  # user IDs come from the zitadel bootstrap remote-state outputs (no var).
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-dev-bdo1-talos-apps-01/zitadel/terraform-jwt-profile-json
-    target:
-      kind: ExternalSecret
-      name: coder-terraform-vars
+  # Dev Coder SSO Terraform identity: CR vars (dev issuer host, dev app host).
+  # Provider auth (jwt_profile_json) + org_id + admin_user_id all mirror from
+  # the FirstInstance handoff via the cross-namespace `coder-zitadel`
+  # SecretStore (base/terraform.yaml) — no vault ref patch, no pass:// JWT
+  # seeding, no per-env ID literals.
   - patch: |
       - op: replace
         path: /spec/vars/0/value

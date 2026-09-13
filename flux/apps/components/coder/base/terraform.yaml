@@ -5,28 +5,25 @@
 #
 # Ordering: this object ships in the app Kustomization (fleet `apps`
 # Kustomization dependsOn `infra-configs`), so it only reconciles after the
-# Zitadel HelmRelease + bootstrap identity are Ready. Terraform `dependsOn`
+# Zitadel HelmRelease + FirstInstance setup Job are Ready. Terraform `dependsOn`
 # is Terraform-CR-only upstream (checkDependencies resolves every entry as
 # kind Terraform), so NO dependsOn entry here — the fleet ordering above is
-# the mechanism. Same shapes as
-# flux/infra/components/zitadel/configs/base/terraform-bootstrap.yaml.
-# Upstream wiring: org_id + admin/user IDs flow from the zitadel bootstrap
-# slice via `data.terraform_remote_state` (in-cluster Kubernetes backend,
-# state Secret `tfstate-default-zitadel-bootstrap-identity` in the `zitadel`
-# namespace) — NO org_id var, NO manual per-env fill, NO email lookups.
-# The read runs as this namespace's tofu runner SA
-# (`system:serviceaccount:coder:tf-runner`); its narrow cross-namespace grant
-# (Role + RoleBinding in the zitadel namespace, get+list on the bootstrap
-# state Secret only) ships in `terraform-remote-state-rbac.yaml` in this SAME
-# base dir so it reconciles with the app — the Role lives in the zitadel
-# namespace but is owned by the coder component (prune it if coder is ever
-# removed). Same-namespace `varsFrom` CANNOT cross namespaces (no namespace
-# field), which is why remote-state + RBAC is the mechanism here.
-# First-run prerequisite (one-time, manual): the Zitadel bootstrap must have
-# applied first (org + users exist), and the IAM_OWNER service-user key JSON
-# must be seeded at pass://<env-vault>/zitadel/terraform-jwt-profile-json
-# (shared instance key, mirrored into this namespace — same pattern as the
-# cloudflare-api-token mirrors). Without the key the CR retries on interval.
+# the mechanism.
+# Upstream wiring: org_id + admin_user_id flow from the FirstInstance handoff
+# (`zitadel-bootstrap-outputs` Secret in the `zitadel` namespace, operator-created
+# once per the zitadel README runbook) via the ESO-synced `coder-terraform-vars`
+# Secret (same-namespace `varsFrom` below — varsKeys renames handoff keys onto the
+# module vars; the cross-namespace `coder-zitadel` SecretStore + narrow
+# `coder-zitadel-handoff-reader` Role in `zitadel-handoff-rbac.yaml` do the
+# mirroring). NO org_id literal in git, NO manual per-env fill, NO email lookups,
+# NO remote-state read off the retired bootstrap state. Provider auth likewise
+# flows from the chart handoff (`zitadel-bootstrap-credentials` key
+# `jwt_profile_json`) through the same Secret. Same-namespace `varsFrom` CANNOT
+# cross namespaces (no namespace field), which is why the ESO mirror + RBAC is
+# the mechanism here.
+# First-run prerequisite (zero-UI): chart setup Job mints the key + ESO mirrors
+# both handoff Secrets. Without the mirrored `coder-terraform-vars` the CR
+# retries on interval — no vault seeding, no console step.
 # Backend: in-cluster Kubernetes default (state Secrets in the coder
 # namespace) — no backendConfig needed. Drift detection stays on (default).
 # Outputs: client_id + client_secret land in `coder-sso-outputs` (sensitive);
@@ -34,6 +31,46 @@
 # in-cluster `coder-k8s` SecretStore (base/coder-secrets.yaml) — never Git,
 # never Proton Pass.
 ---
+# Cross-namespace handoff reader: mirrors the two chart-minted handoff Secrets
+# from the `zitadel` namespace into this namespace's `coder-terraform-vars`
+# Secret (remoteNamespace MUST be `zitadel` — ESO reads REMOTE secrets through
+# this namespace's `eso-zitadel-handoff-reader` SA; the narrow Role + RoleBinding
+# in `zitadel-handoff-rbac.yaml` grant get/list/watch on the two handoff Secrets
+# only). Same pattern as the in-namespace `coder-k8s` store in coder-secrets.yaml
+# (server.url omitted = kubernetes.default, kube-root-ca.crt supplies the API CA).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-zitadel-handoff-reader
+  labels:
+    app.kubernetes.io/name: coder
+    app.kubernetes.io/part-of: coder
+---
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: coder-zitadel
+  labels:
+    app.kubernetes.io/name: coder
+    app.kubernetes.io/part-of: coder
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: zitadel
+      server:
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        serviceAccount:
+          name: eso-zitadel-handoff-reader
+---
+# Zero-UI vars mirror: provider auth (`jwt_profile_json`) from the chart-kept
+# `zitadel-bootstrap-credentials`, IDs (`org_id`, `admin_user_id`) from the
+# operator-created `zitadel-bootstrap-outputs` — no Proton Pass seeding, no
+# manual vault step. Keys land under the module var names so `varsFrom` below
+# needs no varsKeys renames.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
@@ -41,17 +78,23 @@ metadata:
 spec:
   refreshInterval: 1h
   secretStoreRef:
-    name: proton-pass
-    kind: ClusterSecretStore
+    name: coder-zitadel
+    kind: SecretStore
   target:
     name: coder-terraform-vars
-    template:
-      data:
-        jwt_profile_json: "{{ .jwt_profile_json }}"
   data:
     - secretKey: jwt_profile_json
       remoteRef:
-        key: __PROTON_PASS_BASE__/zitadel/terraform-jwt-profile-json
+        key: zitadel-bootstrap-credentials
+        property: jwt_profile_json
+    - secretKey: org_id
+      remoteRef:
+        key: zitadel-bootstrap-outputs
+        property: org_id
+    - secretKey: admin_user_id
+      remoteRef:
+        key: zitadel-bootstrap-outputs
+        property: admin_user_id
 ---
 apiVersion: infra.contrib.fluxcd.io/v1alpha2
 kind: Terraform

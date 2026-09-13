@@ -1,0 +1,51 @@
+# Narrow cross-namespace handoff grant for the flux-operator-ui ESO reader (§11.4).
+# ESO mirrors the FirstInstance handoff Secrets (`zitadel-bootstrap-credentials`
+# + `zitadel-bootstrap-outputs`, both in the `zitadel` namespace) into this
+# namespace's `flux-operator-ui-terraform-vars` Secret through the cross-namespace
+# `flux-operator-ui-zitadel` SecretStore (base/terraform.yaml) — replacing the retired
+# `data.terraform_remote_state` read off
+# `tfstate-default-zitadel-bootstrap-identity` (owned by the deleted bootstrap
+# Terraform CR) and its `flux-operator-ui-terraform-remote-state-reader` grant.
+# The store authenticates as THIS namespace SA `eso-zitadel-handoff-reader`,
+# so the SA needs get/list/watch on the two handoff Secrets only
+# (resourceNames pins both) plus selfsubjectrulesreviews create (ESO
+# Kubernetes-provider validation) — and nothing else.
+# Ownership note: the Role + RoleBinding below carry explicit
+# `metadata.namespace: zitadel` but are OWNED BY the flux-operator-ui component — they
+# ship in the flux-operator-ui base dir so they reconcile (and prune) with the app.
+# Same-namespace `varsFrom` CANNOT cross namespaces (no namespace field),
+# which is why the ESO mirror + this RBAC is the mechanism.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: flux-operator-ui-zitadel-handoff-reader
+  namespace: zitadel
+  labels:
+    app.kubernetes.io/name: flux-operator-ui
+    app.kubernetes.io/part-of: flux-operator-ui
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["zitadel-bootstrap-credentials", "zitadel-bootstrap-outputs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["selfsubjectrulesreviews"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: flux-operator-ui-zitadel-handoff-reader
+  namespace: zitadel
+  labels:
+    app.kubernetes.io/name: flux-operator-ui
+    app.kubernetes.io/part-of: flux-operator-ui
+subjects:
+  - kind: ServiceAccount
+    name: eso-zitadel-handoff-reader
+    namespace: flux-operator-ui
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: flux-operator-ui-zitadel-handoff-reader
