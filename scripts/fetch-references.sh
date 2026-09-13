@@ -2,127 +2,241 @@
 # Manual-only helper: wipes and re-clones upstream reference docs into
 # /tmp/home-ops-docs. No in-repo callers; run by hand when refreshing
 # local reference material.
-set -e
+#
+# Fetch method is selectable via the FETCH_MODE environment variable or the
+# --mode/-m CLI flag (flag wins):
+#   http  git clone over HTTPS (default, preserves historical behavior)
+#   ssh   git clone over SSH (git@github.com:, for SSH-auth environments)
+#   zip   download the branch ZIP over HTTPS and extract it (no git needed)
+set -euo pipefail
+
+FETCH_MODE="${FETCH_MODE:-http}"
+
+usage() {
+  cat <<'EOF'
+Usage: fetch-references.sh [--mode http|ssh|zip] [--help]
+
+Wipes and re-fetches upstream reference docs into /tmp/home-ops-docs.
+
+Options:
+  -m, --mode MODE   Fetch method: http (default), ssh, or zip.
+                    Overrides the FETCH_MODE environment variable.
+  -h, --help        Show this help and exit.
+
+Environment:
+  FETCH_MODE        Same as --mode; default is http.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -m|--mode)
+      if [[ $# -lt 2 ]]; then
+        echo "error: --mode requires an argument (http|ssh|zip)" >&2
+        exit 1
+      fi
+      FETCH_MODE="$2"
+      shift 2
+      ;;
+    --mode=*)
+      FETCH_MODE="${1#*=}"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "error: unknown argument: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+case "$FETCH_MODE" in
+  http|ssh|zip)
+    ;;
+  *)
+    echo "error: invalid mode '$FETCH_MODE' (expected one of: http, ssh, zip)" >&2
+    exit 1
+    ;;
+esac
+
+# fetch_repo <dest-dir> <https-url> [branch]
+# Fetches one repo into <dest-dir> (relative to /tmp/home-ops-docs) using the
+# method selected by FETCH_MODE. The SSH URL is derived by rewriting the
+# https://github.com/ prefix to git@github.com:, and the ZIP URL follows the
+# https://github.com/<org>/<repo>/archive/refs/heads/<branch>.zip pattern
+# (stripping any trailing slash or .git suffix). An empty branch means the
+# repo's default branch: plain `git clone --depth 1` for http/ssh, and the
+# GitHub HEAD archive for zip.
+fetch_repo() {
+  local dest="$1"
+  local http_url="$2"
+  local branch="${3:-}"
+  local path ssh_url zip_url tmp_zip tmp_dir
+  local -a extracted
+
+  http_url="${http_url%/}"
+  path="${http_url#https://github.com/}"
+  path="${path%.git}"
+  ssh_url="git@github.com:${path}.git"
+
+  case "$FETCH_MODE" in
+    http)
+      if [[ -n "$branch" ]]; then
+        git clone "$http_url" -b "$branch" --depth 1 "$dest"
+      else
+        git clone "$http_url" --depth 1 "$dest"
+      fi
+      ;;
+    ssh)
+      if [[ -n "$branch" ]]; then
+        git clone "$ssh_url" -b "$branch" --depth 1 "$dest"
+      else
+        git clone "$ssh_url" --depth 1 "$dest"
+      fi
+      ;;
+    zip)
+      if [[ -n "$branch" ]]; then
+        zip_url="https://github.com/${path}/archive/refs/heads/${branch}.zip"
+      else
+        zip_url="https://github.com/${path}/archive/HEAD.zip"
+      fi
+      tmp_zip="$(mktemp /tmp/fetch-references-XXXXXX.zip)"
+      tmp_dir="$(mktemp -d /tmp/fetch-references-XXXXXX)"
+      curl -fsSL -o "$tmp_zip" "$zip_url"
+      unzip -q "$tmp_zip" -d "$tmp_dir"
+      rm -f "$tmp_zip"
+      mkdir -p "$(dirname "$dest")"
+      rm -rf "$dest"
+      extracted=("$tmp_dir"/*)
+      mv "${extracted[0]}" "$dest"
+      rm -rf "$tmp_dir"
+      ;;
+  esac
+}
 
 rm -rf /tmp/home-ops-docs
 mkdir -p /tmp/home-ops-docs
 cd /tmp/home-ops-docs
 
 # /tmp/home-ops-docs/talos-docs/talos-v1.14.yaml + /tmp/home-ops-docs/talos-docs/public/talos/v1.14
-git clone https://github.com/siderolabs/docs -b main --depth 1 talos-docs
+fetch_repo talos-docs https://github.com/siderolabs/docs main
 
 # /tmp/home-ops-docs/talos-system-extension-docs/README.md
-git clone https://github.com/siderolabs/extensions -b main --depth 1 talos-system-extension-docs
+fetch_repo talos-system-extension-docs https://github.com/siderolabs/extensions main
 
 # /tmp/home-ops-docs/kubectl-kustomize-docs/site/content/en
-git clone https://github.com/kubernetes-sigs/cli-experimental -b master --depth 1 kubectl-kustomize-docs
+fetch_repo kubectl-kustomize-docs https://github.com/kubernetes-sigs/cli-experimental master
 
 # /tmp/home-ops-docs/helm-docs/docs
-git clone https://github.com/helm/helm-www -b main --depth 1 helm-docs
+fetch_repo helm-docs https://github.com/helm/helm-www main
 
 # /tmp/home-ops-docs/flux-docs/content/en/flux/_index.md
-git clone https://github.com/fluxcd/website -b v2-9 --depth 1 flux-docs
+fetch_repo flux-docs https://github.com/fluxcd/website v2-9
 
 # /tmp/home-ops-docs/flux-d2-docs/d2.pdf
 mkdir -p /tmp/home-ops-docs/flux-d2-docs
 curl -o /tmp/home-ops-docs/flux-d2-docs/d2.pdf https://raw.githubusercontent.com/controlplaneio-fluxcd/distribution/main/guides/ControlPlane_Flux_D2_Reference_Architecture_Guide.pdf
-git clone https://github.com/controlplaneio-fluxcd/d2-fleet -b main --depth 1  flux-d2-docs/d2-fleet
-git clone https://github.com/controlplaneio-fluxcd/d2-infra -b main --depth 1  flux-d2-docs/d2-infra
-git clone https://github.com/controlplaneio-fluxcd/d2-apps -b main --depth 1  flux-d2-docs/d2-apps
+fetch_repo flux-d2-docs/d2-fleet https://github.com/controlplaneio-fluxcd/d2-fleet main
+fetch_repo flux-d2-docs/d2-infra https://github.com/controlplaneio-fluxcd/d2-infra main
+fetch_repo flux-d2-docs/d2-apps https://github.com/controlplaneio-fluxcd/d2-apps main
 
 # /tmp/home-ops-docs/flux-d1-docs/d1.pdf
 mkdir -p /tmp/home-ops-docs/flux-d1-docs
 curl -o /tmp/home-ops-docs/flux-d1-docs/d1.pdf https://raw.githubusercontent.com/controlplaneio-fluxcd/distribution/main/guides/ControlPlane_Flux_D1_Reference_Architecture_Guide.pdf
 
 # /tmp/home-ops-docs/flux-operator-docs/docs
-git clone https://github.com/controlplaneio-fluxcd/flux-operator -b main --depth 1 flux-operator-docs
+fetch_repo flux-operator-docs https://github.com/controlplaneio-fluxcd/flux-operator main
 
 # /tmp/home-ops-docs/flux-operator-bootstrap-terraform-docs/README.md
-git clone https://github.com/controlplaneio-fluxcd/terraform-kubernetes-flux-operator-bootstrap -b main --depth 1 flux-operator-bootstrap-terraform-docs
+fetch_repo flux-operator-bootstrap-terraform-docs https://github.com/controlplaneio-fluxcd/terraform-kubernetes-flux-operator-bootstrap main
 
 # /tmp/home-ops-docs/flux-tofu-controller-docs/docs/index.md
-git clone https://github.com/flux-iac/tofu-controller -b main --depth 1 flux-tofu-controller-docs
+fetch_repo flux-tofu-controller-docs https://github.com/flux-iac/tofu-controller main
 
 # /tmp/home-ops-docs/k8s-gateway-api-docs/site/hugo.toml + /tmp/home-ops-docs/k8s-gateway-api-docs/site/content/en
-git clone https://github.com/kubernetes-sigs/gateway-api -b main --depth 1 k8s-gateway-api-docs
+fetch_repo k8s-gateway-api-docs https://github.com/kubernetes-sigs/gateway-api main
 
 # /tmp/home-ops-docs/cilium-docs/Documentation/index.rst
-git clone https://github.com/cilium/cilium -b v1.20 --depth 1 cilium-docs
+fetch_repo cilium-docs https://github.com/cilium/cilium v1.20
 
 # /tmp/home-ops-docs/coredns-docs/content/manual/toc.md
-git clone https://github.com/coredns/coredns.io -b master --depth 1 coredns-docs
+fetch_repo coredns-docs https://github.com/coredns/coredns.io master
 
 # /tmp/home-ops-docs/external-secret-operator-docs/docs/index.md
-git clone https://github.com/external-secrets/external-secrets -b main --depth 1 external-secret-operator-docs
+fetch_repo external-secret-operator-docs https://github.com/external-secrets/external-secrets main
 
 # /tmp/home-ops-docs/pass-cli-docs/docs/public/docs/index.md 
-git clone https://github.com/protonpass/pass-cli -b main --depth 1 pass-cli-docs
+fetch_repo pass-cli-docs https://github.com/protonpass/pass-cli main
 
 # /tmp/home-ops-docs/metrics-server-docs/README.md
-git clone https://github.com/kubernetes-sigs/metrics-server -b master --depth 1 metrics-server-docs
+fetch_repo metrics-server-docs https://github.com/kubernetes-sigs/metrics-server master
 
 # /tmp/home-ops-docs/cert-manager-docs/content/docs/manifest.json
-git clone https://github.com/cert-manager/website -b master --depth 1 cert-manager-docs
+fetch_repo cert-manager-docs https://github.com/cert-manager/website master
 
 # /tmp/home-ops-docs/external-dns-docs/mkdocs.yml + /tmp/home-ops-docs/external-dns-docs/docs
-git clone https://github.com/kubernetes-sigs/external-dns -b master --depth 1 external-dns-docs
+fetch_repo external-dns-docs https://github.com/kubernetes-sigs/external-dns master
 
 # /tmp/home-ops-docs/netbird-docs/src/pages/ipa
-git clone https://github.com/netbirdio/docs/ -b main --depth 1 netbird-docs
+fetch_repo netbird-docs https://github.com/netbirdio/docs/ main
 
 # /tmp/home-ops-docs/local-path-provisioner-docs/README.md
-git clone https://github.com/rancher/local-path-provisioner -b master --depth 1 local-path-provisioner-docs
+fetch_repo local-path-provisioner-docs https://github.com/rancher/local-path-provisioner master
 
 # /tmp/home-ops-docs/cnpg-docs/website/versioned_docs/version-1.30/index.md
-git clone https://github.com/cloudnative-pg/docs -b main --depth 1 cnpg-docs
+fetch_repo cnpg-docs https://github.com/cloudnative-pg/docs main
 
 # /tmp/home-ops-docs/altinity-clickhouse-operator-docs/docs/README.md
-git clone https://github.com/Altinity/clickhouse-operator -b master --depth 1 altinity-clickhouse-operator-docs
+fetch_repo altinity-clickhouse-operator-docs https://github.com/Altinity/clickhouse-operator master
 
 # /tmp/home-ops-docs/clickhouse-docs/docs/clickstack/deployment/helm.mdx
-git clone https://github.com/clickhouse/clickhouse -b master --depth 1 clickhouse-docs
+fetch_repo clickhouse-docs https://github.com/clickhouse/clickhouse master
 
 # /tmp/home-ops-docs/clickstack-helm-docs/README.md
-git clone https://github.com/ClickHouse/ClickStack-helm-charts -b main --depth 1 clickstack-helm-charts-docs
+fetch_repo clickstack-helm-charts-docs https://github.com/ClickHouse/ClickStack-helm-charts main
 
 # /tmp/home-ops-docs/dragonfly-operator-docs/docs
-git clone https://github.com/dragonflydb/documentation -b main --depth 1 dragonfly-operator-docs
+fetch_repo dragonfly-operator-docs https://github.com/dragonflydb/documentation main
 
 # /tmp/home-ops-docs/zitadel-docs/apps/docs/content
-git clone https://github.com/zitadel/zitadel -b main --depth 1  zitadel-docs
+fetch_repo zitadel-docs https://github.com/zitadel/zitadel main
 
 # /tmp/home-ops-docs/zitadel-docs/README.md
-git clone https://github.com/zitadel/zitadel-charts -b main --depth 1  zitadel-helm-charts-docs
+fetch_repo zitadel-helm-charts-docs https://github.com/zitadel/zitadel-charts main
 
 # /tmp/home-ops-docs/oauth2-proxy-docs/docs/versioned_docs/version-7.15.x
-git clone https://github.com/oauth2-proxy/oauth2-proxy -b master --depth 1 oauth2-proxy-docs
+fetch_repo oauth2-proxy-docs https://github.com/oauth2-proxy/oauth2-proxy master
 
 # /tmp/home-ops-docs/seaweedfs-operator-docs/README.md
-git clone https://github.com/seaweedfs/seaweedfs-operator -b master --depth 1 seaweedfs-operator-docs
+fetch_repo seaweedfs-operator-docs https://github.com/seaweedfs/seaweedfs-operator master
 
 # /tmp/home-ops-docs/seaweedfs-docs/Home.md + https://seaweedfs.com/docs/deploy/
-git clone https://github.com/seaweedfs/seaweedfs.wiki.git --depth 1 seaweedfs-docs
+fetch_repo seaweedfs-docs https://github.com/seaweedfs/seaweedfs.wiki.git ""
 
 # /tmp/home-ops-docs/seaweedfs-csi-docs/README.md
-git clone https://github.com/seaweedfs/seaweedfs-csi-driver -b master --depth 1 seaweedfs-csi-docs
+fetch_repo seaweedfs-csi-docs https://github.com/seaweedfs/seaweedfs-csi-driver master
 
 # /tmp/home-ops-docs/k8s-cosi-docs/docs/src
-git clone https://github.com/kubernetes-sigs/container-object-storage-interface -b main --depth 1 k8s-cosi-docs
+fetch_repo k8s-cosi-docs https://github.com/kubernetes-sigs/container-object-storage-interface main
 
 # /tmp/home-ops-docs/seaweedfs-cosi-docs/README.md
-git clone https://github.com/seaweedfs/seaweedfs-cosi-driver -b main --depth 1 seaweedfs-cosi-docs
+fetch_repo seaweedfs-cosi-docs https://github.com/seaweedfs/seaweedfs-cosi-driver main
 
 # /tmp/home-ops-docs/multus-docs/docs
-git clone https://github.com/k8snetworkplumbingwg/multus-cni -b master --depth 1 multus-docs
+fetch_repo multus-docs https://github.com/k8snetworkplumbingwg/multus-cni master
 
 # /tmp/home-ops-docs/kubevirt-docs/docs/index.md
-git clone https://github.com/kubevirt/user-guide -b main --depth 1 kubevirt-docs
+fetch_repo kubevirt-docs https://github.com/kubevirt/user-guide main
 
 # /tmp/home-ops-docs/headlamp-docs/docs/index.md
-git clone https://github.com/kubernetes-sigs/headlamp -b main --depth 1 headlamp-docs
+fetch_repo headlamp-docs https://github.com/kubernetes-sigs/headlamp main
 
 # /tmp/home-ops-docs/headlamp-kubevirt-plugin-docs/README.md
-git clone https://github.com/naval-group/headlamp-kubevirt -b main --depth 1 headlamp-kubevirt-plugin-docs
+fetch_repo headlamp-kubevirt-plugin-docs https://github.com/naval-group/headlamp-kubevirt main
 
 # /tmp/home-ops-docs/coder-docs/docs
-git clone https://github.com/coder/coder -b main --depth 1 coder-docs
+fetch_repo coder-docs https://github.com/coder/coder main
