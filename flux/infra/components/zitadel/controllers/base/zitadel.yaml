@@ -84,6 +84,16 @@ spec:
         # below). Do NOT set MachineKeyPath/PatPath (chart-managed; the
         # template fails the render if set) and do NOT set Org.Skip (use
         # FirstInstance.Skip instead).
+        # Auth is maintenance-free by design: both ExpirationDate fields are
+        # explicitly null (NOT omitted — omission falls back to the chart
+        # values.yaml default of 2029-01-01 via Helm coalesce). Null renders
+        # as an absent key, which Zitadel decodes to the zero time and
+        # internal/domain/expiration.go ValidateExpirationDate maps to
+        # 9999-12-31 (effectively never expires; matches "leave empty for no
+        # expiration" in the private-key-jwt / personal-access-token guides).
+        # Scopes: [] keeps the Pat map non-empty so the chart template's
+        # $hasMachinePat stays truthy (PATPATH env + pat-writer sidecar);
+        # a bare `Pat: {}` would silently drop PAT creation wiring.
         FirstInstance:
           Org:
             Name: home-ops
@@ -92,10 +102,11 @@ spec:
                 Username: zitadel-bootstrap-sa
                 Name: Bootstrap Service Account
               MachineKey:
-                ExpirationDate: '2029-01-01T00:00:00Z'
+                ExpirationDate: null
                 Type: 1
               Pat:
-                ExpirationDate: '2029-01-01T00:00:00Z'
+                ExpirationDate: null
+                Scopes: []
     cleanupJob:
       enabled: false # keep zitadel-bootstrap-sa + -pat Secrets across reinstalls
     env:

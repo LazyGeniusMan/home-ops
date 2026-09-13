@@ -126,13 +126,60 @@ No Tofu Controller for initial setup — the chart's setup Job does it
 
 - `zitadel.configmapConfig.FirstInstance.Org` — `Name: home-ops` plus the
   IAM_OWNER machine user `zitadel-bootstrap-sa` (`MachineKey` Type 1 JSON +
-  `Pat`, both expiring 2029-01-01). The setup Job mints the key JSON + PAT
+  `Pat`, both NON-EXPIRING by design — see below). The setup Job mints the
+  key JSON + PAT
   and writes kept Secrets `zitadel-bootstrap-sa` (key
   `zitadel-bootstrap-sa.json`) and `zitadel-bootstrap-sa-pat` (key `pat`);
   `cleanupJob.enabled: false` so both survive reinstalls. No
   `MachineKeyPath`/`PatPath` overrides (chart-managed — the template fails
   the render if set), no `Org.Skip` (use `FirstInstance.Skip`), login RSA
   stays chart-managed.
+
+Non-expiring bootstrap auth (maintenance-free by design):
+
+- Both `MachineKey.ExpirationDate` and `Pat.ExpirationDate` are explicit
+  `null` in `controllers/base/zitadel.yaml` — fresh-install keys/PATs never
+  expire, so the six tofu-controller `Terraform` objects (coder, clickstack,
+  hubble-ui, flux-operator-ui, headlamp, seaweedfs, all on
+  `jwt_profile_json`) authenticate indefinitely with zero maintenance (no
+  CronJob, no rotation automation, no provider-mode switch; the PAT stays
+  mirrored-idle via `zitadel-bootstrap-credentials`).
+- Why explicit null, not omission: Helm coalesce fills an OMITTED key with
+  the chart `values.yaml` default (`2029-01-01T00:00:00Z`), verified by
+  `helm template` against chart 10.0.4. Explicit `null` overrides the
+  default and renders as an absent key (no `ExpirationDate` line in the
+  Zitadel ConfigMap, no `2029` anywhere in the render); schema
+  (`values.schema.json`) requires nothing under `MachineKey`/`Pat`, and
+  `helm lint` passes. `Pat` also carries `Scopes: []` so the chart
+  template's `$hasMachinePat` stays truthy (PATPATH env + pat-writer
+  sidecar render); a bare `Pat: {}` would silently drop PAT wiring.
+- Why absent means never-expires (server side): the setup Job feeds the
+  ConfigMap through viper/mapstructure into `time.Time`; an absent key
+  decodes to the zero time, and `internal/domain/expiration.go`
+  `ValidateExpirationDate` maps zero → `9999-12-31T23:59:59Z` for both
+  machine keys and PATs (`user_machine_key.go` / `user_personal_access_token.go`
+  call it from `valid()`). This is the config-file equivalent of the guides'
+  "leave empty for no expiration" (private-key-jwt guide: "Optionally set an
+  expiration date for the key, or leave empty for no expiration";
+  personal-access-token guide: "You can either set an expiration date or
+  leave it empty if you don't want it to expire").
+- No in-place extend exists (rotation = create-new + delete-old), so
+  no-expiry is the fix — not a rotation CronJob/operator (deliberately no
+  new moving parts).
+
+One-time migration for pre-existing 2029 keys (FirstInstance only runs on
+fresh setup — changing values does NOT re-mint keys on existing installs):
+
+1. Delete the kept Secrets so the setup Job re-runs key creation:
+   `kubectl -n zitadel delete secret zitadel-bootstrap-sa
+   zitadel-bootstrap-sa-pat` (both carry `helm.sh/resource-policy=keep`, so
+   delete explicitly), then restart/re-run the `zitadel-setup` Job. ESO
+   re-mirrors `zitadel-bootstrap-credentials` automatically
+   (`refreshInterval: 1h`).
+2. Alternative: rotate via console/API (create a new non-expiring key/PAT
+   on `zitadel-bootstrap-sa`, update the kept Secrets, delete the old ones).
+3. Verify: new key JSON / PAT carry no expiry (server shows 9999-12-31 or
+   empty); `grep -rn 2029` under this component is empty.
 - `configs/base/zitadel-bootstrap-handoff.yaml` — ESO mirrors (all secrets
   from ESO, no inline credentials, no manual vault seeding):
   - `zitadel-bootstrap-credentials` (keys `jwt_profile_json`, `pat`) via the
@@ -174,8 +221,23 @@ First-install runbook (zero-UI):
 3. Operator reads `org_id` once (console/API) and creates the plain Secret:
    `kubectl -n zitadel create secret generic zitadel-bootstrap-outputs
    --from-literal=org_id=<id> --from-literal=admin_user_id=<id>`.
-   Invite `admin@…` via the console; rotate the machine key by re-running
-   the setup Job (or rotating the two kept Secrets — ESO re-mirrors).
+   Invite `admin@…` via the console. Fresh installs mint non-expiring keys
+   (nothing to rotate). For pre-existing 2029-expiry keys see the one-time
+   migration above (delete the two kept Secrets + re-run the setup Job, or
+   rotate via console/API — ESO re-mirrors).
+
+ESO pull-only is sufficient (no push needed):
+
+- Generated credentials (machine-key JSON, PAT) are minted in-cluster by
+  the chart setup Job and stay in-cluster: chart kept Secrets →
+  `zitadel-bootstrap` Kubernetes-provider SecretStore → ESO ExternalSecret
+  mirrors (`zitadel-bootstrap-credentials`). Proton Pass holds only STATIC
+  secrets (masterkey, DSN, passwords); nothing generated ever flows back to
+  the vault.
+- `projects/eso-proton-pass` is pull-only by design (`POST /push` → 501,
+  `Push() → ErrPushUnimplemented`); the repo carries zero `kind:
+  PushSecret`. That path is never exercised by this component — no code
+  changes, no PushSecret, no push wiring needed.
 
 Retired: `configs/base/terraform-bootstrap.yaml` (ExternalSecret
 `zitadel-terraform-vars` + Terraform CR `zitadel-bootstrap-identity`) and the
