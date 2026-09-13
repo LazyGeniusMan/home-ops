@@ -11,6 +11,14 @@
 #   to pre-existing bucket names, so `spec.existingBucketName` is
 #   intentionally unset. Read the live names from each claim's
 #   `status.bucketName` once `status.bucketReady` is true.
+# - The `zitadel-assets` claim backs Zitadel `AssetStorage` S3 (avatars,
+#   org logos/icons — Secret `zitadel-asset-storage` via the `zitadel-cosi`
+#   SecretStore; wired as ZITADEL_ASSET_STORAGE_* env vars, see
+#   zitadel-bootstrap-handoff.yaml). Bucket names are controller-generated
+#   (`bc-<uuid>`); Zitadel's S3 backend creates per-instance buckets itself
+#   (`<BucketPrefix>-<instanceID>`, e.g. `zitadel-assets-<id>`), so BucketPrefix
+#   MUST be `zitadel-assets` and the claim needs no destinationPath — assets
+#   never share the cnpg/dragonfly backup buckets.
 # - The zitadel-db Cluster `destinationPath` (`s3://cnpg-backups/zitadel/`)
 #   and the zitadel-cache Dragonfly `dir`
 #   (`s3://dragonfly-backups/zitadel-cache/`) target the COSI-provisioned
@@ -63,4 +71,23 @@ spec:
   bucketAccessClassName: seaweedfs-key
   bucketClaimName: zitadel-cache
   credentialsSecretName: zitadel-cache-cosi-creds
+  protocol: S3
+---
+apiVersion: objectstorage.k8s.io/v1alpha1
+kind: BucketClaim
+metadata:
+  name: zitadel-assets
+spec:
+  bucketClassName: seaweedfs
+  protocols:
+    - S3
+---
+apiVersion: objectstorage.k8s.io/v1alpha1
+kind: BucketAccess
+metadata:
+  name: zitadel-assets-access
+spec:
+  bucketAccessClassName: seaweedfs-key
+  bucketClaimName: zitadel-assets
+  credentialsSecretName: zitadel-assets-cosi-creds
   protocol: S3

@@ -33,9 +33,10 @@ OCI is the upstream source of truth, verified by pull:
 ## Layout
 
 Mirrors the cert-manager component file-for-file:
-`controllers/{base,dev,prd}` (OCIRepository + HelmRelease, env overlays
+`controllers/{base,dev,prd}` (OCIRepository + HelmRelease with the
+`FirstInstance` zero-UI bootstrap stanza, env overlays
 inherit base unchanged) and `configs/{base,dev,prd}` (secrets, DB, cache,
-certificate, routes, identity intent + Terraform bootstrap CR).
+certificate, routes, identity intent + bootstrap handoff + COSI claims).
 
 ## Dependencies
 
@@ -82,11 +83,13 @@ Seed each vault entry with pass-cli:
   (optional; unwired until a relay exists — Zitadel logs mail links to pod
   output meanwhile).
 - S3 keys are COSI-minted, not Proton Pass: `cnpg-s3-credentials`
-  (zitadel-db) syncs from the `zitadel-db-cosi-creds` BucketInfo JSON and
+  (zitadel-db) syncs from the `zitadel-db-cosi-creds` BucketInfo JSON,
   `dragonfly-s3-credentials` (zitadel-cache) from
-  `zitadel-cache-cosi-creds`, both through the in-namespace `zitadel-cosi`
-  SecretStore (dedicated claims `zitadel-db`/`zitadel-cache` — see
-  `configs/base/bucketclaims.yaml` and the cosi README). The
+  `zitadel-cache-cosi-creds`, and `zitadel-asset-storage` (avatars/org
+  logos via `ZITADEL_ASSETSTORAGE_*` env) from `zitadel-assets-cosi-creds`,
+  all through the in-namespace `zitadel-cosi`
+  SecretStore (dedicated claims `zitadel-db`/`zitadel-cache`/`zitadel-assets`
+  — see `configs/base/bucketclaims.yaml` and the cosi README). The
   `pass://…/{cnpg,dragonfly}/s3-*` vault entries stay seeded as rollback.
 - `pass://acme-prd-bdo1-talos-apps-01/cert-manager/cloudflare-api-token` —
   same vault path as the cert-manager component, copied so the DNS-01
@@ -116,55 +119,72 @@ in its per-app `terraform/` slice (own project roles/grants assert the
 `groups` claim); the central bootstrap slice owns no clients. Post-logout
 redirects point at each app's root (`https://<app>…/`).
 
-## Identity-as-code (Tofu Controller)
+## Identity bootstrap (Helm FirstInstance, zero-UI)
 
-Machine-applied by Tofu Controller (`terraforms.infra.contrib.fluxcd.io`
-v1alpha2, chart 0.16.5 — see the `tofu-controller` component):
+No Tofu Controller for initial setup — the chart's setup Job does it
+(`controllers/base/zitadel.yaml`):
 
-- `configs/base/terraform-bootstrap.yaml` — `zitadel-bootstrap-identity`
-  Terraform CR (`approvePlan: auto`, in-cluster state backend) applying the
-  bootstrap slice of `terraform/`: `zitadel_org`, `zitadel_human_user`
-  (admin only), `zitadel_org_member` (admin only), central `zitadel_project`
-  (`home-ops`) + admin role + grant. Non-admin users are owned per consumer
-  app. OIDC clients live in each app's own per-app `terraform/` slice —
-  this bootstrap slice owns none.
-- `terraform/` — the modules (`zitadel/zitadel ~> 3.3`, `tofu validate`
-  passes; the provider ships no `zitadel_user_group` resources, so groups map
-  to `zitadel_org_member` + `zitadel_project` roles + `zitadel_user_grant`).
-  Single source of truth for the contract table above.
-- `configs/base/org-users.yaml` — human-readable mirror of the intent (kept
-  in sync with `terraform/` + the CR `vars` on contract changes).
-- Secrets (`admin_initial_password`,
-  `jwt_profile_json`) flow via the ESO `zitadel-terraform-vars` ExternalSecret
-  (Proton Pass `pass://<env-vault>/zitadel/terraform-*`, never Git); per-env
-  vault paths + `domain`/email `vars` land in the `dev`/`prd` overlays.
-  Rotate by updating the vault entries — ESO syncs and the next reconcile
-  picks them up.
-- Outputs: `org_id` + `admin_user_id` land
-  in the bootstrap state Secret
-  (`tfstate-default-zitadel-bootstrap-identity` in the `zitadel` namespace,
-  mirrored to `zitadel-bootstrap-outputs` via `writeOutputsToSecret`) for
-  the later per-app Terraform task. Both are plain IDs (non-sensitive)
-  — per-app slices read them via `data.terraform_remote_state` (in-cluster
-  Kubernetes backend, `namespace: zitadel`), never via ESO/`pass://`. Only
-  the admin password + JWT stay in ESO. The read runs as each app's tofu runner SA
-  under a narrow cross-namespace Role + RoleBinding (get+list on the
-  bootstrap state Secret only, owned by the app component) — CR `varsFrom`
-  has no namespace field and cannot cross namespaces. Consumer pattern:
-  reference `data.terraform_remote_state.zitadel.outputs.*`
-  (`org_id`, `admin_user_id`, …) instead of looking
-  users up by email data source.
+- `zitadel.configmapConfig.FirstInstance.Org` — `Name: home-ops` plus the
+  IAM_OWNER machine user `zitadel-bootstrap-sa` (`MachineKey` Type 1 JSON +
+  `Pat`, both expiring 2029-01-01). The setup Job mints the key JSON + PAT
+  and writes kept Secrets `zitadel-bootstrap-sa` (key
+  `zitadel-bootstrap-sa.json`) and `zitadel-bootstrap-sa-pat` (key `pat`);
+  `cleanupJob.enabled: false` so both survive reinstalls. No
+  `MachineKeyPath`/`PatPath` overrides (chart-managed — the template fails
+  the render if set), no `Org.Skip` (use `FirstInstance.Skip`), login RSA
+  stays chart-managed.
+- `configs/base/zitadel-bootstrap-handoff.yaml` — ESO mirrors (all secrets
+  from ESO, no inline credentials, no manual vault seeding):
+  - `zitadel-bootstrap-credentials` (keys `jwt_profile_json`, `pat`) via the
+    in-namespace `zitadel-bootstrap` SecretStore (SA `eso-zitadel-reader`,
+    get/list/watch on the two setup-Job Secrets only). Per-app
+    tofu-controller slices consume `jwt_profile_json` via same-namespace
+    `varsFrom` (zitadel ns) or `fileMappings`; app namespaces add a narrow
+    cross-namespace Role + RoleBinding on this Secret (same shape as the old
+    `*-terraform-remote-state-reader` grants) — this replaces the old
+    `pass://<env-vault>/zitadel/terraform-jwt-profile-json` seeding step.
+  - `zitadel-asset-storage` (keys `endpoint`, `accessKeyId`,
+    `secretAccessKey`) via the in-namespace `zitadel-cosi` SecretStore from
+    the colocated `zitadel-assets` claim — consumed as
+    `ZITADEL_ASSETSTORAGE_*` env vars by the HelmRelease.
+- `configs/base/org-users.yaml` (`zitadel-identity-intent` ConfigMap) —
+  human-readable mirror of the intent (kept in sync with the HelmRelease
+  FirstInstance stanza on contract changes).
+- Human admin (`admin@…`) is operator-invited post-install via the console
+  (invite/reset flow) — NOT terraform-managed. Non-admin users + OIDC
+  clients live in each app's own per-app `terraform/` slice (own project
+  roles/grants assert the `groups` claim); this bootstrap owns no clients.
 
-One-time prerequisite (manual): the chart has NO FirstInstance bootstrap
-stanza, so before the first reconcile provision the IAM_OWNER service user
-via the FirstInstance machine user, download its key JSON, and seed the
-vault entries above (initial admin password + `terraform-jwt-profile-json`).
-Without the key the runner fails auth and retries on interval.
+Consumer handoff (for the follow-up SSO task — Secret names/namespaces/keys):
 
-Manual fallback: `terraform init && terraform apply` from `terraform/` with
-`-var jwt_profile_json="$(cat <key>.json)"` (+ domain/email `-var`s for dev).
-Client secrets live in each app's per-app `terraform/` state — read them into
-Proton Pass (never Git).
+| Secret (namespace `zitadel`) | Keys | Producer | Consumers use |
+|---|---|---|---|
+| `zitadel-bootstrap-sa` | `zitadel-bootstrap-sa.json` (machine-key JSON) | chart setup Job (kept) | read via `zitadel-bootstrap-credentials` mirror, not directly |
+| `zitadel-bootstrap-sa-pat` | `pat` | chart setup Job (kept) | read via `zitadel-bootstrap-credentials` mirror, not directly |
+| `zitadel-bootstrap-credentials` | `jwt_profile_json`, `pat` | ESO ExternalSecret (`zitadel-bootstrap` store) | tofu `varsFrom`/`fileMappings` (`jwt_profile_json` = provider auth, `pat` = API token) |
+| `zitadel-bootstrap-outputs` | `org_id`, `admin_user_id` (plain IDs) | operator-created once post-install (see runbook below) | per-app CR `vars` (literal, non-sensitive); replaces `data.terraform_remote_state.zitadel.outputs.*` |
+| `zitadel-asset-storage` | `endpoint`, `accessKeyId`, `secretAccessKey` | ESO ExternalSecret (`zitadel-cosi` store ← `zitadel-assets` claim) | `ZITADEL_ASSETSTORAGE_*` env vars (HelmRelease) |
+
+First-install runbook (zero-UI):
+
+1. Flux applies controllers → HelmRelease setup Job creates org + machine
+   user + kept Secrets (retries until ESO masterkey/DSN Secrets sync).
+2. ESO mirrors `zitadel-bootstrap-credentials` + `zitadel-asset-storage`
+   (retries until the setup-Job Secrets / COSI BucketInfo exist).
+3. Operator reads `org_id` once (console/API) and creates the plain Secret:
+   `kubectl -n zitadel create secret generic zitadel-bootstrap-outputs
+   --from-literal=org_id=<id> --from-literal=admin_user_id=<id>`.
+   Invite `admin@…` via the console; rotate the machine key by re-running
+   the setup Job (or rotating the two kept Secrets — ESO re-mirrors).
+
+Retired: `configs/base/terraform-bootstrap.yaml` (ExternalSecret
+`zitadel-terraform-vars` + Terraform CR `zitadel-bootstrap-identity`) and the
+`terraform/` bootstrap slice (`zitadel_org`, `zitadel_human_user`,
+`zitadel_org_member`, central project/role/grant; provider `zitadel ~> 3.3`)
+are deleted. Per-app `data.terraform_remote_state.zitadel` reads keep
+working off the LAST tofu-controller state until that state ages out — the
+follow-up task switches them to the table above. Client secrets live in each
+app's per-app `terraform/` state — read them into Proton Pass (never Git).
 
 ## Telemetry-off / monitoring / updates
 
@@ -180,10 +200,22 @@ Proton Pass (never Git).
   (remember the chart↔app divergence above: bump the chart tag AND both image
   tags together).
 
+## AssetStorage (S3-backed, not db-default)
+
+Upstream default is `AssetStorage.Type: db` (avatars/org logos in Postgres —
+`cmd/defaults.yaml:512`). This component sets `s3` via
+`ZITADEL_ASSETSTORAGE_*` env vars (viper: `ZITADEL_` prefix, dots →
+underscores): `TYPE=s3`, `ENDPOINT` (internal SeaweedFS S3, plain HTTP so
+`SSL=false`), `ACCESSKEYID`/`SECRETACCESSKEY` (COSI-minted), `LOCATION`
+(`us-east-1`, minio region passthrough), `BUCKETPREFIX=zitadel-assets`.
+Zitadel's S3 backend auto-creates per-instance buckets
+(`<prefix>-<instanceID>`, `PutObject.createBucket`) and never shares the
+CNPG/Dragonfly backup buckets — dedicated `zitadel-assets` claim on purpose.
+
 ## Environments
 
-`dev` and `prd` each carry per-env patches (external domain, DB/cache
-endpoints, vault refs, hostnames, SSO vars); controllers add only the
+`dev` and `prd` each carry per-env patches (external domain, DB/cache/asset
+S3 endpoints, vault refs, hostnames, intent mirror); controllers add only the
 external-domain patch each. Per-env tuning (replica count,
 ExternalDomain hostnames, storage size) lands with the first real divergence,
 not here.

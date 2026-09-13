@@ -16,8 +16,8 @@ namespace-local CNPG Cluster + ScheduledBackup (dev S3 endpoint),
 namespace-local Dragonfly + snapshot credentials (dev S3 host),
 in-namespace `wildcard-homelab-dev-tls`, HTTPRoutes (`/` → zitadel:8080,
 `/ui/v2/login` → zitadel-login:3000 on the shared §14 DEV Gateway),
-`org-users.yaml` intent (human-readable mirror) + `terraform-bootstrap.yaml`
-(Terraform CR + ESO vars, machine-applied).
+`org-users.yaml` intent (human-readable mirror) + `zitadel-bootstrap-handoff.yaml`
+(ESO credential/asset mirrors, machine-applied).
 Controllers live in `controllers/dev` (`../base` + patch setting
 `ExternalDomain: zitadel.homelab-dev.yansyah.my.id`).
 
@@ -45,16 +45,16 @@ in its per-app `terraform/` slice (own project roles/grants assert the
 `groups` claim); the central bootstrap slice owns no clients. Post-logout
 redirects point at each app's root (`https://<app>…/`).
 
-## Identity-as-code (Tofu Controller) — DEV note
+## Identity bootstrap (Helm FirstInstance) — DEV note
 
-Machine-applied like base: the `zitadel-bootstrap-identity` Terraform CR
-(applied from the same `configs/base/terraform-bootstrap.yaml`) carries the
-DEV overrides via this overlay's `kustomization.yaml` patches — DEV vault
-refs (`pass://acme-dev-bdo1-talos-apps-01/zitadel/terraform-*`) plus CR
-`vars`:
+Machine-applied like base: the chart's `FirstInstance` stanza (inherited
+from `controllers/base`, plus this overlay's `ExternalDomain:
+zitadel.homelab-dev.yansyah.my.id` patch) creates org `home-ops` + the
+`zitadel-bootstrap-sa` machine user; `zitadel-bootstrap-handoff.yaml`
+mirrors its key/PAT into `zitadel-bootstrap-credentials` (no DEV vault refs
+for bootstrap — the setup Job mints the key) plus the `zitadel-assets` S3
+mirror (dev internal S3 endpoint patch in this overlay's `kustomization.yaml`).
 
-- `domain=zitadel.homelab-dev.yansyah.my.id`
-- `admin_email=admin@homelab-dev.yansyah.my.id`
 - Client `redirect_uris`/`post_logout_redirect_uris`: each per-app
   `terraform/` slice rides its own `app_host`/`ui_host` CR vars (same shapes
   as the table above) — no shared client remains.

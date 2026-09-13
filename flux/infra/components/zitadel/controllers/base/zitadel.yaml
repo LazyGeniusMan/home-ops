@@ -78,6 +78,26 @@ spec:
         ExternalSecure: true
         TLS:
           Enabled: false # terminated at the §8 Gateway, not in-pod
+        # FirstInstance zero-UI bootstrap (§11.1): the setup Job creates the
+        # default org (name home-ops) plus an IAM_OWNER machine user and
+        # writes its key JSON + PAT into kept Secrets (cleanupJob.enabled=false
+        # below). Do NOT set MachineKeyPath/PatPath (chart-managed; the
+        # template fails the render if set) and do NOT set Org.Skip (use
+        # FirstInstance.Skip instead).
+        FirstInstance:
+          Org:
+            Name: home-ops
+            Machine:
+              Machine:
+                Username: zitadel-bootstrap-sa
+                Name: Bootstrap Service Account
+              MachineKey:
+                ExpirationDate: '2029-01-01T00:00:00Z'
+                Type: 1
+              Pat:
+                ExpirationDate: '2029-01-01T00:00:00Z'
+    cleanupJob:
+      enabled: false # keep zitadel-bootstrap-sa + -pat Secrets across reinstalls
     env:
       # DSN mode (recommended): discrete Database.Postgres.* fields stay unset
       # and Zitadel reads the connection string from this secret key.
@@ -93,6 +113,37 @@ spec:
         value: "redis://zitadel-cache.zitadel.svc.cluster.local:6379"
       - name: ZITADEL_CACHES_CONNECTORS_REDIS_ENABLED
         value: "true"
+      # AssetStorage S3 (avatars/org logos — Secret zitadel-asset-storage,
+      # ESO-mirrored from the colocated `zitadel-assets` claim via the
+      # zitadel-cosi SecretStore; see configs/base/zitadel-bootstrap-handoff.yaml).
+      # Viper env mapping: ZITADEL_ prefix, dots → underscores
+      # (cmd/zitadel.go). S3 backend fields per internal/static/s3/config.go:
+      # Endpoint/AccessKeyID/SecretAccessKey/SSL/Location/BucketPrefix.
+      # Type must be s3 (default is db) so assets leave Postgres for object
+      # storage; MultiDelete stays false (single-object deletes only).
+      - name: ZITADEL_ASSET_STORAGE_TYPE
+        value: "s3"
+      - name: ZITADEL_ASSETSTORAGE_ENDPOINT
+        valueFrom:
+          secretKeyRef:
+            name: zitadel-asset-storage
+            key: endpoint
+      - name: ZITADEL_ASSETSTORAGE_ACCESSKEYID
+        valueFrom:
+          secretKeyRef:
+            name: zitadel-asset-storage
+            key: accessKeyId
+      - name: ZITADEL_ASSETSTORAGE_SECRETACCESSKEY
+        valueFrom:
+          secretKeyRef:
+            name: zitadel-asset-storage
+            key: secretAccessKey
+      - name: ZITADEL_ASSETSTORAGE_SSL
+        value: "false" # internal S3 is plain HTTP (same as Dragonfly/CNPG)
+      - name: ZITADEL_ASSETSTORAGE_LOCATION
+        value: "us-east-1"
+      - name: ZITADEL_ASSETSTORAGE_BUCKETPREFIX
+        value: "zitadel-assets"
     # No chart-managed routing or bundled Postgres: HTTPRoutes are hand-written
     # in configs/base/zitadel-httproute.yaml (own the §8.1 pattern explicitly)
     # and the database is the §10.1 CNPG instance in configs/base/zitadel-db.yaml.

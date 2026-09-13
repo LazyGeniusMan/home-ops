@@ -1,0 +1,132 @@
+# Bootstrap handoff (§11.1): zero-UI FirstInstance wiring, no Tofu Controller.
+# The chart's setup Job (controllers/base/zitadel.yaml `FirstInstance` stanza)
+# creates org `home-ops` + the IAM_OWNER machine user `zitadel-bootstrap-sa`
+# and writes two kept Secrets (cleanupJob.enabled=false):
+# - `zitadel-bootstrap-sa` (key `<Username>.json` = machine-key JSON, Type 1)
+# - `zitadel-bootstrap-sa-pat` (key `pat` = personal access token)
+# This file mirrors both into consumer-ready Secrets via the in-namespace
+# `zitadel-cosi`-style Kubernetes SecretStore pattern (same-namespace reads
+# need no cross-namespace grant):
+# - `zitadel-bootstrap-credentials` (keys `jwt_profile_json`, `pat`) — the
+#   JWT-profile + PAT handoff that per-app tofu-controller `varsFrom` /
+#   `fileMappings` consume instead of the old Proton Pass seeding step
+#   (`pass://<env-vault>/zitadel/terraform-jwt-profile-json`). No inline
+#   credentials, no manual vault seeding: the setup Job mints the key and ESO
+#   copies it.
+# - `zitadel-bootstrap-outputs` is NOT ESO-managed (nothing to mirror — org
+#   IDs are Zitadel-generated at setup time). It is a PLAIN Secret created
+#   once by the operator after first install (kubectl create secret generic
+#   zitadel-bootstrap-outputs --from-literal=org_id=<id> ...; see README
+#   runbook) carrying `org_id` + `admin_user_id` (plain IDs, non-sensitive) —
+#   same name/keys as the old Terraform `writeOutputsToSecret`. Per-app
+#   slices read the two IDs from this Secret into their CR `vars` (literal,
+#   non-sensitive) instead of looking users up by email. Until the follow-up
+#   consumer task lands, per-app remote-state reads keep working off the
+#   LAST tofu-controller state; after that state ages out they switch to this
+#   Secret via same-namespace `varsFrom` (zitadel ns) or narrow cross-ns
+#   Roles (app namespaces).
+# AssetStorage S3 (`zitadel-asset-storage`, keys endpoint/accessKeyId/
+# secretAccessKey) is ESO-mirrored here too from the colocated
+# `zitadel-assets` claim (bucketclaims.yaml) through the in-namespace
+# `zitadel-cosi` SecretStore — consumed as ZITADEL_ASSETSTORAGE_* env vars
+# (see the HelmRelease). Endpoint is the INTERNAL S3
+# (http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333 — plain HTTP, same
+# as CNPG/Dragonfly); per-env overlays patch only this file's endpoint literal.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-zitadel-reader
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eso-zitadel-reader
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["zitadel-bootstrap-sa", "zitadel-bootstrap-sa-pat"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["selfsubjectrulesreviews"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eso-zitadel-reader
+subjects:
+  - kind: ServiceAccount
+    name: eso-zitadel-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: eso-zitadel-reader
+---
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: zitadel-bootstrap
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: zitadel
+      server:
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        serviceAccount:
+          name: eso-zitadel-reader
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: zitadel-bootstrap-credentials
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: zitadel-bootstrap
+    kind: SecretStore
+  target:
+    name: zitadel-bootstrap-credentials
+    template:
+      data:
+        jwt_profile_json: "{{ .machinekey }}"
+        pat: "{{ .pat }}"
+  data:
+    - secretKey: machinekey
+      remoteRef:
+        key: zitadel-bootstrap-sa
+        property: zitadel-bootstrap-sa.json
+    - secretKey: pat
+      remoteRef:
+        key: zitadel-bootstrap-sa-pat
+        property: pat
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: zitadel-asset-storage
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: zitadel-cosi
+    kind: SecretStore
+  target:
+    name: zitadel-asset-storage
+    template:
+      data:
+        endpoint: http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333
+        accessKeyId: "{{ .accessKeyId }}"
+        secretAccessKey: "{{ .secretAccessKey }}"
+  data:
+    - secretKey: accessKeyId
+      remoteRef:
+        key: zitadel-assets-cosi-creds
+        property: BucketInfo.spec.secretS3.accessKeyID
+    - secretKey: secretAccessKey
+      remoteRef:
+        key: zitadel-assets-cosi-creds
+        property: BucketInfo.spec.secretS3.accessSecretKey

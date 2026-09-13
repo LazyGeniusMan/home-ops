@@ -1,22 +1,27 @@
 # Static identity intent (§11.1): org, users, groups, OIDC client ownership.
-# Machine-applied: the `zitadel-bootstrap-identity` Terraform CR
-# (terraform-bootstrap.yaml, Tofu Controller) applies the bootstrap slice
-# (org, users, membership, legacy home-ops project/roles/grants) from
-# terraform/; OIDC clients live in each app's own per-app `terraform/` slice.
+# Machine-applied: the chart's `FirstInstance` stanza
+# (controllers/base/zitadel.yaml, Helm setup Job — zero-UI, no Tofu
+# Controller) creates org `home-ops` plus the IAM_OWNER machine user
+# `zitadel-bootstrap-sa` (key JSON + PAT in kept Secrets, mirrored by
+# zitadel-bootstrap-handoff.yaml). Human admin onboarding (admin@…) is
+# operator-driven via invite/reset after install — NOT terraform-managed.
+# OIDC clients live in each app's own per-app `terraform/` slice.
 # This ConfigMap is the human-readable mirror of that intent — keep it in
-# sync with terraform/ + the Terraform CR vars when the contract changes.
+# sync with the HelmRelease FirstInstance stanza when the contract changes.
 #
-# Org: home-ops
-# Users (human, email-verified, initial passwords rotated after first login):
-# - admin@home-ops.yansyah.my.id — super-admin (instance IAM_OWNER via the
-#   chart's FirstInstance machine bootstrap, then org owner)
+# Org: home-ops (FirstInstance-created)
+# Machine admin: zitadel-bootstrap-sa — IAM_OWNER service account for
+# automation (key JSON: Secret zitadel-bootstrap-sa /
+# zitadel-bootstrap-credentials.jwt_profile_json; PAT:
+# zitadel-bootstrap-sa-pat / zitadel-bootstrap-credentials.pat).
+# Users (human, operator-invited post-install):
+# - admin@home-ops.yansyah.my.id — super-admin (org owner; invite via console)
 # Non-admin users are owned per consumer app, not by this bootstrap.
-# Groups (provider zitadel ~> 3.3 ships no user_group resources — mapped to
-# org membership + project grants, asserted into the `groups` claim):
+# Groups (asserted into the `groups` claim via per-app project roles/grants):
 # - admin: admin@ as ORG_OWNER + project admin grant
 # Roles/grants: home-ops project with role admin; the admin grant binds the
 # admin user to that role (drives id_token role assertion alongside the
-# groups claim above).
+# groups claim above). Owned per consumer app slice, not here.
 # OIDC clients (all: code flow + PKCE, refresh tokens on; secrets via ESO,
 # never in Git — see the OIDC contract table in the README). Each app owns
 # its own `zitadel_project` + `zitadel_application_oidc` client in its
@@ -42,7 +47,7 @@ kind: ConfigMap
 metadata:
   name: zitadel-identity-intent
   annotations:
-    __ZITADEL_HOST__/managed-by: tofu-controller
+    __ZITADEL_HOST__/managed-by: zitadel-setup-job
 data:
   org: home-ops
   users: |
