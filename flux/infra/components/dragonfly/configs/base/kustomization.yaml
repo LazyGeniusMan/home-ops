@@ -6,3 +6,4 @@ resources:
   - cosi-keys.yaml
   - wildcard-certificate.yaml
   - bucketclaims.yaml
+  - rclone-sync-dragonfly-backups.yaml
