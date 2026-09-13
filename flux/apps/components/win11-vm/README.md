@@ -79,8 +79,12 @@ auto-enabled — set explicitly). Contrast talos-vm, which disables it.
 
 ## Environments
 
-`dev` is a passthrough of `../base` (no static MAC); `prd` adds a
-static `lan` MAC patch — base specs (4 cores / 8Gi / 80Gi) unchanged.
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | singleton (1 `VirtualMachine`, no replica concept) | passthrough of `../base` (no static MAC) |
+| `prd` | singleton (1 `VirtualMachine`, no replica concept) | static `lan` MAC patch — base specs (4 cores / 8Gi / 80Gi) unchanged |
+
+VMs are singletons by design — there is no replica count to tune.
 
 ## Telemetry-off / monitoring / updates
 

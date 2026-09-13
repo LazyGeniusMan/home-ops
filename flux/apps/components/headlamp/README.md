@@ -132,9 +132,14 @@ the DNS-01 secret exists in this namespace too.
 
 ## Environments
 
-`dev` and `prd` carry per-env patches (hostnames, vault refs, OIDC
-issuer). Per-env tuning (replicas, plugin set, ExternalDomain hostnames)
-lands with the first real divergence, not here.
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | `replicaCount` 1 (single-instance) | hostnames, vault refs, OIDC issuer + `replicaCount` → 1 |
+| `prd` | `replicaCount` 2 (recommended production) | hostnames, vault refs, OIDC issuer + `replicaCount` → 2 |
+
+Plugin set rides the same per-env patches once it diverges.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/headlamp-docs/charts/headlamp`.
 
 ## Telemetry-off / monitoring / updates
 

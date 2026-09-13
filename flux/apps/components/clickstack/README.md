@@ -133,6 +133,11 @@ Secrets are namespace-local).
 
 ## Environments
 
-`dev` and `prd` carry per-env patches (vault refs, hostnames, endpoints);
-per-env tuning (replica count, schedule knobs) lands with the first real
-divergence, not here.
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | app 1, collector 1, oauth2-proxy 1, ferretdb 1, `ferretdb` Cluster 1, CHI 1 shard x 1 replica (single-instance) | vault refs, hostnames, endpoints + replica/instance patches → 1 |
+| `prd` | app 2, collector 2, oauth2-proxy 1, ferretdb 1, `ferretdb` Cluster 3, CHI 1 shard x 2 replicas (recommended production) | vault refs, hostnames, endpoints + production counts pinned |
+
+oauth2-proxy and FerretDB stay singletons (1) in every env — never scale
+them. Rclone sync (`ferretdb` + `clickstack` legs): 1 per
+instance/schedule, `concurrencyPolicy: Forbid` — no scaling.

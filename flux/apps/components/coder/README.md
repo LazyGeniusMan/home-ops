@@ -173,10 +173,16 @@ each remaining vault entry with pass-cli.
 
 ## Environments
 
-`dev` and `prd` carry per-env patches (vault refs, hostnames, chart
-values). Per-env tuning (replicas, storage size,
-`CODER_DISABLE_PASSWORD_AUTH`) lands with the first real
-divergence, not here.
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | coderd `replicaCount` 1, `coder-db` Cluster 1 (single-instance) | vault refs, hostnames, chart values + `replicaCount` → 1, `instances` → 1 |
+| `prd` | coderd `replicaCount` 2, `coder-db` Cluster 3 (recommended production) | vault refs, hostnames, chart values + `replicaCount` → 2, `instances` → 3 |
+
+Storage size and `CODER_DISABLE_PASSWORD_AUTH` ride the same per-env
+patches once they diverge. Rclone sync (`rclone-sync-coder-db`): 1 per
+instance/schedule, `concurrencyPolicy: Forbid` — no scaling.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/coder-docs`.
 
 ## Telemetry-off / monitoring / updates
 

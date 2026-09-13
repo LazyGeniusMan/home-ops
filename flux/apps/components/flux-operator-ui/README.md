@@ -95,3 +95,15 @@ cert-manager Secrets cannot cross namespaces).
   this release is `serverOnly` with `installCRDs: false`, so it owns no CRDs,
   no bootstrap values, and no Managed sync resources — bumps move the UI tag
   and `operator_chart_version` together, nothing else.
+
+## Environments
+
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | UI chart default 1, oauth2-proxy 1 (single-instance) | hostnames, vault refs, proxy args + oauth2-proxy `replicas` → 1 |
+| `prd` | UI chart default 1, oauth2-proxy 1 (singleton in every env) | hostnames, vault refs, proxy args + oauth2-proxy `replicas` → 1 |
+
+oauth2-proxy stays a singleton (1) in every env — never scale it. The
+UI HelmRelease keeps its chart default in both envs.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/flux-operator-docs/docs/web`.

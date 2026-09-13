@@ -84,6 +84,11 @@ Secrets are namespace-local).
 
 ## Environments
 
-`dev` and `prd` carry per-env patches (hostnames, vault refs, proxy
-args). Per-env tuning (replica count, schedule knobs) lands with the first
-real divergence, not here.
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | hubble-ui 1, oauth2-proxy 1 (single-instance) | hostnames, vault refs, proxy args + `replicas` → 1 each |
+| `prd` | hubble-ui 2, oauth2-proxy 1 (recommended production) | hostnames, vault refs, proxy args + hubble-ui `replicas` → 2, oauth2-proxy stays 1 |
+
+oauth2-proxy stays a singleton (1) in every env — never scale it.
+
+Upstream reference (read-only): `/tmp/home-ops-docs/cilium-docs` (Relay ships in §8.2).

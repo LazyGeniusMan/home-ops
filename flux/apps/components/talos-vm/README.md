@@ -75,10 +75,13 @@ under `<vault>/talos-vm/` in Proton Pass.
 
 ## Environments
 
-- `dev`: minimal specs (1 core / 1Gi / 10Gi — boot+DHCP minimum) + static
-  `lan` MAC via `talos-vm-dev-patch.yaml`.
-- `prd`: base specs (2 cores / 4Gi / 20Gi) + static `lan` MAC via
-  the per-env patch.
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | singleton (1 `VirtualMachine`, no replica concept) | minimal specs (1 core / 1Gi / 10Gi — boot+DHCP minimum) + static `lan` MAC via `talos-vm-dev-patch.yaml` |
+| `prd` | singleton (1 `VirtualMachine`, no replica concept) | base specs (2 cores / 4Gi / 20Gi) + static `lan` MAC via the per-env patch |
+
+VMs are singletons by design — there is no replica count to tune;
+`dev`/`prd` differ only in sizing and MAC.
 
 ## Telemetry-off / monitoring / updates
 
