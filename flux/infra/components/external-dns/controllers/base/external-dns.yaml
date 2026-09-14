@@ -1,8 +1,7 @@
-# ExternalDNS (§9.4): two synced providers over __BASE_DOMAIN__.
+# ExternalDNS (§9.4): single NetBird webhook provider over __BASE_DOMAIN__.
 # Chart mirror: oci://ghcr.io/controlplaneio-fluxcd/charts/external-dns
 # (verified tag 1.21.1); app image pinned to v0.22.0 per scope (chart default
 # is v0.21.0 — both tags verified present on registry.k8s.io).
-#  - external-dns-cloudflare: authoritative public DNS (CF_API_TOKEN from ESO).
 #  - external-dns-netbird: NetBird Custom Zones via the in-repo webhook
 #    sidecar (projects/external-dns-netbird, :dev), PAT via NETBIRD_PAT_FILE.
 # Image stream: the webhook sidecar tag below is an intentional
@@ -11,11 +10,13 @@
 # external-dns-netbird-v* tagged release exists (policy
 # infra:external-dns-netbird in update-policies/external-dns.yaml tracks
 # :dev in alignment).
-# TXT ownership: distinct txtOwnerId/txtPrefix per instance so the two
-# registries never clobber each other. policy sync on both.
+# TXT ownership: txtOwnerId/txtPrefix pin the single txt registry.
+# policy sync.
 # Sources include Gateway API routes so §8 Gateways/HTTPRoutes sync without
 # any file overlap; the wildcard A record materializes from
-# the section 8 Gateway LB target (__LB_VIP__).
+# the section 8 Gateway LB target (__LB_VIP__). No Cloudflare provider and
+# no manual Record/DNSEndpoint CRs — the Gateway routes are the only sync
+# source (verified: no DNSEndpoint/Record CRs ship anywhere in flux/).
 # Telemetry: external-dns phones home nothing. Monitoring: ServiceMonitor
 # stays disabled until monitoring.coreos.com CRDs land (see README).
 ---
@@ -35,10 +36,10 @@ spec:
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: external-dns-cloudflare
+  name: external-dns-netbird
 spec:
   interval: 1h
-  releaseName: external-dns-cloudflare
+  releaseName: external-dns-netbird
   serviceAccountName: flux
   chartRef:
     kind: OCIRepository
@@ -63,64 +64,9 @@ spec:
     replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
     # Resources: upstream chart defaults {} (no doc sizing); tiny-singleton
     # requests pinned for scheduling/QoS, memory-only limit so the sync loop
-    # is never CPU-throttled.
-    resources:
-      requests:
-        cpu: 50m
-        memory: 64Mi
-      limits:
-        memory: 128Mi
-    image:
-      tag: v0.22.0
-    provider:
-      name: cloudflare
-    sources:
-      - service
-      - ingress
-      - gateway-httproute
-      - gateway-grpcroute
-      - gateway-tlsroute
-      - crd
-    policy: sync
-    registry: txt
-    txtOwnerId: __TXT_OWNER_CF__
-    txtPrefix: extdns-cf-
-    domainFilters:
-      - __BASE_DOMAIN__
-    env:
-      - name: CF_API_TOKEN
-        valueFrom:
-          secretKeyRef:
-            name: cloudflare-api-token
-            key: api-token
-    serviceMonitor:
-      enabled: false
----
-apiVersion: helm.toolkit.fluxcd.io/v2
-kind: HelmRelease
-metadata:
-  name: external-dns-netbird
-spec:
-  interval: 1h
-  releaseName: external-dns-netbird
-  serviceAccountName: flux
-  chartRef:
-    kind: OCIRepository
-    name: external-dns-chart
-  install:
-    strategy:
-      name: RetryOnFailure
-      retryInterval: 5m
-  upgrade:
-    strategy:
-      name: RetryOnFailure
-      retryInterval: 5m
-  values:
-    # Singleton placeholder: same no-leader-election cap as above (NO HPA).
-    replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
-    # Resources: same tiny-singleton pin as the cloudflare release (upstream
-    # defaults {}); the webhook sidecar (provider.webhook.resources) is a Go
-    # distroless server, sized lighter with a memory-only limit.
+    # is never CPU-throttled. The webhook sidecar
+    # (provider.webhook.resources) is a Go distroless server, sized lighter
+    # with a memory-only limit.
     resources:
       requests:
         cpu: 50m

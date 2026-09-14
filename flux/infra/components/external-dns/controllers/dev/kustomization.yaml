@@ -3,7 +3,8 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev DNS scope: homelab-dev.yansyah.my.id (home-ops-dev-cloudflare / home-ops-dev-netbird).
+  # Dev DNS scope: homelab-dev.yansyah.my.id (home-ops-dev-netbird, single
+  # NetBird webhook instance — no Cloudflare provider).
   # Merge patches (no positional paths): txtOwnerId + domainFilters are
   # wholesale scalar/single-item values, so a merge replaces them cleanly.
   # The webhook DOMAIN_FILTER env entry below stays a test-guarded RFC 6902
@@ -11,19 +12,6 @@ patches:
   # this CRD, so wholesale replacement would silently drop future base env
   # entries; the `test` op fails the build loudly if the entry ever moves
   # from index 1 (same guard pattern as flux/fleet/tenants/overlays).
-  - target:
-      kind: HelmRelease
-      name: external-dns-cloudflare
-    patch: |-
-      apiVersion: helm.toolkit.fluxcd.io/v2
-      kind: HelmRelease
-      metadata:
-        name: external-dns-cloudflare
-      spec:
-        values:
-          txtOwnerId: home-ops-dev-cloudflare
-          domainFilters:
-            - homelab-dev.yansyah.my.id
   - target:
       kind: HelmRelease
       name: external-dns-netbird
@@ -47,15 +35,8 @@ patches:
     target:
       kind: HelmRelease
       name: external-dns-netbird
-  # Dev single-instance scaling: both instances are singletons (no leader
-  # election caps replicaCount at 1); pin placeholders -> 1.
-  - patch: |
-      - op: replace
-        path: /spec/values/replicaCount
-        value: 1
-    target:
-      kind: HelmRelease
-      name: external-dns-cloudflare
+  # Dev single-instance scaling: the webhook instance is a singleton (no
+  # leader election caps replicaCount at 1); pin placeholder -> 1.
   - patch: |
       - op: replace
         path: /spec/values/replicaCount

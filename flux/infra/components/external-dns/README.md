@@ -1,54 +1,60 @@
 # external-dns (§9.4)
 
-Two synced ExternalDNS v0.22.0 instances (chart 1.21.1 + `image.tag`
-override) over `home-ops.yansyah.my.id`:
+Single ExternalDNS v0.22.0 instance (chart 1.21.1 + `image.tag` override)
+over `home-ops.yansyah.my.id` — the NetBird-only DNS path:
 
-- `external-dns-cloudflare`: public DNS (`CF_API_TOKEN` from ESO).
 - `external-dns-netbird`: NetBird Custom Zones via the in-repo webhook
   sidecar (`projects/external-dns-netbird`, `:dev`; `NETBIRD_PAT_FILE`
-  mounted from the ESO-synced `netbird-pat` secret).
+  mounted from the ESO-synced `netbird-pat` secret). No Cloudflare
+  provider and no manual `Record`/`DNSEndpoint` CRs ship anywhere in
+  `flux/` — the Gateway API HTTPS routes are the only sync source.
 
-TXT ownership: distinct `txtOwnerId`/`txtPrefix` per instance
-(`home-ops-prd-cloudflare`/`extdns-cf-`,
-`home-ops-prd-netbird`/`extdns-nb-`); `policy: sync` on both.
+TXT ownership: `txtOwnerId`/`txtPrefix` pin the single txt registry
+(`home-ops-prd-netbird`/`extdns-nb-`); `policy: sync`, `registry: txt`.
+
+Sources (verified against
+`/tmp/home-ops-docs/external-dns-docs/docs/sources/gateway-api.md`):
+`service`, `ingress`, `gateway-httproute`, `gateway-grpcroute`,
+`gateway-tlsroute`, `crd`.
 
 ## Ordering prerequisite runbook
 
-Both configs/ `ExternalSecret`s resolve through
+The configs/ `ExternalSecret` resolves through
 `ClusterSecretStore/proton-pass` (external-secrets configs/), which needs
 the eso-proton-pass webhook Ready plus the out-of-band `proton-pass-pat`
 bootstrap (see the external-secrets README "PAT renewal" runbook).
 Cross-tenant ordering is owned by tenants/*.yaml (parallel task). On a fresh
-cluster expect fail-then-heal: `Ready=False` on these secrets, and the
-controllers/ `HelmRelease`s CrashLooping on the missing synced Secrets,
-until ESO syncs — heals via `refreshInterval` + Flux `retryInterval`.
+cluster expect fail-then-heal: `Ready=False` on the secret, and the
+controllers/ `HelmRelease` CrashLooping on the missing synced `netbird-pat`
+Secret, until ESO syncs — heals via `refreshInterval` + Flux
+`retryInterval`.
 Alert past ~10m. Verify: `kubectl get clustersecretstore proton-pass`;
 `kubectl -n external-dns get externalsecret,secret`.
 
 Envs are `dev` / `prd` only: dev and prd TXT scope (`txtOwnerId`,
-`domainFilters`) lives in controllers/{dev,prd}; vault keys live in
-configs/{dev,prd} — so no second writer can fight prd over the TXT
-registry/domain.
+`domainFilters`, webhook `DOMAIN_FILTER`) lives in controllers/{dev,prd};
+vault keys live in configs/{dev,prd} — so no second writer can fight prd
+over the TXT registry/domain.
 
 ## Environments
 
 | Env | Replicas | Patches |
 | --- | --- | --- |
-| `dev` | 1 per instance (cloudflare + netbird singletons) | TXT scope `home-ops-dev-*`, `domainFilters` `homelab-dev.yansyah.my.id`, dev vault keys |
-| `prd` | 2 recommended per instance (survive a node loss once multi-node) | TXT scope `home-ops-prd-*`, `domainFilters` `home-ops.yansyah.my.id`, prd vault keys |
-
-No replica patches ship yet; scale each ExternalDNS Deployment to 2 in
-`prd` when the second node lands (`policy: sync` + distinct
-`txtOwnerId` keep the pair from fighting).
+| `dev` | 1 (netbird singleton) | TXT scope `home-ops-dev-netbird`, `domainFilters` + webhook `DOMAIN_FILTER` `homelab-dev.yansyah.my.id`, dev vault key; LB target `192.168.1.249` |
+| `prd` | 1 (netbird singleton; no leader election caps `replicaCount` at 1) | TXT scope `home-ops-prd-netbird`, `domainFilters` + webhook `DOMAIN_FILTER` `home-ops.yansyah.my.id`, prd vault key; LB target `192.168.1.199` |
 
 Upstream reference (read-only): `/tmp/home-ops-docs/external-dns-docs`.
 
 ## Wildcard record
 
 Sources include Gateway API routes, so the §8 Gateway/HTTPRoutes produce
-`*.home-ops.yansyah.my.id → 192.168.1.199` (Gateway LB target) with no file
-overlap. Seed both vault entries with pass-cli
-(`.../external-dns/{cloudflare-api-token,netbird-pat}`).
+`*.home-ops.yansyah.my.id → 192.168.1.199` (Gateway `cilium` LB target from
+the Cilium `default` LB IP pool — prd `192.168.1.199`, dev
+`192.168.1.249`; see `cilium/configs/{base/lb-pool.yaml,dev,prd}`). Per-service
+HTTPS `HTTPRoute`s (§§11-13, e.g. `zitadel`, `coder`) attach to the shared
+`main` Gateway `https` listener, so each hostname syncs through the webhook
+with no file overlap. Seed the vault entry with pass-cli
+(`.../external-dns/netbird-pat`).
 
 ## Telemetry-off / monitoring / updates
 

@@ -9,19 +9,6 @@ patches:
   # list wholesale sets the vault key without index fragility.
   - target:
       kind: ExternalSecret
-      name: cloudflare-api-token
-    patch: |-
-      apiVersion: external-secrets.io/v1
-      kind: ExternalSecret
-      metadata:
-        name: cloudflare-api-token
-      spec:
-        data:
-          - secretKey: apiToken
-            remoteRef:
-              key: pass://acme-dev-bdo1-talos-apps-01/external-dns/cloudflare-api-token
-  - target:
-      kind: ExternalSecret
       name: netbird-pat
     patch: |-
       apiVersion: external-secrets.io/v1
