@@ -1,0 +1,115 @@
+# Example NetBird reverse-proxy consumer skeleton — copy into
+# flux/apps/components/<app>/base/ (or flux/infra/components/<comp>/configs/base/)
+# and replace every <app> / __PLACEHOLDER__.
+#
+# Owns ONLY this app's slice: one custom-domain registration (shared per
+# base domain across the app's slices — second slice imports it, see the
+# terraform/README.md import note) + one wildcard CNAME + one
+# reverse-proxy service. Ordering mirrors the zitadel consumers: the fleet
+# `apps` Kustomization dependsOn `infra-configs`, so this reconciles after
+# the NetBird/Cloudflare credentials exist. Terraform `dependsOn` is
+# Terraform-CR-only upstream (checkDependencies resolves every entry as kind
+# Terraform), so NO dependsOn entry here — the fleet ordering above is the
+# mechanism.
+#
+# Upstream wiring: provider tokens (netbird_token, cloudflare_api_token)
+# flow from Proton Pass via the ESO-synced `<app>-terraform-vars` Secret
+# (same-namespace `varsFrom` below — same-namespace `varsFrom` CANNOT cross
+# namespaces (no namespace field), but unlike the zitadel handoff there is
+# no chart-minted central secret to mirror, so the vault read is direct
+# through the cluster-scoped `proton-pass` ClusterSecretStore). NO token
+# literal in git, NO manual per-env fill. Provider auth ALSO flows from the
+# same Secret (keys land under the module var names so no varsKeys renames).
+# Backend: in-cluster Kubernetes default (state Secrets in the <app>
+# namespace) — no backendConfig needed. Drift detection stays on (default).
+# Outputs: service_id + service_domain + proxy_url land in
+# `<app>-proxy-outputs`; the app consumes the proxy URL from that Secret
+# through its in-cluster `<app>-k8s` SecretStore — never Git, never Proton
+# Pass.
+# First-run prerequisite (custom-domain path): after the first apply the
+# domain sits at Pending Verification — complete the dashboard Verify within
+# 48h (see ../terraform/README.md); until then the CR retries on interval.
+---
+# Zero-UI vars mirror: provider tokens from Proton Pass — no vault seeding
+# beyond the one-time `pass insert` per app, no manual step per env. Reads
+# DIRECTLY through the existing cluster-scoped `proton-pass`
+# ClusterSecretStore (no cross-namespace SecretStore + RBAC needed — unlike
+# the zitadel handoff there is no chart-minted central secret to mirror).
+# Keys land under the module var names so `varsFrom` below needs no varsKeys
+# renames. Per-env overlays replace the pass:// keys with the cluster vault
+# path (same convention as the coder dev overlay).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: <app>-terraform-vars
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: <app>-terraform-vars
+  data:
+    - secretKey: netbird_token
+      remoteRef:
+        key: __PROTON_PASS_BASE__/<app>/netbird-pat
+    - secretKey: cloudflare_api_token
+      remoteRef:
+        key: __PROTON_PASS_BASE__/<app>/cloudflare-api-token
+---
+apiVersion: infra.contrib.fluxcd.io/v1alpha2
+kind: Terraform
+metadata:
+  name: <app>-proxy
+spec:
+  interval: 30m
+  approvePlan: auto
+  # Upsert-only guard (tofu-controller 0.16.5): the v1alpha2 CRD has no
+  # preventDestroy/destroyPlan field — `destroy` (destroy plan on reconcile)
+  # and `destroyResourcesOnDeletion` (destroy plan on CR deletion) are the
+  # only destroy knobs, both default false. Stated explicitly so no `tofu
+  # destroy` path exists via Flux; drift detection stays on (default).
+  destroy: false
+  destroyResourcesOnDeletion: false
+  # Shared reusable reverse-proxy root: the infra/netbird OCI artifact
+  # (namespace `netbird`) packs flux/infra/components/netbird/terraform/ at
+  # ./terraform. Cross-namespace sourceRef is allowed by
+  # allowCrossNamespaceRefs=true on the tofu-controller — no per-app
+  # terraform/ root, no git-SHA module pin.
+  sourceRef:
+    kind: OCIRepository
+    name: infra
+    namespace: netbird
+  path: ./terraform
+  # Plain (non-sensitive) per-env values; secrets (netbird_token,
+  # cloudflare_api_token) come from varsFrom below. varsFrom overrides vars
+  # on key collision (upstream GenerateVarsForTF).
+  # The service FQDN is fully rendered here (the shared root takes no
+  # app_host var): `__SERVICE_HOST__` is the per-env hostname, replaced by
+  # the dev/prd overlay patches. Backends ride `vars` as an HCL list
+  # (tofu-controller renders nested YAML values as HCL — no JSON encoding
+  # needed).
+  # POSITIONAL: the dev/prd overlays patch /spec/vars/0 (domain) by index,
+  # so this order must not change without updating the overlays.
+  vars:
+    - name: domain
+      value: __SERVICE_HOST__
+    - name: service_name
+      value: <app>
+    - name: cloudflare_zone_id
+      value: __CLOUDFLARE_ZONE_ID__
+    - name: targets
+      value:
+        - target_type: peer
+          target_id: __NETBIRD_PEER_ID__
+          port: 8080
+          protocol: https
+  varsFrom:
+    - kind: Secret
+      name: <app>-terraform-vars
+  writeOutputsToSecret:
+    name: <app>-proxy-outputs
+    outputs:
+      - service_id
+      - service_domain
+      - proxy_url

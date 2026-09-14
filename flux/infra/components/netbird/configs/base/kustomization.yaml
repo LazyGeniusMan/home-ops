@@ -1,0 +1,6 @@
+# Empty on purpose: consumer Terraform CRs live in the consuming app
+# namespaces (see ../terraform/README.md + ../examples/consumer-terraform.yaml),
+# not beside the shared root. Env overlays inherit this base.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: []

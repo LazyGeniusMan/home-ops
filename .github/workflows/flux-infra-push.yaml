@@ -47,6 +47,7 @@ jobs:
           - zitadel
           - cosi
           - vpa
+          - netbird
     runs-on: ubuntu-latest
     permissions:
       contents: read

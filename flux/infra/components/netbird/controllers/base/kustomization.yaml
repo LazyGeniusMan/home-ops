@@ -1,0 +1,6 @@
+# Empty on purpose: the shared terraform/ root is consumed by app-namespace
+# Terraform CRs (see ../terraform/README.md) — no HelmRelease ships here.
+# Env overlays inherit this base.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: []
