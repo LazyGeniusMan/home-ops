@@ -6,18 +6,24 @@ patches:
   # No coder-oidc vault patches: client_id + client_secret flow end-to-end
   # from the coder-sso outputs Secret via the in-cluster `coder-k8s`
   # SecretStore (base/coder-secrets.yaml) — no Proton Pass seeding.
-  # Dev Coder SSO Terraform identity: CR vars (dev issuer host, dev app host).
-  # Provider auth (jwt_profile_json) + org_id + admin_user_id all mirror from
-  # the FirstInstance handoff via the cross-namespace `coder-zitadel`
-  # SecretStore (base/terraform.yaml) — no vault ref patch, no pass:// JWT
-  # seeding, no per-env ID literals.
+  # Dev Coder SSO Terraform identity: CR vars (dev issuer host, dev redirect
+  # URIs). Provider auth (jwt_profile_json) + org_id + admin_user_id all
+  # mirror from the FirstInstance handoff via the cross-namespace
+  # `coder-zitadel` SecretStore (base/terraform.yaml) — no vault ref patch,
+  # no pass:// JWT seeding, no per-env ID literals. project_name,
+  # create_user_role, user_emails, create_cookie_secret are env-invariant —
+  # only hosts vary per env. Positional: /spec/vars/0 (domain) +
+  # /spec/vars/2/value/0 (redirect) + /spec/vars/3/value/0 (post-logout).
   - patch: |
       - op: replace
         path: /spec/vars/0/value
         value: zitadel.homelab-dev.yansyah.my.id
       - op: replace
-        path: /spec/vars/1/value
-        value: coder.homelab-dev.yansyah.my.id
+        path: /spec/vars/2/value/0
+        value: https://coder.homelab-dev.yansyah.my.id/*
+      - op: replace
+        path: /spec/vars/3/value/0
+        value: https://coder.homelab-dev.yansyah.my.id/
     target:
       kind: Terraform
       name: coder-sso

@@ -103,32 +103,51 @@ metadata:
 spec:
   interval: 30m
   approvePlan: auto
-  # App OCI artifact (same namespace, in-tenant `apps` OCIRepository):
-  # the artifact packs the whole component dir, terraform/ included.
+  # Shared reusable SSO root: the infra/zitadel OCI artifact (namespace
+  # `zitadel`) packs flux/infra/components/zitadel/terraform/ at
+  # ./terraform. Cross-namespace sourceRef is allowed by
+  # allowCrossNamespaceRefs=true on the tofu-controller — no per-app
+  # terraform/ root, no git-SHA module pin.
   sourceRef:
     kind: OCIRepository
-    name: apps
+    name: infra
+    namespace: zitadel
   path: ./terraform
-  # Plain (non-sensitive) per-env values; secrets come from varsFrom below.
-  # varsFrom overrides vars on key collision (upstream GenerateVarsForTF).
-  # Normal users ride `vars` as an HCL list (tofu-controller renders nested
-  # YAML values as HCL — no JSON encoding needed). `user_emails` stays LAST:
-  # the dev/prd overlays patch /spec/vars/0 (domain) + /spec/vars/1
-  # (app_host) by position, so this entry must remain at index 2.
-  # No `user_initial_password` var is set (Terraform default null = no
+  # Plain (non-sensitive) per-env values; secrets (jwt_profile_json, org_id,
+  # admin_user_id) come from varsFrom below. varsFrom overrides vars on key
+  # collision (upstream GenerateVarsForTF).
+  # Redirect URIs are fully rendered here (the shared root takes no
+  # app_host var): `__SERVICE_HOST__` is the per-env app hostname, replaced
+  # by the dev/prd overlay patches. Normal users ride `vars` as an HCL list
+  # (tofu-controller renders nested YAML values as HCL — no JSON encoding
+  # needed).
+  # POSITIONAL: the dev/prd overlays patch /spec/vars/0 (domain) +
+  # /spec/vars/2/value/0 (redirect) + /spec/vars/3/value/0 (post-logout) by
+  # index, so this order must not change without updating the overlays.
+  # No `user_initial_password` var is set (shared-root default null = no
   # initial password): first sign-in goes through the Zitadel invite/reset
-  # flow — never commit passwords; seed pass:// + ESO wiring only if a
-  # shared initial password is ever wanted (same shape as the zitadel
-  # bootstrap `admin_initial_password`).
+  # flow — never commit passwords; seed via varsFrom only if a shared
+  # initial password is ever wanted (same shape as the zitadel bootstrap
+  # `admin_initial_password`).
   vars:
     - name: domain
       value: __ZITADEL_HOST__
-    - name: app_host
-      value: __SERVICE_HOST__
+    - name: project_name
+      value: coder
+    - name: redirect_uris
+      value:
+        - https://__SERVICE_HOST__/*
+    - name: post_logout_redirect_uris
+      value:
+        - https://__SERVICE_HOST__/
+    - name: create_user_role
+      value: "true"
     - name: user_emails
       value:
         - git@yansyah.my.id
         - git@lazygeniusman.my.id
+    - name: create_cookie_secret
+      value: "false"
   varsFrom:
     - kind: Secret
       name: coder-terraform-vars

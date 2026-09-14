@@ -22,6 +22,28 @@ patches:
     target:
       kind: ExternalSecret
       name: headlamp-oidc
+  # Prd Headlamp SSO Terraform identity: CR vars (prd issuer host, prd
+  # redirect URIs) against the shared infra/zitadel root (base/terraform.yaml
+  # cross-namespace sourceRef). Provider auth (jwt_profile_json) + org_id +
+  # admin_user_id mirror from the FirstInstance handoff via the
+  # cross-namespace `headlamp-zitadel` SecretStore — no vault ref patch, no
+  # pass:// JWT seeding, no per-env ID literals. project_name,
+  # create_user_role, user_emails, create_cookie_secret are env-invariant —
+  # only hosts vary per env. Positional: /spec/vars/0 (domain) +
+  # /spec/vars/2/value/0 (redirect) + /spec/vars/3/value/0 (post-logout).
+  - patch: |
+      - op: replace
+        path: /spec/vars/0/value
+        value: zitadel.home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/vars/2/value/0
+        value: https://headlamp.home-ops.yansyah.my.id/*
+      - op: replace
+        path: /spec/vars/3/value/0
+        value: https://headlamp.home-ops.yansyah.my.id/
+    target:
+      kind: Terraform
+      name: headlamp-sso
   # Prd wildcard Certificate (wildcard-home-ops).
   - patch: |
       - op: replace
