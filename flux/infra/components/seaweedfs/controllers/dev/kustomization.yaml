@@ -3,7 +3,8 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev single-instance scaling: operator + CSI controller placeholders -> 1.
+  # Dev scaling: operator + CSI controller seeds -> 1; out-of-band HPAs own
+  # the counts (min 1/max 2).
   - patch: |
       - op: replace
         path: /spec/values/replicaCount
@@ -18,3 +19,23 @@ patches:
     target:
       kind: HelmRelease
       name: seaweedfs-csi-driver
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+    target:
+      kind: HorizontalPodAutoscaler
+      name: seaweedfs-operator
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+    target:
+      kind: HorizontalPodAutoscaler
+      name: seaweedfs-csi-driver-controller

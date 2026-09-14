@@ -47,7 +47,9 @@ spec:
       retryInterval: 5m
   # https://github.com/seaweedfs/seaweedfs-operator/tree/master/deploy/helm
   values:
-    # Replica placeholder - overridden by dev/prd overlays.
+    # Replica seed - the out-of-band HPA in hpa.yaml owns the operator count at
+    # runtime (chart 0.1.40 has no autoscaling knob). Dev seeds 1, prd seeds 2.
+    # (Chart already defaults CPU requests, so targetCPU has a denominator.)
     replicaCount: 1 # placeholder - overridden by dev/prd overlays
     crds:
       create: true
@@ -94,10 +96,39 @@ spec:
       retryInterval: 5m
   # https://github.com/seaweedfs/seaweedfs-csi-driver/tree/master/deploy/helm/seaweedfs-csi-driver
   values:
-    # Controller replica placeholder - overridden by dev/prd overlays
-    # (node plugin + mount service are DaemonSets, N/A).
+    # Controller replica seed - the out-of-band HPA in hpa.yaml owns the count
+    # at runtime (chart 0.2.36 has no autoscaling knob; node plugin + mount
+    # service are DaemonSets, N/A). Dev seeds 1, prd seeds 2.
+    # CPU requests REQUIRED for the targetCPU HPA (controller + sidecars
+    # default resources {}).
     controller:
       replicas: 1 # placeholder - overridden by dev/prd overlays
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+    # Sidecar requests REQUIRED too: the HPA averages CPU utilization across
+    # ALL containers, and sidecars default resources {} (no denominator).
+    csiProvisioner:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+    csiResizer:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+    csiAttacher:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+    csiLivenessProbe:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
     driverName: seaweedfs-csi-driver
     seaweedfsFiler: "seaweed-main-filer.seaweedfs:8888"
     # Empty disables the chart's single built-in class; the tiered

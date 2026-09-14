@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - coredns.yaml
   - kube-dns.yaml
+  - hpa.yaml

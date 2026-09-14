@@ -40,8 +40,16 @@ spec:
       retryInterval: 5m
   # https://github.com/cloudnative-pg/charts/tree/main/charts/cloudnative-pg
   values:
-    # Replica placeholder - overridden by dev/prd overlays.
+    # Replica seed - the out-of-band HPA in hpa.yaml owns the count at runtime
+    # (chart 0.29.0 has no autoscaling knob; operator-docs resource_management
+    # discourages HPA for *database* Clusters, but this targets the stateless
+    # operator Deployment, not a Cluster CR). Dev seeds 1, prd seeds 2.
+    # CPU requests are REQUIRED for the targetCPU HPA (chart defaults {}).
     replicaCount: 1 # placeholder - overridden by dev/prd overlays
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
     crds:
       create: true
     monitoring:

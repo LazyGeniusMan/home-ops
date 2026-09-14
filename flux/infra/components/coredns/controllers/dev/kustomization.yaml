@@ -3,11 +3,21 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev single-instance scaling: coredns placeholder -> 1.
+  # Dev scaling: replica seed -> 1; out-of-band HPA owns the count (min 1/max 2).
   - patch: |
       - op: replace
         path: /spec/values/replicaCount
         value: 1
     target:
       kind: HelmRelease
+      name: coredns
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+    target:
+      kind: HorizontalPodAutoscaler
       name: coredns

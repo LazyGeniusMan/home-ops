@@ -93,8 +93,12 @@ spec:
         serviceMonitor:
           enabled: false
     operator:
-      # Operator replica placeholder - overridden by dev/prd overlays
-      # (agent is a DaemonSet, N/A).
+      # Operator replica placeholder - overridden by dev/prd overlays.
+      # NO HPA: chart 1.20.1 has no operator autoscaling knob, and the operator
+      # Deployment renders in kube-system (release targetNamespace) while the
+      # tenant Kustomization targets namespace `cilium` — a same-base HPA would
+      # land cross-namespace from its scaleTargetRef and never bind. Static
+      # dev 1 / prd 2 is the correct scaling posture (agent is a DaemonSet, N/A).
       replicas: 1 # placeholder - overridden by dev/prd overlays
       prometheus:
         enabled: true

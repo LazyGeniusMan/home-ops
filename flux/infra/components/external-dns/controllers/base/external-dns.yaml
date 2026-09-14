@@ -54,7 +54,12 @@ spec:
   # https://kubernetes-sigs.github.io/external-dns/latest/charts/external-dns/
   values:
     # Singleton placeholder: external-dns has no leader election (chart
-    # schema caps replicaCount at 1); pinned to 1 in dev/prd overlays.
+    # schema caps replicaCount at 1 AND the Deployment template fails the
+    # render above 1); pinned to 1 in dev/prd overlays. NO HPA: >1 replica
+    # would issue duplicate/conflicting DNS writes (verified against
+    # external-dns-docs/charts/external-dns: values.schema.json maximum 1,
+    # templates/deployment.yaml fail guard, proposal/001-leader-election
+    # status not-planned).
     replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
     image:
       tag: v0.22.0
@@ -102,7 +107,7 @@ spec:
       name: RetryOnFailure
       retryInterval: 5m
   values:
-    # Singleton placeholder: same no-leader-election cap as above.
+    # Singleton placeholder: same no-leader-election cap as above (NO HPA).
     replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
     image:
       tag: v0.22.0

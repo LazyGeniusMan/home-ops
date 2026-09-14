@@ -59,9 +59,13 @@ spec:
     crds: CreateReplace
   # https://github.com/flux-iac/tofu-controller (chart 0.16.5, app v0.16.5)
   values:
-    # Replica placeholder - overridden by dev/prd overlays. Upstream default
-    # is 3 and the controller is stateless + leader-elected, but this repo
-    # pins the singleton 1 in both envs per scope (upstream single).
+    # Replica placeholder - overridden by dev/prd overlays. The controller is
+    # stateless + leader-elected (chart default 1; scale-safe above 1), but
+    # this repo pins the singleton 1 in both envs per scope. NO HPA: a
+    # CPU-based HPA is pointless for a leader-elected controller where only
+    # the leader reconciles (use fixed 2-3 if HA is ever wanted, not HPA).
+    # The branch planner (planner-deployment) is genuinely singleton
+    # (hardcoded replicas 1, "Planner can't be scaled yet").
     replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
     concurrency: 24
     # Resource envelope mirrors upstream docs/release.yaml (chart defaults are

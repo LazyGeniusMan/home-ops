@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev single-instance scaling: controller/webhook/cainjector placeholders -> 1.
+  # Dev scaling: replica seeds -> 1; out-of-band HPAs own the count (min 1/max 2).
   - patch: |
       - op: replace
         path: /spec/values/replicaCount
@@ -17,3 +17,33 @@ patches:
     target:
       kind: HelmRelease
       name: cert-manager
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+    target:
+      kind: HorizontalPodAutoscaler
+      name: cert-manager
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+    target:
+      kind: HorizontalPodAutoscaler
+      name: cert-manager-webhook
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+    target:
+      kind: HorizontalPodAutoscaler
+      name: cert-manager-cainjector

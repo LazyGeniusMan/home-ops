@@ -11,14 +11,29 @@ patches:
     target:
       kind: HelmRelease
       name: zitadel
-  # Prd HA scaling: API placeholder -> 2, login stays singleton 1.
+  # Prd autoscaling: API seed 2 (HA floor), login seed 2; chart-native HPA
+  # owns the count (zitadel + login Deployments omit `replicas:` when enabled).
   - patch: |
       - op: replace
         path: /spec/values/replicaCount
         value: 2
       - op: replace
         path: /spec/values/login/replicaCount
-        value: 1
+        value: 2
+      - op: add
+        path: /spec/values/zitadel/autoscaling
+        value:
+          enabled: true
+          minReplicas: 2
+          maxReplicas: 4
+          targetCPU: 70
+      - op: add
+        path: /spec/values/login/autoscaling
+        value:
+          enabled: true
+          minReplicas: 2
+          maxReplicas: 4
+          targetCPU: 70
     target:
       kind: HelmRelease
       name: zitadel

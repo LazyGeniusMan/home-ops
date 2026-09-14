@@ -3,8 +3,9 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Prd HA scaling: controller + certController placeholders -> 2;
-  # webhook stays singleton 1.
+  # Prd HA scaling: controller + certController seeds -> 2, webhook stays
+  # singleton 1; out-of-band HPAs own the scaled counts (min 2/max 4,
+  # base values).
   - patch: |
       - op: replace
         path: /spec/values/replicaCount

@@ -3,8 +3,8 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Prd HA scaling: controller/webhook/cainjector placeholders -> 2
-  # (all three Deployments are leader-elected).
+  # Prd HA scaling: replica seeds -> 2 (all three Deployments are
+  # leader-elected); out-of-band HPAs own the count (min 2/max 4, base values).
   - patch: |
       - op: replace
         path: /spec/values/replicaCount

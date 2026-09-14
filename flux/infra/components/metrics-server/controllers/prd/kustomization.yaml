@@ -3,7 +3,8 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Prd HA scaling: metrics-server placeholder -> 2.
+  # Prd HA scaling: replica seed -> 2; out-of-band HPA owns the count
+  # (min 2/max 4, base values).
   - patch: |
       - op: replace
         path: /spec/values/replicas

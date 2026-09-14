@@ -1,0 +1,28 @@
+# Out-of-band HPA for the metrics-server Deployment (chart 3.14.0 exposes no
+# autoscaling knob — only static `replicas` plus the addonResizer sidecar,
+# which stays disabled). Min/max patched per env (dev 1/2, prd 2/4); base
+# carries the prd floor.
+# Release name `metrics-server` renders Deployment `metrics-server` in the
+# release namespace (`helm template metrics-server ...`, verified).
+# PREREQUISITE NOTE: metrics-server feeds v1beta1.metrics.k8s.io, which every
+# other targetCPU HPA in this refactor consumes — keep apiService.create true
+# and this HPA's own target healthy, or all sibling HPAs go blind.
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: metrics-server
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: metrics-server
+  minReplicas: 2 # placeholder - overridden by dev/prd overlays
+  maxReplicas: 4 # placeholder - overridden by dev/prd overlays
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

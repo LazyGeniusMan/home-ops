@@ -53,13 +53,27 @@ spec:
     # Replica placeholders - overridden by dev/prd overlays. Two API replicas
     # survive a node loss; the login UI keeps one (stateless Next.js front
     # for /ui/v2/login — scale with the first real load, not here).
+    # NOTE: zitadel.autoscaling / login.autoscaling (enabled per env below)
+    # omit the chart-rendered `replicas:` field when enabled, so the HPA owns
+    # the count; these replicaCounts are fallback seeds only.
     replicaCount: 2 # placeholder - overridden by dev/prd overlays
+    # CPU requests are REQUIRED for the targetCPU HPA below (chart defaults
+    # resources {} — utilization has no denominator without requests).
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
     image:
       repository: ghcr.io/zitadel/zitadel
       tag: v4.17.1
       pullPolicy: IfNotPresent
     login:
       replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
+      # CPU requests REQUIRED for the login targetCPU HPA (chart default {}).
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
       image:
         repository: ghcr.io/zitadel/zitadel-login
         tag: v4.17.1

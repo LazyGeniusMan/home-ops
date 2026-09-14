@@ -48,8 +48,11 @@ spec:
       retryInterval: 5m
   # https://github.com/rancher/local-path-provisioner/tree/master/deploy/chart/local-path-provisioner
   values:
-    # Singleton placeholder: provisioner runs with LeaderElection(false);
-    # pinned to 1 in dev/prd overlays.
+    # Singleton placeholder: provisioner runs with LeaderElection(false)
+    # (main.go opts out while the vendored default is true); two replicas
+    # would provision/delete PVs concurrently. NO HPA — pinned to 1 in
+    # dev/prd overlays (verified against local-path-provisioner-docs/main.go
+    # + deploy/provisioner.yaml hardcoded replicas 1).
     replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
     storageClass:
       create: false

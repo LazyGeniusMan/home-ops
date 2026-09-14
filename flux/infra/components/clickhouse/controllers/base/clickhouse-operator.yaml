@@ -45,7 +45,10 @@ spec:
   # https://github.com/Altinity/clickhouse-operator/tree/master/deploy/helm/clickhouse-operator
   # NOTE: the chart exposes no operator replica knob (the Deployment template
   # hardcodes `replicas: 1`); no values key to pin here, so dev/prd carry no
-  # replica patches for this release.
+  # replica patches for this release. NO HPA either: the operator has no
+  # leader-election wiring, so >1 replica would double-reconcile — upstream
+  # gives exactly one operator (verified against
+  # altinity-clickhouse-operator-docs/deploy/helm/clickhouse-operator).
   values:
     metrics:
       enabled: true

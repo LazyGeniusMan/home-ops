@@ -42,8 +42,17 @@ spec:
     crds: CreateReplace
   # https://github.com/dragonflydb/dragonfly-operator/tree/v1.6.1/charts/dragonfly-operator
   values:
-    # Replica placeholder - overridden by dev/prd overlays.
+    # Replica seed - the out-of-band HPA in hpa.yaml owns the count at runtime
+    # (chart v1.6.1 has no autoscaling knob; reference docs are a website
+    # checkout with no chart source, so AUTOSCALING-N rests on helm-template
+    # evidence: static `replicas:` with no HPA template). Dev seeds 1, prd 2.
+    # CPU requests REQUIRED for the targetCPU HPA (manager defaults {}).
     replicaCount: 1 # placeholder - overridden by dev/prd overlays
+    manager:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
     crds:
       install: true
       keep: true

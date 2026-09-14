@@ -1,0 +1,65 @@
+# Out-of-band HPAs for the cert-manager chart (v1.21.1 exposes no autoscaling
+# knob; values keys are replicaCount + webhook/cainjector.replicaCount —
+# see cert-manager-docs/content/docs/installation/best-practice.md). All three
+# Deployments are leader-elected, so horizontal scale is HA-safe.
+# Min/max are patched per env (dev 1/2, prd 2/4); base carries the prd floor.
+# Release name `cert-manager` renders Deployments cert-manager,
+# cert-manager-webhook, cert-manager-cainjector in the release namespace
+# (`helm template cert-manager ... --set crds.enabled=false`, verified).
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cert-manager
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cert-manager
+  minReplicas: 2 # placeholder - overridden by dev/prd overlays
+  maxReplicas: 4 # placeholder - overridden by dev/prd overlays
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cert-manager-webhook
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cert-manager-webhook
+  minReplicas: 2 # placeholder - overridden by dev/prd overlays
+  maxReplicas: 4 # placeholder - overridden by dev/prd overlays
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cert-manager-cainjector
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cert-manager-cainjector
+  minReplicas: 2 # placeholder - overridden by dev/prd overlays
+  maxReplicas: 4 # placeholder - overridden by dev/prd overlays
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

@@ -1,0 +1,24 @@
+# Out-of-band HPA for the CoreDNS Deployment (chart 1.47.0 exposes no
+# autoscaling knob — only a static replicaCount). Min/max patched per env
+# (dev 1/2, prd 2/4); base carries the prd floor.
+# Release name `coredns` renders Deployment `coredns` in the release
+# namespace (`helm template coredns coredns/coredns --version 1.47.0`, verified).
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: coredns
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: coredns
+  minReplicas: 2 # placeholder - overridden by dev/prd overlays
+  maxReplicas: 4 # placeholder - overridden by dev/prd overlays
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
