@@ -83,6 +83,11 @@ the CRs live outside the controller's own namespace). **Rule: extend
 this list** — the chart creates the runner ServiceAccount/token Secret per
 listed namespace, and runners can only spawn where those exist.
 
+`allowCrossNamespaceRefs: true` opts in to cross-namespace `sourceRef`s
+(upstream default `false` since 0.16.0): tenant-namespace `Terraform` CRs
+point at the shared `OCIRepository/infra` source in ns `zitadel` instead of
+per-consumer git pins.
+
 ## Backend
 
 Default **in-cluster Kubernetes backend**: tfstate is stored as Secrets

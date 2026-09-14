@@ -80,6 +80,10 @@ spec:
     # Watch Terraform CRs in every namespace (default true, stated explicitly:
     # Terraform objects will live in tenant namespaces, not beside the controller).
     watchAllNamespaces: true
+    # Allow Terraform CRs to reference Flux sources in another namespace
+    # (upstream default false since 0.16.0; opt in so tenant-namespace CRs can
+    # share the central OCI-sourced infra/zitadel artifact in ns zitadel).
+    allowCrossNamespaceRefs: true
     # AWS primitive-modules package (Tofu-Jet) is irrelevant outside AWS; skip
     # its OCIRepository rather than polling ghcr.io/flux-iac/aws-primitive-modules.
     awsPackage:
