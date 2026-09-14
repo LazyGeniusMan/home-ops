@@ -59,6 +59,35 @@ resource "zitadel_user_grant" "admin" {
   role_keys  = [local.admin_role_key]
 }
 
+# Extra OIDC admins beyond the bootstrap admin (admin_emails): created as
+# human users here + granted the admin project role. Empty = bootstrap admin
+# only. Shares user_initial_password (null = invite/reset flow, never git).
+resource "zitadel_human_user" "admins" {
+  for_each          = toset(var.admin_emails)
+  org_id            = data.zitadel_org.home_ops.id
+  user_name         = each.value
+  first_name        = "Home-Ops"
+  last_name         = "Admin"
+  email             = each.value
+  is_email_verified = true
+  initial_password  = var.user_initial_password
+}
+
+resource "zitadel_org_member" "admins" {
+  for_each = zitadel_human_user.admins
+  org_id   = data.zitadel_org.home_ops.id
+  user_id  = each.value.id
+  roles    = []
+}
+
+resource "zitadel_user_grant" "extra_admins" {
+  for_each   = zitadel_human_user.admins
+  org_id     = data.zitadel_org.home_ops.id
+  project_id = zitadel_project.this.id
+  user_id    = each.value.id
+  role_keys  = [local.admin_role_key]
+}
+
 # Normal users: plain org members (roles=[]) + user-role grant. App-side
 # ownership/RBAC distinguishes them from the admin (see the app README).
 resource "zitadel_human_user" "users" {

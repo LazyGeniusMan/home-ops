@@ -49,6 +49,7 @@ module "sso" {
 | `jwt_profile_json` | `string` (sensitive) | no | `null` | JWT profile key JSON for the FirstInstance IAM_OWNER machine user (controller injects via `varsFrom`; manual runs pass `-var`, never commit) |
 | `org_id` | `string` | no | `null` | Home-ops org ID from the FirstInstance handoff (`zitadel-bootstrap-outputs` Secret via ESO mirror) |
 | `admin_user_id` | `string` (sensitive) | no | `null` | Bootstrap admin user ID from the FirstInstance handoff |
+| `admin_emails` | `list(string)` | no | `[]` | Extra OIDC admins beyond the bootstrap admin (created as human users + granted the admin role) |
 | `redirect_uris` | `list(string)` | yes | — | Fully-rendered OIDC redirect URIs — callers render hosts; the module takes no `app_host`/`ui_host` vars |
 | `post_logout_redirect_uris` | `list(string)` | yes | — | Fully-rendered post-logout redirect URIs |
 | `admin_role_key` | `string` | no | `${project_name}-admin` | Project role key granted to the bootstrap admin |

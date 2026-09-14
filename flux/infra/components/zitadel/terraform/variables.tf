@@ -35,7 +35,7 @@ variable "org_id" {
 }
 
 variable "admin_user_id" {
-  description = "Bootstrap admin user ID from the FirstInstance handoff (zitadel-bootstrap-outputs Secret, mirrored via ESO into <app>-terraform-vars; controller injects via varsFrom)"
+  description = "Bootstrap admin user ID from the FirstInstance handoff (zitadel-bootstrap-outputs Secret, mirrored via ESO into <app>-terraform-vars; controller injects via varsFrom) — always granted the admin project role"
   type        = string
   sensitive   = true
   default     = null
@@ -48,7 +48,7 @@ variable "admin_emails" {
 }
 
 variable "redirect_uris" {
-  description = "Fully-rendered OIDC redirect URIs (e.g. [\"https://coder.example.com/*\"] or [\"https://ui.example.com/oauth2/callback\"]) — callers render hosts, the module takes no app_host/ui_host vars"
+  description = "Fully-rendered OIDC redirect URIs (e.g. [\"https://coder.example.com/*\"] or [\"https://ui.example.com/oauth2/callback\"]) — callers render hosts, the root takes no app_host/ui_host vars"
   type        = list(string)
 }
 
