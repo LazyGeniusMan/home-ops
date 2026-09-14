@@ -85,9 +85,11 @@ patches:
     target:
       kind: Terraform
       name: flux-operator-ui-sso
-  # Prd replica counts: stateless HA floor (2). Static
-  # `web.serverReplicas` / `spec.replicas` stay at the HPA min (chart
-  # 0.59.0 has no autoscaling knob); HPAs below scale 2-4 on CPU+memory.
+  # Prd replica counts: stateless HA floor (2). No Deployment
+  # /spec/replicas patch: base replicas: 1 is the create-time seed, HPA
+  # owns runtime count (HPA minReplicas enforces the floor); static
+  # `web.serverReplicas` stays as the chart seed; HPAs below scale 2-4
+  # on CPU+memory.
   - patch: |
       - op: replace
         path: /spec/values/web/serverReplicas
@@ -95,13 +97,6 @@ patches:
     target:
       kind: HelmRelease
       name: flux-operator-ui
-  - patch: |
-      - op: replace
-        path: /spec/replicas
-        value: 2
-    target:
-      kind: Deployment
-      name: oauth2-proxy
   - patch: |
       - op: replace
         path: /spec/minReplicas

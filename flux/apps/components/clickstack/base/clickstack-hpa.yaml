@@ -8,8 +8,9 @@
 # the external CHI (stateless); FerretDB is a stateless Mongo-wire proxy
 # (state lives in the CNPG backend, no leader election); oauth2-proxy uses
 # the cookie session store with a shared secret (stateless).
-# Static `spec.replicas` stay at the env min (dev 1 / prd 2 via overlay
-# patches). Dev min 1/max 2, prd min 2/max 4 via overlay patches.
+# No Deployment /spec/replicas overlay patches: base replicas: 1 is the
+# create-time seed, HPA owns runtime count (HPA minReplicas enforces the
+# floor). Dev min 1/max 2, prd min 2/max 4 via overlay patches.
 # CPU + memory: all Deployments already request cpu/memory, so HPA works.
 ---
 apiVersion: autoscaling/v2

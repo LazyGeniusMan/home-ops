@@ -102,7 +102,7 @@ metadata:
     app.kubernetes.io/name: hubble-ui
     app.kubernetes.io/part-of: hubble-ui
 spec:
-  replicas: 1 # placeholder - overridden by dev/prd
+  replicas: 1 # create-time seed, HPA owns runtime count
   selector:
     matchLabels:
       app.kubernetes.io/name: hubble-ui

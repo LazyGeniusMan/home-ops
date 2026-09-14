@@ -5,8 +5,8 @@
 # Autoscaling prerequisite (not managed here): metrics-server healthy
 # (flux/infra/components/metrics-server).
 # Bounds per env via the dev/prd overlay patches: dev min 1/max 2,
-# prd min 2/max 4. Keep Deployment/ui-auth .spec.replicas at the env HPA min
-# so the static field and the HPA never fight on first apply.
+# prd min 2/max 4. Base replicas: 1 is the create-time seed, HPA owns
+# runtime count (HPA minReplicas enforces the floor).
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

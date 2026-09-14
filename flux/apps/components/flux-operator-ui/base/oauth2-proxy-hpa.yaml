@@ -2,8 +2,9 @@
 # Deployment `oauth2-proxy` (no chart — oauth2-proxy-docs covers app flags
 # only, no autoscaling knob exists for a plain Deployment). The proxy is
 # stateless (cookie session store, shared secret), so horizontal scaling is
-# safe. Static `spec.replicas` stays at the env min (dev 1 / prd 2 via
-# overlay patches). Dev min 1/max 2, prd min 2/max 4 via overlay patches.
+# safe. No Deployment /spec/replicas overlay patch: base replicas: 1 is the
+# create-time seed, HPA owns runtime count (HPA minReplicas enforces the
+# floor). Dev min 1/max 2, prd min 2/max 4 via overlay patches.
 # CPU + memory: the Deployment already requests 25m/64Mi, so HPA works.
 ---
 apiVersion: autoscaling/v2

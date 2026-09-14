@@ -166,37 +166,10 @@ patches:
     target:
       kind: Terraform
       name: clickstack-sso
-  # Dev replica counts: minimal single-replica footprint. Static
-  # `spec.replicas` stay at the HPA min (no chart autoscaling knob — plain
-  # Deployments); the HPAs below scale 1-2 on CPU+memory.
-  - patch: |
-      - op: replace
-        path: /spec/replicas
-        value: 1
-    target:
-      kind: Deployment
-      name: clickstack
-  - patch: |
-      - op: replace
-        path: /spec/replicas
-        value: 1
-    target:
-      kind: Deployment
-      name: clickstack-otel-collector
-  - patch: |
-      - op: replace
-        path: /spec/replicas
-        value: 1
-    target:
-      kind: Deployment
-      name: oauth2-proxy
-  - patch: |
-      - op: replace
-        path: /spec/replicas
-        value: 1
-    target:
-      kind: Deployment
-      name: ferretdb
+  # Dev replica counts: minimal single-replica footprint. No Deployment
+  # /spec/replicas patch: base replicas: 1 is the create-time seed, HPA
+  # owns runtime count (HPA minReplicas enforces the floor); the HPAs below
+  # scale 1-2 on CPU+memory.
   - patch: |
       - op: replace
         path: /spec/minReplicas
