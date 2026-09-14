@@ -68,6 +68,23 @@ patches:
     target:
       kind: Deployment
       name: oauth2-proxy
+  # Prd Flux Operator UI SSO Terraform identity: CR vars (issuer host,
+  # rendered redirect + post-logout URIs against the shared zitadel root).
+  # org_id + admin ID mirror from the FirstInstance handoff via the
+  # cross-namespace SecretStore — no vault ref patch, no per-env ID literals.
+  - patch: |
+      - op: replace
+        path: /spec/vars/0/value
+        value: zitadel.home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/vars/2/value/0
+        value: https://flux-operator.home-ops.yansyah.my.id/*
+      - op: replace
+        path: /spec/vars/3/value/0
+        value: https://flux-operator.home-ops.yansyah.my.id/
+    target:
+      kind: Terraform
+      name: flux-operator-ui-sso
   # Prd replica counts: stateless HA (2), proxy sidecar stays 1.
   - patch: |
       - op: replace

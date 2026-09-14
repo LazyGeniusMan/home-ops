@@ -104,19 +104,41 @@ metadata:
 spec:
   interval: 30m
   approvePlan: auto
-  # App OCI artifact (same namespace, in-tenant `apps` OCIRepository):
-  # the artifact packs the whole component dir, terraform/ included.
+  # Shared zitadel SSO root (cross-namespace, in the `zitadel` namespace's
+  # `infra` OCIRepository): the artifact packs the whole zitadel component
+  # dir, so path ./terraform resolves to the reusable root (provider +
+  # local sso-client module call). allowCrossNamespaceRefs=true on the
+  # controller opts into this (upstream default false since 0.16.0).
   sourceRef:
     kind: OCIRepository
-    name: apps
+    name: infra
+    namespace: zitadel
   path: ./terraform
-  # Plain (non-sensitive) per-env values; secrets come from varsFrom below.
+  # Fully-rendered per-env values; secrets come from varsFrom below.
   # varsFrom overrides vars on key collision (upstream GenerateVarsForTF).
+  # Nested lists render as HCL natively — no JSON encoding needed.
+  # Admin-only proxy (no user role, no in-Terraform cookie): create_user_role
+  # + create_cookie_secret stay false (root defaults match, stated explicitly
+  # so drift is visible). jwt_profile_json/org_id/admin_user_id mirror from
+  # the FirstInstance handoff via the cross-namespace SecretStore — never git.
+  # Patch positions (dev/prd overlays patch by index): /spec/vars/0 (domain),
+  # /spec/vars/2 (redirect_uris), /spec/vars/3 (post_logout_redirect_uris).
+  # Bool vars ride UNQUOTED (native HCL bool) — quoted "false" fails validation.
   vars:
     - name: domain
       value: __ZITADEL_HOST__
-    - name: app_host
-      value: __SERVICE_HOST__
+    - name: project_name
+      value: clickstack
+    - name: redirect_uris
+      value:
+        - https://__SERVICE_HOST__/*
+    - name: post_logout_redirect_uris
+      value:
+        - https://__SERVICE_HOST__/
+    - name: create_user_role
+      value: false
+    - name: create_cookie_secret
+      value: false
   varsFrom:
     - kind: Secret
       name: clickstack-terraform-vars

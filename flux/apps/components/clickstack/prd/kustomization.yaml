@@ -149,7 +149,8 @@ patches:
     target:
       kind: Deployment
       name: oauth2-proxy
-  # Prd Clickstack SSO Terraform identity: CR vars (issuer host, app host).
+  # Prd Clickstack SSO Terraform identity: CR vars (issuer host, rendered
+  # redirect + post-logout URIs against the shared zitadel root).
   # org_id + admin ID mirror from the FirstInstance handoff via the
   # cross-namespace SecretStore — no vault ref patch, no per-env ID literals.
   - patch: |
@@ -157,8 +158,11 @@ patches:
         path: /spec/vars/0/value
         value: zitadel.home-ops.yansyah.my.id
       - op: replace
-        path: /spec/vars/1/value
-        value: clickstack.home-ops.yansyah.my.id
+        path: /spec/vars/2/value/0
+        value: https://clickstack.home-ops.yansyah.my.id/*
+      - op: replace
+        path: /spec/vars/3/value/0
+        value: https://clickstack.home-ops.yansyah.my.id/
     target:
       kind: Terraform
       name: clickstack-sso
