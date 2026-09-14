@@ -1,0 +1,30 @@
+# VPA recommenders for the zitadel + zitadel-login Deployments (chart-native
+# HPA-paired via zitadel/login.autoscaling in the dev/prd overlays):
+# updateMode Off — recommender-only, because each HPA scales the same CPU
+# metric (known-limitations.md: never VPA-apply on a resource HPA scales on).
+# Release name `zitadel` renders Deployments `zitadel` + `zitadel-login`
+# (chart 10.0.4; autoscaling keys verified in dev/prd overlays).
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: zitadel
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: zitadel
+  updatePolicy:
+    updateMode: 'Off'
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: zitadel-login
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: zitadel-login
+  updatePolicy:
+    updateMode: 'Off'

@@ -1,0 +1,93 @@
+# VPA (§9.x): Vertical Pod Autoscaler — recommender-only for HPA-paired
+# workloads, applying (Recreate/Initial) for singletons; see VPA CRs next to
+# each target Deployment. Chart: fairwinds-stable/vpa via classic
+# HelmRepository (chart 5.0.1 carries app 1.7.1 — the current default per
+# vpa-docs/vertical-pod-autoscaler/docs/installation.md; verified
+# `helm search repo fw/vpa -l` + `helm template` render below). No
+# controlplaneio-fluxcd OCI mirror exists for VPA (helm show chart on
+# oci://ghcr.io/controlplaneio-fluxcd/charts/vpa 403s), so the coredns /
+# seaweedfs classic-HelmRepository precedent applies; the flux-allowlist
+# ValidatingAdmissionPolicy covers OCI/gh only, so no allowlist entry needed.
+# installCRDs-style CRD handling: the chart ships
+# verticalpodautoscalers + verticalpodautoscalercheckpoints CRDs, always
+# installed (no toggle in values); CRDs render via --include-crds (verified).
+# Telemetry: no usage-reporting/telemetry keys in chart values (verified:
+# non-comment values lines matching telemetry|usageReporting|phoneHome|
+# analytics are empty), so there is nothing to switch off.
+# Monitoring: recommender/updater/admissionController expose no ServiceMonitor
+# keys; ServiceMonitor stays out until monitoring.coreos.com CRDs land.
+# Admission: the admission-controller webhook registers itself
+# (admissionController.registerWebhook=false -> certgen pre-install Job +
+# vpa-webhook-config MutatingWebhookConfiguration self-registration);
+# generateCertificate stays true (kube-webhook-certgen) so no manual CA.
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: vpa
+spec:
+  interval: 1h
+  url: https://charts.fairwinds.com/stable
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: vpa
+spec:
+  interval: 1h
+  releaseName: vpa
+  serviceAccountName: flux
+  chart:
+    spec:
+      chart: vpa
+      version: 5.0.1 # {"$imagepolicy": "infra:vpa:tag"}
+      sourceRef:
+        kind: HelmRepository
+        name: vpa
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+    crds: CreateReplace
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+    crds: CreateReplace
+  # https://github.com/FairwindsOps/charts/tree/master/stable/vpa
+  values:
+    # Resources: chart 5.0.1 defaults pinned explicit (verified via
+    # helm show values: recommender 50m/500Mi, updater 50m/500Mi,
+    # admission-controller 50m/200Mi; limits {} upstream — memory-only
+    # limits pinned so bursty recommenders are never CPU-throttled).
+    # Replica seed 1 everywhere (singleton; leader election not needed at
+    # this scale). No autoscaling knob for the stack itself — keep static.
+    recommender:
+      replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
+      extraArgs:
+        v: "4"
+      resources:
+        requests:
+          cpu: 50m
+          memory: 500Mi
+        limits:
+          memory: 1000Mi
+    updater:
+      replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
+      resources:
+        requests:
+          cpu: 50m
+          memory: 500Mi
+        limits:
+          memory: 1000Mi
+    admissionController:
+      enabled: true
+      generateCertificate: true
+      registerWebhook: false
+      replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
+      resources:
+        requests:
+          cpu: 50m
+          memory: 200Mi
+        limits:
+          memory: 500Mi

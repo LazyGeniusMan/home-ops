@@ -10,6 +10,7 @@ resources:
   - clickstack-httproute.yaml
   - clickstack.yaml
   - clickstack-hpa.yaml
+  - clickstack-vpa.yaml
   - ferretdb.yaml
   - rclone-sync-buckets.yaml
   - oauth2-proxy.yaml

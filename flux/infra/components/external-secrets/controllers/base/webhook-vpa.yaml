@@ -1,0 +1,19 @@
+# VPA recommender for the external-secrets-webhook Deployment (admission
+# singleton, deliberately HPA-free): updateMode Initial — recommendations
+# computed + applied to new pods only, never evicting the admission front
+# (must not flap admission). Recreate would evict; Off would waste the
+# recommender history — Initial is the correct middle ground.
+# Release name `external-secrets` renders Deployment `external-secrets-webhook`
+# (chart 2.10.0; webhook stays singleton 1 per hpa.yaml header).
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: external-secrets-webhook
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: external-secrets-webhook
+  updatePolicy:
+    updateMode: Initial

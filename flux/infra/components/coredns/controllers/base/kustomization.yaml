@@ -4,3 +4,4 @@ resources:
   - coredns.yaml
   - kube-dns.yaml
   - hpa.yaml
+  - vpa.yaml

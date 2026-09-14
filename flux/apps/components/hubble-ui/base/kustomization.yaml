@@ -6,6 +6,7 @@ resources:
   - hubble-httproute.yaml
   - hubble-ui.yaml
   - hubble-ui-hpa.yaml
+  - hubble-ui-vpa.yaml
   - oauth2-proxy.yaml
   - terraform.yaml
   - zitadel-handoff-rbac.yaml

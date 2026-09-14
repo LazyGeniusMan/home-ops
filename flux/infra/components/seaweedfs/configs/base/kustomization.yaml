@@ -13,5 +13,7 @@ resources:
   - driver-rbac.yaml
   - driver.yaml
   - driver-hpa.yaml
+  - driver-vpa.yaml
   - ui-auth-hpa.yaml
+  - ui-auth-vpa.yaml
   - bucketclasses.yaml

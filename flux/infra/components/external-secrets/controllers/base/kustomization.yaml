@@ -3,3 +3,5 @@ kind: Kustomization
 resources:
   - externalsecrets.yaml
   - hpa.yaml
+  - vpa.yaml
+  - webhook-vpa.yaml

@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - dragonfly.yaml
   - hpa.yaml
+  - vpa.yaml

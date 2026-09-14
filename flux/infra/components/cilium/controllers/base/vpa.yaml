@@ -1,0 +1,32 @@
+# VPA recommenders for the cilium-operator Deployment + cilium agent
+# DaemonSet (CNI, no HPA — agent is a DaemonSet, N/A by design): updateMode
+# Off initially — collect recommender history first, promote to Initial only
+# after history exists. NEVER auto-evict CNI pods (Recreate on the
+# operator/agent would flap node networking). Release `cilium` renders
+# operator Deployment `cilium-operator` in kube-system (release
+# targetNamespace) + agent DaemonSet `cilium` (chart 1.20.1 Values.name
+# default; see cilium.yaml header).
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: cilium-operator
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cilium-operator
+  updatePolicy:
+    updateMode: 'Off'
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: cilium-agent
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: DaemonSet
+    name: cilium
+  updatePolicy:
+    updateMode: 'Off'

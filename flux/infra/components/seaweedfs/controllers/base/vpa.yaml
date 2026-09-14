@@ -1,0 +1,29 @@
+# VPA recommenders for the seaweedfs-operator + csi-driver-controller
+# Deployments (both HPA-paired): updateMode Off — recommender-only, because
+# each HPA scales the same CPU/memory metrics (known-limitations.md: never
+# VPA-apply on a resource HPA scales on). Seaweed CRs stay VPA-free
+# (Group C).
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: seaweedfs-operator
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: seaweedfs-operator
+  updatePolicy:
+    updateMode: 'Off'
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: seaweedfs-csi-driver-controller
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: seaweedfs-csi-driver-controller
+  updatePolicy:
+    updateMode: 'Off'

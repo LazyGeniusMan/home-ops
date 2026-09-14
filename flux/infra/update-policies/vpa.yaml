@@ -1,0 +1,24 @@
+# Update policy for the vpa component (§9.x): tracks the Fairwinds classic Helm
+# chart, and the ImageUpdateAutomation (update cluster) opens PRs via markers
+# in components/vpa (see README). Follows the §7 update-policy contract
+# (ImageRepository + ImagePolicy + $imagepolicy markers).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: vpa
+spec:
+  image: "fairwinds-stable/vpa"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: vpa
+spec:
+  imageRepositoryRef:
+    name: vpa
+  policy:
+    semver:
+      range: ">=5.0.1"

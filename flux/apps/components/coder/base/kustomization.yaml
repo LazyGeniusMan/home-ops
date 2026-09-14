@@ -9,6 +9,7 @@ resources:
   - coder-httproutes.yaml
   - coder.yaml
   - coder-hpa.yaml
+  - coder-vpa.yaml
   - rclone-sync-coder-db.yaml
   - terraform.yaml
   - zitadel-handoff-rbac.yaml

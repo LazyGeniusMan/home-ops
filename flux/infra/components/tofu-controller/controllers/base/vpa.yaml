@@ -1,0 +1,17 @@
+# VPA applier for the tofu-controller Deployment (singleton reconciler, no
+# HPA): updateMode Recreate (modern Auto) — the controller is stateless
+# (work queue in etcd) so evict-and-recreate is safe. Release name
+# `tofu-controller` renders the controller Deployment in the release
+# namespace (chart 0.16.5; control-plane: controller label, verified).
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: tofu-controller
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: tofu-controller
+  updatePolicy:
+    updateMode: Recreate

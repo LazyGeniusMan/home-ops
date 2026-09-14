@@ -46,6 +46,7 @@ jobs:
           - kubevirt
           - zitadel
           - cosi
+          - vpa
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -1,0 +1,18 @@
+# VPA recommender for the clickhouse-operator Deployment (operator
+# singleton, no HPA): updateMode Initial — recommendations applied to new
+# pods only, no auto-evict (operator restarts churn all managed ClickHouse
+# reconciliation). Release name `clickhouse-operator` renders the operator
+# Deployment in the release namespace (chart 0.27.3). CHI/CHK CRs stay
+# VPA-free (Group C — operator-managed).
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: clickhouse-operator
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: clickhouse-operator
+  updatePolicy:
+    updateMode: Initial

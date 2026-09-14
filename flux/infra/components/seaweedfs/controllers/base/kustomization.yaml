@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - seaweedfs.yaml
   - hpa.yaml
+  - vpa.yaml

@@ -1,0 +1,18 @@
+# VPA recommender for the local-path-provisioner Deployment (storage
+# provisioner singleton, no HPA): updateMode Initial — recommendations
+# applied to new pods only, no auto-evict (provisioner restarts risk
+# orphaning in-flight volume creates). Release name
+# `local-path-provisioner` renders Deployment
+# `lpp-local-path-provisioner` (helm template, verified).
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: local-path-provisioner
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: lpp-local-path-provisioner
+  updatePolicy:
+    updateMode: Initial

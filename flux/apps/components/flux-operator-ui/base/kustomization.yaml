@@ -6,7 +6,9 @@ resources:
   - httproute.yaml
   - flux-operator-ui.yaml
   - flux-operator-ui-hpa.yaml
+  - flux-operator-ui-vpa.yaml
   - oauth2-proxy.yaml
   - oauth2-proxy-hpa.yaml
+  - oauth2-proxy-vpa.yaml
   - terraform.yaml
   - zitadel-handoff-rbac.yaml
