@@ -54,6 +54,16 @@ spec:
     # dev/prd overlays (verified against local-path-provisioner-docs/main.go
     # + deploy/provisioner.yaml hardcoded replicas 1).
     replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
+    # Resources: upstream leaves {} by default ("conscious choice for the
+    # user" per deploy/chart/local-path-provisioner/values.yaml); provisioner
+    # idles except on PV create/delete so requests stay light. Requests pinned
+    # for scheduling/QoS, memory-only limit.
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
     storageClass:
       create: false
     storageClassConfigs:

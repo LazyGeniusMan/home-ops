@@ -46,6 +46,17 @@ spec:
   values:
     fullnameOverride: flux-operator-ui
     installCRDs: false
+    # Resources: chart defaults pinned explicit (verified via helm show values
+    # at 0.59.0; docs/web/web-standalone.md gives no UI-specific sizing, and
+    # the manager container in config/manager/deployment.yaml carries the
+    # same limits). CPU requests REQUIRED for the targetCPU HPA denominator.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 2000m
+        memory: 1Gi
     web:
       serverOnly: true
       # Chart schema `web.serverReplicas` (default 1; only applies with serverOnly).

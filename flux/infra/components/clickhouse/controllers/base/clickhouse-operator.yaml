@@ -50,8 +50,27 @@ spec:
   # gives exactly one operator (verified against
   # altinity-clickhouse-operator-docs/deploy/helm/clickhouse-operator).
   values:
+    # Resources: chart defaults {} (verified via helm template at 0.27.3);
+    # upstream gives no operator sizing — only the 100m/128Mi commented
+    # example in deploy/helm/clickhouse-operator/values.yaml. Operator sized
+    # with Go watch-cache headroom; exporter is a light sidecar.
+    operator:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
     metrics:
       enabled: true
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 256Mi
     serviceMonitor:
       enabled: false
       keeperMetrics:

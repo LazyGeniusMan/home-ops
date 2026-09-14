@@ -47,6 +47,16 @@ spec:
     # (chart 1.47.0 has no autoscaling knob). Dev seeds 1, prd seeds 2.
     # (Chart already defaults CPU requests 100m, so targetCPU has a denominator.)
     replicaCount: 1 # placeholder - overridden by dev/prd overlays
+    # Resources: chart 1.47.0 defaults pinned explicit (verified via helm
+    # show values: limits 100m/128Mi, requests 100m/128Mi). CPU requests
+    # REQUIRED for the targetCPU HPA denominator.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
     image:
       repository: coredns/coredns
       tag: 1.14.7

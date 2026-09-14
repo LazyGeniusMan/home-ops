@@ -78,6 +78,12 @@ spec:
     hubble:
       relay:
         enabled: true
+        # Resources: upstream defaults {} (cilium-docs values.yaml); light Go
+        # server pinned requests-only so it is never CPU-throttled.
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
         prometheus:
           enabled: true
           serviceMonitor:
@@ -100,10 +106,32 @@ spec:
       # land cross-namespace from its scaleTargetRef and never bind. Static
       # dev 1 / prd 2 is the correct scaling posture (agent is a DaemonSet, N/A).
       replicas: 1 # placeholder - overridden by dev/prd overlays
+      # Resources: upstream defaults {} (cilium-docs values.yaml); requests
+      # pinned (control-plane only, flat memory per the scalability report).
+      # Requests-only, no limits: the operator must never be CPU-throttled.
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
       prometheus:
         enabled: true
         serviceMonitor:
           enabled: false
+    # Agent resources (top-level key, NOT agent.resources): requests pinned
+    # per the chart's commented example (100m/512Mi — eBPF maps + per-pod
+    # state). No limits: the CNI agent must never be throttled/OOM-killed.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+    # Envoy DaemonSet (renders with gatewayAPI/L7): upstream defaults {}
+    # (cilium-docs envoy.resources); idles without L7 policy so requests stay
+    # light. Requests-only, no limits: data-plane must never throttle.
+    envoy:
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
     # Agent prometheus + ServiceMonitor stay disabled (plain `if enabled`
     # gates); flip when the monitoring stack lands — see README.
     prometheus:

@@ -49,7 +49,16 @@ spec:
   values:
     # Replica seed - the out-of-band HPA in hpa.yaml owns the operator count at
     # runtime (chart 0.1.40 has no autoscaling knob). Dev seeds 1, prd seeds 2.
-    # (Chart already defaults CPU requests, so targetCPU has a denominator.)
+    # Resources: chart 0.1.40 defaults pinned explicit (verified via helm show
+    # values: requests 100m/50Mi, limits 500m/500Mi on container
+    # seaweedfs-operator). CPU requests REQUIRED for the targetCPU HPA.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 50Mi
+      limits:
+        cpu: 500m
+        memory: 500Mi
     replicaCount: 1 # placeholder - overridden by dev/prd overlays
     crds:
       create: true

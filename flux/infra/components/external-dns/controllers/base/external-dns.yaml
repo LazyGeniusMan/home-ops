@@ -61,6 +61,15 @@ spec:
     # templates/deployment.yaml fail guard, proposal/001-leader-election
     # status not-planned).
     replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
+    # Resources: upstream chart defaults {} (no doc sizing); tiny-singleton
+    # requests pinned for scheduling/QoS, memory-only limit so the sync loop
+    # is never CPU-throttled.
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
     image:
       tag: v0.22.0
     provider:
@@ -109,6 +118,15 @@ spec:
   values:
     # Singleton placeholder: same no-leader-election cap as above (NO HPA).
     replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
+    # Resources: same tiny-singleton pin as the cloudflare release (upstream
+    # defaults {}); the webhook sidecar (provider.webhook.resources) is a Go
+    # distroless server, sized lighter with a memory-only limit.
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
     image:
       tag: v0.22.0
     provider:
@@ -117,6 +135,12 @@ spec:
         image:
           repository: ghcr.io/lazygeniusman/home-ops/projects/external-dns-netbird
           tag: dev # {"$imagepolicy": "infra:external-dns-netbird:tag"}
+        resources:
+          requests:
+            cpu: 25m
+            memory: 32Mi
+          limits:
+            memory: 64Mi
         env:
           - name: NETBIRD_PAT_FILE
             value: /secrets/pat

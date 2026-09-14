@@ -47,6 +47,14 @@ spec:
     # refactor consumes — keep it Ready (apiService.create stays true) or all
     # targetCPU HPAs go blind. Chart already defaults CPU requests 100m.
     replicas: 1 # placeholder - overridden by dev/prd overlays
+    # Resources: upstream chart defaults pinned explicit (verified via helm
+    # show values at 3.14.0: requests 100m/200Mi, no limits — limits stay
+    # unset per upstream intent, see metrics-server-docs scaling note: 1m CPU
+    # + 2MB memory per node). CPU requests REQUIRED for the targetCPU HPA.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 200Mi
     apiService:
       create: true
     metrics:
