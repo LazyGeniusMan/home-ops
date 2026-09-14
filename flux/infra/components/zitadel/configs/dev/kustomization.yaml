@@ -73,9 +73,11 @@ patches:
       kind: ExternalSecret
       name: zitadel-masterkey
   - patch: |
+      # zitadel-db-credentials composes the full DSN in ESO template from
+      # this single db-password source (same field as zitadel-db-app-secret).
       - op: replace
         path: /spec/data/0/remoteRef/key
-        value: pass://acme-dev-bdo1-talos-apps-01/zitadel/db-dsn
+        value: pass://acme-dev-bdo1-talos-apps-01/zitadel/db-password
     target:
       kind: ExternalSecret
       name: zitadel-db-credentials

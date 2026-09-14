@@ -70,10 +70,11 @@ Seed each vault entry with pass-cli (never commit):
 
 - `pass://acme-dev-bdo1-talos-apps-01/zitadel/masterkey` — 32-byte masterkey.
   IMMUTABLE: Zitadel cannot re-key; loss means loss of all encrypted data.
-- `pass://acme-dev-bdo1-talos-apps-01/zitadel/db-dsn` — full DSN, must embed
-  the same password as `db-password`.
-- `pass://acme-dev-bdo1-talos-apps-01/zitadel/db-password` — CNPG app-user
-  password (username must equal `initdb.owner`; rotate with the DSN).
+- `pass://acme-dev-bdo1-talos-apps-01/zitadel/db-password` — SINGLE password
+  source: the `zitadel-db-credentials` DSN is composed in ESO target.template
+  from literal parts (user/host/port/db + `sslmode=require`) plus this field,
+  and `zitadel-db-app-secret` consumes the same field (no dual-write; rotate
+  in one place).
 - `pass://acme-dev-bdo1-talos-apps-01/zitadel/smtp-*` — relay user/password
   (optional; unwired until a relay exists).
 - `pass://acme-dev-bdo1-talos-apps-01/{cnpg,dragonfly}/s3-*` and
