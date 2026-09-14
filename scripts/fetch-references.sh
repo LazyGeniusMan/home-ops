@@ -295,6 +295,13 @@ fetch_repo pass-cli-docs https://github.com/protonpass/pass-cli main || record_f
 # /tmp/home-ops-docs/metrics-server-docs/README.md
 fetch_repo metrics-server-docs https://github.com/kubernetes-sigs/metrics-server master || record_fail metrics-server-docs
 
+# /tmp/home-ops-docs/vpa-docs/vertical-pod-autoscaler/README.md
+# (+ vertical-pod-autoscaler/docs/faq.md, examples/). VPA recommender needs
+# metrics-server; used for the per-workload HPA/VPA recommendation matrix
+# (VPA Off/recommender-only alongside HPA, Auto only where no HPA scales the
+# same containers on CPU/memory).
+fetch_repo vpa-docs https://github.com/kubernetes/autoscaler master || record_fail vpa-docs
+
 # /tmp/home-ops-docs/cert-manager-docs/content/docs/manifest.json
 fetch_repo cert-manager-docs https://github.com/cert-manager/website master || record_fail cert-manager-docs
 
