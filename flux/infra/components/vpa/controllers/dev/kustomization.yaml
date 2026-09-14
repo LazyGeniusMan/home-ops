@@ -6,7 +6,7 @@ patches:
   # Dev: singletons stay 1 (base values).
   - patch: |
       - op: replace
-        path: /spec/values/recommender/replicaCount
+        path: /spec/values/recommender/replicas
         value: 1
     target:
       kind: HelmRelease

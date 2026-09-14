@@ -1,7 +1,10 @@
 # VPA appliers for the external-dns singleton Deployments (no leader
 # election — chart schema caps replicaCount at 1, NO HPA by design):
 # updateMode Recreate (modern Auto) — evict-and-recreate is safe because each
-# instance is a single stateless sync loop. Release names render Deployments
+# instance is a single stateless sync loop. minReplicas 1: the updater
+# default --min-replicas=2 (flags.md) never evicts single-replica targets,
+# and no PDB exists here to gate on — without this the CRs would
+# recommend-but-never-apply. Release names render Deployments
 # `<release>-external-dns` (helm template, verified for the cloudflare
 # release: `edns-cf-external-dns` pattern).
 ---
@@ -16,6 +19,7 @@ spec:
     name: external-dns-cloudflare-external-dns
   updatePolicy:
     updateMode: Recreate
+    minReplicas: 1
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -28,3 +32,4 @@ spec:
     name: external-dns-netbird-external-dns
   updatePolicy:
     updateMode: Recreate
+    minReplicas: 1

@@ -1,25 +1,39 @@
 # VPA (§9.x): Vertical Pod Autoscaler — recommender-only for HPA-paired
 # workloads, applying (Recreate/Initial) for singletons; see VPA CRs next to
-# each target Deployment. Chart: fairwinds-stable/vpa via classic
-# HelmRepository (chart 5.0.1 carries app 1.7.1 — the current default per
-# vpa-docs/vertical-pod-autoscaler/docs/installation.md; verified
-# `helm search repo fw/vpa -l` + `helm template` render below). No
-# controlplaneio-fluxcd OCI mirror exists for VPA (helm show chart on
-# oci://ghcr.io/controlplaneio-fluxcd/charts/vpa 403s), so the coredns /
-# seaweedfs classic-HelmRepository precedent applies; the flux-allowlist
-# ValidatingAdmissionPolicy covers OCI/gh only, so no allowlist entry needed.
-# installCRDs-style CRD handling: the chart ships
-# verticalpodautoscalers + verticalpodautoscalercheckpoints CRDs, always
-# installed (no toggle in values); CRDs render via --include-crds (verified).
+# each target Deployment. Chart: official upstream vertical-pod-autoscaler
+# 0.12.0 (app 1.7.1 — the current default per
+# vpa-docs/vertical-pod-autoscaler/docs/installation.md; same app version as
+# the retired Fairwinds vpa 5.0.1, chart-only migration) via classic
+# HelmRepository https://kubernetes.github.io/autoscaler (chart install per
+# charts/vertical-pod-autoscaler/README.md: `helm repo add autoscalers
+# https://kubernetes.github.io/autoscaler`; no controlplaneio-fluxcd OCI
+# mirror exists for the upstream chart either — flux-allowlist
+# ValidatingAdmissionPolicy covers OCI/gh only, so no allowlist entry needed).
+# CRD handling: the chart ships verticalpodautoscalers +
+# verticalpodautoscalercheckpoints CRDs as regular templates
+# (crds.enabled/keep true). CRDs move note: chart ≥0.12.0 moved CRDs from
+# crds/ to templates/, so a Helm-managed in-place upgrade from a pre-0.12
+# chart errors with "invalid ownership metadata" unless --take-ownership
+# (Helm ≥3.17) or the manual label/annotate fix in the chart README is run
+# first. Not our case: the retired Fairwinds 5.0.1 CRDs were never
+# Helm-owned by this release either, and Flux replaces CRDs declaratively
+# via install/upgrade crds.CreateReplace below — first sync may still log
+# the ownership error if a cluster-admin applied Fairwinds CRDs out of band;
+# then `kubectl apply` the pinned release CRDs once and let Flux reconcile.
 # Telemetry: no usage-reporting/telemetry keys in chart values (verified:
 # non-comment values lines matching telemetry|usageReporting|phoneHome|
 # analytics are empty), so there is nothing to switch off.
 # Monitoring: recommender/updater/admissionController expose no ServiceMonitor
 # keys; ServiceMonitor stays out until monitoring.coreos.com CRDs land.
-# Admission: the admission-controller webhook registers itself
-# (admissionController.registerWebhook=false -> certgen pre-install Job +
-# vpa-webhook-config MutatingWebhookConfiguration self-registration);
-# generateCertificate stays true (kube-webhook-certgen) so no manual CA.
+# Admission: Helm-managed certgen (admissionController.registerWebhook=false
+# + certGen.enabled=true, kube-webhook-certgen pre/post hooks + Helm-owned
+# MutatingWebhookConfiguration self-registration). cert-manager path skipped
+# deliberately: certManager.enabled is mutually exclusive with certGen
+# (chart validation fails if both are true) and its self-signed sub-mode
+# would create Issuer+Certificate CRs that wedge the release when
+# cert-manager CRDs are momentarily unavailable during bootstrap ordering;
+# certgen has no such cross-component dependency. Revisit only if certgen
+# hook failures recur.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
@@ -27,7 +41,7 @@ metadata:
   name: vpa
 spec:
   interval: 1h
-  url: https://charts.fairwinds.com/stable
+  url: https://kubernetes.github.io/autoscaler
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -39,8 +53,8 @@ spec:
   serviceAccountName: flux
   chart:
     spec:
-      chart: vpa
-      version: 5.0.1 # {"$imagepolicy": "infra:vpa:tag"}
+      chart: vertical-pod-autoscaler
+      version: 0.12.0 # {"$imagepolicy": "infra:vpa:tag"}
       sourceRef:
         kind: HelmRepository
         name: vpa
@@ -48,32 +62,49 @@ spec:
     strategy:
       name: RetryOnFailure
       retryInterval: 5m
+    # CRD adoption (chart ≥0.12.0 templates/ move): Flux applies CRDs
+    # declaratively — CreateReplace keeps the Fairwinds-era CRDs replaced by
+    # the pinned release. If the first sync errors with "invalid ownership
+    # metadata", run the chart README label/annotate fix (or a one-off
+    # kubectl apply of the release CRDs) once, then let Flux reconcile.
     crds: CreateReplace
   upgrade:
     strategy:
       name: RetryOnFailure
       retryInterval: 5m
     crds: CreateReplace
-  # https://github.com/FairwindsOps/charts/tree/master/stable/vpa
+  # https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler/charts/vertical-pod-autoscaler
   values:
-    # Resources: chart 5.0.1 defaults pinned explicit (verified via
-    # helm show values: recommender 50m/500Mi, updater 50m/500Mi,
-    # admission-controller 50m/200Mi; limits {} upstream — memory-only
-    # limits pinned so bursty recommenders are never CPU-throttled).
-    # Replica seed 1 everywhere (singleton; leader election not needed at
-    # this scale). No autoscaling knob for the stack itself — keep static.
+    # Resources: upstream chart defaults are resources: {} everywhere, so pin
+    # explicit (recommender 50m/500Mi req, updater 50m/500Mi req,
+    # admission-controller 50m/200Mi req; memory-only limits pinned so bursty
+    # recommenders are never CPU-throttled).
+    # Replica seed 1 everywhere (singleton; leader election auto-enables only
+    # when replicas > 1, so no lease churn at this scale). Chart PDBs default
+    # minAvailable 1 — at replicas 1 any voluntary eviction blocks, which is
+    # the safe stance for the stack that owns evictions cluster-wide.
+    # No autoscaling knob for the stack itself — keep static.
+    crds:
+      enabled: true
+      keep: true
     recommender:
-      replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
-      extraArgs:
-        v: "4"
+      replicas: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
+      logLevel: 4
+      extraArgs: []
       resources:
         requests:
           cpu: 50m
           memory: 500Mi
         limits:
           memory: 1000Mi
+    # Updater note: extraArgs left at the chart default
+    # (--in-place-skip-disruption-budget=true); the updater binary default
+    # --min-replicas=2 (flags.md) stands, so singleton (1-replica) targets
+    # recommend but never evict unless their VPA CR sets
+    # updatePolicy.minReplicas: 1 — see the Recreate singleton VPAs.
     updater:
-      replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
+      replicas: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
+      logLevel: 4
       resources:
         requests:
           cpu: 50m
@@ -82,9 +113,12 @@ spec:
           memory: 1000Mi
     admissionController:
       enabled: true
-      generateCertificate: true
+      replicas: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
+      logLevel: 4
+      extraArgs: []
       registerWebhook: false
-      replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
+      certGen:
+        enabled: true
       resources:
         requests:
           cpu: 50m

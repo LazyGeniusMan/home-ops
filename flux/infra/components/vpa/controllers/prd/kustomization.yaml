@@ -8,7 +8,7 @@ patches:
   # second node-loss survivor is out of scope until multi-node lands).
   - patch: |
       - op: replace
-        path: /spec/values/recommender/replicaCount
+        path: /spec/values/recommender/replicas
         value: 1
     target:
       kind: HelmRelease
