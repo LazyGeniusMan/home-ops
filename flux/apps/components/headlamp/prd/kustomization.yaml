@@ -73,11 +73,23 @@ patches:
     target:
       kind: Certificate
       name: wildcard-home-ops
-  # Prd replica counts: stateless HA (2).
+  # Prd replica counts: stateless HA floor (2). Static `replicaCount`
+  # stays at the HPA min (chart 0.45.0 has no autoscaling knob); the HPA
+  # below scales 2-4 on CPU+memory.
   - patch: |
       - op: replace
         path: /spec/values/replicaCount
         value: 2
     target:
       kind: HelmRelease
+      name: headlamp
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 4
+    target:
+      kind: HorizontalPodAutoscaler
       name: headlamp

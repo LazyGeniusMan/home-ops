@@ -73,11 +73,23 @@ patches:
     target:
       kind: Certificate
       name: wildcard-homelab-dev
-  # Dev replica counts: minimal single-replica footprint.
+  # Dev replica counts: minimal single-replica footprint. Static
+  # `replicaCount` stays at the HPA min (chart 0.45.0 has no autoscaling
+  # knob); the HPA below scales 1-2 on CPU+memory.
   - patch: |
       - op: replace
         path: /spec/values/replicaCount
         value: 1
     target:
       kind: HelmRelease
+      name: headlamp
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+    target:
+      kind: HorizontalPodAutoscaler
       name: headlamp

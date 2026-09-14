@@ -1,0 +1,125 @@
+# Clickstack + OTel collector + FerretDB + oauth2-proxy HPAs (§11.2):
+# autoscaling/v2 over the hand-vendored Deployments (no chart — the upstream
+# hdx-oss-v2 chart was rejected for the ESO-only secret posture, see
+# clickstack.yaml header; clickstack-helm-charts-docs confirms the chart
+# shape but carries no autoscaling knob usable here; oauth2-proxy-docs covers
+# app flags only — no autoscaling knob exists for a plain Deployment).
+# All four are horizontally safe: HyperDX app + OTel collector repointed at
+# the external CHI (stateless); FerretDB is a stateless Mongo-wire proxy
+# (state lives in the CNPG backend, no leader election); oauth2-proxy uses
+# the cookie session store with a shared secret (stateless).
+# Static `spec.replicas` stay at the env min (dev 1 / prd 2 via overlay
+# patches). Dev min 1/max 2, prd min 2/max 4 via overlay patches.
+# CPU + memory: all Deployments already request cpu/memory, so HPA works.
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: clickstack
+  labels:
+    app.kubernetes.io/name: clickstack
+    app.kubernetes.io/part-of: clickstack
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: clickstack
+  minReplicas: 1 # placeholder - overridden by dev/prd
+  maxReplicas: 2 # placeholder - overridden by dev/prd
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: clickstack-otel-collector
+  labels:
+    app.kubernetes.io/name: clickstack-otel-collector
+    app.kubernetes.io/part-of: clickstack
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: clickstack-otel-collector
+  minReplicas: 1 # placeholder - overridden by dev/prd
+  maxReplicas: 2 # placeholder - overridden by dev/prd
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ferretdb
+  labels:
+    app.kubernetes.io/name: ferretdb
+    app.kubernetes.io/part-of: clickstack
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ferretdb
+  minReplicas: 1 # placeholder - overridden by dev/prd
+  maxReplicas: 2 # placeholder - overridden by dev/prd
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: oauth2-proxy
+  labels:
+    app.kubernetes.io/name: oauth2-proxy
+    app.kubernetes.io/part-of: clickstack
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: oauth2-proxy
+  minReplicas: 1 # placeholder - overridden by dev/prd
+  maxReplicas: 2 # placeholder - overridden by dev/prd
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

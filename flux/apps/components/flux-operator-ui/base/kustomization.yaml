@@ -5,6 +5,8 @@ resources:
   - wildcard-certificate.yaml
   - httproute.yaml
   - flux-operator-ui.yaml
+  - flux-operator-ui-hpa.yaml
   - oauth2-proxy.yaml
+  - oauth2-proxy-hpa.yaml
   - terraform.yaml
   - zitadel-handoff-rbac.yaml

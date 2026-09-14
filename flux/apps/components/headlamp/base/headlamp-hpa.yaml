@@ -1,0 +1,34 @@
+# Headlamp HPA (autoscaling/v2 over the chart-rendered Deployment `headlamp`
+# — release name contains the chart name, so fullname = release name).
+# Chart 0.45.0 has NO autoscaling knob (evidence:
+# headlamp-docs/charts/headlamp/values.yaml carries only `replicaCount: 1`;
+# `helm show values headlamp/headlamp --version 0.45.0` confirms), so the HPA
+# lives here and static `replicaCount` stays at the env min (dev 1 / prd 2
+# via overlay patches). Dev min 1/max 2, prd min 2/max 4 via overlay patches.
+# CPU + memory: the chart defaults `resources: {}` (empty), so base
+# headlamp.yaml sets requests (100m/128Mi) — HPA requires CPU requests.
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: headlamp
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: headlamp
+  minReplicas: 1 # placeholder - overridden by dev/prd
+  maxReplicas: 2 # placeholder - overridden by dev/prd
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

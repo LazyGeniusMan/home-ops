@@ -85,7 +85,9 @@ patches:
     target:
       kind: Terraform
       name: flux-operator-ui-sso
-  # Dev replica counts: minimal single-replica footprint.
+  # Dev replica counts: minimal single-replica footprint. Static
+  # `web.serverReplicas` / `spec.replicas` stay at the HPA min (chart
+  # 0.59.0 has no autoscaling knob); HPAs below scale 1-2 on CPU+memory.
   - patch: |
       - op: replace
         path: /spec/values/web/serverReplicas
@@ -99,4 +101,24 @@ patches:
         value: 1
     target:
       kind: Deployment
+      name: oauth2-proxy
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+    target:
+      kind: HorizontalPodAutoscaler
+      name: flux-operator-ui
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+    target:
+      kind: HorizontalPodAutoscaler
       name: oauth2-proxy

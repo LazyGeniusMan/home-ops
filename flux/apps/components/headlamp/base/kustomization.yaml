@@ -6,5 +6,6 @@ resources:
   - headlamp-rbac.yaml
   - headlamp-httproute.yaml
   - headlamp.yaml
+  - headlamp-hpa.yaml
   - terraform.yaml
   - zitadel-handoff-rbac.yaml

@@ -8,6 +8,7 @@ resources:
   - wildcard-certificates.yaml
   - coder-httproutes.yaml
   - coder.yaml
+  - coder-hpa.yaml
   - rclone-sync-coder-db.yaml
   - terraform.yaml
   - zitadel-handoff-rbac.yaml

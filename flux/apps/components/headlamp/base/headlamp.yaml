@@ -49,8 +49,19 @@ spec:
       retryInterval: 5m
   # https://github.com/kubernetes-sigs/headlamp/tree/main/charts/headlamp
   values:
-    # Chart schema `replicaCount` (default 1).
+    # Chart schema `replicaCount` (default 1). No autoscaling knob exists in
+    # chart 0.45.0, so static replicas stay at the env min (dev 1 / prd 2)
+    # and base/headlamp-hpa.yaml scales 1-2 dev / 2-4 prd via overlays.
     replicaCount: 1 # placeholder - overridden by dev/prd
+    # Chart defaults `resources: {}` (empty) — requests are REQUIRED for the
+    # HPA CPU metric to work, so pin them here (limits cap noisy-neighbor).
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
     # Chart 0.45.0 = app 0.45.0 (lockstep); image.tag defaults to
     # v<appVersion>, pinned explicitly so update automation owns it via
     # update-policies/headlamp.yaml (marker below). On automation PRs bump

@@ -9,6 +9,7 @@ resources:
   - wildcard-certificate.yaml
   - clickstack-httproute.yaml
   - clickstack.yaml
+  - clickstack-hpa.yaml
   - ferretdb.yaml
   - rclone-sync-buckets.yaml
   - oauth2-proxy.yaml

@@ -1,0 +1,64 @@
+# Hubble UI + oauth2-proxy HPAs (§11.3): autoscaling/v2 over the
+# hand-vendored Deployments (shape mirrors the Cilium chart's hubble-ui
+# templates; the chart carries no usable autoscaling knob here). Both are
+# stateless (nginx frontend + backend dialing Hubble Relay by DNS; proxy with
+# cookie session store), so horizontal scaling is safe. Static
+# `spec.replicas` stay at the env min (dev 1 / prd 2 via overlay patches).
+# Dev min 1/max 2, prd min 2/max 4 via overlay patches. CPU + memory: both
+# Deployments already request cpu/memory, so HPA works.
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hubble-ui
+  labels:
+    app.kubernetes.io/name: hubble-ui
+    app.kubernetes.io/part-of: hubble-ui
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hubble-ui
+  minReplicas: 1 # placeholder - overridden by dev/prd
+  maxReplicas: 2 # placeholder - overridden by dev/prd
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: oauth2-proxy
+  labels:
+    app.kubernetes.io/name: oauth2-proxy
+    app.kubernetes.io/part-of: hubble-ui
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: oauth2-proxy
+  minReplicas: 1 # placeholder - overridden by dev/prd
+  maxReplicas: 2 # placeholder - overridden by dev/prd
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

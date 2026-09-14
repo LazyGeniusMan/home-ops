@@ -85,7 +85,9 @@ patches:
     target:
       kind: Terraform
       name: flux-operator-ui-sso
-  # Prd replica counts: stateless HA (2), proxy sidecar stays 1.
+  # Prd replica counts: stateless HA floor (2). Static
+  # `web.serverReplicas` / `spec.replicas` stay at the HPA min (chart
+  # 0.59.0 has no autoscaling knob); HPAs below scale 2-4 on CPU+memory.
   - patch: |
       - op: replace
         path: /spec/values/web/serverReplicas
@@ -96,7 +98,27 @@ patches:
   - patch: |
       - op: replace
         path: /spec/replicas
-        value: 1
+        value: 2
     target:
       kind: Deployment
+      name: oauth2-proxy
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 4
+    target:
+      kind: HorizontalPodAutoscaler
+      name: flux-operator-ui
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 4
+    target:
+      kind: HorizontalPodAutoscaler
       name: oauth2-proxy

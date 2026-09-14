@@ -5,6 +5,7 @@ resources:
   - wildcard-certificate.yaml
   - hubble-httproute.yaml
   - hubble-ui.yaml
+  - hubble-ui-hpa.yaml
   - oauth2-proxy.yaml
   - terraform.yaml
   - zitadel-handoff-rbac.yaml

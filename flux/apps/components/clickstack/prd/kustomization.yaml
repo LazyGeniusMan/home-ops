@@ -166,7 +166,9 @@ patches:
     target:
       kind: Terraform
       name: clickstack-sso
-  # Prd replica counts: stateless HA (2), proxies/singletons stay 1, CNPG 3, CHI 2.
+  # Prd replica counts: stateless/HA floor (2), CNPG 3, CHI 2. Static
+  # `spec.replicas` stay at the HPA min (no chart autoscaling knob — plain
+  # Deployments); the HPAs below scale 2-4 on CPU+memory.
   - patch: |
       - op: replace
         path: /spec/replicas
@@ -184,17 +186,57 @@ patches:
   - patch: |
       - op: replace
         path: /spec/replicas
-        value: 1
+        value: 2
     target:
       kind: Deployment
       name: oauth2-proxy
   - patch: |
       - op: replace
         path: /spec/replicas
-        value: 1
+        value: 2
     target:
       kind: Deployment
       name: ferretdb
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 4
+    target:
+      kind: HorizontalPodAutoscaler
+      name: clickstack
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 4
+    target:
+      kind: HorizontalPodAutoscaler
+      name: clickstack-otel-collector
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 4
+    target:
+      kind: HorizontalPodAutoscaler
+      name: ferretdb
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 4
+    target:
+      kind: HorizontalPodAutoscaler
+      name: oauth2-proxy
   - patch: |
       - op: replace
         path: /spec/instances
