@@ -123,7 +123,7 @@ metadata:
     app.kubernetes.io/name: seaweedfs-ui-auth
     app.kubernetes.io/component: oauth2-proxy
 spec:
-  replicas: 2 # placeholder - overridden by dev/prd overlays
+  replicas: 2 # placeholder - tracks the env HPA min (dev 1, prd 2)
   selector:
     matchLabels:
       app.kubernetes.io/name: seaweedfs-ui-auth

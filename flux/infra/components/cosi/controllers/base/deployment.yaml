@@ -25,3 +25,9 @@ spec:
           image: gcr.io/k8s-staging-sig-storage/objectstorage-controller:v20250905-controllerv0.2.0-rc1-100-gd904c62 # {"$imagepolicy": "infra:cosi-controller:tag"}
           args:
             - "--v=5"
+          # CPU request required for the CPU-utilization HPA
+          # (controller-hpa.yaml); mirrors the ui-auth proxy sizing.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi

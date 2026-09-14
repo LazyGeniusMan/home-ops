@@ -3,11 +3,22 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Prd scaling: the eso-proton-pass webhook is a singleton in every env.
+  # Prd autoscaling: HPA eso-proton-pass min 2/max 4 (stateless webhook —
+  # safe multi-replica); Deployment replicas track the HPA min.
   - patch: |
       - op: replace
         path: /spec/replicas
-        value: 1
+        value: 2
     target:
       kind: Deployment
+      name: eso-proton-pass
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 4
+    target:
+      kind: HorizontalPodAutoscaler
       name: eso-proton-pass

@@ -6,6 +6,7 @@ resources:
   - sa.yaml
   - rbac.yaml
   - deployment.yaml
+  - controller-hpa.yaml
   - objectstorage.k8s.io_bucketaccessclasses.yaml
   - objectstorage.k8s.io_bucketaccesses.yaml
   - objectstorage.k8s.io_bucketclaims.yaml

@@ -3,11 +3,22 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev single-instance scaling: COSI controller placeholder -> 1.
+  # Dev autoscaling: HPA controller min 1/max 2 (pinned image elects via
+  # internal/runtime unconditionally); Deployment replicas track the HPA min.
   - patch: |
       - op: replace
         path: /spec/replicas
         value: 1
     target:
       kind: Deployment
+      name: controller
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+    target:
+      kind: HorizontalPodAutoscaler
       name: controller

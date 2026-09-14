@@ -28,7 +28,7 @@ metadata:
     app.kubernetes.io/component: objectstorage-provisioner
     app.kubernetes.io/part-of: container-object-storage-interface
 spec:
-  replicas: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
+  replicas: 1 # placeholder - tracks the env HPA min (dev 1, prd 2)
   selector:
     matchLabels:
       app.kubernetes.io/name: seaweedfs-cosi-driver
@@ -60,6 +60,13 @@ spec:
           volumeMounts:
             - mountPath: /var/lib/cosi
               name: socket
+          # CPU request required for the CPU-utilization HPA
+          # (driver-hpa.yaml) — utilization needs requests on every
+          # container in the pod.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
         - name: seaweedfs-cosi-sidecar
           image: gcr.io/k8s-staging-sig-storage/objectstorage-sidecar:v20250711-controllerv0.2.0-rc1-80-gc2f6e65 # {"$imagepolicy": "infra:cosi-sidecar:tag"}
           imagePullPolicy: IfNotPresent
@@ -73,6 +80,13 @@ spec:
           volumeMounts:
             - mountPath: /var/lib/cosi
               name: socket
+          # CPU request required for the CPU-utilization HPA
+          # (driver-hpa.yaml) — utilization needs requests on every
+          # container in the pod.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
       volumes:
         - name: socket
           emptyDir: {}

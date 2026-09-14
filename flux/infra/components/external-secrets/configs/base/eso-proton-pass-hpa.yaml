@@ -1,0 +1,29 @@
+# HPA for the eso-proton-pass webhook (stateless pull-only HTTP service,
+# projects/eso-proton-pass — every pod serves GET /get independently, so no
+# leader election is needed; see external-secret-operator-docs/docs/index.md
+# for the ESO pull contract and pass-cli-docs for the vault backend).
+# Autoscaling prerequisite (not managed here): metrics-server healthy
+# (flux/infra/components/metrics-server) — without the Metrics API this HPA
+# reports Unknown and replicas hold at min.
+# Bounds per env via the dev/prd overlay patches: dev min 1/max 2,
+# prd min 2/max 4. Keep Deployment/eso-proton-pass .spec.replicas at the env
+# HPA min so the static field and the HPA never fight on first apply.
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: eso-proton-pass
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: eso-proton-pass
+  minReplicas: 1 # placeholder - overridden by dev/prd overlays
+  maxReplicas: 2 # placeholder - overridden by dev/prd overlays
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

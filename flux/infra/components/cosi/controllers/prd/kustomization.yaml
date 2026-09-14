@@ -3,11 +3,22 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Prd HA scaling: COSI controller placeholder -> 2.
+  # Prd autoscaling: HPA controller min 2/max 4 (pinned image elects via
+  # internal/runtime unconditionally); Deployment replicas track the HPA min.
   - patch: |
       - op: replace
         path: /spec/replicas
         value: 2
     target:
       kind: Deployment
+      name: controller
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 4
+    target:
+      kind: HorizontalPodAutoscaler
       name: controller

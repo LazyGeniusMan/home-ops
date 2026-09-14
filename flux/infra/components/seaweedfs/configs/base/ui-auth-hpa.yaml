@@ -1,0 +1,28 @@
+# HPA for the SeaweedFS filer-UI oauth2-proxy (stateless: default
+# session_store_type=cookie, no --redis-* flags configured — any replica can
+# serve any request; see oauth2-proxy-docs/docs/versioned_docs (configuration
+# overview sessions table) and seaweedfs-docs/Admin-UI-OIDC.md).
+# Autoscaling prerequisite (not managed here): metrics-server healthy
+# (flux/infra/components/metrics-server).
+# Bounds per env via the dev/prd overlay patches: dev min 1/max 2,
+# prd min 2/max 4. Keep Deployment/ui-auth .spec.replicas at the env HPA min
+# so the static field and the HPA never fight on first apply.
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ui-auth
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ui-auth
+  minReplicas: 1 # placeholder - overridden by dev/prd overlays
+  maxReplicas: 2 # placeholder - overridden by dev/prd overlays
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

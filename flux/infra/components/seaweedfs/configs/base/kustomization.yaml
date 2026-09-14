@@ -12,4 +12,6 @@ resources:
   # SeaweedFS workload, so it lives in this tenant namespace; see README).
   - driver-rbac.yaml
   - driver.yaml
+  - driver-hpa.yaml
+  - ui-auth-hpa.yaml
   - bucketclasses.yaml

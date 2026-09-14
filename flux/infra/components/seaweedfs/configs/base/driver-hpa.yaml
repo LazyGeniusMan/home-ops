@@ -1,0 +1,35 @@
+# HPA for the SeaweedFS COSI driver Deployment (safe multi-replica: the
+# pinned sidecar
+# gcr.io/k8s-staging-sig-storage/objectstorage-sidecar:
+# v20250711-controllerv0.2.0-rc1-80-gc2f6e65 runs sidecar/cmd/cmd.go which
+# calls internal/runtime NewDefaultObjectStorageController("cosi",
+# <driverName>, 40) — and internal/runtime/controller.go Run() executes
+# leaderelection.RunOrDie UNCONDITIONALLY (hostname identity, lease
+# "cosi/<driverName>" in $POD_NAMESPACE, which driver.yaml sets via
+# fieldRef), so standbys never double-act. RBAC already grants
+# coordination.k8s.io/leases (driver-rbac.yaml). See
+# seaweedfs-cosi-docs/README.md (BucketInfo contract) + k8s-cosi-docs.
+# Autoscaling prerequisite (not managed here): metrics-server healthy
+# (flux/infra/components/metrics-server).
+# Bounds per env via the dev/prd overlay patches: dev min 1/max 2,
+# prd min 2/max 4. Keep Deployment/seaweedfs-cosi-driver .spec.replicas at
+# the env HPA min so the static field and the HPA never fight on first apply.
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: seaweedfs-cosi-driver
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: seaweedfs-cosi-driver
+  minReplicas: 1 # placeholder - overridden by dev/prd overlays
+  maxReplicas: 2 # placeholder - overridden by dev/prd overlays
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

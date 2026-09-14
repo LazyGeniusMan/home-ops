@@ -22,3 +22,4 @@ kind: Kustomization
 resources:
   - clustersecretstore.yaml
   - eso-proton-pass-webhook.yaml
+  - eso-proton-pass-hpa.yaml
