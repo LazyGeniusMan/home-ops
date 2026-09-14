@@ -104,6 +104,13 @@ metadata:
 spec:
   interval: 30m
   approvePlan: auto
+  # Upsert-only guard (tofu-controller 0.16.5): the v1alpha2 CRD has no
+  # preventDestroy/destroyPlan field — `destroy` (destroy plan on reconcile)
+  # and `destroyResourcesOnDeletion` (destroy plan on CR deletion) are the
+  # only destroy knobs, both default false. Stated explicitly so no `tofu
+  # destroy` path exists via Flux; drift detection stays on (default).
+  destroy: false
+  destroyResourcesOnDeletion: false
   # Shared zitadel SSO root (cross-namespace, in the `zitadel` namespace's
   # `infra` OCIRepository): the artifact packs the whole zitadel component
   # dir, so path ./terraform resolves to the reusable root (provider +

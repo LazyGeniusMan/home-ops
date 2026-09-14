@@ -129,6 +129,12 @@ user_emails               = var.user_emails
 
 ## Secure defaults
 
+- Upsert-only: every managed resource carries
+  `lifecycle { prevent_destroy = true }`, and every consumer Terraform CR
+  sets explicit `destroy: false` + `destroyResourcesOnDeletion: false`
+  (the only destroy knobs in tofu-controller 0.16.5 v1alpha2 — there is no
+  `preventDestroy`/`destroyPlan` field). No `tofu destroy` path via Flux;
+  drift detection stays on.
 - `project_role_check = true` + `project_role_assertion = true`: a grant is
   required to authenticate and roles land in the token `groups` claim.
 - Roles/grants are project-scoped — `<app>-admin` never implies org admin.

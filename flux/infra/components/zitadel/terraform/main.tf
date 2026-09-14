@@ -6,6 +6,13 @@
 # project-scoped roles + user grants + OIDC client + optional cookie secret)
 # directly — no child modules. Callers render redirect URIs from their own
 # app_host/ui_host vars — this root takes no app_host/ui_host vars.
+#
+# Upsert-only: every managed resource below carries
+# `lifecycle { prevent_destroy = true }`, so any plan that would delete or
+# replace a resource fails instead of destroying it. Together with the
+# explicit `destroy: false` + `destroyResourcesOnDeletion: false` on every
+# consumer Terraform CR, there is no `tofu destroy` path via Flux; drift
+# detection stays on and outputs are unchanged.
 provider "zitadel" {
   domain           = var.domain
   jwt_profile_json = var.jwt_profile_json
@@ -42,6 +49,10 @@ resource "zitadel_project" "this" {
   name                   = var.project_name
   project_role_check     = true
   project_role_assertion = true
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "zitadel_project_role" "admin" {
@@ -50,6 +61,10 @@ resource "zitadel_project_role" "admin" {
   role_key     = local.admin_role_key
   display_name = "${local.display_prefix} Admin"
   group        = local.group_name
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "zitadel_project_role" "user" {
@@ -59,6 +74,10 @@ resource "zitadel_project_role" "user" {
   role_key     = local.user_role_key
   display_name = "${local.display_prefix} User"
   group        = local.group_name
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Admin comes from the FirstInstance handoff var (stored ID — no email lookup
@@ -69,6 +88,10 @@ resource "zitadel_user_grant" "admin" {
   project_id = zitadel_project.this.id
   user_id    = var.admin_user_id
   role_keys  = [local.admin_role_key]
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Extra OIDC admins beyond the bootstrap admin (admin_emails): created as
@@ -83,6 +106,10 @@ resource "zitadel_human_user" "admins" {
   email             = each.value
   is_email_verified = true
   initial_password  = var.user_initial_password
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "zitadel_org_member" "admins" {
@@ -90,6 +117,10 @@ resource "zitadel_org_member" "admins" {
   org_id   = data.zitadel_org.home_ops.id
   user_id  = each.value.id
   roles    = []
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "zitadel_user_grant" "extra_admins" {
@@ -98,6 +129,10 @@ resource "zitadel_user_grant" "extra_admins" {
   project_id = zitadel_project.this.id
   user_id    = each.value.id
   role_keys  = [local.admin_role_key]
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Normal users: plain org members (roles=[]) + user-role grant. App-side
@@ -111,6 +146,10 @@ resource "zitadel_human_user" "users" {
   email             = each.value
   is_email_verified = true
   initial_password  = var.user_initial_password
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "zitadel_org_member" "users" {
@@ -118,6 +157,10 @@ resource "zitadel_org_member" "users" {
   org_id   = data.zitadel_org.home_ops.id
   user_id  = each.value.id
   roles    = []
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "zitadel_user_grant" "users" {
@@ -126,6 +169,10 @@ resource "zitadel_user_grant" "users" {
   project_id = zitadel_project.this.id
   user_id    = each.value.id
   role_keys  = [local.user_role_key]
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # oauth2-proxy cookie secret, generated in-Tofu (32 random bytes, base64 —
@@ -134,6 +181,10 @@ resource "zitadel_user_grant" "users" {
 resource "random_bytes" "cookie_secret" {
   count  = var.create_cookie_secret ? 1 : 0
   length = 32
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # OIDC client (code flow + PKCE, refresh tokens; scopes openid profile email
@@ -155,4 +206,8 @@ resource "zitadel_application_oidc" "this" {
   access_token_role_assertion = true
   id_token_role_assertion     = true
   id_token_userinfo_assertion = true
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
