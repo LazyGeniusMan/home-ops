@@ -296,10 +296,6 @@ fetch_repo pass-cli-docs https://github.com/protonpass/pass-cli main || record_f
 fetch_repo metrics-server-docs https://github.com/kubernetes-sigs/metrics-server master || record_fail metrics-server-docs
 
 # /tmp/home-ops-docs/vpa-docs/vertical-pod-autoscaler/README.md
-# (+ vertical-pod-autoscaler/docs/faq.md, examples/). VPA recommender needs
-# metrics-server; used for the per-workload HPA/VPA recommendation matrix
-# (VPA Off/recommender-only alongside HPA, Auto only where no HPA scales the
-# same containers on CPU/memory).
 fetch_repo vpa-docs https://github.com/kubernetes/autoscaler master || record_fail vpa-docs
 
 # /tmp/home-ops-docs/cert-manager-docs/content/docs/manifest.json
@@ -310,6 +306,12 @@ fetch_repo external-dns-docs https://github.com/kubernetes-sigs/external-dns mas
 
 # /tmp/home-ops-docs/netbird-docs/src/pages/ipa
 fetch_repo netbird-docs https://github.com/netbirdio/docs/ main || record_fail netbird-docs
+
+# /tmp/home-ops-docs/netbird-terraform-provider-docs/README.md
+fetch_repo netbird-terraform-provider-docs https://github.com/netbirdio/terraform-provider-netbird main || record_fail netbird-terraform-provider-docs
+
+# /tmp/home-ops-docs/cloudflare-terraform-provider-docs/README.md
+fetch_repo cloudflare-terraform-provider-docs https://github.com/cloudflare/terraform-provider-cloudflare main || record_fail cloudflare-terraform-provider-docs
 
 # /tmp/home-ops-docs/local-path-provisioner-docs/README.md
 fetch_repo local-path-provisioner-docs https://github.com/rancher/local-path-provisioner master || record_fail local-path-provisioner-docs
@@ -332,8 +334,11 @@ fetch_repo dragonfly-operator-docs https://github.com/dragonflydb/documentation 
 # /tmp/home-ops-docs/zitadel-docs/apps/docs/content
 fetch_repo zitadel-docs https://github.com/zitadel/zitadel main || record_fail zitadel-docs
 
-# /tmp/home-ops-docs/zitadel-docs/README.md
+# /tmp/home-ops-docs/zitadel-helm-charts-docs/README.md
 fetch_repo zitadel-helm-charts-docs https://github.com/zitadel/zitadel-charts main || record_fail zitadel-helm-charts-docs
+
+# /tmp/home-ops-docs/zitadel-terraform-provider-docs/README.md
+fetch_repo zitadel-terraform-provider-docs https://github.com/zitadel/terraform-provider-zitadel main || record_fail zitadel-terraform-provider-docs
 
 # /tmp/home-ops-docs/oauth2-proxy-docs/docs/versioned_docs/version-7.15.x
 fetch_repo oauth2-proxy-docs https://github.com/oauth2-proxy/oauth2-proxy master || record_fail oauth2-proxy-docs
