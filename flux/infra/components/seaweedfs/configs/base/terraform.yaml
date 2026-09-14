@@ -139,6 +139,8 @@ spec:
       value: __ZITADEL_HOST__
     - name: project_name
       value: seaweedfs
+    - name: login_base_uri
+      value: __ZITADEL_LOGIN_URI__
     - name: redirect_uris
       value:
         - https://__SEAWEEDFS_UI_HOST__/oauth2/callback

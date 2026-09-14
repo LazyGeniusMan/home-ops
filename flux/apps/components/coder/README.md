@@ -46,7 +46,7 @@ app (per-app decoupling — the central zitadel module owns no clients):
 
 | Item | Value |
 |---|---|
-| Issuer | `https://zitadel.home-ops.yansyah.my.id` |
+| Issuer | `https://admin.zitadel.home-ops.yansyah.my.id` |
 | Client | `coder` (owned here; `client_id` is generated server-side — synced via ESO, never the literal name) |
 | Redirect | `https://coder.home-ops.yansyah.my.id/*` (covers the callback `/api/v2/users/oidc/callback`) |
 | Scopes | `openid,profile,email,groups` |

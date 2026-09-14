@@ -16,9 +16,15 @@ variable "oidc_name" {
 }
 
 variable "domain" {
-  description = "Zitadel external domain (issuer host, no scheme)"
+  description = "Zitadel external domain (admin/issuer host, no scheme)"
   type        = string
-  default     = "zitadel.home-ops.yansyah.my.id"
+  default     = "admin.zitadel.home-ops.yansyah.my.id"
+}
+
+variable "login_base_uri" {
+  description = "Base URI of the end-user login UI (e.g. https://login.zitadel.home-ops.yansyah.my.id/ui/v2/login) — wired into the OIDC client's login_version.login_v2 block so Zitadel redirects auth requests to the NetBird-exposed login host (provider constat BaseURIVar, optional+computed: empty/null keeps the instance default)"
+  type        = string
+  default     = null
 }
 
 variable "jwt_profile_json" {

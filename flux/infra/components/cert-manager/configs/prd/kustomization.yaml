@@ -44,6 +44,9 @@ patches:
       - op: replace
         path: /spec/dnsNames/0
         value: "*.home-ops.yansyah.my.id"
+      - op: replace
+        path: /spec/dnsNames/1
+        value: "*.zitadel.home-ops.yansyah.my.id"
     target:
       kind: Certificate
       name: wildcard-home-ops

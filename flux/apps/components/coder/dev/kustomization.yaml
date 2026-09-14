@@ -13,16 +13,20 @@ patches:
   # no pass:// JWT seeding, no per-env ID literals. project_name,
   # create_user_role, user_emails, create_cookie_secret are env-invariant —
   # only hosts vary per env. Positional: /spec/vars/0 (domain) +
-  # /spec/vars/2/value/0 (redirect) + /spec/vars/3/value/0 (post-logout).
+  # /spec/vars/2 (login_base_uri) + /spec/vars/3/value/0 (redirect) +
+  # /spec/vars/4/value/0 (post-logout).
   - patch: |
       - op: replace
         path: /spec/vars/0/value
-        value: zitadel.homelab-dev.yansyah.my.id
+        value: admin.zitadel.homelab-dev.yansyah.my.id
       - op: replace
-        path: /spec/vars/2/value/0
-        value: https://coder.homelab-dev.yansyah.my.id/*
+        path: /spec/vars/2/value
+        value: https://login.zitadel.homelab-dev.yansyah.my.id/ui/v2/login
       - op: replace
         path: /spec/vars/3/value/0
+        value: https://coder.homelab-dev.yansyah.my.id/*
+      - op: replace
+        path: /spec/vars/4/value/0
         value: https://coder.homelab-dev.yansyah.my.id/
     target:
       kind: Terraform
@@ -132,7 +136,7 @@ patches:
         value: "*.coder.homelab-dev.yansyah.my.id"
       - op: replace
         path: /spec/values/coder/env/4/value
-        value: https://zitadel.homelab-dev.yansyah.my.id
+        value: https://admin.zitadel.homelab-dev.yansyah.my.id
       - op: replace
         path: /spec/values/coder/env/8/value
         value: homelab-dev.yansyah.my.id

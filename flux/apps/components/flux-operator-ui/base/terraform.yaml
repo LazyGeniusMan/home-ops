@@ -139,6 +139,8 @@ spec:
       value: __ZITADEL_HOST__
     - name: project_name
       value: flux-operator-ui
+    - name: login_base_uri
+      value: __ZITADEL_LOGIN_URI__
     - name: redirect_uris
       value:
         - https://__SERVICE_HOST__/*

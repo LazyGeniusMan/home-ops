@@ -36,7 +36,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/args/2
-        value: --oidc-issuer-url=https://zitadel.homelab-dev.yansyah.my.id
+        value: --oidc-issuer-url=https://admin.zitadel.homelab-dev.yansyah.my.id
       - op: replace
         path: /spec/template/spec/containers/0/args/3
         value: --redirect-url=https://ui.seaweedfs.homelab-dev.yansyah.my.id/oauth2/callback
@@ -52,17 +52,20 @@ patches:
   # FirstInstance handoff via the cross-namespace SecretStore — no per-env
   # ID literals, no vault ref patch. project_name, create_user_role,
   # create_cookie_secret are env-invariant — only hosts vary per env.
-  # Positional: /spec/vars/0 (domain) + /spec/vars/2/value/0 (redirect) +
-  # /spec/vars/3/value/0 (post-logout).
+  # Positional: /spec/vars/0 (domain) + /spec/vars/2 (login_base_uri) + /spec/vars/3/value/0 (redirect) +
+  # /spec/vars/4/value/0 (post-logout).
   - patch: |
       - op: replace
         path: /spec/vars/0/value
-        value: zitadel.homelab-dev.yansyah.my.id
+        value: admin.zitadel.homelab-dev.yansyah.my.id
       - op: replace
-        path: /spec/vars/2/value/0
-        value: https://ui.seaweedfs.homelab-dev.yansyah.my.id/oauth2/callback
+        path: /spec/vars/2/value
+        value: https://login.zitadel.homelab-dev.yansyah.my.id/ui/v2/login
       - op: replace
         path: /spec/vars/3/value/0
+        value: https://ui.seaweedfs.homelab-dev.yansyah.my.id/oauth2/callback
+      - op: replace
+        path: /spec/vars/4/value/0
         value: https://ui.seaweedfs.homelab-dev.yansyah.my.id/
     target:
       kind: Terraform

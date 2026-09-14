@@ -1,7 +1,6 @@
 # Zitadel
 
-Zitadel **v4.17.1** identity provider: the OIDC issuer for
-`https://zitadel.home-ops.yansyah.my.id` plus the locked client contract the
+Zitadel **v4.17.1** identity provider: the OIDC issuer on `https://admin.zitadel.home-ops.yansyah.my.id` (login UI on `https://login.zitadel.home-ops.yansyah.my.id`, NetBird-exposed) plus the locked client contract the
 wave-3c app writers build against (table below — do not deviate).
 
 ## Chart source
@@ -102,7 +101,8 @@ App writers build against THIS table — do not deviate.
 
 | Item | Value |
 |---|---|
-| Issuer | `https://zitadel.home-ops.yansyah.my.id` |
+| Issuer (admin host) | `https://admin.zitadel.home-ops.yansyah.my.id` |
+| Login UI (NetBird) | `https://login.zitadel.home-ops.yansyah.my.id/ui/v2/login` (per-app `login_base_uri` + instance `LoginV2.BaseURI`; trusted domain registered by the terraform root) |
 | Org | `home-ops` |
 | Users | `admin@home-ops.yansyah.my.id` (super-admin, `admin` group + role — bootstrap-owned); non-admin users are owned per consumer app, not by this bootstrap |
 | Groups | `admin` (admin@ member) — asserted in the `groups` claim; per-app `users` membership is owned by each consumer app |

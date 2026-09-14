@@ -9,5 +9,6 @@ resources:
   - rclone-sync-buckets.yaml
   - wildcard-certificate.yaml
   - zitadel-httproute.yaml
+  - zitadel-login-proxy.yaml
   - org-users.yaml
   - zitadel-bootstrap-handoff.yaml

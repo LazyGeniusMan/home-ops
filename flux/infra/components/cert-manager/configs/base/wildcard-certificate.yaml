@@ -3,6 +3,9 @@
 # the §8 Gateway references TLS in its own namespace — either copy this
 # Secret there (documented in the README) or move this Certificate once the
 # gateway namespace exists. Renewal is automatic via the issuer above.
+# SANs mirror the gateway-api/zitadel namespace Certificates: single-level
+# wildcard + nested *.zitadel.<base> (covers the zitadel admin + NetBird
+# login hosts — wildcards match one label only).
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -15,3 +18,4 @@ spec:
     kind: ClusterIssuer
   dnsNames:
     - "*.__BASE_DOMAIN__"
+    - "*.zitadel.__BASE_DOMAIN__"

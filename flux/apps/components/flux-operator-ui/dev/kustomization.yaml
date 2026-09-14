@@ -61,7 +61,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/args/2
-        value: --oidc-issuer-url=https://zitadel.homelab-dev.yansyah.my.id
+        value: --oidc-issuer-url=https://admin.zitadel.homelab-dev.yansyah.my.id
       - op: replace
         path: /spec/template/spec/containers/0/args/3
         value: --redirect-url=https://flux-operator.homelab-dev.yansyah.my.id/oauth2/callback
@@ -75,12 +75,15 @@ patches:
   - patch: |
       - op: replace
         path: /spec/vars/0/value
-        value: zitadel.homelab-dev.yansyah.my.id
+        value: admin.zitadel.homelab-dev.yansyah.my.id
       - op: replace
-        path: /spec/vars/2/value/0
+        path: /spec/vars/2/value
+        value: https://login.zitadel.homelab-dev.yansyah.my.id/ui/v2/login
+      - op: replace
+        path: /spec/vars/4/value/0
         value: https://flux-operator.homelab-dev.yansyah.my.id/*
       - op: replace
-        path: /spec/vars/3/value/0
+        path: /spec/vars/4/value/0
         value: https://flux-operator.homelab-dev.yansyah.my.id/
     target:
       kind: Terraform

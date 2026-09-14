@@ -52,6 +52,9 @@ patches:
       - op: replace
         path: /spec/dnsNames/0
         value: "*.homelab-dev.yansyah.my.id"
+      - op: replace
+        path: /spec/dnsNames/1
+        value: "*.zitadel.homelab-dev.yansyah.my.id"
     target:
       kind: Certificate
       name: wildcard-homelab-dev

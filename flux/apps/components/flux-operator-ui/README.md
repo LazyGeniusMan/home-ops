@@ -65,7 +65,7 @@ do not deviate):
 
 | Item | Value |
 | --- | --- |
-| Issuer | `https://zitadel.home-ops.yansyah.my.id` |
+| Issuer | `https://admin.zitadel.home-ops.yansyah.my.id` |
 | Client | `flux-operator-ui` (owned by the `flux-operator-ui-sso` Terraform CR against the shared zitadel root — reference only) |
 | Scopes | `openid profile email groups` (groups claim enforced, `admin` group only) |
 | Secrets (ESO) | `oauth2-proxy-oidc` syncs client-id + client-secret from `flux-operator-ui-sso-outputs` via the in-cluster `flux-operator-ui-k8s` SecretStore (stored outputs, end-to-end — no pass:// seeding for OIDC creds); `oauth2-proxy-cookie` syncs the cookie-secret from `pass://acme-prd-bdo1-talos-apps-01/flux-operator-ui/oauth2-proxy-cookie-secret` |

@@ -1,0 +1,137 @@
+# Zitadel login reverse-proxy consumer (§11.1): exposes the end-user login UI
+# (__ZITADEL_LOGIN_HOST__, e.g. login.zitadel.<base>) through the shared
+# NetBird reverse-proxy root — same consumer pattern as the SSO slices, plus
+# the NetBird contract (cross-namespace sourceRef to the infra/netbird OCI
+# artifact, path ./terraform).
+#
+# What it owns: this login slice ONLY — one NetBird reverse-proxy service
+# (login host → in-mesh zitadel-login backend) + the shared base-domain
+# registration + the Cloudflare wildcard CNAME for NetBird ownership
+# verification (see the netbird terraform README for the verify flow).
+#
+# Topology: login host hits the NetBird proxy edge (proxy TLS via NetBird's
+# ZeroSSL issuance off the wildcard CNAME) and forwards INSIDE the mesh to
+# the zitadel-login ClusterIP Service (port 3000, Next.js). Backend protocol
+# is http: the login UI is plain HTTP in-cluster (in-pod TLS stays OFF, same
+# as ExternalSecure-terminated-at-Gateway on the API side) and NetBird
+# terminates public TLS at the edge. pass_host_header + rewrite_redirects
+# stay true so the login app sees the public login host and its Location
+# headers keep that host (Zitadel custom-domain.mdx: the proxy must preserve
+# the original Host header; the login container's AUDIENCE /
+# CUSTOM_REQUEST_HEADERS already expect the external domain).
+#
+# Target: the backend rides the mesh on a NetBird peer that reaches the
+# cluster LAN (target_type peer, __NETBIRD_PEER_ID__ per env overlay). The
+# peer must route to the zitadel-login Service VIP — same mechanism the
+# seaweedfs filer-UI consumer uses. Bootstrap the peer ID out-of-band
+# (NetBird dashboard → Peers) and render it via the dev/prd overlay patch;
+# no peer literal lives in git.
+#
+# Ordering: this object ships in the zitadel configs Kustomization (fleet
+# `infra-configs`, after controllers), so it reconciles after the login
+# Deployment/Service exist. Terraform `dependsOn` is Terraform-CR-only
+# upstream (checkDependencies resolves every entry as kind Terraform), so NO
+# dependsOn entry here — the fleet ordering above is the mechanism.
+# Upstream wiring: provider tokens (netbird_token, cloudflare_api_token)
+# flow from Proton Pass via the ESO-synced `zitadel-login-proxy-vars`
+# Secret (same-namespace `varsFrom` below — unlike the zitadel SSO handoff
+# there is no chart-minted central secret to mirror, so the vault read is
+# direct through the cluster-scoped `proton-pass` ClusterSecretStore, same
+# shape as the netbird consumer skeleton). NO token literal in git, NO
+# manual per-env fill. Backend: in-cluster Kubernetes default (state Secrets
+# in the zitadel namespace) — no backendConfig needed. Drift detection stays
+# on (default).
+# Outputs: service_id + service_domain + proxy_url land in
+# `zitadel-login-proxy-outputs`.
+# First-run prerequisite (custom-domain path): after the first apply the
+# base domain sits at Pending Verification — complete the dashboard Verify
+# within 48h (see the netbird terraform README); until then the CR retries
+# on interval.
+---
+# Zero-UI vars mirror: provider tokens from Proton Pass — no vault seeding
+# beyond the one-time `pass insert` per env, no manual step per env. Reads
+# DIRECTLY through the existing cluster-scoped `proton-pass`
+# ClusterSecretStore (no cross-namespace SecretStore + RBAC needed — unlike
+# the zitadel SSO handoff there is no chart-minted central secret to mirror).
+# Keys land under the module var names so `varsFrom` below needs no varsKeys
+# renames. Per-env overlays replace the pass:// keys with the cluster vault
+# path (same convention as the coder dev overlay).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: zitadel-login-proxy-vars
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: zitadel-login-proxy-vars
+  data:
+    - secretKey: netbird_token
+      remoteRef:
+        key: __PROTON_PASS_BASE__/zitadel/netbird-pat
+    - secretKey: cloudflare_api_token
+      remoteRef:
+        key: __PROTON_PASS_BASE__/zitadel/cloudflare-api-token
+---
+apiVersion: infra.contrib.fluxcd.io/v1alpha2
+kind: Terraform
+metadata:
+  name: zitadel-login-proxy
+spec:
+  interval: 30m
+  approvePlan: auto
+  # Upsert-only guard (tofu-controller 0.16.5): the v1alpha2 CRD has no
+  # preventDestroy/destroyPlan field — `destroy` (destroy plan on reconcile)
+  # and `destroyResourcesOnDeletion` (destroy plan on CR deletion) are the
+  # only destroy knobs, both default false. Stated explicitly so no `tofu
+  # destroy` path exists via Flux; drift detection stays on (default).
+  destroy: false
+  destroyResourcesOnDeletion: false
+  # Shared reusable reverse-proxy root: the infra/netbird OCI artifact
+  # (namespace `netbird`) packs flux/infra/components/netbird/terraform/ at
+  # ./terraform. Cross-namespace sourceRef is allowed by
+  # allowCrossNamespaceRefs=true on the tofu-controller — no per-app
+  # terraform/ root, no git-SHA module pin.
+  sourceRef:
+    kind: OCIRepository
+    name: infra
+    namespace: netbird
+  path: ./terraform
+  # Plain (non-sensitive) per-env values; secrets (netbird_token,
+  # cloudflare_api_token) come from varsFrom below. varsFrom overrides vars
+  # on key collision (upstream GenerateVarsForTF).
+  # The login FQDN is fully rendered here (the shared root takes no
+  # app_host var): `__ZITADEL_LOGIN_HOST__` is the per-env login hostname,
+  # replaced by the dev/prd overlay patches. The backend rides `vars` as an
+  # HCL list (tofu-controller renders nested YAML values as HCL — no JSON
+  # encoding needed): the peer target is the NetBird peer that routes to the
+  # cluster LAN (target_id per env overlay), on the zitadel-login Service
+  # port 3000 over plain http (in-pod TLS stays OFF — NetBird terminates
+  # public TLS at the edge; path pins the proxy to the login UI base path).
+  # POSITIONAL: the dev/prd overlays patch /spec/vars/0 (domain) by index,
+  # so this order must not change without updating the overlays.
+  vars:
+    - name: domain
+      value: __ZITADEL_LOGIN_HOST__
+    - name: service_name
+      value: zitadel-login
+    - name: cloudflare_zone_id
+      value: __CLOUDFLARE_ZONE_ID__
+    - name: targets
+      value:
+        - target_type: peer
+          target_id: __NETBIRD_PEER_ID__
+          port: 3000
+          protocol: http
+          path: /ui/v2/login
+  varsFrom:
+    - kind: Secret
+      name: zitadel-login-proxy-vars
+  writeOutputsToSecret:
+    name: zitadel-login-proxy-outputs
+    outputs:
+      - service_id
+      - service_domain
+      - proxy_url

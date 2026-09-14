@@ -187,11 +187,32 @@ resource "random_bytes" "cookie_secret" {
   }
 }
 
+# Trusted login domain (§11.1 split): the NetBird-exposed login host is
+# registered as an instance trusted domain (not for routing — for API
+# responses like OIDC discovery + login redirects) so Zitadel serves auth
+# flows on it without "Instance not found" (custom-domain.mdx). Requires
+# iam.write on the bootstrap machine user. Derives the bare host from
+# var.login_base_uri (strips scheme + /ui/v2/login path); count-gated so
+# callers that pass no login URI get no extra resource.
+resource "zitadel_instance_trusted_domain" "login" {
+  count       = var.login_base_uri != null && var.login_base_uri != "" ? 1 : 0
+  instance_id = data.zitadel_org.home_ops.id
+  domain      = regex("https?://([^/]+)", var.login_base_uri)[0]
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 # OIDC client (code flow + PKCE, refresh tokens; scopes openid profile email
 # groups). The generated client_id/client_secret are computed server-side —
 # they flow out via the root outputs into the `<app>-sso-outputs` Secret (CR
 # writeOutputsToSecret), consumed by the app's ExternalSecret through the
 # in-cluster `<app>-k8s` SecretStore (no Proton Pass seeding).
+# login_version.login_v2.base_uri (dynamic: only when var.login_base_uri is
+# set, mirroring client_converter.go — clients with a specific URI redirect
+# auth requests to the login host; without it they fall back to the instance
+# LoginV2 default) points each client at the NetBird-exposed login UI.
 resource "zitadel_application_oidc" "this" {
   org_id                      = data.zitadel_org.home_ops.id
   project_id                  = zitadel_project.this.id
@@ -206,6 +227,15 @@ resource "zitadel_application_oidc" "this" {
   access_token_role_assertion = true
   id_token_role_assertion     = true
   id_token_userinfo_assertion = true
+
+  dynamic "login_version" {
+    for_each = var.login_base_uri != null && var.login_base_uri != "" ? [var.login_base_uri] : []
+    content {
+      login_v2 {
+        base_uri = login_version.value
+      }
+    }
+  }
 
   lifecycle {
     prevent_destroy = true

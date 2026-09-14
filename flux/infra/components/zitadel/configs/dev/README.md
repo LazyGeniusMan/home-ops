@@ -1,7 +1,6 @@
 # Zitadel (§14 dev)
 
-Dev identity provider: the OIDC issuer for
-`https://zitadel.homelab-dev.yansyah.my.id` plus the locked dev client
+Dev identity provider: the OIDC issuer on `https://admin.zitadel.homelab-dev.yansyah.my.id` (login UI on `https://login.zitadel.homelab-dev.yansyah.my.id`, NetBird-exposed) plus the locked dev client
 contract the §14 app writers build against (table below — do not deviate).
 `kustomization.yaml` here references `../base` plus kustomize patches
 carrying the §14 locked deltas: dev domain, DEV Proton Pass vault
@@ -14,12 +13,11 @@ same DB/cache classes (3-instance CNPG, 3-replica Dragonfly,
 Patches against `configs/base`: ESO remoteRefs (dev vault),
 namespace-local CNPG Cluster + ScheduledBackup (dev S3 endpoint),
 namespace-local Dragonfly + snapshot credentials (dev S3 host),
-in-namespace `wildcard-homelab-dev-tls`, HTTPRoutes (`/` → zitadel:8080,
-`/ui/v2/login` → zitadel-login:3000 on the shared §14 DEV Gateway),
+in-namespace `wildcard-homelab-dev-tls`, admin HTTPRoute (`/` → zitadel:8080 on the shared §14 DEV Gateway),
 `org-users.yaml` intent (human-readable mirror) + `zitadel-bootstrap-handoff.yaml`
 (ESO credential/asset mirrors, machine-applied).
 Controllers live in `controllers/dev` (`../base` + patch setting
-`ExternalDomain: zitadel.homelab-dev.yansyah.my.id`).
+`ExternalDomain: admin.zitadel.homelab-dev.yansyah.my.id` (+ `DefaultInstance.Features.LoginV2.BaseURI: https://login.zitadel.homelab-dev.yansyah.my.id/ui/v2/login`)).
 
 ## OIDC contract (LOCKED for §14 app writers)
 
@@ -27,7 +25,8 @@ App writers build against THIS table — do not deviate.
 
 | Item | Value |
 |---|---|
-| Issuer | `https://zitadel.homelab-dev.yansyah.my.id` |
+| Issuer (admin host) | `https://admin.zitadel.homelab-dev.yansyah.my.id` |
+| Login UI (NetBird) | `https://login.zitadel.homelab-dev.yansyah.my.id/ui/v2/login` (per-app `login_base_uri` + instance `LoginV2.BaseURI`; trusted domain registered by the terraform root) |
 | Org | `home-ops` |
 | Users | `admin@homelab-dev.yansyah.my.id` (super-admin, `admin` group + role — bootstrap-owned); non-admin users are owned per consumer app, not by this bootstrap |
 | Groups | `admin` (admin@ member) — asserted in the `groups` claim; per-app `users` membership is owned by each consumer app |
@@ -48,8 +47,7 @@ redirects point at each app's root (`https://<app>…/`).
 ## Identity bootstrap (Helm FirstInstance) — DEV note
 
 Machine-applied like base: the chart's `FirstInstance` stanza (inherited
-from `controllers/base`, plus this overlay's `ExternalDomain:
-zitadel.homelab-dev.yansyah.my.id` patch) creates org `home-ops` + the
+from `controllers/base`, plus this overlay's `ExternalDomain: admin.zitadel.homelab-dev.yansyah.my.id` (+ `LoginV2.BaseURI: https://login.zitadel.homelab-dev.yansyah.my.id/ui/v2/login`) patch) creates org `home-ops` + the
 `zitadel-bootstrap-sa` machine user; `zitadel-bootstrap-handoff.yaml`
 mirrors its key/PAT into `zitadel-bootstrap-credentials` (no DEV vault refs
 for bootstrap — the setup Job mints the key) plus the `zitadel-assets` S3

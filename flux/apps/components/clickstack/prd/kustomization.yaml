@@ -139,7 +139,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/args/3
-        value: --oidc-issuer-url=https://zitadel.home-ops.yansyah.my.id
+        value: --oidc-issuer-url=https://admin.zitadel.home-ops.yansyah.my.id
       - op: replace
         path: /spec/template/spec/containers/0/args/6
         value: --cookie-domain=.home-ops.yansyah.my.id
@@ -156,12 +156,15 @@ patches:
   - patch: |
       - op: replace
         path: /spec/vars/0/value
-        value: zitadel.home-ops.yansyah.my.id
+        value: admin.zitadel.home-ops.yansyah.my.id
       - op: replace
-        path: /spec/vars/2/value/0
-        value: https://clickstack.home-ops.yansyah.my.id/*
+        path: /spec/vars/2/value
+        value: https://login.zitadel.home-ops.yansyah.my.id/ui/v2/login
       - op: replace
         path: /spec/vars/3/value/0
+        value: https://clickstack.home-ops.yansyah.my.id/*
+      - op: replace
+        path: /spec/vars/4/value/0
         value: https://clickstack.home-ops.yansyah.my.id/
     target:
       kind: Terraform

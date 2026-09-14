@@ -9,6 +9,10 @@
 # This ConfigMap is the human-readable mirror of that intent — keep it in
 # sync with the HelmRelease FirstInstance stanza when the contract changes.
 #
+# Hosts: admin UI/console/API + OIDC issuer on admin.zitadel.<base>
+# (ExternalDomain, per-env overlay); end-user login UI on
+# login.zitadel.<base> (NetBird zitadel-login-proxy + instance
+# LoginV2.BaseURI + per-app login_base_uri).
 # Org: home-ops (FirstInstance-created)
 # Machine admin: zitadel-bootstrap-sa — IAM_OWNER service account for
 # automation (key JSON: Secret zitadel-bootstrap-sa /

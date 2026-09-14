@@ -26,6 +26,9 @@ spec:
       remoteRef:
         key: __PROTON_PASS_BASE__/cert-manager/cloudflare-api-token
 ---
+# SANs mirror the zitadel namespace Certificate: single-level wildcard
+# (covers the admin host) + nested *.zitadel.<base> (covers the NetBird
+# login host login.zitadel.<base> — wildcards match one label only).
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -37,3 +40,4 @@ spec:
     kind: ClusterIssuer
   dnsNames:
     - "*.__BASE_DOMAIN__"
+    - "*.zitadel.__BASE_DOMAIN__"

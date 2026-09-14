@@ -40,7 +40,7 @@ the route is owned explicitly (§8.1 pattern, same split as §11.1).
 
 | Item | Value |
 | --- | --- |
-| Issuer | `https://zitadel.home-ops.yansyah.my.id` |
+| Issuer | `https://admin.zitadel.home-ops.yansyah.my.id` |
 | clientID | `headlamp` |
 | Scopes | `openid profile email groups` |
 | Callback | `https://headlamp.home-ops.yansyah.my.id/oidc-callback` (covered by the locked `https://headlamp.home-ops.yansyah.my.id/*` redirect) |

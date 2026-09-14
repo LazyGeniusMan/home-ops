@@ -98,6 +98,27 @@ patches:
     target:
       kind: ExternalSecret
       name: zitadel-db-app-secret
+  # Prd login-proxy vars mirror (vault path) + login domain.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/zitadel/netbird-pat
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/zitadel/cloudflare-api-token
+    target:
+      kind: ExternalSecret
+      name: zitadel-login-proxy-vars
+  - patch: |
+      - op: replace
+        path: /spec/vars/0/value
+        value: login.zitadel.home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/vars/2/value
+        value: __CLOUDFLARE_ZONE_ID_HOME_OPS__
+    target:
+      kind: Terraform
+      name: zitadel-login-proxy
   # Prd token vault + cert rename + wildcard DNS.
   - patch: |
       - op: replace
@@ -124,24 +145,23 @@ patches:
       - op: replace
         path: /spec/dnsNames/0
         value: "*.home-ops.yansyah.my.id"
+      - op: replace
+        path: /spec/dnsNames/1
+        value: "*.zitadel.home-ops.yansyah.my.id"
     target:
       kind: Certificate
       name: wildcard-home-ops
-  # Prd route hostnames (zitadel.home-ops.yansyah.my.id).
+  # Prd admin route hostname (admin.zitadel.home-ops.yansyah.my.id). The
+  # end-user login host (login.zitadel.home-ops.yansyah.my.id) is exposed
+  # via the NetBird reverse-proxy consumer (zitadel-login-proxy.yaml) — no
+  # Gateway zitadel-login route ships.
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: zitadel.home-ops.yansyah.my.id
+        value: admin.zitadel.home-ops.yansyah.my.id
     target:
       kind: HTTPRoute
       name: zitadel
-  - patch: |
-      - op: replace
-        path: /spec/hostnames/0
-        value: zitadel.home-ops.yansyah.my.id
-    target:
-      kind: HTTPRoute
-      name: zitadel-login
   # Prd production HA: pin the stateful placeholders (DB 3, cache 3).
   - patch: |
       - op: replace
@@ -162,7 +182,7 @@ patches:
       - op: remove
         path: /metadata/annotations/__ZITADEL_HOST__~1managed-by
       - op: add
-        path: /metadata/annotations/zitadel.home-ops.yansyah.my.id~1managed-by
+        path: /metadata/annotations/admin.zitadel.home-ops.yansyah.my.id~1managed-by
         value: zitadel-setup-job
     target:
       kind: ConfigMap

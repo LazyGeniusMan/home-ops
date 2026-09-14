@@ -35,7 +35,7 @@ spec:
   path: ./terraform # this reusable root
   vars:
     - name: domain
-      value: zitadel.home-ops.yansyah.my.id
+      value: admin.zitadel.home-ops.yansyah.my.id
     - name: project_name
       value: <app>
     - name: redirect_uris
@@ -73,7 +73,8 @@ never commit secrets, never hardcode IDs.
 | `project_name` | `string` | yes | — | Zitadel project name; fallback for `group_name`, `oidc_name`, role keys |
 | `group_name` | `string` | no | `project_name` | Group claim value on the project roles (oauth2-proxy `--allowed-group` / app group gates) |
 | `oidc_name` | `string` | no | `project_name` | Display name of the OIDC application |
-| `domain` | `string` | no | `zitadel.home-ops.yansyah.my.id` | Zitadel external domain (issuer host, no scheme) |
+| `domain` | `string` | no | `admin.zitadel.home-ops.yansyah.my.id` | Zitadel external domain (admin/issuer host, no scheme) |
+| `login_base_uri` | `string` | no | `null` | End-user login UI base URI (e.g. `https://login.zitadel.home-ops.yansyah.my.id/ui/v2/login`) — per-app `login_version.login_v2.base_uri` + shared `zitadel_instance_trusted_domain` registration |
 | `jwt_profile_json` | `string` (sensitive) | no | `null` | JWT profile key JSON for the FirstInstance IAM_OWNER machine user (controller injects via `varsFrom`; manual runs pass `-var`, never commit) |
 | `org_id` | `string` | no | `null` | Home-ops org ID from the FirstInstance handoff (`zitadel-bootstrap-outputs` Secret via ESO mirror) |
 | `admin_user_id` | `string` (sensitive) | no | `null` | Bootstrap admin user ID from the FirstInstance handoff — always granted the admin project role |

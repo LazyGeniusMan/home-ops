@@ -1,5 +1,9 @@
-# Zitadel v4.17.1 identity provider (§11.1): OIDC issuer for
-# __ZITADEL_HOST__ plus the wave-3c app client contract (see README).
+# Zitadel v4.17.1 identity provider (§11.1): OIDC issuer on the admin host
+# (__ZITADEL_HOST__ = admin.zitadel.<base>) plus the wave-3c app client
+# contract (see README). End-user logins run on the separate login host
+# (__ZITADEL_LOGIN_HOST__ = login.zitadel.<base>, NetBird-exposed) via
+# LoginV2.BaseURI (DefaultInstance Features, per-env overlay) + per-app
+# login_base_uri (terraform root).
 # Chart: oci://ghcr.io/zitadel/zitadel-charts/zitadel, tag 10.0.4
 # (digest sha256:9afa657fad65079857339f7d7fd296c73e577f6c8ec4e4a103093be35964b50c,
 # verified by pull; OCI on GHCR is the upstream source of truth).

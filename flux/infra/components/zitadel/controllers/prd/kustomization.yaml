@@ -3,11 +3,24 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Prd external domain (zitadel.home-ops.yansyah.my.id).
+  # Prd external domain = the admin host (issuer/console/API) +
+  # LoginV2.BaseURI = the NetBird-exposed login host. ExternalDomain stays
+  # the single Zitadel issuer per custom-domain.mdx; LoginV2.BaseURI (env
+  # ZITADEL_DEFAULTINSTANCE_FEATURES_LOGINV2_BASEURI, defaults.yaml) is what
+  # redirects end-user auth requests to the separate login origin. The login
+  # host is also registered as an instance trusted domain (terraform root)
+  # so Zitadel serves it without "Instance not found".
   - patch: |
       - op: replace
         path: /spec/values/zitadel/configmapConfig/ExternalDomain
-        value: zitadel.home-ops.yansyah.my.id
+        value: admin.zitadel.home-ops.yansyah.my.id
+      - op: add
+        path: /spec/values/zitadel/configmapConfig/DefaultInstance
+        value:
+          Features:
+            LoginV2:
+              Required: true
+              BaseURI: https://login.zitadel.home-ops.yansyah.my.id/ui/v2/login
     target:
       kind: HelmRelease
       name: zitadel
