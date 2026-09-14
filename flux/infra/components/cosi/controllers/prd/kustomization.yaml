@@ -4,14 +4,8 @@ resources:
   - ../base
 patches:
   # Prd autoscaling: HPA controller min 2/max 4 (pinned image elects via
-  # internal/runtime unconditionally); Deployment replicas track the HPA min.
-  - patch: |
-      - op: replace
-        path: /spec/replicas
-        value: 2
-    target:
-      kind: Deployment
-      name: controller
+  # internal/runtime unconditionally). No Deployment /spec/replicas patch:
+  # base replicas: 1 is the create-time seed, HPA owns runtime count.
   - patch: |
       - op: replace
         path: /spec/minReplicas

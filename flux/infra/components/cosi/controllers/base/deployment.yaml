@@ -6,7 +6,7 @@ metadata:
   labels:
     app: container-object-storage-interface-controller
 spec:
-  replicas: 1 # placeholder - overridden by dev/prd overlays
+  replicas: 1 # create-time seed, HPA owns runtime count
   strategy:
     rollingUpdate:
       maxUnavailable: 0

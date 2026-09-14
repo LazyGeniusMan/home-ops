@@ -4,14 +4,8 @@ resources:
   - ../base
 patches:
   # Prd autoscaling: HPA eso-proton-pass min 2/max 4 (stateless webhook —
-  # safe multi-replica); Deployment replicas track the HPA min.
-  - patch: |
-      - op: replace
-        path: /spec/replicas
-        value: 2
-    target:
-      kind: Deployment
-      name: eso-proton-pass
+  # safe multi-replica). No Deployment /spec/replicas patch: base
+  # replicas: 1 is the create-time seed, HPA owns runtime count.
   - patch: |
       - op: replace
         path: /spec/minReplicas

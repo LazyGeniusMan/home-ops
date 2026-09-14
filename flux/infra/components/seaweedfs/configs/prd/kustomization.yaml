@@ -84,7 +84,8 @@ patches:
       name: wildcard-seaweedfs
   # Prd production HA: pin the stateful placeholders (master/volume 3,
   # filer/s3 2). Stateless Deployments (ui-auth, COSI driver) autoscale via
-  # HPA (prd min 2/max 4); Deployment replicas track the HPA min.
+  # HPA (prd min 2/max 4). No Deployment /spec/replicas patches: base
+  # replicas: 1 is the create-time seed, HPA owns runtime count.
   - patch: |
       - op: replace
         path: /spec/master/replicas
@@ -122,13 +123,6 @@ patches:
       name: seaweed-main
   - patch: |
       - op: replace
-        path: /spec/replicas
-        value: 2
-    target:
-      kind: Deployment
-      name: ui-auth
-  - patch: |
-      - op: replace
         path: /spec/minReplicas
         value: 2
       - op: replace
@@ -137,13 +131,6 @@ patches:
     target:
       kind: HorizontalPodAutoscaler
       name: ui-auth
-  - patch: |
-      - op: replace
-        path: /spec/replicas
-        value: 2
-    target:
-      kind: Deployment
-      name: seaweedfs-cosi-driver
   - patch: |
       - op: replace
         path: /spec/minReplicas

@@ -44,7 +44,7 @@ metadata:
   labels:
     app.kubernetes.io/name: eso-proton-pass
 spec:
-  replicas: 1 # placeholder - tracks the env HPA min (dev 1, prd 2)
+  replicas: 1 # create-time seed, HPA owns runtime count
   selector:
     matchLabels:
       app.kubernetes.io/name: eso-proton-pass

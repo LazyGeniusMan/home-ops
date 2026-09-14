@@ -3,15 +3,9 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev autoscaling: HPA eso-proton-pass min 1/max 2; Deployment replicas
-  # track the HPA min so the static field never fights the HPA.
-  - patch: |
-      - op: replace
-        path: /spec/replicas
-        value: 1
-    target:
-      kind: Deployment
-      name: eso-proton-pass
+  # Dev autoscaling: HPA eso-proton-pass min 1/max 2. No Deployment
+  # /spec/replicas patch: base replicas: 1 is the create-time seed, HPA
+  # owns runtime count.
   - patch: |
       - op: replace
         path: /spec/minReplicas
