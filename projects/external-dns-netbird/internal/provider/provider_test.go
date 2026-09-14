@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"sigs.k8s.io/external-dns/endpoint"
@@ -12,16 +13,25 @@ import (
 
 // fakeAPI is an in-memory netbird.API.
 type fakeAPI struct {
-	zones   []netbird.Zone
-	records map[string][]netbird.Record // zoneID -> records
-	created []netbird.CreateRecord
-	updated []netbird.UpdateRecord
-	deleted []string // recordIDs
-	seq     int
+	zones       []netbird.Zone
+	records     map[string][]netbird.Record // zoneID -> records
+	created     []netbird.CreateRecord
+	createdZone []netbird.CreateZoneRequest
+	updated     []netbird.UpdateRecord
+	deleted     []string // recordIDs
+	seq         int
 }
 
 func (f *fakeAPI) ListZones(_ context.Context) ([]netbird.Zone, error) {
 	return f.zones, nil
+}
+
+func (f *fakeAPI) CreateZone(_ context.Context, req netbird.CreateZoneRequest) (*netbird.Zone, error) {
+	f.seq++
+	zone := netbird.Zone{ID: "zone-new", Name: req.Name, Domain: req.Domain, Enabled: true}
+	f.zones = append(f.zones, zone)
+	f.createdZone = append(f.createdZone, req)
+	return &zone, nil
 }
 
 func (f *fakeAPI) ListRecords(_ context.Context, zoneID string) ([]netbird.Record, error) {
@@ -170,6 +180,101 @@ func TestApplyChangesUpdate(t *testing.T) {
 	}
 	if len(f.updated) != 1 || f.updated[0].TTL != 600 {
 		t.Errorf("expected TTL refresh update, got %+v", f.updated)
+	}
+}
+
+func TestApplyChangesAutoCreatesMissingZone(t *testing.T) {
+	f := &fakeAPI{records: map[string][]netbird.Record{}}
+	p := New(f, []string{"example.com"}, 300)
+	changes := &plan.Changes{
+		Create: []*endpoint.Endpoint{
+			endpoint.NewEndpointWithTTL("new.example.com", "A", 300, "10.0.0.1"),
+		},
+	}
+	if err := p.ApplyChanges(context.Background(), changes); err != nil {
+		t.Fatalf("ApplyChanges: %v", err)
+	}
+	if len(f.createdZone) != 1 || f.createdZone[0].Domain != "example.com" {
+		t.Fatalf("expected zone example.com auto-created, got %+v", f.createdZone)
+	}
+	if len(f.created) != 1 || f.created[0].Name != "new.example.com" {
+		t.Fatalf("expected record created after zone creation, got %+v", f.created)
+	}
+	// Re-apply is idempotent: the zone created above is reused, not duplicated.
+	changes2 := &plan.Changes{
+		Create: []*endpoint.Endpoint{
+			endpoint.NewEndpointWithTTL("other.example.com", "A", 300, "10.0.0.2"),
+		},
+	}
+	if err := p.ApplyChanges(context.Background(), changes2); err != nil {
+		t.Fatalf("ApplyChanges (re-apply): %v", err)
+	}
+	if len(f.createdZone) != 1 {
+		t.Fatalf("expected no duplicate zone on re-apply, got %+v", f.createdZone)
+	}
+}
+
+func TestZoneForNameReusesExistingZone(t *testing.T) {
+	f := testFixture()
+	p := New(f, []string{"example.com"}, 300)
+	id, err := p.zoneForName(context.Background(), "deep.sub.example.com")
+	if err != nil {
+		t.Fatalf("zoneForName: %v", err)
+	}
+	if id != "zone-1" {
+		t.Fatalf("expected zone-1, got %q", id)
+	}
+	if len(f.createdZone) != 0 {
+		t.Fatalf("expected no zone creation, got %+v", f.createdZone)
+	}
+}
+
+func TestZoneForNameLongestSuffixWins(t *testing.T) {
+	f := &fakeAPI{
+		zones: []netbird.Zone{
+			{ID: "zone-parent", Domain: "example.com"},
+			{ID: "zone-child", Domain: "sub.example.com"},
+		},
+		records: map[string][]netbird.Record{},
+	}
+	p := New(f, []string{"example.com"}, 300)
+	id, err := p.zoneForName(context.Background(), "host.sub.example.com")
+	if err != nil {
+		t.Fatalf("zoneForName: %v", err)
+	}
+	if id != "zone-child" {
+		t.Fatalf("expected zone-child, got %q", id)
+	}
+	if len(f.createdZone) != 0 {
+		t.Fatalf("expected no zone creation, got %+v", f.createdZone)
+	}
+}
+
+func TestZoneForNameAutoCreatesLongestFilterSuffix(t *testing.T) {
+	f := &fakeAPI{records: map[string][]netbird.Record{}}
+	p := New(f, []string{"example.com", "sub.example.com"}, 300)
+	id, err := p.zoneForName(context.Background(), "host.sub.example.com")
+	if err != nil {
+		t.Fatalf("zoneForName: %v", err)
+	}
+	if id != "zone-new" {
+		t.Fatalf("expected zone-new, got %q", id)
+	}
+	if len(f.createdZone) != 1 || f.createdZone[0].Domain != "sub.example.com" {
+		t.Fatalf("expected sub.example.com auto-created, got %+v", f.createdZone)
+	}
+}
+
+func TestZoneForNameOutsideFilterIsPermanent(t *testing.T) {
+	f := &fakeAPI{records: map[string][]netbird.Record{}}
+	p := New(f, []string{"example.com"}, 300)
+	if _, err := p.zoneForName(context.Background(), "host.other.net"); err == nil {
+		t.Fatal("expected error for name outside domain filter")
+	} else if got := err.Error(); !strings.Contains(got, "no matching zone") {
+		t.Fatalf("expected no-matching-zone error, got %v", err)
+	}
+	if len(f.createdZone) != 0 {
+		t.Fatalf("must not create zones outside the filter, got %+v", f.createdZone)
 	}
 }
 

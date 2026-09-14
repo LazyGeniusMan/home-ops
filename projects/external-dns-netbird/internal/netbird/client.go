@@ -98,6 +98,31 @@ func (c *Client) ListZones(ctx context.Context) ([]Zone, error) {
 	return zones, nil
 }
 
+// CreateZoneRequest is the request body for POST /api/dns/zones.
+// Field semantics mirror the NetBird Public API ("Create a DNS Zone") and
+// the netbird_dns_zone Terraform resource: Name and Domain are required,
+// EnableSearchDomain and DistributionGroups are required by the API schema,
+// Enabled is optional (defaults server-side to true).
+type CreateZoneRequest struct {
+	Name               string   `json:"name"`
+	Domain             string   `json:"domain"`
+	Enabled            *bool    `json:"enabled,omitempty"`
+	EnableSearchDomain bool     `json:"enable_search_domain"`
+	DistributionGroups []string `json:"distribution_groups"`
+}
+
+// CreateZone creates a custom DNS zone (POST /api/dns/zones).
+func (c *Client) CreateZone(ctx context.Context, req CreateZoneRequest) (*Zone, error) {
+	if req.DistributionGroups == nil {
+		req.DistributionGroups = []string{}
+	}
+	var created Zone
+	if err := c.do(ctx, http.MethodPost, "/api/dns/zones", req, &created); err != nil {
+		return nil, err
+	}
+	return &created, nil
+}
+
 // ListRecords returns all DNS records in a zone (GET /api/dns/zones/{zoneId}/records).
 func (c *Client) ListRecords(ctx context.Context, zoneID string) ([]Record, error) {
 	var records []Record

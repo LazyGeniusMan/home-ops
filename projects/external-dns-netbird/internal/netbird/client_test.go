@@ -102,6 +102,48 @@ func TestCRUDRoundTrip(t *testing.T) {
 	}
 }
 
+func TestCreateZoneRoundTrip(t *testing.T) {
+	var gotPath, gotAuth string
+	var gotReq CreateZoneRequest
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotAuth = r.Header.Get("Authorization")
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if err := json.NewDecoder(r.Body).Decode(&gotReq); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(Zone{ID: "z-new", Name: gotReq.Name, Domain: gotReq.Domain, Enabled: true})
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "pat")
+	enabled := true
+	zone, err := c.CreateZone(context.Background(), CreateZoneRequest{
+		Name: "example.com", Domain: "example.com", Enabled: &enabled,
+		EnableSearchDomain: false, DistributionGroups: []string{},
+	})
+	if err != nil {
+		t.Fatalf("CreateZone: %v", err)
+	}
+	if gotPath != "/api/dns/zones" {
+		t.Errorf("unexpected path: %q", gotPath)
+	}
+	if gotAuth != "Token pat" {
+		t.Errorf("unexpected auth header: %q", gotAuth)
+	}
+	if zone.ID != "z-new" || zone.Domain != "example.com" {
+		t.Errorf("unexpected zone: %+v", zone)
+	}
+	if gotReq.Domain != "example.com" || gotReq.Name != "example.com" {
+		t.Errorf("unexpected request body: %+v", gotReq)
+	}
+}
+
 func TestDefaultBaseURL(t *testing.T) {
 	c := NewClient("", "pat")
 	if c.baseURL != DefaultBaseURL {

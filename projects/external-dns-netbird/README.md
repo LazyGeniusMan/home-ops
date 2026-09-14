@@ -33,6 +33,20 @@ secret (or ESO `SecretStore`) without ever appearing in env or args.
   and fills missing TTLs with `DEFAULT_TTL` so `Records`/`AdjustEndpoints`
   stay in parity and the planner sees no spurious diffs.
 
+## Zone auto-creation
+
+- On create/update, the provider resolves the longest-suffix NetBird zone
+  matching the endpoint name. When no zone matches, it auto-creates the
+  zone (`POST /api/dns/zones`) with the longest `DOMAIN_FILTER` entry that
+  is a suffix of the name (falling back to the immediate parent domain when
+  no filter is configured) and retries the record creation in the same
+  apply — Gateway/Service records self-heal without manual zone setup.
+- The existing zone list is re-checked before creation, so concurrent
+  applies stay idempotent (no duplicate zones). Names outside
+  `DOMAIN_FILTER` are rejected with a permanent error (no zone created);
+  NetBird API failures (including `429`/`5xx`) surface as soft errors so
+  ExternalDNS retries the apply.
+
 ## Endpoints
 
 | Listener     | Route               | Description                              |

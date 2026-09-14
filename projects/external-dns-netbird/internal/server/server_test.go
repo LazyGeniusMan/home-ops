@@ -21,6 +21,11 @@ type fakeAPI struct {
 }
 
 func (f *fakeAPI) ListZones(context.Context) ([]netbird.Zone, error) { return f.zones, nil }
+func (f *fakeAPI) CreateZone(_ context.Context, req netbird.CreateZoneRequest) (*netbird.Zone, error) {
+	zone := netbird.Zone{ID: "z-new", Name: req.Name, Domain: req.Domain}
+	f.zones = append(f.zones, zone)
+	return &zone, nil
+}
 func (f *fakeAPI) ListRecords(context.Context, string) ([]netbird.Record, error) {
 	return nil, nil
 }

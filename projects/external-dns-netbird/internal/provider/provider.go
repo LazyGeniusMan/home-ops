@@ -29,6 +29,7 @@ var SupportedTypes = map[string]bool{"A": true, "AAAA": true, "CNAME": true}
 // API is the subset of the NetBird client used by the Provider (mockable).
 type API interface {
 	ListZones(ctx context.Context) ([]netbird.Zone, error)
+	CreateZone(ctx context.Context, req netbird.CreateZoneRequest) (*netbird.Zone, error)
 	ListRecords(ctx context.Context, zoneID string) ([]netbird.Record, error)
 	CreateRecord(ctx context.Context, zoneID string, rec netbird.CreateRecord) (*netbird.Record, error)
 	UpdateRecord(ctx context.Context, zoneID, recordID string, rec netbird.UpdateRecord) (*netbird.Record, error)
@@ -196,6 +197,17 @@ func (p *Provider) buildIndex(ctx context.Context) (index, error) {
 	return idx, nil
 }
 
+// zoneForName resolves the longest-suffix zone matching dnsName. When no
+// zone matches, it derives the candidate zone domain from the configured
+// DOMAIN_FILTER (longest filter entry that is a suffix of dnsName, falling
+// back to the parent of the left-most label) and auto-creates the NetBird
+// zone via POST /api/dns/zones so the record can be created. The lookup is
+// re-checked before creation so concurrent applies stay idempotent.
+//
+// Candidate domains that do not match DOMAIN_FILTER are rejected with a
+// permanent (non-retryable) error; NetBird API failures surface as soft
+// errors (5xx/transport via the client, other failures wrapped here) so
+// ExternalDNS retries the apply.
 func (p *Provider) zoneForName(ctx context.Context, dnsName string) (string, error) {
 	name := strings.ToLower(strings.TrimSuffix(dnsName, "."))
 	zones, err := p.api.ListZones(ctx)
@@ -216,10 +228,73 @@ func (p *Provider) zoneForName(ctx context.Context, dnsName string) (string, err
 			}
 		}
 	}
-	if bestID == "" {
+	if bestID != "" {
+		return bestID, nil
+	}
+	candidate := longestFilterSuffix(p.filter, name)
+	if candidate == "" {
 		return "", fmt.Errorf("netbird: no matching zone for %q", dnsName)
 	}
-	return bestID, nil
+	// Re-check: an exact zone for the candidate may exist but be shadowed
+	// above only in theory (no match implies absence); ListZones was just
+	// read, so only create when no exact-domain zone exists.
+	for _, z := range zones {
+		if strings.EqualFold(strings.TrimSuffix(z.Domain, "."), candidate) {
+			// Zone exists but is outside DOMAIN_FILTER: do not reuse it,
+			// report the miss as permanent.
+			if !p.filter.Match(z.Domain) {
+				return "", fmt.Errorf("netbird: no matching zone for %q (zone %q outside domain filter)", dnsName, z.Domain)
+			}
+			return z.ID, nil
+		}
+	}
+	if !p.filter.Match(candidate) {
+		return "", fmt.Errorf("netbird: no matching zone for %q (candidate zone %q outside domain filter)", dnsName, candidate)
+	}
+	created, err := p.api.CreateZone(ctx, netbird.CreateZoneRequest{
+		Name:               candidate,
+		Domain:             candidate,
+		EnableSearchDomain: false,
+		DistributionGroups: []string{},
+	})
+	if err != nil {
+		return "", softErrorf("create zone %q: %v", candidate, err)
+	}
+	if created == nil || created.ID == "" {
+		return "", softErrorf("create zone %q: empty response", candidate)
+	}
+	return created.ID, nil
+}
+
+// longestFilterSuffix picks the zone domain to auto-create for dnsName:
+// the longest configured filter entry that is an exact match or a parent
+// suffix of dnsName. With no usable filter entry it falls back to the
+// immediate parent domain (dnsName minus its left-most label); a bare
+// single-label name yields "" (no candidate).
+func longestFilterSuffix(filter *endpoint.DomainFilter, dnsName string) string {
+	best := ""
+	if filter != nil {
+		for _, f := range filter.Filters {
+			domain := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(f), "."))
+			if domain == "" {
+				continue
+			}
+			if dnsName == domain || strings.HasSuffix(dnsName, "."+domain) {
+				if len(domain) > len(best) {
+					best = domain
+				}
+			}
+		}
+	}
+	if best != "" {
+		return best
+	}
+	// No filter configured (or no filter entry is a suffix): derive the
+	// immediate parent domain so single-record hostnames self-heal.
+	if i := strings.Index(dnsName, "."); i > 0 && i < len(dnsName)-1 {
+		return dnsName[i+1:]
+	}
+	return ""
 }
 
 func (p *Provider) create(ctx context.Context, ep *endpoint.Endpoint) error {
