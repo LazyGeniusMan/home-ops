@@ -22,12 +22,12 @@
 #
 # Target: the backend rides the mesh on the shared Service-LB subnet target
 # the netbird root appends automatically (Service Load Balancer IP network
-# resource + LB VIP host, port 3000 http, path /ui/v2/login) — the routing
-# peer forwards onto the cluster LAN toward the Cilium LB VIP that fronts
-# the Gateway (listeners 80/443), which routes the login host to the
+# resource + LB VIP host, port 3000 http, path /ui/v2/login) — the Talos-side
+# routing peer forwards onto the cluster LAN toward the Cilium LB VIP that
+# fronts the Gateway (listeners 80/443), which routes the login host to the
 # zitadel-login Service. No peer literal lives in git: the only per-env
-# network values are cluster_name + service_lb_ip below (positional vars
-# 3-6 — the dev/prd overlays patch domain/zone by index, see note).
+# network values are network_name + service_lb_ip below (positional vars
+# 3-5 — the dev/prd overlays patch domain/zone by index, see note).
 #
 # Ordering: this object ships in the zitadel configs Kustomization (fleet
 # `infra-configs`, after controllers), so it reconciles after the login
@@ -110,8 +110,9 @@ spec:
   # Service-LB subnet target the root appends automatically (port/protocol/
   # path via target_port/target_protocol/target_path below; plain http —
   # in-pod TLS stays OFF, NetBird terminates public TLS at the edge; path
-  # pins the proxy to the login UI base path). cluster_name selects the
-  # per-cluster NetBird fabric (network, nodes group, setup key);
+  # pins the proxy to the login UI base path). network_name selects the
+  # Talos-owned parent NetBird network (created by the Talos Ansible
+  # Terraform task; the LB resource attaches via data-source lookup);
   # service_lb_ip is the per-env Cilium LB VIP (dev .249 / prd .199) the
   # subnet target forwards to. targets stays [] (no extra backends).
   # POSITIONAL: the dev/prd overlays patch /spec/vars/0 (domain) and
@@ -124,7 +125,7 @@ spec:
       value: zitadel-login
     - name: cloudflare_zone_id
       value: __CLOUDFLARE_ZONE_ID__
-    - name: cluster_name
+    - name: network_name
       value: __CLUSTER_NAME__
     - name: service_lb_ip
       value: __SERVICE_LB_IP__
@@ -139,5 +140,4 @@ spec:
       - service_id
       - service_domain
       - proxy_url
-      - talos_setup_key
       - service_lb_resource_id

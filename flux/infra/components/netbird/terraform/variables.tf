@@ -114,10 +114,9 @@ variable "netbird_token" {
   default     = null
 }
 
-variable "cluster_name" {
-  description = "Talos cluster short name segment owning this slice's NetBird fabric (e.g. acme-dev-bdo1-talos-apps-01) - parameterizes the per-cluster network, nodes group, and setup key names; defaults to the legacy shared name so existing single-cluster applies keep working"
+variable "network_name" {
+  description = "Name of the Talos-owned NetBird network this slice's Service LB resource attaches to (created by the Talos Ansible Terraform task; read here via the netbird_network data source, never managed)"
   type        = string
-  default     = "talos-apps"
 }
 
 variable "service_lb_ip" {
@@ -142,12 +141,6 @@ variable "target_path" {
   description = "URL path prefix pinned on the shared Service-LB subnet target (empty string = no path pin)"
   type        = string
   default     = ""
-}
-
-variable "lan_cidr" {
-  description = "LAN CIDR exposed to the admin-users group via the LAN network resource"
-  type        = string
-  default     = "192.168.1.0/24"
 }
 
 variable "management_url" {

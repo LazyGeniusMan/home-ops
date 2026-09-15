@@ -33,28 +33,17 @@ output "dns_record_name" {
   value       = var.create_custom_domain && var.cloudflare_zone_id != null ? cloudflare_dns_record.validation[0].name : ""
 }
 
-output "talos_setup_key" {
-  description = "Plaintext reusable Talos setup key for var.cluster_name (unlimited uses, never expires; auto-joins the <cluster>-nodes group) — sensitive, lands in the consumer writeOutputsToSecret Secret, never in git"
-  value       = netbird_setup_key.talos.key
-  sensitive   = true
+output "parent_network_id" {
+  description = "ID of the Talos-owned parent network (var.network_name) this slice's Service LB resource attaches to"
+  value       = data.netbird_network.parent.id
 }
 
-output "cluster_network_id" {
-  description = "ID of the per-cluster NetBird network (var.cluster_name)"
-  value       = netbird_network.cluster.id
-}
-
-output "cluster_nodes_group_id" {
-  description = "ID of the per-cluster Talos nodes group (<cluster>-nodes, also the routing-peer group)"
-  value       = netbird_group.cluster_nodes.id
+output "guest_users_resources_group_id" {
+  description = "ID of the guest-users-resources group holding the Service Load Balancer IP resource"
+  value       = netbird_group.guest_users_resources.id
 }
 
 output "service_lb_resource_id" {
   description = "ID of the Service Load Balancer IP network resource backing the shared reverse-proxy subnet target"
   value       = netbird_network_resource.service_lb.id
-}
-
-output "lan_resource_id" {
-  description = "ID of the LAN CIDR network resource (admin-users path)"
-  value       = netbird_network_resource.lan.id
 }

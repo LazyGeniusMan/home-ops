@@ -2,13 +2,19 @@
 # (flux/infra/components/netbird/terraform/). Consumers reference this root
 # via cross-namespace sourceRef + their own vars.
 #
-# Flat single layer: provider auth + PAT-driven access fabric (groups,
-# per-cluster network + routing peer, Talos setup key, LAN / Service-LB
-# network resources, admin/guest policies) + custom-domain registration +
-# Cloudflare wildcard CNAME for NetBird ownership verification + the
-# reverse-proxy service itself — no child modules. Callers pass the
-# fully-rendered service FQDN in `domain` (this root takes no
+# Flat single layer: provider auth + the guest Service-LB network resource +
+# custom-domain registration + Cloudflare wildcard CNAME for NetBird ownership
+# verification + the reverse-proxy service itself — no child modules. Callers
+# pass the fully-rendered service FQDN in `domain` (this root takes no
 # app_host/ui_host vars), mirroring the zitadel shared root.
+#
+# Proxy-only: the access fabric (admin/guest/node groups, per-cluster
+# network, setup keys, routers, LAN resources, access policies) lives in the
+# Talos Ansible Terraform task — NOT here. This root owns ONLY the
+# `guest-users-resources` group, the `Service Load Balancer IP` network
+# resource (attached to the Talos-owned parent network via data-source
+# lookup, never a managed network), the custom-domain registration +
+# verification CNAME, and the reverse-proxy service itself.
 #
 # Upsert-only: every managed resource below carries
 # `lifecycle { prevent_destroy = true }`, so any plan that would delete or
@@ -85,50 +91,18 @@ resource "cloudflare_dns_record" "validation" {
   }
 }
 
-# PAT-driven access fabric (admin/guest segmentation + per-cluster Network).
-# Talos nodes join via the reusable setup key below (no manual Proton Pass
-# setup-key seeding per node); the per-cluster Network carries the LAN CIDR
-# resource (admin-only) and the Service-LB resource (guest path into the
-# mesh). Groups/policies follow the Networks product model: a resource is
-# reachable only when an access policy allows a source group to reach it.
-resource "netbird_group" "admin_users" {
-  name = "admin-users"
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "netbird_group" "guest_users" {
-  name = "guest-users"
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "netbird_group" "cluster_nodes" {
-  name = "${var.cluster_name}-nodes"
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-# Resource groups associate by NAME with the resources below: the resource's
-# `groups` field references the group ID (network_resource -> group edge),
-# and the API mirrors the membership back onto the group's `resources`
-# (group -> resource edge). Managing both edges in TF would cycle
-# (group <-> resource), so only the network_resource.groups edge is managed
-# here; the group reads the mirrored membership back as computed state.
-resource "netbird_group" "admin_users_resources" {
-  name = "admin-users-resources"
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
+# Guest Service-LB resource only (proxy-only root). The full access fabric
+# (admin/guest/node groups, per-cluster network, setup keys, routers, LAN
+# resources, access policies) lives in the Talos Ansible Terraform task.
+# This root manages ONLY:
+#   - the `guest-users-resources` group (the resource's `groups` edge; the
+#     API mirrors membership back onto the group as computed state, so only
+#     one edge is managed to avoid a group <-> resource cycle),
+#   - the `Service Load Balancer IP` /32 network resource (the single stable
+#     entrypoint guests use to reach in-cluster Services through the mesh;
+#     the Talos-side routing peer forwards onto the LAN toward the Cilium
+#     LB VIP), attached to the Talos-owned parent network looked up by name
+#     via `var.network_name` (data source — never a managed network here).
 resource "netbird_group" "guest_users_resources" {
   name = "guest-users-resources"
 
@@ -137,154 +111,22 @@ resource "netbird_group" "guest_users_resources" {
   }
 }
 
-# Built-in catch-all group (exists on every account) — read, never manage.
-data "netbird_group" "all" {
-  name = "All"
+# Talos-owned parent network (created by the Talos Ansible Terraform task) —
+# read, never manage. `network_id` is schema-required on every
+# `netbird_network_resource`, so the LB resource below points at this lookup.
+data "netbird_network" "parent" {
+  name = var.network_name
 }
 
-resource "netbird_network" "cluster" {
-  name        = var.cluster_name
-  description = "Cluster LAN fabric for ${var.cluster_name} (Talos nodes join via the ${var.cluster_name} setup key; routing peers forward into the LAN)"
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-# Unlimited reusable setup key for Talos nodes: expiry_seconds = 0 (never
-# expires) + usage_limit = 0 (unlimited uses) + type reusable. Peers minted
-# through this key land in the per-cluster nodes group automatically. The
-# plaintext key is exposed ONLY via the sensitive talos_setup_key output
-# (never echoed, never logged — no local-exec anywhere in this root).
-resource "netbird_setup_key" "talos" {
-  name           = var.cluster_name
-  type           = "reusable"
-  expiry_seconds = 0
-  usage_limit    = 0
-  auto_groups    = [netbird_group.cluster_nodes.id]
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-# Routing: the per-cluster nodes group serves as routing peers for the
-# per-cluster Network (new Networks model — netbird_network_router with
-# peer_groups; the legacy netbird_route resource is intentionally unused).
-# Masquerade stays on (LAN needs no awareness of the overlay); metric is the
-# provider default (single routing group — no primary/failover split).
-resource "netbird_network_router" "cluster" {
-  network_id  = netbird_network.cluster.id
-  peer_groups = [netbird_group.cluster_nodes.id]
-  masquerade  = true
-  enabled     = true
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "netbird_network_resource" "lan" {
-  network_id  = netbird_network.cluster.id
-  name        = "LAN CIDR"
-  description = "Cluster LAN reachable by the admin-users group only"
-  address     = var.lan_cidr
-  groups      = [netbird_group.admin_users_resources.id]
-  enabled     = true
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-# Service Load Balancer IP as a /32 network resource: the single stable
-# entrypoint guests use to reach in-cluster Services through the mesh
-# (routing peer forwards onto the LAN toward the Cilium LB VIP). The address
-# is always the /32 host form — pass the bare VIP in var.service_lb_ip.
+# Service Load Balancer IP as a /32 network resource. The address is always
+# the /32 host form — pass the bare VIP in var.service_lb_ip.
 resource "netbird_network_resource" "service_lb" {
-  network_id  = netbird_network.cluster.id
+  network_id  = data.netbird_network.parent.id
   name        = "Service Load Balancer IP"
-  description = "Cilium Service LB VIP for ${var.cluster_name} (guest path into the mesh)"
+  description = "Cilium Service LB VIP in network ${var.network_name} (guest path into the mesh)"
   address     = "${var.service_lb_ip}/32"
   groups      = [netbird_group.guest_users_resources.id]
   enabled     = true
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-# Admin policies: admin-users may reach every group (node input-chain +
-# peer-to-peer reachability across the mesh) and, separately, the LAN CIDR
-# resource behind the routing peer (forward chain — peer-to-peer
-# destinations alone do NOT cover resources behind the peer). The provider
-# schema allows exactly ONE rule per policy AND forbids destinations +
-# destination_resource in one rule (both mutually exclusive), so the two
-# chains ride two policies.
-resource "netbird_policy" "admin_users_access" {
-  name        = "admin-users-access"
-  description = "Admin users reach all mesh groups (peer-to-peer / input chain)"
-  enabled     = true
-
-  rule {
-    name         = "admin-users-peers"
-    action       = "accept"
-    protocol     = "all"
-    enabled      = true
-    sources      = [netbird_group.admin_users.id]
-    destinations = [data.netbird_group.all.id, netbird_group.admin_users.id, netbird_group.guest_users.id, netbird_group.cluster_nodes.id]
-  }
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "netbird_policy" "admin_users_lan_access" {
-  name        = "admin-users-lan-access"
-  description = "Admin users reach the cluster LAN resource (forward chain through the routing peer)"
-  enabled     = true
-
-  rule {
-    name     = "admin-users-lan"
-    action   = "accept"
-    protocol = "all"
-    enabled  = true
-    sources  = [netbird_group.admin_users.id]
-
-    destination_resource = {
-      id   = netbird_network_resource.lan.id
-      type = "subnet"
-    }
-  }
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-# Guest policy: guest-users reach ONLY the Service-LB resource (the LB VIP
-# the reverse-proxy subnet target forwards to), on the Gateway TCP
-# listeners 80/443. No destinations list — destination_resource (type subnet)
-# is mutually exclusive with destinations per the provider schema.
-resource "netbird_policy" "guest_users_access" {
-  name        = "guest-users-access"
-  description = "Guest users reach the Service Load Balancer IP on HTTP/HTTPS only"
-  enabled     = true
-
-  rule {
-    name     = "guest-users-access"
-    action   = "accept"
-    protocol = "tcp"
-    enabled  = true
-    sources  = [netbird_group.guest_users.id]
-    ports    = ["80", "443"]
-
-    destination_resource = {
-      id   = netbird_network_resource.service_lb.id
-      type = "subnet"
-    }
-  }
 
   lifecycle {
     prevent_destroy = true
