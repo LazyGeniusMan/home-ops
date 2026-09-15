@@ -68,6 +68,18 @@
   when: talos_operate_reapply_configs | bool
   changed_when: true
 
+# NetBird setup key rewrite (Terraform-minted, PAT-driven): the forced
+# cluster re-render above restores NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__,
+# so rewrite the placeholder from the same source day-0 uses (throwaway TF
+# run by default, or the Flux outputs Secret post-install). Reuses the
+# render-plane file via include_role (cross-role include_tasks paths do not
+# resolve; include_role does via roles_path). no_log throughout; 0600 kept.
+- name: Rewrite NetBird setup-key placeholder in the re-rendered cluster patch
+  ansible.builtin.include_role:
+    name: talos_render
+    tasks_from: netbird_setup_key
+  when: talos_operate_reapply_configs | bool
+
 - name: Refresh per-node schematic IDs from the Image Factory
   # Day-2 re-apply never touches schematics.yml sources, so a schematic edit
   # would otherwise render installable configs with a STALE installer image

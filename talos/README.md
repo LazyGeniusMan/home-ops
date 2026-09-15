@@ -44,7 +44,8 @@ documents — the base ships zero manifests.
   `{{ pass://acme-prd-bdo1-talos-apps-01/talos/docker-password }}`.
   Only `pass-cli inject` / `pass-cli item view` resolve them — bare `pass://`
   URIs are never dereferenced by Talos or Ansible directly.
-- Render: `pass-cli inject --in-file clusters/<cluster>/patches.yml --out-file ansible/build/<cluster>/patches.yml` (per-node: `clusters/<cluster>/nodes/<node>/patches.yml` → `ansible/build/<cluster>/nodes-<node>-patches.yml`)
+- Render: `pass-cli inject --in-file clusters/<cluster>/patches.yml --out-file ansible/build/<cluster>/patches.yml` (per-node: `clusters/<cluster>/nodes/<node>/patches.yml` → `ansible/build/<cluster>/nodes-<node>-patches.yml`), then the NetBird plane rewrites `NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__` from the Terraform `talos_setup_key` output (see `ansible/RUNBOOK.md` §1.0b).
+- NetBird PAT comes from Proton Pass (`pass://<cluster-vault>/talos/netbird-pat`, resolved via `pass-cli item view` to authenticate a throwaway `tofu` run against `flux/infra/components/netbird/terraform/`); the reusable setup key itself is Terraform-minted (sensitive `talos_setup_key` output, `no_log` throughout) — the old vault `talos`/`netbird-setup-key` fields are retired.
 - Authenticate: `export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_...` (`pass-cli login`).
 - `secrets.bundle.yml`, `talosconfig`, `kubeconfig`, rendered `ansible/build/` output are gitignored.
 - Binary is `pass-cli` (not `proton-pass-cli`).

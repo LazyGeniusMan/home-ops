@@ -2,8 +2,11 @@
 # Dev cluster addressing (node .201, VIP .248) with its own Proton Pass vault.
 # No cross-environment vault references anywhere in this tree.
 # Applied after ../_base/patches.yml (same --config-patch ordering as prd).
-# Secrets: double-brace refs rendered via pass-cli inject into gitignored build/:
-#   export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_...
+# Secrets: registry credentials are double-brace Proton Pass references;
+# the NetBird setup key placeholder (NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__)
+# is rewritten at render time from the Terraform-minted reusable key
+# (flux zitadel-login-proxy writeOutputsToSecret talos_setup_key; see the
+# talos_netbird_setup_key_* contract in ansible/group_vars/all.yml). Render:
 #   pass-cli inject --in-file patches.yml --out-file ../../ansible/build/acme-dev-bdo1-talos-apps-01/patches.yml
 # Split-doc kinds per reference/configuration/document-map.mdx:
 #   endpoint -> KubeClusterConfig{endpoint}; proxy off -> KubeProxyConfig{enabled};
@@ -50,4 +53,4 @@ apiVersion: v1alpha1
 kind: ExtensionServiceConfig
 name: netbird
 environment:
-  - NB_SETUP_KEY={{ pass://acme-dev-bdo1-talos-apps-01/talos/netbird-setup-key }}
+  - NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__ # render-time placeholder: rewritten from the Terraform talos_setup_key output (never a vault value)

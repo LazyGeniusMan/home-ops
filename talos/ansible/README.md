@@ -42,6 +42,26 @@ ansible/
   error) and fails fast telling you to run `pass-cli login`. Day-2
   checks unconditionally (even read-only runs); day-1 checks before
   `apply-config --insecure`.
+- NetBird PAT + Terraform-minted setup key (see `RUNBOOK.md` §1.0b).
+  Proton Pass supplies the NetBird PAT only — the `talos` item's
+  `netbird-pat` field in the OWN cluster vault
+  (`pass://<cluster-vault>/talos/netbird-pat`), resolved via
+  `pass-cli item view` (`no_log: true`, never written to disk) to
+  authenticate a throwaway isolated `tofu` run against the shared netbird
+  root (`flux/infra/components/netbird/terraform/`, provider `NB_PAT` env,
+  never a `-var`). The run mints the reusable setup key
+  (`netbird_setup_key.talos`: reusable, `expiry_seconds = 0`,
+  `usage_limit = 0`, `auto_groups = [<cluster>-nodes]`) and Ansible reads
+  the sensitive `talos_setup_key` output via `tofu output -raw`, rewrites
+  the `__TALOS_NETBIRD_SETUP_KEY__` placeholder in the rendered cluster
+  patch (`0600`, `no_log: true` throughout, UUID shape-gated), and deletes
+  the throwaway dir (`build/<cluster>/netbird-tf/`, gitignored). Post-Flux
+  alternative: `-e talos_netbird_setup_key_mode=outputs_secret` reads the
+  consumer's `writeOutputsToSecret` Secret instead
+  (`zitadel`/`zitadel-login-proxy-outputs`, key `talos_setup_key` —
+  override the `talos_netbird_outputs_secret_*` vars when the consumer
+  name changes). The old vault `talos`/`netbird-setup-key` fields are
+  retired — the setup key never lives in the vault.
   (manual commands can also
   `export PROTON_PASS_AGENT_REASON=talos-render-manual-exec-<16 hex>` for
   audit attribution). Ansible auto-generates a fresh unique
@@ -125,9 +145,11 @@ cluster), so each node gets only its own patches, scoped to its role:
 `ansible/build/`): `secrets.bundle.yml`, `talosconfig`, `kubeconfig`,
 `proton-pass-pat` (day-0 `pass-cli inject` from the cluster
 `pat.yml.template`; see the backup/save guide in `RUNBOOK.md` §6),
-`patches.yml`, `nodes-<node>-patches.yml`, `nodes/<node>/*.yaml`,
+`patches.yml` (cluster patch with the §1.0b NetBird placeholder rewrite),
+`nodes-<node>-patches.yml`, `nodes/<node>/*.yaml`,
 `schematics-<node>.yml`, `schematic-<node>.id`,
-`schematic-<node>.sha256`.
+`schematic-<node>.sha256`. The throwaway `netbird-tf/` dir is deleted by
+the plane on every run — never backed up, never committed.
 
 Each node also runs an NFS server stack: the node schematic layer adds
 `siderolabs/nfsd` + `nfs-utils` + `nfs-server`, configured by
