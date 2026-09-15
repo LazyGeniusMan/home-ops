@@ -69,7 +69,7 @@ variable "rewrite_redirects" {
 }
 
 variable "targets" {
-  description = "Backend targets inside the NetBird mesh (peer/host/domain/subnet; port/protocol per target — see README for the HTTP example)"
+  description = "Extra backend targets inside the NetBird mesh (peer/host/domain/subnet; port/protocol per target — see README for the HTTP example). The shared Service-LB subnet target (var.service_lb_ip) is always appended by the root, so callers needing only the LB backend pass [] (or omit)."
   type = list(object({
     target_id   = string
     target_type = string
@@ -87,6 +87,7 @@ variable "targets" {
       custom_headers       = optional(map(string))
     }))
   }))
+  default = []
 }
 
 variable "auth" {
@@ -111,6 +112,42 @@ variable "netbird_token" {
   type        = string
   sensitive   = true
   default     = null
+}
+
+variable "cluster_name" {
+  description = "Talos cluster short name segment owning this slice's NetBird fabric (e.g. acme-dev-bdo1-talos-apps-01) - parameterizes the per-cluster network, nodes group, and setup key names; defaults to the legacy shared name so existing single-cluster applies keep working"
+  type        = string
+  default     = "talos-apps"
+}
+
+variable "service_lb_ip" {
+  description = "Cilium Service LoadBalancer VIP the shared reverse-proxy subnet target points at (per-env: dev 192.168.1.249, prd 192.168.1.199 - the consumer passes it; never hardcode both in the root)"
+  type        = string
+  default     = "192.168.1.199"
+}
+
+variable "target_port" {
+  description = "Backend port of the shared Service-LB subnet target (zitadel-login ClusterIP Service port)"
+  type        = number
+  default     = 3000
+}
+
+variable "target_protocol" {
+  description = "Backend protocol of the shared Service-LB subnet target (http mode: http or https; L4 modes use tcp/udp in the extra targets instead)"
+  type        = string
+  default     = "http"
+}
+
+variable "target_path" {
+  description = "URL path prefix pinned on the shared Service-LB subnet target (empty string = no path pin)"
+  type        = string
+  default     = ""
+}
+
+variable "lan_cidr" {
+  description = "LAN CIDR exposed to the admin-users group via the LAN network resource"
+  type        = string
+  default     = "192.168.1.0/24"
 }
 
 variable "management_url" {

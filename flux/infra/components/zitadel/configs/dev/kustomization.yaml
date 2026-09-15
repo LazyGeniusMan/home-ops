@@ -116,6 +116,12 @@ patches:
       - op: replace
         path: /spec/vars/2/value
         value: __CLOUDFLARE_ZONE_ID_HOMELAB_DEV__
+      - op: replace
+        path: /spec/vars/3/value
+        value: acme-dev-bdo1-talos-apps-01
+      - op: replace
+        path: /spec/vars/4/value
+        value: 192.168.1.249
     target:
       kind: Terraform
       name: zitadel-login-proxy

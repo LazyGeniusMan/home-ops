@@ -7,17 +7,26 @@ cross-namespace `sourceRef` + their own vars.
 ## Layout (flat — no child modules)
 
 - `main.tf` — `netbird` + `cloudflare` provider blocks, `netbird_reverse_proxy_clusters`
-  lookup, one `netbird_reverse_proxy_domain` (count-gated), one Cloudflare
-  wildcard CNAME `cloudflare_dns_record` (count-gated), one
-  `netbird_reverse_proxy_service`. Zero `module` blocks.
+  lookup, the PAT-driven access fabric (groups, per-cluster network +
+  routing peer, Talos setup key, LAN / Service-LB network resources,
+  admin/guest policies), one `netbird_reverse_proxy_domain` (count-gated),
+  one Cloudflare wildcard CNAME `cloudflare_dns_record` (count-gated), one
+  `netbird_reverse_proxy_service` (shared Service-LB subnet target +
+  caller extras). Zero `module` blocks.
 - `variables.tf` — full contract (service identity, domain, DNS zone,
-  mode/targets/auth, provider tokens). No `app_host`/`ui_host` vars: callers
-  pass the fully-rendered `domain` FQDN, mirroring the zitadel root.
+  mode/targets/auth, provider tokens, plus fabric knobs `cluster_name`,
+  `service_lb_ip`, `target_port`/`target_protocol`/`target_path`,
+  `lan_cidr`). No `app_host`/`ui_host` vars: callers pass the
+  fully-rendered `domain` FQDN, mirroring the zitadel root. `targets`
+  defaults to `[]` (extra backends only — the LB target is always on).
 - `outputs.tf` — `service_id`, `service_domain`, `proxy_url`, `proxy_cluster`,
-  `domain_id`, `domain_validated`, `dns_record_name`. Names match what
-  consumer `writeOutputsToSecret` expects.
+  `domain_id`, `domain_validated`, `dns_record_name`, plus fabric outputs
+  `talos_setup_key` (sensitive), `cluster_network_id`,
+  `cluster_nodes_group_id`, `service_lb_resource_id`, `lan_resource_id`.
+  Names match what consumer `writeOutputsToSecret` expects.
 - `versions.tf` — `required_version >= 1.11`, `netbirdio/netbird ~> 0.0.10`,
-  `cloudflare/cloudflare ~> 5.0`.
+  `cloudflare/cloudflare ~> 5.0`. 0.0.10 is the latest registry release, so
+  no bump is available for CrowdSec (see below).
 
 ## What the root does
 
@@ -31,8 +40,28 @@ cross-namespace `sourceRef` + their own vars.
    record is `proxied = false` (DNS-only) — Cloudflare proxying would hide
    the cluster address from NetBird's ownership lookup and break ZeroSSL
    issuance.
-3. Wires the reverse-proxy service: public `domain` FQDN → caller-rendered
-   `targets` in the mesh. `http` mode terminates TLS at the proxy; `tcp` /
+3. Builds the PAT-driven access fabric: `admin-users` / `guest-users` /
+   `<cluster>-nodes` groups (+ `admin-users-resources` /
+   `guest-users-resources` resource groups), the per-cluster
+   `netbird_network` (`var.cluster_name`), the unlimited reusable Talos
+   setup key (`expiry_seconds = 0`, `usage_limit = 0`, auto-joins
+   `<cluster>-nodes`; plaintext leaves only via the sensitive
+   `talos_setup_key` output), the `netbird_network_router` (nodes group as
+   routing peers, masquerade on — new Networks model; the legacy
+   `netbird_route` resource is intentionally unused), the `LAN CIDR`
+   resource (`var.lan_cidr`, admin-only) and the `Service Load Balancer IP`
+   `/32` resource (`var.service_lb_ip`, guest path), plus the
+   `admin-users-access` / `admin-users-lan-access` (peers rule uses
+   `destinations` incl. the built-in `All` group; LAN rule uses
+   `destination_resource` — the two are mutually exclusive per rule and a
+   policy holds exactly one rule, hence two policies) and
+   `guest-users-access` (TCP 80+443 to the LB resource via
+   `destination_resource type = subnet`) policies.
+4. Wires the reverse-proxy service: public `domain` FQDN → the shared
+   Service-LB subnet target (`target_id` = LB resource ID, `target_type`
+   `subnet`, `host` = `var.service_lb_ip`, port/protocol/path via
+   `target_port`/`target_protocol`/`target_path`) plus caller extras in
+   `targets`. `http` mode terminates TLS at the proxy; `tcp` /
    `udp` / `tls` listen on `listen_port` (0 = auto-assign).
 
 `netbird_dns_zone` (internal MagicDNS custom zones) is deliberately NOT in
@@ -65,6 +94,37 @@ reconcile:
 tofu import 'netbird_reverse_proxy_domain.this[0]' '<domain-id>'
 tofu import 'cloudflare_dns_record.validation[0]' '<zone-id>/<record-id>'
 ```
+
+## Talos bootstrap (setup key, no manual per-node seeding)
+
+Talos nodes join the mesh with the `talos_setup_key` output — no Proton
+Pass setup-key seeding per node (the PAT in `netbird_token` is the only
+vault secret). Read the key from the consumer's outputs Secret (it is
+sensitive and never lands in git):
+
+```bash
+kubectl -n <consumer-ns> get secret <app>-proxy-outputs \
+  -o jsonpath='{.data.talos_setup_key}' | base64 -d
+```
+
+then hand it to the talos/ cluster task as the node's `--setup-key`
+(see that task's contract — this root only mints and exposes the key).
+Key properties: `type = reusable`, `expiry_seconds = 0` (never expires),
+`usage_limit = 0` (unlimited uses), `auto_groups = [<cluster>-nodes]`.
+Rotating means replacing the key resource — plan first; `prevent_destroy`
+fails closed rather than silently revoking node membership.
+
+## CrowdSec (dashboard-only — no TF field)
+
+CrowdSec Enforce is NOT Terraform-representable: provider `0.0.10` (the
+latest registry release — verified, no bump available) exposes no CrowdSec
+attribute on `netbird_reverse_proxy_service` (only `access_restrictions`
+for CIDR/country lists), and the management API surfaces CrowdSec mode
+dashboard-side only. Do NOT repurpose `access_restrictions` to fake it.
+After the first apply, set it manually per service: **Reverse Proxy >
+Services > <service> > Access Control > CrowdSec → Enforce** (default
+Off; Observe only logs). Re-apply this step if the service is ever
+recreated. `main.tf` carries the same note at the service resource.
 
 ## Consumer usage (cross-namespace sourceRef)
 
@@ -128,7 +188,10 @@ spec:
   # on key collision (upstream GenerateVarsForTF).
   # The service FQDN is fully rendered here (the shared root takes no
   # app_host var): `__SERVICE_HOST__` is the per-env hostname, replaced by
-  # the dev/prd overlay patches.
+  # the dev/prd overlay patches. The backend rides the shared Service-LB
+  # subnet target the root appends automatically: pass the per-env
+  # cluster_name + service_lb_ip and tune port/protocol/path via target_*.
+  # Keep targets [] (extra backends only) unless the slice needs more.
   # POSITIONAL: the dev/prd overlays patch /spec/vars/0 (domain) by index,
   # so this order must not change without updating the overlays.
   vars:
@@ -138,12 +201,14 @@ spec:
       value: <app>
     - name: cloudflare_zone_id
       value: __CLOUDFLARE_ZONE_ID__
-    - name: targets
-      value:
-        - target_type: peer
-          target_id: __NETBIRD_PEER_ID__
-          port: 8080
-          protocol: https
+    - name: cluster_name
+      value: __CLUSTER_NAME__
+    - name: service_lb_ip
+      value: __SERVICE_LB_IP__
+    - name: target_port
+      value: 8080
+    - name: target_protocol
+      value: https
   varsFrom:
     - kind: Secret
       name: <app>-terraform-vars
@@ -153,6 +218,8 @@ spec:
       - service_id
       - service_domain
       - proxy_url
+      - talos_setup_key
+      - service_lb_resource_id
 ```
 
 Provider tokens (`netbird_token`, `cloudflare_api_token`) flow from Proton
@@ -178,12 +245,18 @@ secrets, never hardcode IDs. The controller also accepts
 | `enabled` | `bool` | no | `true` | Service toggle (off without deleting) |
 | `pass_host_header` | `bool` | no | `true` | Pass the client Host header through (http mode) |
 | `rewrite_redirects` | `bool` | no | `true` | Rewrite backend `Location` headers to the public domain (http mode) |
-| `targets` | `list(object)` | yes | — | Mesh backends (`target_id`/`target_type`/`port`/`protocol` + optional `host`/`path`/`enabled`/`options`) |
+| `targets` | `list(object)` | no | `[]` | Extra mesh backends (`target_id`/`target_type`/`port`/`protocol` + optional `host`/`path`/`enabled`/`options`) — the shared Service-LB subnet target is always appended by the root |
 | `auth` | `any` | no | `{}` | Proxy-level auth block (`{}` = none; NetBird identity via `X-NetBird-User`/`X-NetBird-Groups` headers) |
 | `access_restrictions` | `object` | no | `null` | IP/country allow/block lists (`null` = unrestricted) |
 | `netbird_token` | `string` (sensitive) | no | `null` | NetBird management PAT (controller injects via `varsFrom`; manual runs pass `-var`, never commit) |
 | `management_url` | `string` | no | `https://api.netbird.io` | NetBird management API URL |
 | `cloudflare_api_token` | `string` (sensitive) | no | `null` | Cloudflare API token with DNS edit (controller injects via `varsFrom`; manual runs pass `-var`, never commit) |
+| `cluster_name` | `string` | no | `talos-apps` | Per-cluster fabric name (network, `<cluster>-nodes` group, setup key); consumer passes the full Talos name (e.g. `acme-dev-bdo1-talos-apps-01`) |
+| `service_lb_ip` | `string` | no | `192.168.1.199` | Cilium LB VIP for the shared subnet target + Service-LB resource (consumer passes per env: dev `.249` / prd `.199`) |
+| `target_port` | `number` | no | `3000` | Backend port of the shared Service-LB subnet target |
+| `target_protocol` | `string` | no | `http` | Backend protocol of the shared Service-LB subnet target |
+| `target_path` | `string` | no | `""` | URL path prefix on the shared target (`""` = no pin) |
+| `lan_cidr` | `string` | no | `192.168.1.0/24` | LAN CIDR exposed via the admin-only network resource |
 
 `base_domain`, `target_cluster`, `cloudflare_zone_id`, `netbird_token`, and
 `cloudflare_api_token` default to `null` (Terraform forbids referencing
@@ -192,15 +265,33 @@ other values in a variable default); `main.tf` resolves them with
 
 ## Examples
 
-HTTP service behind a peer backend (seaweedfs ui-auth reverse-proxy SSO
-front shape — public TLS at NetBird, oauth2-proxy still terminates its own
-session at the backend):
+HTTP service behind the shared Service-LB subnet target (zitadel-login
+shape — public TLS at NetBird, Gateway terminates cluster TLS behind the
+LB VIP; the root appends the subnet target automatically):
+
+```hcl
+# consumer Terraform CR vars (path: ./terraform):
+service_name       = "zitadel-login"
+domain             = "login.zitadel.proxy.example.com"
+cloudflare_zone_id = "<zone-id>"
+cluster_name       = "acme-dev-bdo1-talos-apps-01"
+service_lb_ip      = "192.168.1.249"
+target_path        = "/ui/v2/login"
+```
+
+HTTP service with an extra peer backend alongside the LB target
+(oauth2-proxy-style SSO front — public TLS at NetBird, extra backend
+terminates its own session; port/protocol/path via target_* for the LB
+leg, raw target block for the extra leg):
 
 ```hcl
 # consumer Terraform CR vars (path: ./terraform):
 service_name       = "filer-ui"
 domain             = "ui.seaweedfs.proxy.example.com"
 cloudflare_zone_id = "<zone-id>"
+cluster_name       = "acme-dev-bdo1-talos-apps-01"
+service_lb_ip      = "192.168.1.249"
+target_port        = 4180
 targets = [{
   target_type = "peer"
   target_id   = "<netbird-peer-id>"
@@ -216,12 +307,8 @@ Free-domain path (no custom domain, no Cloudflare — NetBird Cloud):
 service_name         = "dashboard"
 domain               = "dashboard.abc123.eu.proxy.netbird.io"
 create_custom_domain = false
-targets = [{
-  target_type = "peer"
-  target_id   = "<netbird-peer-id>"
-  port        = 3000
-  protocol    = "http"
-}]
+cluster_name         = "acme-dev-bdo1-talos-apps-01"
+service_lb_ip        = "192.168.1.249"
 ```
 
 TCP passthrough with access restrictions (L4 modes take no `auth` — use
@@ -257,6 +344,11 @@ access_restrictions = {
 | `domain_id` | no | Custom-domain registration ID (`""` when `create_custom_domain` is `false`) |
 | `domain_validated` | no | Whether the custom domain is validated (`null` when disabled) |
 | `dns_record_name` | no | Wildcard CNAME record name (`""` when no Cloudflare record is managed) |
+| `talos_setup_key` | **yes** | Reusable Talos setup key plaintext (unlimited, never expires; auto-joins `<cluster>-nodes`) |
+| `cluster_network_id` | no | Per-cluster network ID (`var.cluster_name`) |
+| `cluster_nodes_group_id` | no | Per-cluster nodes group ID (also the routing-peer group) |
+| `service_lb_resource_id` | no | Service-LB network resource ID (backs the shared subnet target) |
+| `lan_resource_id` | no | LAN CIDR network resource ID (admin path) |
 
 ## Secure defaults
 
@@ -271,7 +363,14 @@ access_restrictions = {
   cluster address.
 - No secrets in git: the NetBird PAT and the Cloudflare API token flow
   through ESO mirrors and the CR vars Secret; service outputs land in the
-  `<app>-proxy-outputs` Secret via `writeOutputsToSecret`.
+  `<app>-proxy-outputs` Secret via `writeOutputsToSecret`. The
+  `talos_setup_key` output is `sensitive = true` and the root contains no
+  `local-exec` (nothing ever echoes the key); consumers must add the key
+  to `writeOutputsToSecret.outputs` (never to `vars`) so it lands in the
+  Secret, not the controller logs.
+- CrowdSec stays Off in TF (no provider field — see above); the manual
+  Enforce step per service is the compensating control until the provider
+  supports it.
 - Backends must trust the proxy range `100.64.0.0/10` (the WireGuard source
   the proxy connects from) to read the real client IP from `X-Forwarded-For`;
   never hardcode a single NetBird IP. Proxy-stamped `X-NetBird-User` /

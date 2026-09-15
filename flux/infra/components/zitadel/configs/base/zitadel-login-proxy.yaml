@@ -20,12 +20,14 @@
 # the original Host header; the login container's AUDIENCE /
 # CUSTOM_REQUEST_HEADERS already expect the external domain).
 #
-# Target: the backend rides the mesh on a NetBird peer that reaches the
-# cluster LAN (target_type peer, __NETBIRD_PEER_ID__ per env overlay). The
-# peer must route to the zitadel-login Service VIP — same mechanism the
-# seaweedfs filer-UI consumer uses. Bootstrap the peer ID out-of-band
-# (NetBird dashboard → Peers) and render it via the dev/prd overlay patch;
-# no peer literal lives in git.
+# Target: the backend rides the mesh on the shared Service-LB subnet target
+# the netbird root appends automatically (Service Load Balancer IP network
+# resource + LB VIP host, port 3000 http, path /ui/v2/login) — the routing
+# peer forwards onto the cluster LAN toward the Cilium LB VIP that fronts
+# the Gateway (listeners 80/443), which routes the login host to the
+# zitadel-login Service. No peer literal lives in git: the only per-env
+# network values are cluster_name + service_lb_ip below (positional vars
+# 3-6 — the dev/prd overlays patch domain/zone by index, see note).
 #
 # Ordering: this object ships in the zitadel configs Kustomization (fleet
 # `infra-configs`, after controllers), so it reconciles after the login
@@ -104,14 +106,17 @@ spec:
   # on key collision (upstream GenerateVarsForTF).
   # The login FQDN is fully rendered here (the shared root takes no
   # app_host var): `__ZITADEL_LOGIN_HOST__` is the per-env login hostname,
-  # replaced by the dev/prd overlay patches. The backend rides `vars` as an
-  # HCL list (tofu-controller renders nested YAML values as HCL — no JSON
-  # encoding needed): the peer target is the NetBird peer that routes to the
-  # cluster LAN (target_id per env overlay), on the zitadel-login Service
-  # port 3000 over plain http (in-pod TLS stays OFF — NetBird terminates
-  # public TLS at the edge; path pins the proxy to the login UI base path).
-  # POSITIONAL: the dev/prd overlays patch /spec/vars/0 (domain) by index,
-  # so this order must not change without updating the overlays.
+  # replaced by the dev/prd overlay patches. The backend rides the shared
+  # Service-LB subnet target the root appends automatically (port/protocol/
+  # path via target_port/target_protocol/target_path below; plain http —
+  # in-pod TLS stays OFF, NetBird terminates public TLS at the edge; path
+  # pins the proxy to the login UI base path). cluster_name selects the
+  # per-cluster NetBird fabric (network, nodes group, setup key);
+  # service_lb_ip is the per-env Cilium LB VIP (dev .249 / prd .199) the
+  # subnet target forwards to. targets stays [] (no extra backends).
+  # POSITIONAL: the dev/prd overlays patch /spec/vars/0 (domain) and
+  # /spec/vars/2 (cloudflare_zone_id) by index, so this order must not
+  # change without updating the overlays.
   vars:
     - name: domain
       value: __ZITADEL_LOGIN_HOST__
@@ -119,13 +124,12 @@ spec:
       value: zitadel-login
     - name: cloudflare_zone_id
       value: __CLOUDFLARE_ZONE_ID__
-    - name: targets
-      value:
-        - target_type: peer
-          target_id: __NETBIRD_PEER_ID__
-          port: 3000
-          protocol: http
-          path: /ui/v2/login
+    - name: cluster_name
+      value: __CLUSTER_NAME__
+    - name: service_lb_ip
+      value: __SERVICE_LB_IP__
+    - name: target_path
+      value: /ui/v2/login
   varsFrom:
     - kind: Secret
       name: zitadel-login-proxy-vars
@@ -135,3 +139,5 @@ spec:
       - service_id
       - service_domain
       - proxy_url
+      - talos_setup_key
+      - service_lb_resource_id

@@ -86,9 +86,13 @@ spec:
   # on key collision (upstream GenerateVarsForTF).
   # The service FQDN is fully rendered here (the shared root takes no
   # app_host var): `__SERVICE_HOST__` is the per-env hostname, replaced by
-  # the dev/prd overlay patches. Backends ride `vars` as an HCL list
+  # the dev/prd overlay patches. The backend rides the shared Service-LB
+  # subnet target the root appends automatically (Service Load Balancer IP
+  # network resource + LB VIP host): pass the per-env cluster_name +
+  # service_lb_ip below and tune port/protocol/path via target_* — no peer
+  # literal lives in git. Extra backends ride `vars` as an HCL list
   # (tofu-controller renders nested YAML values as HCL — no JSON encoding
-  # needed).
+  # needed); keep targets [] when the LB backend is enough.
   # POSITIONAL: the dev/prd overlays patch /spec/vars/0 (domain) by index,
   # so this order must not change without updating the overlays.
   vars:
@@ -98,12 +102,14 @@ spec:
       value: <app>
     - name: cloudflare_zone_id
       value: __CLOUDFLARE_ZONE_ID__
-    - name: targets
-      value:
-        - target_type: peer
-          target_id: __NETBIRD_PEER_ID__
-          port: 8080
-          protocol: https
+    - name: cluster_name
+      value: __CLUSTER_NAME__
+    - name: service_lb_ip
+      value: __SERVICE_LB_IP__
+    - name: target_port
+      value: 8080
+    - name: target_protocol
+      value: https
   varsFrom:
     - kind: Secret
       name: <app>-terraform-vars
@@ -113,3 +119,5 @@ spec:
       - service_id
       - service_domain
       - proxy_url
+      - talos_setup_key
+      - service_lb_resource_id
