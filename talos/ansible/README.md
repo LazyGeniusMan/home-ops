@@ -46,28 +46,32 @@ ansible/
   Proton Pass supplies the NetBird PAT only — the `talos` item's
   `netbird-pat` field in the OWN cluster vault
   (`pass://<cluster-vault>/talos/netbird-pat`), resolved via
-  `pass-cli item view` (`no_log: true`, never written to disk) to
-  authenticate a throwaway isolated `tofu` run against the shared netbird
-  root (`flux/infra/components/netbird/terraform/`, provider `NB_PAT` env,
-  never a `-var`). The run mints the reusable setup key
+  `pass-cli item view` (`no_log: true`, never written to disk) and passed
+  to the `community.general.terraform` module ONLY as the provider
+  `NB_PAT` env (never a `-var`). The module applies the dedicated Talos
+  root (`roles/talos_render/files/netbird/` — full access fabric,
+  Ansible-managed, never Flux; staged per cluster at
+  `build/<cluster>/netbird-tf/`, gitignored, with persistent local state
+  so re-applies upsert). It mints the reusable setup key
   (`netbird_setup_key.talos`: reusable, `expiry_seconds = 0`,
   `usage_limit = 0`, `auto_groups = [<cluster>-nodes]`) and Ansible reads
-  the sensitive `talos_setup_key` output via `tofu output -raw`, rewrites
-  the `__TALOS_NETBIRD_SETUP_KEY__` placeholder in the rendered cluster
-  patch (`0600`, `no_log: true` throughout, UUID shape-gated), and deletes
-  the throwaway dir (`build/<cluster>/netbird-tf/`, gitignored). Post-Flux
-  alternative: `-e talos_netbird_setup_key_mode=outputs_secret` reads the
-  consumer's `writeOutputsToSecret` Secret instead
-  (`zitadel`/`zitadel-login-proxy-outputs`, key `talos_setup_key` —
-  override the `talos_netbird_outputs_secret_*` vars when the consumer
-  name changes). The old vault `talos`/`netbird-setup-key` fields are
-  retired — the setup key never lives in the vault.
-  (manual commands can also
+  the sensitive `talos_setup_key` output
+  (`outputs.talos_setup_key.value`), rewrites the
+  `__TALOS_NETBIRD_SETUP_KEY__` placeholder in the rendered cluster patch
+  (`0600`, `no_log: true` throughout, UUID shape-gated). There is NO
+  `outputs_secret` fallback — the Flux consumer is proxy-only and no
+  longer exposes `talos_setup_key`. The old vault
+  `talos`/`netbird-setup-key` fields are retired — the setup key never
+  lives in the vault. (manual commands can also
   `export PROTON_PASS_AGENT_REASON=talos-render-manual-exec-<16 hex>` for
   audit attribution). Ansible auto-generates a fresh unique
   `PROTON_PASS_AGENT_REASON` per `pass-cli` exec
   (`<prefix>-<cluster>[-<node>]-exec-<16 random lowercase hex>`,
   `no_log: true` keeps it out of logs).
+  (`community.general.terraform`, requirements.yml pins
+  community.general `>=9.0.0` which ships this module — verified via
+  `ansible-doc community.general.terraform`; module FQCN documented in the
+  `roles/talos_render/tasks/netbird_setup_key.yml` header.)
 - `talos_cluster` — active cluster name (override with `-e talos_cluster=...`).
 - `talos_clusters.<name>` — per-cluster map: `vault` (Proton Pass vault),
   `endpoint` (VIP URL), `nodes: [{name, ip, role}]`. This map is the single
@@ -148,8 +152,11 @@ cluster), so each node gets only its own patches, scoped to its role:
 `patches.yml` (cluster patch with the §1.0b NetBird placeholder rewrite),
 `nodes-<node>-patches.yml`, `nodes/<node>/*.yaml`,
 `schematics-<node>.yml`, `schematic-<node>.id`,
-`schematic-<node>.sha256`. The throwaway `netbird-tf/` dir is deleted by
-the plane on every run — never backed up, never committed.
+`schematic-<node>.sha256`. The staged `netbird-tf/` dir (working copy of
+the dedicated root + persistent local state, so re-applies upsert) is KEPT
+across runs — never backed up, never committed, never deleted between runs
+(fresh dir = empty state = duplicate-CREATE failures; recovery is
+`tofu import` per resource — see `roles/talos_render/files/netbird/README.md`).
 
 Each node also runs an NFS server stack: the node schematic layer adds
 `siderolabs/nfsd` + `nfs-utils` + `nfs-server`, configured by

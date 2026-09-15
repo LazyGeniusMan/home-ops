@@ -1,43 +1,51 @@
 ---
 # NetBird setup-key plane (shared by day-0 render + day-2 re-apply).
 # The rendered cluster patch carries NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__
-# (never a pass:// vault value); this plane replaces the placeholder with
-# the Terraform-minted reusable key (netbird_setup_key.talos, type reusable,
-# expiry_seconds 0 = never expires, usage_limit 0 = unlimited,
-# auto_groups [<cluster>-nodes]) via the sensitive `talos_setup_key` output.
+# (never a pass:// vault value); this plane resolves the PAT from Proton
+# Pass, applies the dedicated Talos NetBird root
+# (roles/talos_render/files/netbird/ — full access fabric, Ansible-managed,
+# never Flux) via the `community.general.terraform` module, and rewrites the
+# placeholder with the sensitive `talos_setup_key` output.
 #
-# Modes (talos_netbird_setup_key_mode):
-# - `terraform` (default, pre-Flux): resolve the NetBird PAT from Proton Pass
-#   (magnet pass://<cluster-vault>/talos/netbird-pat) via
-#   `pass-cli item view`, then run a throwaway isolated `tofu` apply against
-#   the shared netbird root (flux/infra/components/netbird/terraform/) with
-#   the PAT as NB_PAT env (never -var) + -var cluster_name=<cluster> and read
-#   the `talos_setup_key` output via `tofu output -raw` (never -json into a
-#   log; never written to disk).
-#   The throwaway dir lives under build/<cluster>/netbird-tf/ (gitignored via
-#   ansible/build/) with in-cluster state disabled
-#   (-backend=false + TF_DATA_DIR inside the throwaway dir), a fabric-only
-#   -target set (network/groups/key/router/resources/policies — the
-#   reverse-proxy service/domain/DNS slice stays owned by the in-cluster
-#   consumer via -var create_custom_domain=false and no service vars), and
-#   the dir is removed at the end of the plane either way.
-# - `outputs_secret` (post-Flux): read the already-applied
-#   <outputs-secret-name>/<key> from the Flux consumer's
-#   writeOutputsToSecret Secret via kubectl --kubeconfig build/.../kubeconfig
-#   (needs the cluster installed + the zitadel-login-proxy Terraform CR
-#   applied). No pass:// setup-key value is ever dereferenced here.
-# Every key-handling task carries no_log: true; the rewrite keeps file-mode
-# 0600; no debug ever prints the key. The PAT itself is never written to
-# disk — it only authenticates the throwaway tofu run in-process.
-- name: Assert NetBird setup-key mode is valid
-  ansible.builtin.assert:
-    that:
-      - talos_netbird_setup_key_mode in ['terraform', 'outputs_secret']
-    fail_msg: >-
-      talos_netbird_setup_key_mode must be one of terraform, outputs_secret
-      (got '{{ talos_netbird_setup_key_mode }}').
-    success_msg: "NetBird setup-key mode {{ talos_netbird_setup_key_mode }}."
-
+# Module FQCN: `community.general.terraform` (requirements.yml pins
+# community.general >= 9.0.0, which ships this module; verified via
+# `ansible-doc community.general.terraform` against the installed 13.3.0).
+# The module shells out to a Terraform-compatible binary itself, so NO raw
+# `tofu ... apply` shell exists anywhere on this plane — the only helpers
+# are `pass-cli` (command module, never shell) and this module call.
+#
+# - The PAT (magnet pass://<cluster-vault>/talos/netbird-pat) reaches
+#   Terraform ONLY as the NB_PAT env var (provider schema: config value wins
+#   over env, so NO -var netbird_token is passed — the token never lands in
+#   TFVARS/state/diffs; task-level `environment:` + `no_log: true` keeps it
+#   out of logs too). Never written to disk.
+# - The module needs an ABSOLUTE binary path (its preflight stats the path),
+#   while the `talos_netbird_tofu` knob stays a bare name — so the apply task
+#   resolves it via `command -v` (pipe lookup, trimmed). `force_init: true`
+#   drives init every run (provider auto-install on first run); no
+#   backend_config is set, so state is the local `terraform.tfstate` inside
+#   the staged dir.
+# - The plane first copies the committed root into
+#   build/<cluster>/netbird-tf/ (gitignored via ansible/build/) and applies
+#   THERE. The staged dir PERSISTS across runs so re-applies are true upserts
+#   (variables: cluster_name = talos_cluster); do NOT delete it between runs
+#   (a fresh dir = empty state = duplicate-CREATE attempts failing closed
+#   under prevent_destroy; recovery is `tofu import` per resource — see
+#   files/netbird/README.md).
+# - The key plaintext leaves ONLY via the module's
+#   outputs.talos_setup_key.value (sensitive output) into the placeholder
+#   rewrite (0600 kept). Every key-handling task carries no_log: true; no
+#   debug ever prints the key.
+# - Key properties: type reusable, expiry_seconds 0 = never expires,
+#   usage_limit 0 = unlimited, auto_groups [<cluster>-nodes].
+# - Rotation: replace the netbird_setup_key.talos resource (plan first —
+#   prevent_destroy fails closed) then re-run day-0
+#   (rm build/<c>/patches.yml first so the inject guard re-renders) or
+#   day-2 -e reapply_configs=true (forced re-render + rewrite + apply).
+# - The old vault `talos`/`netbird-setup-key` fields stay retired — the setup
+#   key never lives in the vault. There is NO outputs_secret fallback: the
+#   Flux consumer no longer exposes talos_setup_key (proxy-only root), so
+#   this module-driven plane is the only source.
 - name: Resolve NetBird PAT from Proton Pass
   ansible.builtin.command:
     cmd: >-
@@ -52,7 +60,6 @@
   changed_when: false
   register: talos_render_netbird_pat_view
   no_log: true
-  when: talos_netbird_setup_key_mode == 'terraform'
 
 - name: Fail when the NetBird PAT vault field is missing
   ansible.builtin.fail:
@@ -62,73 +69,44 @@
       Seed it once in Proton Pass (the cluster vault `talos` item,
       `netbird-pat` field), run `pass-cli login`, then re-run the play.
   when:
-    - talos_netbird_setup_key_mode == 'terraform'
     - talos_render_netbird_pat_view.stdout | default('', true) | trim | length == 0
   no_log: true
 
-- name: Ensure throwaway Terraform dir exists
+- name: Ensure staged Terraform dir exists
+  # Persistent (NOT throwaway): the module's local terraform.tfstate lives
+  # here across runs so re-applies upsert instead of re-creating.
   ansible.builtin.file:
     path: "{{ talos_netbird_terraform_dir }}"
     state: directory
     mode: "0700"
-  no_log: true
-  when: talos_netbird_setup_key_mode == 'terraform'
 
-- name: Stage throwaway Terraform root copy
-  # Isolated copy of the shared netbird root so the throwaway run never
-  # touches the committed tree (lock files / .terraform/ stay inside the
-  # gitignored build dir). Rendered without secrets: only the backend
-  # override (local state inside the throwaway dir).
+- name: Stage dedicated NetBird root copy
+  # Working copy of roles/talos_render/files/netbird/ so the module never
+  # writes lock files / .terraform/ / state into the committed tree (all
+  # stay inside the gitignored staged dir). Re-runs sync changed sources
+  # over the persisted state by checksum.
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/../../../flux/infra/components/netbird/terraform/"
-    dest: "{{ talos_netbird_terraform_dir }}/root/"
+    src: "{{ role_path }}/files/netbird/"
+    dest: "{{ talos_netbird_terraform_dir }}/"
     mode: preserve
-  no_log: true
-  when: talos_netbird_setup_key_mode == 'terraform'
 
 # The PAT authenticates via the NB_PAT env (provider schema: config value
-# wins over env, so NO -var netbird_token is passed — the token never lands
-# in a TFVARS file, state diff, or process table). The throwaway run targets
-# ONLY the NetBird fabric subset the setup key needs (network + groups + key
-# + router + resources + policies); the reverse-proxy service/domain/DNS
-# slice stays owned by the in-cluster consumer (its vars are unset here, so
-# the service is never planned).
-- name: Fetch Talos setup key via throwaway Terraform run
-  ansible.builtin.shell:
-    cmd: >-
-      set -eu;
-      TF_DATA_DIR="{{ talos_netbird_terraform_dir }}/.tfdata"
-      NB_PAT="{{ talos_render_netbird_pat_view.stdout | trim }}"
-      "{{ talos_netbird_tofu }}" -chdir="{{ talos_netbird_terraform_dir }}/root" init -backend=false -input=false;
-      "{{ talos_netbird_tofu }}" -chdir="{{ talos_netbird_terraform_dir }}/root" apply -auto-approve -input=false
-      -target=netbird_setup_key.talos
-      -target=netbird_network.cluster
-      -target=netbird_group.cluster_nodes
-      -target=netbird_group.admin_users
-      -target=netbird_group.guest_users
-      -target=netbird_group.admin_users_resources
-      -target=netbird_group.guest_users_resources
-      -target=netbird_network_router.cluster
-      -target=netbird_network_resource.lan
-      -target=netbird_network_resource.service_lb
-      -target=netbird_policy.admin_users_access
-      -target=netbird_policy.admin_users_lan_access
-      -target=netbird_policy.guest_users_access
-      -var "cluster_name={{ talos_cluster }}"
-      -var "create_custom_domain=false";
-      "{{ talos_netbird_tofu }}" -chdir="{{ talos_netbird_terraform_dir }}/root" output -raw talos_setup_key
-    executable: /bin/bash
-  register: talos_render_netbird_setup_key_raw
-  changed_when: true
+# wins over env, so NO variables entry for netbird_token exists — the token
+# never lands in a TFVARS file, state diff, or process table). Only
+# cluster_name is passed as a variable (per-cluster fabric); lan_cidr rides
+# the root default (192.168.1.0/24).
+- name: Apply Talos NetBird fabric via Terraform
+  community.general.terraform:
+    project_path: "{{ talos_netbird_terraform_dir }}"
+    binary_path: "{{ lookup('ansible.builtin.pipe', 'command -v ' + talos_netbird_tofu) | trim }}"
+    state: present
+    force_init: true
+    variables:
+      cluster_name: "{{ talos_cluster }}"
+  environment:
+    NB_PAT: "{{ talos_render_netbird_pat_view.stdout | trim }}"
+  register: talos_render_netbird_tf
   no_log: true
-  when: talos_netbird_setup_key_mode == 'terraform'
-
-- name: Remove throwaway Terraform dir
-  ansible.builtin.file:
-    path: "{{ talos_netbird_terraform_dir }}"
-    state: absent
-  no_log: true
-  when: talos_netbird_setup_key_mode == 'terraform'
 
 - name: Fail when the Terraform setup-key output is empty
   ansible.builtin.fail:
@@ -138,51 +116,16 @@
       (pass://{{ talos_clusters[talos_cluster].vault }}/{{ talos_netbird_pat_item }}/{{ talos_netbird_pat_field }})
       and re-run the play.
   when:
-    - talos_netbird_setup_key_mode == 'terraform'
-    - talos_render_netbird_setup_key_raw.stdout | default('', true) | trim | length == 0
-  no_log: true
-
-- name: Read Talos setup key from the Flux outputs Secret
-  # Post-Flux path: the in-cluster zitadel-login-proxy Terraform CR already
-  # applied the shared root and wrote talos_setup_key into its
-  # writeOutputsToSecret Secret. Read the single key via kubectl jsonpath
-  # (base64-wrapped by the API; decoded in-memory, never to disk).
-  ansible.builtin.command:
-    cmd: >-
-      {{ talos_netbird_kubectl }} --kubeconfig
-      {{ talos_build_dir }}/{{ talos_cluster }}/kubeconfig
-      -n {{ talos_netbird_outputs_secret_namespace }} get secret
-      {{ talos_netbird_outputs_secret_name }}
-      -o jsonpath='{.data.{{ talos_netbird_outputs_secret_key }}}'
-  check_mode: false
-  changed_when: false
-  register: talos_render_netbird_outputs_secret_raw
-  no_log: true
-  when: talos_netbird_setup_key_mode == 'outputs_secret'
-
-- name: Fail when the Flux outputs Secret holds no setup key
-  ansible.builtin.fail:
-    msg: >-
-      No setup key in Secret
-      {{ talos_netbird_outputs_secret_namespace }}/{{ talos_netbird_outputs_secret_name }}
-      (key {{ talos_netbird_outputs_secret_key }}). The Flux
-      zitadel-login-proxy Terraform CR must be applied first (it mints the
-      key and writes talos_setup_key via writeOutputsToSecret), or re-run
-      with -e talos_netbird_setup_key_mode=terraform.
-  when:
-    - talos_netbird_setup_key_mode == 'outputs_secret'
-    - talos_render_netbird_outputs_secret_raw.stdout | default('', true) | trim | length == 0
+    - talos_render_netbird_tf.outputs.talos_setup_key.value | default('', true) | trim | length == 0
   no_log: true
 
 - name: Stage resolved setup key for the shape check
   # Indirection keeps the key out of the assert args (assert is intentionally
-  # WITHOUT no_log so a mode typo stays visible; the value itself must never
+  # WITHOUT no_log so failures stay actionable; the value itself must never
   # reach the log, so only a boolean fact is asserted below).
   ansible.builtin.set_fact:
     talos_render_netbird_setup_key_ok: >-
-      {{ ((talos_render_netbird_setup_key_raw.stdout | default('', true) | trim)
-      if talos_netbird_setup_key_mode == 'terraform'
-      else (talos_render_netbird_outputs_secret_raw.stdout | default('', true) | trim | b64decode | trim))
+      {{ talos_render_netbird_tf.outputs.talos_setup_key.value | default('', true) | trim
       is match(talos_netbird_setup_key_pattern) }}
   no_log: true
 
@@ -195,8 +138,9 @@
       - talos_render_netbird_setup_key_ok | bool
     fail_msg: >-
       Resolved NetBird setup key for {{ talos_cluster }} failed the shape
-      check (expected UUID form). Re-run the
-      {{ talos_netbird_setup_key_mode }} path after verifying its source.
+      check (expected UUID form). Verify the PAT at
+      pass://{{ talos_clusters[talos_cluster].vault }}/{{ talos_netbird_pat_item }}/{{ talos_netbird_pat_field }}
+      and re-run the play.
     success_msg: "NetBird setup key resolved for {{ talos_cluster }}."
 
 - name: Rewrite setup-key placeholder in the rendered cluster patch
@@ -206,8 +150,5 @@
   ansible.builtin.replace:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}/patches.yml"
     regexp: "{{ talos_netbird_placeholder }}"
-    replace: >-
-      {{ talos_render_netbird_setup_key_raw.stdout | trim
-      if talos_netbird_setup_key_mode == 'terraform'
-      else (talos_render_netbird_outputs_secret_raw.stdout | trim | b64decode | trim) }}
+    replace: "{{ talos_render_netbird_tf.outputs.talos_setup_key.value | trim }}"
   no_log: true

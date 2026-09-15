@@ -8,8 +8,9 @@
 # Secrets: registry credentials are double-brace Proton Pass references; the
 # NetBird setup key placeholder (NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__)
 # is rewritten at render time from the Terraform-minted reusable key
-# (flux zitadel-login-proxy writeOutputsToSecret talos_setup_key; see the
-# talos_netbird_setup_key_* contract in ansible/group_vars/all.yml).
+# (dedicated root ansible/roles/talos_render/files/netbird/ applied by the
+# community.general.terraform module, talos_setup_key output; see the
+# talos_netbird_* contract in ansible/group_vars/all.yml).
 # Render before generating configs (gitignored build/ holds the result):
 #   pass-cli inject --in-file patches.yml --out-file ../../ansible/build/acme-prd-bdo1-talos-apps-01/patches.yml
 # Split-doc kinds per reference/configuration/document-map.mdx:

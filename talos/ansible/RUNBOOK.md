@@ -96,9 +96,8 @@ rendering secrets, then re-run the play.
 - `https://factory.talos.dev` reachable (port 443) — day-0 uploads each
   node's schematic there. Failure aborts day-0 (see Troubleshooting).
 - `https://api.netbird.io` reachable (port 443) — day-0's NetBird plane
-  (§1.0b) applies the throwaway `tofu` run there with the vault PAT.
-  The `outputs_secret` mode skips this (it reads the in-cluster Secret
-  instead) but needs the cluster + Flux Terraform CR applied.
+  (§1.0b) applies the dedicated Talos root there via the
+  `community.general.terraform` module with the vault PAT (`NB_PAT` env).
 - Target node(s) booted into **Talos maintenance** (uninstalled Talos media —
   Talos API up, no machine config applied yet). Day-1's
   `apply-config --insecure` only works in this state. Optional pre-flight:
@@ -125,8 +124,9 @@ per-node machine configs. Validates each machine config with
 
 Prerequisites (per cluster vault): a `talos` item with a `netbird-pat`
 field (the NetBird management PAT — resolved via `pass-cli item view`
-as `pass://<cluster-vault>/talos/netbird-pat` to authenticate the
-throwaway Terraform run that mints the setup key, §1.0b; the old
+as `pass://<cluster-vault>/talos/netbird-pat` and passed to the
+`community.general.terraform` module as `NB_PAT` env to apply the
+dedicated root that mints the setup key, §1.0b; the old
 `talos`/`netbird-setup-key` vault fields are retired — the setup key now
 comes from the Terraform `talos_setup_key` output, never the vault),
 **plus** an `eso-proton-pass` item with a `pat` field (referenced as
@@ -139,9 +139,11 @@ Role step order (`talos_render`): `mkdir build/<cluster> 0700` → login check
 → `pass-cli inject` PAT render (`pat.yml.template` → `proton-pass-pat`,
 `0600`, `creates:` guard; path pinned by the `talos_pat_filename` shared
 var) → NetBird setup-key plane (§1.0b: PAT from the vault via
-`pass-cli item view` → throwaway `tofu` run against the shared netbird root
-→ `talos_setup_key` output rewrites `__TALOS_NETBIRD_SETUP_KEY__` in the
-rendered cluster patch, `no_log` throughout, `0600` kept) → per-node
+`pass-cli item view` → `community.general.terraform` module apply of the
+dedicated root (staged copy at `build/<cluster>/netbird-tf/`, persistent
+local state) → `talos_setup_key` output rewrites
+`__TALOS_NETBIRD_SETUP_KEY__` in the rendered cluster patch, `no_log`
+throughout, `0600` kept) → per-node
 schematic deep-merge (`_base` → cluster → node) / factory
 upload / ID-rewrite → `gen secrets` bundle → `mkdir nodes/<node>` →
 `gen config -t talosconfig` → per-node `gen config -t <role>` with
@@ -157,35 +159,69 @@ minted by Terraform, not stored in Proton Pass:
    `netbird-pat` field in the OWN cluster vault
    (`pass://<cluster-vault>/talos/netbird-pat`). Ansible resolves it via
    `pass-cli item view` (in-process, `no_log: true`, never written to disk)
-   and uses it solely to authenticate Terraform (provider `NB_PAT` env;
-   never a `-var`, so it lands in no TFVARS/state/process table).
-2. **Terraform mints the reusable setup key** — by default a throwaway
-   isolated `tofu` run against the shared netbird root
-   (`flux/infra/components/netbird/terraform/`, same root the in-cluster
-   zitadel-login-proxy consumer applies via Flux). The run targets only the
-   fabric subset (`netbird_setup_key.talos` + its network/groups/router/
-   resources/policies, with `-var create_custom_domain=false` so the
-   reverse-proxy service/domain/DNS slice stays owned by Flux), reads the
-   sensitive `talos_setup_key` output via `tofu output -raw`, then deletes
-   its throwaway dir (`build/<cluster>/netbird-tf/`, gitignored via
-   `ansible/build/`). Key properties: `type = reusable`,
-   `expiry_seconds = 0` (never expires), `usage_limit = 0` (unlimited uses),
+   and uses it solely to authenticate Terraform (provider `NB_PAT` env on
+   the `community.general.terraform` module call; never a `-var`, so it
+   lands in no TFVARS/state/process table). Module FQCN:
+   `community.general.terraform` (verified via `ansible-doc` — see the
+   header of `roles/talos_render/tasks/netbird_setup_key.yml`).
+2. **Terraform mints the reusable setup key** — the
+   `community.general.terraform` module (`state: present`,
+   `force_init: true`, `complex_vars` unset — only the simple string
+   `cluster_name = talos_cluster` is passed as a variable) applies the
+   dedicated Talos root (`roles/talos_render/files/netbird/` — full access
+   fabric, Ansible-managed, never Flux; no `flux/` reference or import).
+   The role stages a working copy at `build/<cluster>/netbird-tf/`
+   (gitignored via `ansible/build/`) and the module keeps its local
+   `terraform.tfstate` there ACROSS runs, so re-applies are true upserts
+   (greenfield root: no data-source lookups, no deletes —
+   `prevent_destroy` on every resource fails closed instead). Do NOT
+   delete that dir between runs: a fresh dir means empty state and the next
+   apply would try to CREATE duplicates; recovery after a
+   `rm -rf build/<cluster>` is `tofu import` per resource (see
+   `roles/talos_render/files/netbird/README.md`). Managed fabric: groups
+   `admin-users` / `guest-users` / `<cluster>-nodes` /
+   `admin-users-resources` / `guest-users-resources`, network
+   `<cluster-name>`, `netbird_network_router` peer routing to the nodes
+   group (`peer_groups`; the legacy `netbird_route` is unused), setup key
+   (below), `LAN CIDR` `192.168.1.0/24` resource →
+   `admin-users-resources`, policies `admin-users-access` (admin-users →
+   all groups, all protocols — split into TWO policies because the
+   provider schema allows exactly ONE rule per policy AND forbids
+   `destinations` + `destination_resource` in one rule, so the peer chain
+   rides `admin-users-access` and the LAN forward chain rides
+   `admin-users-lan-access`) + `guest-users-access` (guest-users →
+   `guest-users-resources`, TCP 80+443). The LB IP is NOT needed here
+   (proxy-only concern owned by the Flux consumer), so this root takes no
+   `service_lb_ip` var and manages no Service-LB resource. The module
+   returns the sensitive `talos_setup_key` output
+   (`outputs.talos_setup_key.value`) — never `tofu output -raw` from a
+   shell task. Key properties: `type = reusable`, `expiry_seconds = 0`
+   (never expires), `usage_limit = 0` (unlimited uses),
    `auto_groups = [<cluster>-nodes]`.
 3. **Ansible rewrites the placeholder** — the committed cluster patch holds
    `NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__`; after `pass-cli inject`
    renders it, the plane replaces the placeholder with the resolved key
    (`ansible.builtin.replace`, `no_log: true`, file-mode stays `0600`),
-   asserts UUID shape first (a non-matching value fails naming the mode,
-   never echoing the value), and proceeds to `gen config` so the key is
-   baked into `build/<cluster>/nodes/*/*.yaml` (gitignored).
+   asserts UUID shape first (a non-matching value fails naming the PAT
+   source, never echoing the value), and proceeds to `gen config` so the
+   key is baked into `build/<cluster>/nodes/*/*.yaml` (gitignored).
 
-Post-Flux alternative: `-e talos_netbird_setup_key_mode=outputs_secret`
-reads the already-applied consumer's `writeOutputsToSecret` Secret instead
-(defaults `zitadel`/`zitadel-login-proxy-outputs` key `talos_setup_key` —
-override the `talos_netbird_outputs_secret_*` vars when the consumer name
-changes) via `kubectl --kubeconfig build/<cluster>/kubeconfig`. Needs the
-cluster installed + the Terraform CR applied; day-0 pre-install stays on
-the default `terraform` mode.
+No raw `tofu ... apply` shell exists on this plane — the module owns the
+whole fabric apply; the only shell-free helpers are `pass-cli`
+(`ansible.builtin.command`) and the placeholder rewrite
+(`ansible.builtin.replace`).
+
+No `outputs_secret` fallback exists: the Flux consumer is proxy-only and
+no longer exposes `talos_setup_key`, so the module-driven plane above is
+the only source. Day-2 re-apply (`-e reapply_configs=true`) reuses the
+same plane via `include_role` (forced re-render restores the placeholder,
+then the module re-applies + rewrites).
+
+Provider schema entrypoints (fetch via `scripts/fetch-references.sh` into
+`/tmp/home-ops-docs/netbird-terraform-provider-docs/`): `index.md` (auth
+`NB_PAT`), `group.md`, `network.md`, `setup_key.md`,
+`network_router.md` (+ `route.md` for the unused legacy resource),
+`network_resource.md`, `policy.md`.
 
 Rotation: replace the `netbird_setup_key.talos` resource (plan first —
 `prevent_destroy` fails closed rather than silently revoking membership),
@@ -617,8 +653,8 @@ re-render of the PAT file itself (`pass-cli inject` over
 `pat.yml.template` — no `creates:` guard, so vault rotations flow on
 re-apply) **plus** the NetBird setup-key placeholder rewrite (§1.0b —
 the forced `pass-cli inject` restores `NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__`,
-so the plane re-resolves the key via the throwaway `tofu` run by default,
-or the Flux outputs Secret with `-e talos_netbird_setup_key_mode=outputs_secret`),
+so the plane re-applies the dedicated root via the
+`community.general.terraform` module and rewrites the key),
 a live schematic refresh via the day-0 schematic plane
 (hash-changed schematics re-upload to the Image Factory and persist fresh
 `.id`/`.sha256`, so the installer image never goes stale), regenerate
@@ -755,7 +791,7 @@ a rotation).
 
 | Guard file (`build/<cluster>/...`) | Skipped task | Goes stale when… | Recovery |
 | --- | --- | --- | --- |
-| `patches.yml` | cluster `pass-cli inject` (+ NetBird placeholder rewrite) | source cluster `patches.yml`, vault values, or the Terraform setup key rotates | `rm build/<c>/patches.yml`, re-run day-0 (or day-2 `-e reapply_configs=true`, which re-renders + rewrites without deleting) |
+| `patches.yml` | cluster `pass-cli inject` (+ NetBird placeholder rewrite) | source cluster `patches.yml`, vault values, or the Terraform setup key rotates | `rm build/<c>/patches.yml`, re-run day-0 (or day-2 `-e reapply_configs=true`, which re-renders + rewrites without deleting). Freshness note: the NetBird plane itself has NO `creates:` guard — it re-applies the dedicated root via the module on EVERY day-0/day-2 run (needs the `netbird-pat` vault value + `api.netbird.io` each time, even when every inject skips). The staged `netbird-tf/` dir keeps its local state across runs so those re-applies upsert; never `rm -rf build/<c>/netbird-tf` alone — recovery is `tofu import` per resource (see `roles/talos_render/files/netbird/README.md`). |
 | `nodes-<node>-patches.yml` | per-node `pass-cli inject` (+ ID-rewrite target) | source node `patches.yml`, vault values, or schematic changes | `rm build/<c>/nodes-*-patches.yml`, re-run day-0 |
 | `proton-pass-pat` | PAT `pass-cli inject` (day-0 `creates:`; day-2 re-apply is forced) | vault `eso-proton-pass`/`pat` rotated | `rm build/<c>/proton-pass-pat`, re-run day-0 (or day-2 `-e reapply_configs=true`, which re-renders without deleting) |
 | `schematic-<node>.id` / `.sha256` | factory upload (hash-guarded, not `creates:`) | re-uploads automatically on content change | none needed; honest hash comparison. A hash-match with a missing/empty `.id` (or an upload that yields no parseable ID) now fails fast naming the `rm` + re-run day-0 recovery instead of silently falling back to `pending-schematic-upload` |
@@ -950,7 +986,10 @@ ansible-playbook playbooks/day2.yml -i localhost, -e talos_cluster=$C   # read-o
   nodes (see §1.7 rotation warning). Restore from backup instead.
 - **Never `rm -rf build/<cluster>` on a live cluster without a backup** —
   the re-render path needs the SAME bundle; without it day-0 mints fresh
-  PKI and every authenticated call fails.
+  PKI and every authenticated call fails. (It also wipes the staged
+  `netbird-tf/` state — after a restore, re-anchor with `tofu import` per
+  resource before the next module apply, or the apply fails closed trying
+  to CREATE duplicates; see `roles/talos_render/files/netbird/README.md`.)
 - **Never seed `proton-pass-pat` back into the vault** — it is the vault
   credential itself; it lives in `build/` (gitignored) and flows only to
   the day-2 ESO Secret apply.

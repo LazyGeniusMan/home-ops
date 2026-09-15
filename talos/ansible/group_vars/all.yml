@@ -28,36 +28,31 @@ talos_talosconfig: "{{ talos_build_dir }}/{{ talos_cluster }}/talosconfig"
 # NetBird wiring (PAT-driven, Terraform-minted setup key — see RUNBOOK §1.0b):
 # - NetBird PAT comes from Proton Pass (magnet
 #   pass://<cluster-vault>/talos/netbird-pat) and is resolved locally via
-#   `pass-cli item view` in the talos_netbird role — it only ever authenticates
-#   a throwaway `tofu`/`terraform` CLI run against the shared netbird root
-#   (flux/infra/components/netbird/terraform/), never written to disk.
-# - The reusable setup key is minted by that root (`netbird_setup_key.talos`:
-#   type reusable, expiry_seconds 0 = never expires, usage_limit 0 = unlimited,
-#   auto_groups [<cluster>-nodes]). The plaintext leaves ONLY via the sensitive
-#   `talos_setup_key` TF output and is rewritten into the rendered cluster
-#   patch placeholder __TALOS_NETBIRD_SETUP_KEY__ (0600, gitignored
+#   `pass-cli item view` in the talos_netbird plane — it only ever reaches
+#   Terraform as the NB_PAT env var on the `community.general.terraform`
+#   module call (never -var, never written to disk).
+# - The reusable setup key is minted by the dedicated Talos root
+#   (roles/talos_render/files/netbird/, staged per cluster at
+#   build/<cluster>/netbird-tf/ with persistent local state — NOT deleted
+#   between runs, so re-applies upsert): `netbird_setup_key.talos`
+#   (type reusable, expiry_seconds 0 = never expires, usage_limit 0 =
+#   unlimited, auto_groups [<cluster>-nodes]). The plaintext leaves ONLY via
+#   the module's sensitive `talos_setup_key` output
+#   (outputs.talos_setup_key.value) and is rewritten into the rendered
+#   cluster patch placeholder __TALOS_NETBIRD_SETUP_KEY__ (0600, gitignored
 #   build/<cluster>/), never logged (no_log: true everywhere on the plane)
 #   and never committed. Rotate by replacing the TF key resource (plan first;
-#   prevent_destroy fails closed) then re-running day-0 with
-#   talos_netbird_setup_key_mode=terraform.
-# - talos_netbird_setup_key_mode: `terraform` (default; PAT -> throwaway TF
-#   run against the shared root, output talos_setup_key) or `outputs_secret`
-#   (post-Flux: read the already-applied zitadel-login-proxy
-#   writeOutputsToSecret Secret via kubectl --kubeconfig build/.../kubeconfig;
-#   needs the cluster installed + Flux/tofu-controller applied). The
-#   outputs_secret read NEVER dereferences a pass:// setup-key value — the
-#   old vault `talos`/`netbird-setup-key` fields are retired.
-# - talos_netbird_outputs_secret_* contract: <outputs-secret-name>,
-#   <outputs-secret-namespace> (defaults target the per-env zitadel namespace
-#   consumer `zitadel-login-proxy` / `zitadel-login-proxy-outputs`), and the
-#   TF output key (talos_setup_key, must stay listed in the consumer
-#   writeOutputsToSecret.outputs). Override with -e when the consumer name
-#   changes.
-talos_netbird_setup_key_mode: terraform
+#   prevent_destroy fails closed) then re-running day-0 (rm
+#   build/<c>/patches.yml first so the inject guard re-renders) or day-2
+#   -e reapply_configs=true.
+# - The old vault `talos`/`netbird-setup-key` fields stay retired — the setup
+#   key never lives in the vault. There is NO outputs_secret fallback: the
+#   Flux consumer no longer exposes talos_setup_key (proxy-only root), so
+#   the module-driven plane is the only source.
+# - Per-cluster values come from the talos_clusters map below (cluster_name
+#   = talos_cluster, vault = per-cluster vault); LB IP is NOT needed here
+#   (proxy-only concern owned by the Flux consumer).
 talos_netbird_terraform_dir: "{{ playbook_dir }}/../build/{{ talos_cluster }}/netbird-tf"
-talos_netbird_outputs_secret_name: zitadel-login-proxy-outputs
-talos_netbird_outputs_secret_namespace: zitadel
-talos_netbird_outputs_secret_key: talos_setup_key
 talos_netbird_placeholder: __TALOS_NETBIRD_SETUP_KEY__
 talos_netbird_setup_key_pattern: "^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}$"
 # Binaries + audit prefix for the NetBird plane (shared by the day-0 render
@@ -66,7 +61,6 @@ talos_netbird_setup_key_pattern: "^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{
 # vars). PAT vault field: `netbird-pat` on the `talos` item in the OWN
 # cluster vault (pass://<cluster-vault>/talos/netbird-pat).
 talos_netbird_tofu: tofu
-talos_netbird_kubectl: kubectl
 talos_netbird_pat_item: talos
 talos_netbird_pat_field: netbird-pat
 talos_netbird_pass_agent_reason_prefix: talos-netbird
