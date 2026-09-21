@@ -109,11 +109,10 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(rules) > 0 {
 		fields := rawFieldsForRemap(payload, rawFields, isJSON)
-		// remap.Apply reports success; false means the mapping failed
-		// (unresolvable path, bad target, depth exceeded → HTTP 400).
-		// The stub call stays intact for G4: the full engine keeps this
-		// signature and semantics.
-		if !remap.Apply(fields, rules, s.cfg.WebhookMappingMaxDepth) {
+		// remap.Apply is the G4 stub: it validates rule targets and
+		// returns nil without mutating fields. Any error means the
+		// mapping failed (→ HTTP 400 "Payload field mapping failed").
+		if err := remap.Apply(fields, rules, s.cfg.WebhookMappingMaxDepth); err != nil {
 			fail(http.StatusBadRequest, "Payload field mapping failed")
 			return
 		}

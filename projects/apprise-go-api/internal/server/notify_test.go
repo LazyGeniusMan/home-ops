@@ -310,12 +310,23 @@ func TestNotifyValidationTable(t *testing.T) {
 			wantCalls:   1,
 		},
 		{
+			// Stub-level mapping failure: unmappable target "key"
+			// (stateful-only) → 400 via the remap stub call.
 			name:        "remap failure 400",
 			contentType: "application/x-www-form-urlencoded",
-			body:        url.Values{"event": {"not-a-dict"}}.Encode(),
-			target:      "/notify/?:event.missing=body",
+			body:        url.Values{"event": {"x"}, "urls": {"json://localhost"}, "body": {"hi"}}.Encode(),
+			target:      "/notify/?:event=key",
 			wantStatus:  http.StatusBadRequest,
 			wantCalls:   0,
+		},
+		{
+			// Mappable stub rule passes through untouched (full engine G4).
+			name:        "remap stub passthrough 200",
+			contentType: "application/x-www-form-urlencoded",
+			body:        url.Values{"urls": {"json://localhost"}, "body": {"hi"}}.Encode(),
+			target:      "/notify/?:payload=body",
+			wantStatus:  http.StatusOK,
+			wantCalls:   1,
 		},
 	}
 
