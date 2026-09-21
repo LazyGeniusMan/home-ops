@@ -100,8 +100,9 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Apply ':' remap rules (stub call; full engine G4). Rules come from
-	// query keys with a ':' prefix: ?:src=dst.
+	// Apply ':' remap rules (G4 engine). Rules come from query keys with
+	// a ':' prefix (?:src=dst); they remap the decoded payload map before
+	// validation, and mapped values flow back into the request struct below.
 	rules, err := parseRemapRules(r)
 	if err != nil {
 		fail(http.StatusBadRequest, "Payload field mapping failed")
@@ -109,13 +110,13 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(rules) > 0 {
 		fields := rawFieldsForRemap(payload, rawFields, isJSON)
-		// remap.Apply is the G4 stub: it validates rule targets and
-		// returns nil without mutating fields. Any error means the
-		// mapping failed (→ HTTP 400 "Payload field mapping failed").
+		// Any Apply error means the mapping failed
+		// (→ HTTP 400 "Payload field mapping failed").
 		if err := remap.Apply(fields, rules, s.cfg.WebhookMappingMaxDepth); err != nil {
 			fail(http.StatusBadRequest, "Payload field mapping failed")
 			return
 		}
+		syncRemappedFields(payload, fields, isJSON)
 	}
 
 	if payload == nil {
@@ -384,17 +385,30 @@ func decodeFormPayload(r *http.Request) (*notifyRequest, bool, map[string]any, e
 		return nil, false, nil, nil
 	}
 	raw := map[string]any{}
+	put := func(k string, vs []string) {
+		if len(vs) == 1 {
+			raw[k] = vs[0]
+		} else {
+			cp := make([]any, len(vs))
+			for i, v := range vs {
+				cp[i] = v
+			}
+			raw[k] = cp
+		}
+	}
 	if r.PostForm != nil {
 		for k, vs := range r.PostForm {
-			if len(vs) == 1 {
-				raw[k] = vs[0]
-			} else {
-				cp := make([]any, len(vs))
-				for i, v := range vs {
-					cp[i] = v
-				}
-				raw[k] = cp
+			put(k, vs)
+		}
+	}
+	// Multipart values live in MultipartForm (PostForm is nil there);
+	// merge them so the remap fields reflect the actual form payload.
+	if r.MultipartForm != nil {
+		for k, vs := range r.MultipartForm.Value {
+			if _, dup := raw[k]; dup {
+				continue
 			}
+			put(k, vs)
 		}
 	}
 	fileCount := 0
@@ -466,29 +480,14 @@ func decodeFormPayload(r *http.Request) (*notifyRequest, bool, map[string]any, e
 	return out, false, raw, nil
 }
 
-// parseRemapRules collects '?:src=dst' query rules for the remap stub call
-// (full engine G4). A rule without '=' or with an empty source fails the
-// mapping (→ 400).
+// parseRemapRules collects ordered '?:src=dst' query rules for the remap
+// engine. A rule with an empty source fails the mapping (→ 400).
 func parseRemapRules(r *http.Request) ([]remap.Rule, error) {
-	var rules []remap.Rule
-	for key, values := range r.URL.Query() {
-		if !strings.HasPrefix(key, ":") || len(key) < 2 {
-			continue
-		}
-		src := key[1:]
-		for _, v := range values {
-			rule, err := remap.Parse(src + "=" + v)
-			if err != nil {
-				return nil, err
-			}
-			rules = append(rules, rule)
-		}
-	}
-	return rules, nil
+	return remap.FromRawQuery(r.URL.RawQuery)
 }
 
-// rawFieldsForRemap returns the field map handed to the remap stub: the raw
-// JSON doc for JSON payloads, the raw form map otherwise.
+// rawFieldsForRemap returns the field map handed to the remap engine: the
+// raw JSON doc for JSON payloads, the raw form map otherwise.
 func rawFieldsForRemap(payload *notifyRequest, rawFields map[string]any, isJSON bool) map[string]any {
 	if isJSON {
 		if rawFields != nil {
@@ -501,6 +500,94 @@ func rawFieldsForRemap(payload *notifyRequest, rawFields map[string]any, isJSON 
 	}
 	_ = payload
 	return map[string]any{}
+}
+
+// syncRemappedFields writes remapped values back into the decoded request so
+// Apply mutations are observable downstream (validation, send). Keys absent
+// from fields were deleted by rules (or never present) and clear the
+// corresponding struct field. Attachment aliases resolve with the same
+// attach > attachment > attachments priority as decoding; uploaded file parts
+// (FileCount) still count as attachments.
+func syncRemappedFields(payload *notifyRequest, fields map[string]any, isJSON bool) {
+	if payload == nil {
+		return
+	}
+	if v, ok := fields["urls"]; ok {
+		if s, isStr := v.(string); !isJSON && isStr && len(s) > urlsMaxLen {
+			payload.URLs = nil
+		} else {
+			payload.URLs = v
+		}
+	} else {
+		payload.URLs = nil
+	}
+	if v, ok := fields["body"]; ok {
+		payload.Body = remappedString(v)
+	} else {
+		payload.Body = ""
+	}
+	if v, ok := fields["title"]; ok {
+		payload.Title = remappedString(v)
+	} else {
+		payload.Title = ""
+	}
+	if v, ok := fields["type"]; ok {
+		payload.NotifyType = remappedString(v)
+	} else {
+		payload.NotifyType = ""
+	}
+	if v, ok := fields["format"]; ok {
+		payload.Format = remappedString(v)
+	} else {
+		payload.Format = ""
+	}
+	if v, ok := fields["tag"]; ok {
+		payload.Tag = v
+	} else {
+		payload.Tag = nil
+	}
+	if v, ok := fields["tags"]; ok {
+		payload.Tags = v
+	} else {
+		payload.Tags = nil
+	}
+	payload.Attach = nil
+	payload.HasAttach = payload.FileCount > 0
+	for _, alias := range []string{"attach", "attachment", "attachments"} {
+		v, ok := fields[alias]
+		if !ok || v == nil {
+			continue
+		}
+		payload.Attach = append(payload.Attach, attachStrings(v)...)
+		payload.HasAttach = true
+		break
+	}
+}
+
+// remappedString coerces a remapped field value to a scalar string, mirroring
+// form decoding (first value wins for multi-value fields).
+func remappedString(v any) string {
+	switch t := v.(type) {
+	case nil:
+		return ""
+	case string:
+		return t
+	case []string:
+		if len(t) > 0 {
+			return t[0]
+		}
+		return ""
+	case []any:
+		if len(t) == 0 {
+			return ""
+		}
+		if s, ok := t[0].(string); ok {
+			return s
+		}
+		return fmt.Sprintf("%v", t[0])
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }
 
 // isJSONResponse mirrors Python is_json_response (api/utils.py:63): Accept:

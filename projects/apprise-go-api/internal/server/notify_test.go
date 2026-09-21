@@ -397,6 +397,58 @@ func TestNotifyNoValidURLs204(t *testing.T) {
 	}
 }
 
+func TestNotifyRemapFlowThrough(t *testing.T) {
+	// Flat form remap: ?:subject=title&:payload=body maps webhook field
+	// names onto the notify request (body wins over query fallbacks).
+	h := newNotifyHarness(config.Config{})
+	rec := doPost(h, "/notify/?:subject=title&:payload=body",
+		"application/x-www-form-urlencoded",
+		url.Values{"urls": {"json://localhost"}, "subject": {"Subj"}, "payload": {"Content"}}.Encode(), nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("form remap = %d, want 200 (body %q)", rec.Code, rec.Body.String())
+	}
+	h.fake.mu.Lock()
+	last := h.fake.last
+	h.fake.mu.Unlock()
+	if last.Title != "Subj" || last.Body != "Content" {
+		t.Errorf("form remap sent title=%q body=%q, want Subj/Content", last.Title, last.Body)
+	}
+
+	// JSON variant with &:href=urls: subject/href/payload remap into
+	// title/urls/body.
+	h.fake.reset()
+	rec = doPost(h, "/notify/?:subject=title&:payload=body&:href=urls",
+		"application/json",
+		`{"subject":"JSubj","payload":"JContent","href":"json://localhost"}`, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("JSON remap = %d, want 200 (body %q)", rec.Code, rec.Body.String())
+	}
+	h.fake.mu.Lock()
+	last = h.fake.last
+	h.fake.mu.Unlock()
+	if last.Title != "JSubj" || last.Body != "JContent" {
+		t.Errorf("JSON remap sent title=%q body=%q, want JSubj/JContent", last.Title, last.Body)
+	}
+	if len(last.URLs) != 1 || last.URLs[0] != "json://localhost" {
+		t.Errorf("JSON remap sent urls=%v, want [json://localhost]", last.URLs)
+	}
+
+	// Nested source: ?:event.title=title resolves into the payload.
+	h.fake.reset()
+	rec = doPost(h, "/notify/?:event.title=title",
+		"application/json",
+		`{"urls":"json://localhost","body":"hi","event":{"title":"Nested"}}`, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("nested remap = %d, want 200 (body %q)", rec.Code, rec.Body.String())
+	}
+	h.fake.mu.Lock()
+	last = h.fake.last
+	h.fake.mu.Unlock()
+	if last.Title != "Nested" {
+		t.Errorf("nested remap sent title=%q, want Nested", last.Title)
+	}
+}
+
 func TestNotifyPartialFailure424Vs204(t *testing.T) {
 	h := newNotifyHarness(config.Config{})
 	// Golden: upstream failure → 424 with error+details JSON (Accept: json).
