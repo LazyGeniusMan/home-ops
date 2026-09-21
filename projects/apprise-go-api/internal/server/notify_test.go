@@ -124,6 +124,7 @@ func TestNotifyValidationTable(t *testing.T) {
 		target      string
 		wantStatus  int
 		wantCalls   int
+		wantBody    string
 	}{
 		{
 			name:        "form urls+body 200",
@@ -220,6 +221,9 @@ func TestNotifyValidationTable(t *testing.T) {
 			body:        `{"urls":"json://localhost","body":"hi","format":"invalid"}`,
 			wantStatus:  http.StatusBadRequest,
 			wantCalls:   0,
+			// Python rejects a bad format after the minimum-requirements
+			// gate (api/views.py:2040) with its own message.
+			wantBody: "An invalid body input format was specified",
 		},
 		{
 			name:        "json empty format 200",
@@ -249,6 +253,10 @@ func TestNotifyValidationTable(t *testing.T) {
 			body:        `{"urls":"json://localhost","body":"hi","type":"bogus"}`,
 			wantStatus:  http.StatusBadRequest,
 			wantCalls:   0,
+			// Python StatelessNotifyView bundles the type check into the
+			// minimum-requirements gate (api/views.py:2016), so a bad type
+			// reports "Payload lacks minimum requirements".
+			wantBody: "Payload lacks minimum requirements",
 		},
 		{
 			name:        "form attach alias bad attachment 400",
@@ -350,6 +358,9 @@ func TestNotifyValidationTable(t *testing.T) {
 			h.fake.mu.Unlock()
 			if calls != tc.wantCalls {
 				t.Errorf("sender calls = %d, want %d", calls, tc.wantCalls)
+			}
+			if tc.wantBody != "" && !strings.Contains(rec.Body.String(), tc.wantBody) {
+				t.Errorf("body = %q, want substring %q", rec.Body.String(), tc.wantBody)
 			}
 		})
 	}
