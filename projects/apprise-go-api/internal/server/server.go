@@ -4,6 +4,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -17,9 +18,17 @@ import (
 // Server is the apprise-go-api HTTP server.
 type Server struct {
 	cfg    config.Config
-	sender *notify.Sender
+	sender senderIface
 	log    *slog.Logger
 	mux    *http.ServeMux
+}
+
+// senderIface is the notify.Sender contract the handlers depend on. The
+// concrete *notify.Sender satisfies it; tests substitute fakes without
+// changing production wiring.
+type senderIface interface {
+	Send(ctx context.Context, req notify.Request) (notify.Result, error)
+	Timeout() time.Duration
 }
 
 // New wires dependencies and registers routes.
@@ -39,7 +48,7 @@ func New(cfg config.Config, sender *notify.Sender, log *slog.Logger) *Server {
 func (s *Server) Handler() http.Handler { return s.mux }
 
 // Sender exposes the notify sender (used by handlers in G2).
-func (s *Server) Sender() *notify.Sender { return s.sender }
+func (s *Server) Sender() senderIface { return s.sender }
 
 func (s *Server) routes() {
 	s.mux.HandleFunc("/notify", s.handleNotify)
@@ -49,14 +58,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/metrics", s.handleMetrics)
 }
 
-// handleNotify is a G1 stub: POST only; full G2 parity lands later.
+// handleNotify serves POST /notify (see notify.go for the full G2 flow).
 func (s *Server) handleNotify(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", http.MethodPost)
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "method not allowed"})
-		return
-	}
-	writeJSON(w, http.StatusNotImplemented, map[string]any{"error": "notify not implemented (G2)"})
+	s.serveNotify(w, r)
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {

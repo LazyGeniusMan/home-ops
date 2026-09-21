@@ -33,13 +33,14 @@ func TestNotifyGetIs405(t *testing.T) {
 	}
 }
 
-func TestNotifyPostStubIs501(t *testing.T) {
+func TestNotifyPostStubIsGone(t *testing.T) {
 	s := testServer()
 	req := httptest.NewRequest(http.MethodPost, "/notify", strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, req)
-	if rec.Code != http.StatusNotImplemented {
-		t.Errorf("POST /notify = %d, want 501 stub", rec.Code)
+	if rec.Code == http.StatusNotImplemented {
+		t.Error("POST /notify = 501, want G2 handler (no stub)")
 	}
 }
 
