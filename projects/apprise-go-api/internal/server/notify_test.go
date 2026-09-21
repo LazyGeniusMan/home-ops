@@ -310,12 +310,12 @@ func TestNotifyValidationTable(t *testing.T) {
 			wantCalls:   1,
 		},
 		{
-			// Stub-level mapping failure: unmappable target "key"
-			// (stateful-only) → 400 via the remap stub call.
+			// Remap failure: nested source with a missing leaf
+			// (event.missing is not in the payload) → 400, no send.
 			name:        "remap failure 400",
 			contentType: "application/x-www-form-urlencoded",
 			body:        url.Values{"event": {"x"}, "urls": {"json://localhost"}, "body": {"hi"}}.Encode(),
-			target:      "/notify/?:event=key",
+			target:      "/notify/?:event.missing=body",
 			wantStatus:  http.StatusBadRequest,
 			wantCalls:   0,
 		},
