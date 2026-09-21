@@ -192,6 +192,42 @@ func MaxHeaderBytes() int { return maxHeaderBytes }
 // MaxUploadMemoryBytes caps in-memory multipart buffering before spilling to disk.
 func MaxUploadMemoryBytes() int64 { return maxUploadMemoryBytes }
 
+// AttachSizeBytes returns the per-file attachment limit in bytes
+// (APPRISE_ATTACH_SIZE in MiB). A non-positive result disables attachments.
+func (c Config) AttachSizeBytes() int64 { return c.AttachSizeMB * 1024 * 1024 }
+
+// UploadMaxMemoryBytes returns the multipart/JSON body budget in bytes
+// (APPRISE_UPLOAD_MAX_MEMORY_SIZE in MiB). Python applies abs() to the env
+// value; Load stores the raw value and this normalizes the sign so gates
+// and tests share one conversion.
+func (c Config) UploadMaxMemoryBytes() int64 {
+	if c.UploadMaxMemorySizeMB < 0 {
+		return -c.UploadMaxMemorySizeMB * 1024 * 1024
+	}
+	return c.UploadMaxMemorySizeMB * 1024 * 1024
+}
+
+// DefaultAttachAllowURL is Python's APPRISE_ATTACH_ALLOW_URL default.
+const DefaultAttachAllowURL = "*"
+
+// DefaultAttachRejectURL is Python's APPRISE_ATTACH_REJECT_URL default
+// (APPRISE_ATTACH_REJECT_URL env, "127.0.* localhost*" when unset).
+const DefaultAttachRejectURL = "127.0.* localhost*"
+
+// AttachAllowURLOrDefault returns the configured SSRF allowlist or "*".
+func (c Config) AttachAllowURLOrDefault() string {
+	if c.AttachAllowURL == "" {
+		return DefaultAttachAllowURL
+	}
+	return c.AttachAllowURL
+}
+
+// AttachRejectURLOrDefault returns the configured SSRF denylist. An empty
+// configured value disables denials (no Python-style default is applied at
+// load because the env may intentionally clear it); callers wanting the
+// Python out-of-box default use DefaultAttachRejectURL.
+func (c Config) AttachRejectURLOrDefault() string { return c.AttachRejectURL }
+
 func addrFromPort(port string) string {
 	port = strings.TrimSpace(port)
 	if port == "" {

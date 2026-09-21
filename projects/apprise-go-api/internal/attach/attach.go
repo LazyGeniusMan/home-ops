@@ -12,9 +12,13 @@ package attach
 import (
 	"fmt"
 	"os"
+	"strings"
+	"time"
 )
 
-// Limits mirrors the G3 attachment knobs for stub wiring.
+// Limits carries the G3 attachment knobs: APPRISE_ATTACH_DIR,
+// APPRISE_ATTACH_SIZE, APPRISE_MAX_ATTACHMENTS, the SSRF allow/reject
+// lists, and the remote-fetch timeout. See config.AttachLimits.
 type Limits struct {
 	// Dir stages temp files; empty means os.TempDir().
 	Dir string
@@ -22,6 +26,14 @@ type Limits struct {
 	SizeMB int64
 	// MaxCount caps attachments per request; 0 = unlimited.
 	MaxCount int
+	// AllowURL is the SSRF allowlist (APPRISE_ATTACH_ALLOW_URL);
+	// empty means "*" (Python's default).
+	AllowURL string
+	// RejectURL is the SSRF denylist (APPRISE_ATTACH_REJECT_URL);
+	// empty disables denials.
+	RejectURL string
+	// FetchTimeout bounds remote attachment downloads; <=0 means 30s.
+	FetchTimeout time.Duration
 }
 
 // Attachment is a staged, request-scoped attachment file.
@@ -34,19 +46,85 @@ type Attachment struct {
 	Cleanup func()
 }
 
-// Stage validates count/disabled policy and returns no staged files.
-// Full staging lands in G3.
+// Stage validates count/disabled policy via the full Stager, treating each
+// name as a remote-URL-or-inline payload entry. Kept compatible for the G2
+// seam (server.checkAttachmentsStub): count/disabled errors surface as
+// StatusError values, and any non-empty name proceeds to real staging, so
+// callers see either a policy error or staged (possibly remote-fetched)
+// files. maxMemoryBytes must be positive (the multipart/memory budget the
+// caller enforces via MaxBytesReader before staging).
 func Stage(names []string, lim Limits, maxMemoryBytes int64) ([]Attachment, error) {
 	if maxMemoryBytes <= 0 {
-		return nil, fmt.Errorf("attach: max memory bytes must be positive, got %d", maxMemoryBytes)
+		return nil, BadAttachment("max memory bytes must be positive, got %d", maxMemoryBytes)
 	}
-	if lim.SizeMB <= 0 && len(names) > 0 {
-		return nil, fmt.Errorf("attach: attachments are disabled")
+	stager := NewStager(lim)
+	entries := make([]any, 0, len(names))
+	for _, n := range names {
+		entries = append(entries, n)
 	}
-	if lim.MaxCount > 0 && len(names) > lim.MaxCount {
-		return nil, fmt.Errorf("attach: too many attachments: got %d, max %d", len(names), lim.MaxCount)
+	staged, err := stager.StageRequest(entries, nil)
+	if err != nil {
+		return nil, err
 	}
-	return nil, nil
+	out := make([]Attachment, 0, len(staged))
+	for _, st := range staged {
+		out = append(out, st.Attachment)
+	}
+	return out, nil
+}
+
+// CleanupAll removes every staged file. Idempotent per file; safe to defer
+// at request end for zero persistence (never GC-dependent).
+func CleanupAll(staged []Staged) {
+	for _, st := range staged {
+		if st.Cleanup != nil {
+			st.Cleanup()
+		}
+	}
+}
+
+// Paths returns the staged local paths for apprise-go WithAttachments.
+// Local temp paths are passed as-is: apprise-go reads them as files and
+// never fetches them, so the SSRF policy (already enforced here) holds.
+func Paths(staged []Staged) []string {
+	out := make([]string, 0, len(staged))
+	for _, st := range staged {
+		out = append(out, st.Path)
+	}
+	return out
+}
+
+// Names returns the attachment filenames in staged order.
+func Names(staged []Staged) []string {
+	out := make([]string, 0, len(staged))
+	for _, st := range staged {
+		out = append(out, st.Name)
+	}
+	return out
+}
+
+// HasAttachment reports whether a request carries attachment content:
+// staged files or a non-blank payload. G2 uses this for the
+// body-not-required-when-attachment rule.
+func HasAttachment(staged []Staged, payload any) bool {
+	if len(staged) > 0 {
+		return true
+	}
+	entries, _ := normalizePayload(payload)
+	for _, e := range entries {
+		if s, ok := e.raw.(string); ok {
+			// Blank strings are ignored entries (Python decrements and
+			// moves along), so they do not satisfy the body rule.
+			if strings.TrimSpace(s) != "" {
+				return true
+			}
+			continue
+		}
+		if e.raw != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // StageTemp creates a request-scoped temp file under dir (or os.TempDir
