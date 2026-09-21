@@ -1,10 +1,13 @@
 package server
 
 import (
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -55,6 +58,48 @@ func TestStatusOK(t *testing.T) {
 	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "application/json") {
 		t.Errorf("Content-Type = %q, want JSON", ct)
 	}
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("GET /status body is not JSON: %v", err)
+	}
+	for _, key := range []string{"status", "can_write_attach", "attach_dir", "config_lock", "stateful_mode", "stateless_storage"} {
+		if _, ok := body[key]; !ok {
+			t.Errorf("GET /status body missing key %q: %v", key, body)
+		}
+	}
+	if got := body["can_write_attach"]; got != true {
+		t.Errorf("can_write_attach = %v, want true (temp dir probe)", got)
+	}
+	if _, bad := body["attach_permission_issue"]; bad {
+		t.Errorf("attach_permission_issue present on writable dir: %v", body)
+	}
+}
+
+func TestStatusUnwritableAttachDir(t *testing.T) {
+	cfg := config.Config{StatelessStorage: "no", StatefulMode: "disabled", CallTimeoutSecs: 30, AttachDir: filepath.Join(t.TempDir(), "missing-parent", "child")}
+	// Block creation: plant a regular file where the parent dir would go.
+	blocker := filepath.Join(t.TempDir(), "blocker")
+	if err := os.WriteFile(blocker, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg.AttachDir = filepath.Join(blocker, "child")
+	s := New(cfg, notify.New(time.Second), slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	req := httptest.NewRequest(http.MethodGet, "/status", nil)
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /status = %d, want 200", rec.Code)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("GET /status body is not JSON: %v", err)
+	}
+	if got := body["can_write_attach"]; got != false {
+		t.Errorf("can_write_attach = %v, want false", got)
+	}
+	if got := body["attach_permission_issue"]; got != "ATTACH_PERMISSION_ISSUE" {
+		t.Errorf("attach_permission_issue = %v, want ATTACH_PERMISSION_ISSUE", got)
+	}
 }
 
 func TestDetailsOK(t *testing.T) {
@@ -63,7 +108,31 @@ func TestDetailsOK(t *testing.T) {
 	rec := httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
-		t.Errorf("GET /details = %d, want 200", rec.Code)
+		t.Fatalf("GET /details = %d, want 200", rec.Code)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("GET /details body is not JSON: %v", err)
+	}
+	raw, _ := json.Marshal(body)
+	if strings.Contains(string(raw), "SECRET") || strings.Contains(string(raw), "secret") {
+		t.Errorf("GET /details leaks a secret-looking key: %s", raw)
+	}
+	svcs, ok := body["services"].([]any)
+	if !ok || len(svcs) == 0 {
+		t.Fatalf("GET /details services = %v, want non-empty catalog", body["services"])
+	}
+	if n, ok := body["service_count"].(float64); !ok || int(n) != len(svcs) {
+		t.Errorf("service_count = %v, want %d", body["service_count"], len(svcs))
+	}
+	found := false
+	for _, v := range svcs {
+		if v == "json" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("services catalog missing %q: %v", "json", svcs)
 	}
 }
 
@@ -75,11 +144,38 @@ func TestMetricsText(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET /metrics = %d, want 200", rec.Code)
 	}
-	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "text/plain") {
-		t.Errorf("Content-Type = %q, want Prometheus text", ct)
+	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "text/plain") || !strings.Contains(ct, "version=0.0.4") {
+		t.Errorf("Content-Type = %q, want Prometheus text (version=0.0.4)", ct)
 	}
-	if body := rec.Body.String(); !strings.Contains(body, "apprise_go_api_up 1") {
-		t.Errorf("body = %q, want up gauge", body)
+	body := rec.Body.String()
+	for _, want := range []string{
+		"apprise_go_api_up 1",
+		"apprise_go_api_build_info",
+		"apprise_go_api_attach_writable 1",
+		"apprise_go_api_supported_services",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("metrics body missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestStatelessOnlyRoutesAre404(t *testing.T) {
+	s := testServer()
+	for _, path := range []string{"/cfg", "/add/", "/json", "/notify/somekey", "/notify/somekey/"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		s.Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("GET %s = %d, want 404 (stateless-only)", path, rec.Code)
+		}
+	}
+	req := httptest.NewRequest(http.MethodPost, "/notify/somekey", strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("POST /notify/{KEY} = %d, want 404 (stateless-only)", rec.Code)
 	}
 }
 
