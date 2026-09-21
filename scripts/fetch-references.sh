@@ -370,11 +370,30 @@ fetch_repo headlamp-docs https://github.com/kubernetes-sigs/headlamp main || rec
 # /tmp/home-ops-docs/headlamp-kubevirt-plugin-docs/README.md
 fetch_repo headlamp-kubevirt-plugin-docs https://github.com/naval-group/headlamp-kubevirt main || record_fail headlamp-kubevirt-plugin-docs
 
+# /tmp/home-ops-docs/apprise-docs/locales/en
+fetch_repo apprise-docs https://github.com/caronc/apprise-docs master || record_fail apprise-docs
+
 # /tmp/home-ops-docs/apprise-api-py-docs/README.md
 fetch_repo apprise-api-py-docs https://github.com/caronc/apprise-api master || record_fail apprise-api-py-docs
 
 # /tmp/home-ops-docs/apprise-go-docs/README.md
 fetch_repo apprise-go-docs https://github.com/unraid/apprise-go main || record_fail apprise-go-docs
+
+# /tmp/home-ops-docs/tuwumel-docs/docs/README.md
+fetch_repo tuwumel-docs https://github.com/matrix-construct/tuwunel main || record_fail tuwumel-docs
+
+# /tmp/home-ops-docs/matrix-terraform-provider-docs/README.md
+fetch_repo matrix-terraform-provider-docs https://github.com/raspbeguy/terraform-provider-matrix main || record_fail matrix-terraform-provider-docs
+
+# /tmp/home-ops-docs/element-web-docs/docs
+fetch_repo element-web-docs-docs https://github.com/element-hq/element-web develop || record_fail element-web-docs
+
+# /tmp/home-ops-docs/matrix-mautrix-bridge-docs/bridges
+fetch_repo matrix-mautrix-bridge-docs https://github.com/mautrix/docs master || record_fail matrix-mautrix-bridge-docs
+
+# /tmp/home-ops-docs/matrix-mautrix-discord-bridge-docs/README.md
+fetch_repo matrix-mautrix-discord-bridge-docs https://github.com/mautrix/discord main || record_fail matrix-mautrix-discord-bridge-docs
+
 
 # /tmp/home-ops-docs/coder-docs/docs
 fetch_repo coder-docs https://github.com/coder/coder main || record_fail coder-docs
