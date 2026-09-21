@@ -4,7 +4,7 @@
 // Flow: detect JSON payload via content-type regex → parse one of the three
 // content types → apply ':' remap rules (stub call; full engine G4) →
 // stateless URL fallback → tag/format/type/title query fallbacks → attach
-// alias normalization (stub presence check; full staging G3) → minimum
+// alias staging to request-scoped temp files (G3) → minimum
 // requirements → format/type/recursion validation → allow/deny + send via
 // notify.Sender → webhook callback (stub callable; full G4) → negotiated
 // response (JSON details | HTML logs | plain text).
@@ -18,6 +18,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -63,8 +64,13 @@ type notifyRequest struct {
 	Tag any
 	// Tags is the raw tags alias (tag wins).
 	Tags any
-	// Attach holds attachment payloads by alias for stub presence check.
+	// Attach holds attachment payloads by alias for the staging gate.
 	Attach []string
+	// AttachRaw is the winning attach alias value in decoded shape
+	// (string, list, or dict) handed to the G3 stager.
+	AttachRaw any
+	// Files holds multipart file parts in arrival order for the stager.
+	Files []attach.Incoming
 	// HasAttach reports any attach/attachment/attachments alias or file part.
 	HasAttach bool
 	// FileCount counts uploaded file parts (G3 stages them).
@@ -189,26 +195,30 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Attach alias normalization (stub for G3): FORM alias keys beat JSON
-	// keys; presence (not content) feeds the body-required rule. Full
-	// staging/SSRF lands in G3; here any declared attachment that reaches
-	// staging validation errors is a 400 "Bad Attachment".
-	attachNames := payload.Attach
-	if payload.HasAttach && len(attachNames) == 0 && payload.FileCount == 0 {
+	// Attach staging (G3): the winning attach alias value plus any multipart
+	// file parts are staged to request-scoped temp files under
+	// APPRISE_ATTACH_DIR. Staged paths feed the sender; temp files are
+	// removed when the request ends. Any staging failure (malformed entry,
+	// SSRF denial, fetch failure, over-limit file) is a 400 "Bad
+	// Attachment" via attach.StatusCodeOf.
+	var attachPaths []string
+	var stagedNames []string
+	if payload.HasAttach && len(payload.Attach) == 0 && payload.FileCount == 0 {
 		// Alias declared but empty (e.g. attach= with blank value):
 		// Python parse_attachments decrements blank entries and yields no
 		// attach — body-required rule then applies.
 	} else if payload.HasAttach {
-		if err := checkAttachmentsStub(attachNames, payload.FileCount, s.cfg.AttachSizeMB, s.cfg.MaxAttachments); err != nil {
+		staged, err := s.stageAttachments(payload)
+		if err != nil {
 			s.log.Warn("notify: bad attachment", "remote", remoteAddr(r), "err", err)
-			fail(http.StatusBadRequest, "Bad Attachment")
+			fail(attach.StatusCodeOf(err), "Bad Attachment")
 			return
 		}
-		// Stub attach presence: any declared attachment satisfies the
-		// body-required rule. Rich G3 parsing may still reject it.
-		if len(attachNames) > 0 || payload.FileCount > 0 {
-			payload.HasAttach = true
-		}
+		defer attach.CleanupAll(staged)
+		attachPaths = attach.Paths(staged)
+		stagedNames = attach.Names(staged)
+		// Staged presence satisfies the body-required rule below.
+		payload.HasAttach = attach.HasAttachment(staged, payload.AttachRaw)
 	}
 
 	// Minimum requirements: body or attach, and a valid type
@@ -267,18 +277,21 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 	_ = validatedLogLevel(r.Header.Get("X-Apprise-Log-Level"), s.cfg.LogLevel)
 
 	// Send via the engine. Zero surviving targets → 204; any delivery
-	// error → 424 with negotiated logs/details.
+	// error → 424 with negotiated logs/details. A target that cannot
+	// carry attachments fails the send with the staged filename attached
+	// so the failure is never silent.
 	req := notify.Request{
-		URLs:           urls,
-		Body:           body,
-		Title:          title,
-		NotifyType:     ntype,
-		InputFormat:    bodyFormat,
-		Tag:            tagFilter,
-		Attachments:    attachNames,
-		DenyServices:   s.cfg.DenyServices,
-		AllowServices:  s.cfg.AllowServices,
-		RecursionCount: recursion,
+		URLs:               urls,
+		Body:               body,
+		Title:              title,
+		NotifyType:         ntype,
+		InputFormat:        bodyFormat,
+		Tag:                tagFilter,
+		Attachments:        attachPaths,
+		AttachmentMaxBytes: s.cfg.AttachSizeBytes(),
+		DenyServices:       s.cfg.DenyServices,
+		AllowServices:      s.cfg.AllowServices,
+		RecursionCount:     recursion,
 	}
 	result, sendErr := s.sender.Send(r.Context(), req)
 	_ = result
@@ -286,6 +299,9 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 		if isNoTargets(sendErr) {
 			fail(http.StatusNoContent, "There was no valid URLs provided to notify")
 			return
+		}
+		if attach.IsUnsupportedAttachments(sendErr) && len(urls) > 0 {
+			sendErr = attach.WrapSendError(urls[0], strings.Join(stagedNames, ", "), sendErr)
 		}
 		s.log.Warn("notify: delivery failed", "remote", remoteAddr(r), "err", sendErr)
 		respondNotify(w, r, http.StatusFailedDependency, "One or more notifications could not be sent", sendErr, true)
@@ -351,14 +367,16 @@ func decodeJSONPayload(r *http.Request, maxBytes int64) (*notifyRequest, bool, m
 	out.Tag = doc["tag"]
 	out.Tags = doc["tags"]
 	// Attach aliases: attach > attachment > attachments; canonicalize the
-	// winner into Attach. FORM beats JSON — handled in decodeFormPayload
-	// (JSON path has no FORM keys by construction).
+	// winner into Attach and keep its decoded shape in AttachRaw for the
+	// G3 stager. FORM beats JSON — handled in decodeFormPayload (JSON path
+	// has no FORM keys by construction).
 	for _, alias := range []string{"attach", "attachment", "attachments"} {
 		v, ok := doc[alias]
 		if !ok || v == nil {
 			continue
 		}
 		out.Attach = append(out.Attach, attachStrings(v)...)
+		out.AttachRaw = v
 		out.HasAttach = true
 		break
 	}
@@ -453,7 +471,8 @@ func decodeFormPayload(r *http.Request) (*notifyRequest, bool, map[string]any, e
 		out.Tags = v
 	}
 	// Attach aliases: FORM keys win; first present alias (attach >
-	// attachment > attachments) collects its non-blank values.
+	// attachment > attachments) collects its non-blank values and keeps
+	// its winning value in AttachRaw for the G3 stager.
 	for _, alias := range []string{"attach", "attachment", "attachments"} {
 		var vals []string
 		if r.PostForm != nil {
@@ -464,13 +483,31 @@ func decodeFormPayload(r *http.Request) (*notifyRequest, bool, map[string]any, e
 		if vals == nil {
 			continue
 		}
+		var raws []any
 		for _, v := range vals {
+			raws = append(raws, v)
 			if strings.TrimSpace(v) != "" {
 				out.Attach = append(out.Attach, v)
 			}
 		}
+		out.AttachRaw = raws
 		out.HasAttach = true
 		break
+	}
+	// Multipart file parts stream into staging, field-sorted with per-field
+	// arrival order preserved. Any field name is accepted, mirroring
+	// Python's request.FILES handling.
+	if r.MultipartForm != nil && r.MultipartForm.File != nil {
+		var fields []string
+		for field := range r.MultipartForm.File {
+			fields = append(fields, field)
+		}
+		sort.Strings(fields)
+		for _, field := range fields {
+			for _, fh := range r.MultipartForm.File[field] {
+				out.Files = append(out.Files, attach.FilePart(field, fh))
+			}
+		}
 	}
 	if len(raw) == 0 && fileCount == 0 && out.Body == "" && out.Title == "" &&
 		out.NotifyType == "" && out.Format == "" && out.Tag == nil && out.Tags == nil &&
@@ -552,6 +589,7 @@ func syncRemappedFields(payload *notifyRequest, fields map[string]any, isJSON bo
 		payload.Tags = nil
 	}
 	payload.Attach = nil
+	payload.AttachRaw = nil
 	payload.HasAttach = payload.FileCount > 0
 	for _, alias := range []string{"attach", "attachment", "attachments"} {
 		v, ok := fields[alias]
@@ -559,9 +597,26 @@ func syncRemappedFields(payload *notifyRequest, fields map[string]any, isJSON bo
 			continue
 		}
 		payload.Attach = append(payload.Attach, attachStrings(v)...)
+		payload.AttachRaw = v
 		payload.HasAttach = true
 		break
 	}
+}
+
+// stageAttachments stages a request's attachments through the G3 stager:
+// the winning attach alias value plus multipart file parts, bounded by the
+// per-file APPRISE_ATTACH_SIZE cap with the SSRF allow/reject policy
+// applied to remote URLs. Staged temp files live under APPRISE_ATTACH_DIR
+// and the caller removes them via attach.CleanupAll.
+func (s *Server) stageAttachments(payload *notifyRequest) ([]attach.Staged, error) {
+	stager := attach.NewStager(attach.Limits{
+		Dir:       s.cfg.AttachDir,
+		SizeMB:    s.cfg.AttachSizeMB,
+		MaxCount:  s.cfg.MaxAttachments,
+		AllowURL:  s.cfg.AttachAllowURLOrDefault(),
+		RejectURL: s.cfg.AttachRejectURLOrDefault(),
+	})
+	return stager.StageRequest(payload.AttachRaw, payload.Files)
 }
 
 // remappedString coerces a remapped field value to a scalar string, mirroring
@@ -686,24 +741,6 @@ func fireWebhook(s *Server, r *http.Request, ok bool, sendErr error) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
-}
-
-// checkAttachmentsStub is the G3 wiring point: it enforces count/disabled
-// policy via attach.Stage and rejects any non-empty attachment value, since
-// full staging (multipart parts, remote fetch, SSRF policy) lands in G3.
-func checkAttachmentsStub(names []string, fileCount int, sizeMB int64, maxCount int) error {
-	total := len(names) + fileCount
-	if total == 0 {
-		return nil
-	}
-	placeholders := make([]string, total)
-	for i := range placeholders {
-		placeholders[i] = "stub"
-	}
-	if _, err := attach.Stage(placeholders, attach.Limits{SizeMB: sizeMB, MaxCount: maxCount}, 32<<20); err != nil {
-		return err
-	}
-	return fmt.Errorf("attach: attachment staging lands in G3")
 }
 
 // Helpers.

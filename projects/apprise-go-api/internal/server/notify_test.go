@@ -6,15 +6,18 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -607,6 +610,139 @@ func TestNotifyLogLevelHeaders(t *testing.T) {
 		if rec.Code != http.StatusOK {
 			t.Errorf("log-level %s = %d, want 200", level, rec.Code)
 		}
+	}
+}
+
+// TestNotifyMultipartAttachmentStaged posts a multipart file part and
+// asserts it is staged under the attach dir, handed to the sender as a
+// local path, and cleaned up before the response returns.
+func TestNotifyMultipartAttachmentStaged(t *testing.T) {
+	dir := t.TempDir()
+	h := newNotifyHarness(config.Config{AttachDir: dir})
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	part, err := mw.CreateFormFile("file", "note.txt")
+	if err != nil {
+		t.Fatalf("create form file: %v", err)
+	}
+	if _, err := io.WriteString(part, "hello attach"); err != nil {
+		t.Fatalf("write form file: %v", err)
+	}
+	if err := mw.WriteField("urls", "json://localhost"); err != nil {
+		t.Fatalf("write urls field: %v", err)
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatalf("close writer: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/notify", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rec := httptest.NewRecorder()
+	h.srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST multipart = %d, want 200 (body %q)", rec.Code, rec.Body.String())
+	}
+	h.fake.mu.Lock()
+	got := h.fake.last.Attachments
+	h.fake.mu.Unlock()
+	if len(got) != 1 {
+		t.Fatalf("sender attachments = %v, want one staged path", got)
+	}
+	if _, err := os.Stat(got[0]); !os.IsNotExist(err) {
+		t.Errorf("staged path %q still exists, want cleaned up", got[0])
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read attach dir: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("attach dir has %d entries, want empty", len(entries))
+	}
+}
+
+// TestNotifyRemoteAttachmentDenied asserts SSRF deny-first: a remote URL on
+// the attach denylist is a 400 and never reaches the sender.
+func TestNotifyRemoteAttachmentDenied(t *testing.T) {
+	h := newNotifyHarness(config.Config{AttachRejectURL: "example.*"})
+	rec := doPost(h, "/notify", "application/json",
+		`{"urls":"json://localhost","body":"hi","attach":"https://example.com/file.png"}`, nil)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("POST denied attach = %d, want 400 (body %q)", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Bad Attachment") {
+		t.Errorf("body = %q, want Bad Attachment", rec.Body.String())
+	}
+	h.fake.mu.Lock()
+	calls := h.fake.calls
+	h.fake.mu.Unlock()
+	if calls != 0 {
+		t.Errorf("sender calls = %d, want 0", calls)
+	}
+}
+
+// TestNotifyJSONBase64Attachment asserts a JSON {base64,filename} dict is
+// staged and sent, and that bad base64 is a 400.
+func TestNotifyJSONBase64Attachment(t *testing.T) {
+	dir := t.TempDir()
+	h := newNotifyHarness(config.Config{AttachDir: dir})
+	rec := doPost(h, "/notify", "application/json",
+		`{"urls":"json://localhost","body":"hi","attach":{"base64":"aGVsbG8=","filename":"hi.txt"}}`, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST base64 attach = %d, want 200 (body %q)", rec.Code, rec.Body.String())
+	}
+	h.fake.mu.Lock()
+	got := h.fake.last.Attachments
+	maxBytes := h.fake.last.AttachmentMaxBytes
+	h.fake.mu.Unlock()
+	if len(got) != 1 {
+		t.Fatalf("sender attachments = %v, want one staged path", got)
+	}
+	if maxBytes <= 0 {
+		t.Errorf("sender AttachmentMaxBytes = %d, want positive per-file cap", maxBytes)
+	}
+	if _, err := os.Stat(got[0]); !os.IsNotExist(err) {
+		t.Errorf("staged path %q still exists, want cleaned up", got[0])
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read attach dir: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("attach dir has %d entries, want empty", len(entries))
+	}
+
+	h.fake.reset()
+	rec = doPost(h, "/notify", "application/json",
+		`{"urls":"json://localhost","body":"hi","attach":{"base64":"!!!not-base64!!!","filename":"hi.txt"}}`, nil)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("POST bad base64 = %d, want 400 (body %q)", rec.Code, rec.Body.String())
+	}
+	h.fake.mu.Lock()
+	calls := h.fake.calls
+	h.fake.mu.Unlock()
+	if calls != 0 {
+		t.Errorf("sender calls = %d, want 0", calls)
+	}
+}
+
+// TestNotifyBodyOmittedWithAttachment asserts an attach-only request (no
+// body) passes the minimum-requirements rule via staged attachments.
+func TestNotifyBodyOmittedWithAttachment(t *testing.T) {
+	dir := t.TempDir()
+	h := newNotifyHarness(config.Config{AttachDir: dir})
+	rec := doPost(h, "/notify", "application/json",
+		`{"urls":"json://localhost","attach":{"base64":"aGVsbG8=","filename":"hi.txt"}}`, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST attach-only = %d, want 200 (body %q)", rec.Code, rec.Body.String())
+	}
+	h.fake.mu.Lock()
+	got := h.fake.last.Attachments
+	body := h.fake.last.Body
+	h.fake.mu.Unlock()
+	if len(got) != 1 {
+		t.Errorf("sender attachments = %v, want one staged path", got)
+	}
+	if body != "" {
+		t.Errorf("sender body = %q, want empty", body)
 	}
 }
 
