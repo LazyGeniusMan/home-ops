@@ -58,6 +58,26 @@ spec:
       environment: "${ENVIRONMENT}"
       artifactSubjectWorkflow: "flux-apps-release"
       artifactSubjectGitRef: 'refs/tags/flux-apps-v\d+\.\d+\.\d+'
+    - tenant: "apprise-go-api"
+      tag: "${ARTIFACT_TAG}"
+      environment: "${ENVIRONMENT}"
+      artifactSubjectWorkflow: "flux-apps-release"
+      artifactSubjectGitRef: 'refs/tags/flux-apps-v\d+\.\d+\.\d+'
+    - tenant: "tuwunel"
+      tag: "${ARTIFACT_TAG}"
+      environment: "${ENVIRONMENT}"
+      artifactSubjectWorkflow: "flux-apps-release"
+      artifactSubjectGitRef: 'refs/tags/flux-apps-v\d+\.\d+\.\d+'
+    - tenant: "mautrix-discord"
+      tag: "${ARTIFACT_TAG}"
+      environment: "${ENVIRONMENT}"
+      artifactSubjectWorkflow: "flux-apps-release"
+      artifactSubjectGitRef: 'refs/tags/flux-apps-v\d+\.\d+\.\d+'
+    - tenant: "element-web"
+      tag: "${ARTIFACT_TAG}"
+      environment: "${ENVIRONMENT}"
+      artifactSubjectWorkflow: "flux-apps-release"
+      artifactSubjectGitRef: 'refs/tags/flux-apps-v\d+\.\d+\.\d+'
   resources:
     - apiVersion: v1
       kind: Namespace
