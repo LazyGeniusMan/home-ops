@@ -8,7 +8,7 @@
 #   to pre-existing bucket names, so `spec.existingBucketName` is
 #   intentionally unset. Read the live name from the claim's
 #   `status.bucketName` once `status.bucketReady` is true. The Deployment
-#   consumes it via the `tuwunel-s3` ExternalSecret (cosi-keys.yaml), which
+#   consumes it via the `tuwunel-s3` ExternalSecret (tuwunel-cosi-keys.yaml), which
 #   extracts the LIVE BucketInfo.spec.bucketName — no per-env bucket literal
 #   in git.
 # - The BucketAccess (BucketAccessClass/seaweedfs-key, authenticationType

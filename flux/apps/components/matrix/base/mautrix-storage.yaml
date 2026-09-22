@@ -20,7 +20,8 @@
 #   endpoint (http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333).
 # - Credential bridge: mautrix-discord-db's `cnpg-s3-credentials`
 #   ExternalSecret (in mautrix-discord-db.yaml) reads through the
-#   in-namespace `mautrix-discord-cosi` SecretStore (cosi-keys.yaml) —
+#   in-namespace `mautrix-discord-cosi` SecretStore
+#   (mautrix-cosi-keys.yaml) —
 #   GJSON `property` extracts spec.secretS3.accessKeyID/accessSecretKey.
 ---
 apiVersion: objectstorage.k8s.io/v1alpha1

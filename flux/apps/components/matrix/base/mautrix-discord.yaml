@@ -307,8 +307,8 @@ spec:
       containers:
         - name: bridge
           # Pinned upstream image (GH release mautrix/discord is the
-          # alternative source). No $imagepolicy marker: no update-policy
-          # file ships with this component (out of scope) — bump manually.
+          # alternative source). No $imagepolicy marker by design: upstream
+          # is dock.mau.dev (manual bumps) — bump manually.
           image: dock.mau.dev/mautrix/discord:v0.7.7
           imagePullPolicy: IfNotPresent
           command:

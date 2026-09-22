@@ -13,7 +13,7 @@ invariant (fleet templates, cosign subject, push path all assume it).
 | Workload | Role | Image | Scaling |
 |---|---|---|---|
 | `apprise-go-api` | Internal ClusterIP webhook sink (`projects/apprise-go-api`): the single target for notification-controller Alert/Provider posts, forwarding to Matrix rooms | `ghcr.io/lazygeniusman/home-ops/projects/apprise-go-api` (`$imagepolicy` → `apps:apprise-go-api:tag`) | HPA 1–2 dev / 2–4 prd, VPA |
-| `tuwunel` | Matrix homeserver (`server_name == tuwunel.matrix.<env>`, Zitadel SSO, federation off, RocksDB on S3-backed media) | `ghcr.io/matrix-construct/tuwunel:v1.9.2` (pinned, no policy yet) | Singleton (no HPA), VPA Auto |
+| `tuwunel` | Matrix homeserver (`server_name == tuwunel.matrix.<env>`, Zitadel SSO, federation off, RocksDB on S3-backed media) | `ghcr.io/matrix-construct/tuwunel` (`$imagepolicy` → `apps:tuwunel:tag`) | Singleton (no HPA), VPA Auto |
 | `mautrix-discord` | Discord puppeting bridge (`@discordbot:<server>`) + colocated `mautrix-discord-db` CNPG Cluster | `dock.mau.dev/mautrix/discord:v0.7.7` (pinned, no policy) | Both singleton (bridge 1, DB 1 dev / 3 prd), VPA Initial |
 | `element-web` | Public stateless SPA speaking to tuwunel (Gateway + NetBird) | `vectorim/element-web` (`$imagepolicy` → `apps:element-web:tag`) | HPA 1–2 dev / 2–4 prd, VPA Off |
 
@@ -60,11 +60,11 @@ header so its origin stays auditable).
 ## Image policies
 
 Markers reference policy NAMES (`apps:apprise-go-api:tag`,
-`apps:element-web:tag`), not paths — `flux/apps/update-policies/*.yaml`
-needs no edits and both markers survive in the moved files. tuwunel
-(v1.9.2) + mautrix-discord (v0.7.7) stay pinned, no policy (as before).
-Follow-up: optionally add `update-policies/tuwunel.yaml` + `$imagepolicy`
-marker (see the note in `base/tuwunel.yaml`).
+`apps:element-web:tag`, `apps:tuwunel:tag`), not paths — the three markers
+survive in the moved files and their `flux/apps/update-policies/*.yaml`
+policies track upstream. mautrix-discord (v0.7.7) stays pinned, no policy:
+upstream is `dock.mau.dev` (manual bumps per the note in
+`base/mautrix-discord.yaml`).
 
 ## Per-workload docs
 
