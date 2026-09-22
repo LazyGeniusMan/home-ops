@@ -88,8 +88,12 @@ spec:
 # endpoint carries `?type=info&format=text` ONLY, and the matrix credential
 # rides per-request `urls` in the POST BODY (ESO-composed
 # `matrixs://{token}@{host}/%23coder-notifications?overflow=split&e2ee=false`
-# from coder-owned vault fields — coder/matrix-bot-token +
-# coder/matrix-host). NO `tag=coder` anywhere: the body urls select the
+# from the kept Secret matrix-bot-bootstrap-outputs (keys
+# notifier-token/homeserver-host) via the coder-owned handoff (SecretStore
+# coder-matrix remoteNamespace matrix + Role/Binding
+# coder-matrix-handoff-reader in ns matrix, owned by the coder component;
+# vault coder/matrix-bot-token + coder/matrix-host retired). NO `tag=coder`
+# anywhere: the body urls select the
 # target directly, no fallback, no server-tag filtering. Mapping choice:
 # BARE (no `?:src=dst` remap) — Coder's fixed webhook payload already
 # carries top-level `title` + `body`, which ARE apprise field names, so the

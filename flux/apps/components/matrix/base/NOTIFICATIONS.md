@@ -23,7 +23,7 @@ a separate task. NO live alert firing here.
 | `tag=flux` / `#flux-notifications` | matrix tenant | bootstrap kept Secret -> `tuwunel-k8s` ES -> `apprise-stateless-urls` | room is matrix-tenant-owned; centralization legitimate |
 | `tag=tofu` / `#tofu-runs` | matrix tenant | (same ES, same Secret) | (same) |
 | `tag=team` / `#team` (opt-in) | matrix tenant | (same ES, same Secret) | (same) |
-| (none — NO `tag=coder`) / `#coder-notifications` | coder app | coder vault `coder/matrix-{bot-token,host}` -> coder ES `matrix-notify` -> `CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT` (per-request `urls`) | Coder MUST own its credential in its own deployment; the matrix tenant carries NO coder leg (centralized fallback for coder is dead weight AND a coupling violation — the infra sink is credential-free, so an unconsumed leg 204s silently) |
+| (none — NO `tag=coder`) / `#coder-notifications` | coder app | kept Secret `matrix-bot-bootstrap-outputs` (`notifier-token`/`homeserver-host`) -> coder-owned handoff (SecretStore `coder-matrix` remoteNamespace `matrix` + Role/Binding `coder-matrix-handoff-reader` in ns `matrix`, owned by coder component) -> coder ES `matrix-notify` -> `CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT` (per-request `urls`); vault `coder/matrix-*` retired | Coder MUST own its credential in its own deployment; the matrix tenant carries NO coder leg (centralized fallback for coder is dead weight AND a coupling violation — the infra sink is credential-free, so an unconsumed leg 204s silently) |
 
 ## Room -> source -> tag matrix
 
@@ -115,14 +115,17 @@ eventSources cannot watch Coder, and a Provider referencing the removed
 `?tag=coder` leg would 204). The generic apprise-go-api sink accepts
 unsigned POSTs, so no auth headers are needed.
 
-Data-flow trace (coder vault -> ES -> env -> sink urls, zero
-matrix-tenant secret involved):
+Data-flow trace (kept Secret -> coder handoff -> ES -> env -> sink urls,
+zero matrix-tenant secret involved; vault coder/matrix-* retired):
 
 ```text
-vault coder/matrix-bot-token + coder/matrix-host   (NEW coder-owned paths;
-  per-env: pass://acme-<env>-bdo1-talos-apps-01/coder/...)
+kept Secret matrix-bot-bootstrap-outputs (ns matrix;
+  keys notifier-token/homeserver-host)
+  -> coder-owned handoff (SecretStore coder-matrix remoteNamespace matrix +
+     Role/Binding coder-matrix-handoff-reader in ns matrix, owned by the
+     coder component)
   -> ES matrix-notify (coder/base/coder-secrets.yaml, target.template:
-     apprise-urls + webhook-endpoint, proton-pass ClusterSecretStore)
+     apprise-urls + webhook-endpoint)
   -> Secret matrix-notify (keys apprise-urls, webhook-endpoint)
   -> HelmRelease env valueFrom.secretKeyRef
      (CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT <- webhook-endpoint;
@@ -185,8 +188,13 @@ vault matrix/tuwunel-registration-secret (ONE first-seed per env)
 
 Retired vault paths (do NOT reseed): `matrix-rooms/homeserver-url`,
 `matrix-rooms/bot-access-token`, `matrix-rooms/bot-user-id`,
-`matrix-rooms/notifier-bot-token`, `matrix-rooms/homeserver-host`. New
-vault paths: `coder/matrix-bot-token`, `coder/matrix-host`,
+`matrix-rooms/notifier-bot-token`, `matrix-rooms/homeserver-host`,
+`coder/matrix-bot-token`, `coder/matrix-host` (coder's `matrix-notify` ES
+now reads the bootstrapped `notifier-token`/`homeserver-host` from the kept
+Secret cross-namespace via the coder-owned handoff — narrow
+`coder-matrix-handoff-reader` Role/Binding in ns `matrix` + `coder-matrix`
+SecretStore, owned by the coder component; old vault entries may stay as
+rollback, NOT referenced). Live vault path:
 `matrix/tuwunel-registration-secret` (see VAULT-SEEDS.md). ONE bot per
 env (`@apprise-dev` dev / `@apprise` prd) shared by all 3 rooms — same as
 the retired manual path. Rerun = delete Job + reconcile (M_USER_IN_USE
@@ -231,7 +239,10 @@ reach apprise as `matrixs://` URLs (token-auth form
 room-ID `!...` targets need no encoding). No secrets in Git: the bot token
 + homeserver host flow from the bootstrap kept Secret (rooms via
 `varsFrom`, fallback via the in-cluster `tuwunel-k8s` ES); coder's token
-flows from coder-owned vault fields (coder ES `matrix-notify`).
+flows from the same kept Secret (`notifier-token`/`homeserver-host`) via the
+coder-owned handoff (SecretStore `coder-matrix` remoteNamespace `matrix` +
+Role/Binding `coder-matrix-handoff-reader` in ns `matrix`, owned by the coder
+component) into coder ES `matrix-notify` — vault `coder/matrix-*` retired.
 
 ## Deferred (explicitly NOT this change)
 
@@ -241,8 +252,9 @@ flows from coder-owned vault fields (coder ES `matrix-notify`).
 - Prometheus `AlertmanagerConfig` / `PrometheusRule` reserved until the
   monitoring stack lands (Flux Alert CRs here cover Flux-native sources
   only).
-- Proton Pass re-check: the bootstrapped `notifier-token` (+ coder-owned
-  `coder/matrix-bot-token`) composes into an authenticated `matrixs://`
+- Proton Pass re-check: the bootstrapped `notifier-token` (consumed by coder
+  too, via the coder-owned handoff — vault `coder/matrix-bot-token` retired)
+  composes into an authenticated `matrixs://`
   URL (hidden-webhook class secret). Re-check vault item
   visibility/sharing before pasting anywhere; room aliases are public,
   tokens never are.
