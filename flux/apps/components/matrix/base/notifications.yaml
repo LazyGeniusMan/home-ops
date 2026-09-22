@@ -16,8 +16,10 @@
 # type + tag). Matrix credentials ride the APPRISE_STATELESS_URLS fallback
 # (ESO apprise-stateless-urls Secret — consumer-owned, still lives here),
 # NOT this address — secretRef holds headers only, and a token-embedded
-# apprise URL cannot ride a header. Per-request `urls` stays reserved for
-# future callers that inject creds another way.
+# apprise URL cannot ride a header. Per-request `urls` (body-only: JSON
+# `urls` key or form field) is LIVE for coder (first decoupled caller —
+# coder owns its credential, see the Coder section below); flux/tofu/team
+# stay on the fallback until their callers can inject creds the same way.
 # - `?:message=body&:reason=title`: Flux JSON Event -> apprise fields
 #   (remap engine: exact targets format|type|title|body|attachment|tag|tags|
 #   urls; failure -> HTTP 400 "Payload field mapping failed").
@@ -26,9 +28,12 @@
 # - `type=`: pinned per Provider — Flux `severity` (info|error) is NOT a
 #   valid apprise `type` (info|success|warning|failure only), so severity is
 #   NEVER remapped; the Alert eventSeverity selects the pipeline instead.
-# - `tag=`: selects the fallback-URL leg (flux|tofu|team|coder server tags).
+# - `tag=`: selects the fallback-URL leg (flux|tofu|team server tags).
 #   Mismatch -> the whole request 204s (selection lost), so every Provider
-#   tag below MUST equal a tag baked into a STATELESS_URLS entry.
+#   tag below MUST equal a tag baked into a STATELESS_URLS entry. `coder`
+#   is NOT a fallback tag anymore: coder owns its credential and posts
+#   per-request `urls` in the POST body (see the Coder section below) — no
+#   matrix-tenant fallback leg, no apprise-coder Provider.
 ---
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Provider
@@ -74,26 +79,31 @@ spec:
   type: generic
   address: "http://apprise-go-api.apprise-go-api.svc:80/notify/?:message=body&:reason=title&format=text&type=info&tag=team"
 ---
-# Coder -> apprise-go-api entrypoint (NOT Flux-driven): this Provider is
-# documentation + reuse of the apprise contract — no Alert references it
-# (Alert eventSources cannot watch Coder). The Coder Deployment posts
-# directly to this address via CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT (see
-# flux/apps/components/coder/base/coder.yaml). Mapping choice: BARE (no
-# `?:src=dst` remap) — Coder's fixed webhook payload already carries
-# top-level `title` + `body`, which ARE apprise field names, so the sink
-# binds them with zero remapping. `format=text` (Coder renders plain-text
-# bodies), `type=info` pinned (Coder has no severity the sink could trust),
-# `tag=coder` selects the #coder-notifications fallback leg.
-apiVersion: notification.toolkit.fluxcd.io/v1beta3
-kind: Provider
-metadata:
-  name: apprise-coder
-  labels:
-    app.kubernetes.io/name: apprise-go-api
-    app.kubernetes.io/part-of: apprise-go-api
-spec:
-  type: generic
-  address: "http://apprise-go-api.apprise-go-api.svc:80/notify/?type=info&tag=coder&format=text"
+# Coder -> apprise-go-api entrypoint (NOT Flux-driven — NO Provider ships
+# here; Alert eventSources cannot watch Coder, and a Provider referencing the
+# REMOVED `?tag=coder` fallback leg would 204 on every request). The Coder
+# Deployment posts DIRECTLY to the infra sink via
+# CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT (see
+# flux/apps/components/coder/base/coder.yaml + coder-secrets.yaml): the
+# endpoint carries `?type=info&format=text` ONLY, and the matrix credential
+# rides per-request `urls` in the POST BODY (ESO-composed
+# `matrixs://{token}@{host}/%23coder-notifications?overflow=split&e2ee=false`
+# from coder-owned vault fields — coder/matrix-bot-token +
+# coder/matrix-host). NO `tag=coder` anywhere: the body urls select the
+# target directly, no fallback, no server-tag filtering. Mapping choice:
+# BARE (no `?:src=dst` remap) — Coder's fixed webhook payload already
+# carries top-level `title` + `body`, which ARE apprise field names, so the
+# sink binds them with zero remapping. `format=text` (Coder renders
+# plain-text bodies), `type=info` pinned (Coder has no severity the sink
+# could trust). Verified against the sink contract
+# (projects/apprise-go-api/internal/server/notify.go): `urls` is body-only
+# (JSON `urls` key or form field — NO `?urls=` query fallback exists; query
+# fallbacks cover tag/tags/format/type/title only), and the remap engine
+# cannot constant-assign onto `urls` (constant rules assign onto the SOURCE
+# name), so body injection from the coder-owned Secret is the ONLY decoupled
+# path for a fixed-payload caller. Fallback-leg ownership: flux/tofu/team
+# legs stay matrix-owned (those rooms are matrix-tenant-owned); coder is
+# coder-owned (see NOTIFICATIONS.md ownership table).
 ---
 # Alerts: which Flux events feed which Provider (room).
 # - flux-info: all-source info stream (creates/updates/health-pass/delays +

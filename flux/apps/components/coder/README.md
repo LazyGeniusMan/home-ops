@@ -171,6 +171,29 @@ entries stay seeded as rollback, and `cloudflare-api-token` follows the
 §9 vault path so the DNS-01 secret exists in this namespace too. Seed
 each remaining vault entry with pass-cli.
 
+Coder-owned Matrix notifier (DECOUPLED — no matrix-tenant fallback leg,
+no `apprise-coder` Provider; see matrix `base/NOTIFICATIONS.md` ownership
+table): `ExternalSecret/matrix-notify` composes TWO keys from coder-owned
+vault fields in ESO `target.template` (proton-pass ClusterSecretStore):
+
+| Vault field (per env `pass://acme-<env>-bdo1-talos-apps-01/...`) | Secret key | Consumed by | Value notes |
+|---|---|---|---|
+| `coder/matrix-bot-token` | `matrix-notify` → `matrix-notify` (`apprise-urls` bare + `webhook-endpoint` full) | `CODER_MATRIX_APPRISE_URLS` + `CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT` (valueFrom.secretKeyRef in `base/coder.yaml`) | Per-env notifier bot token; never shared across envs; NEVER `matrix-rooms/*` |
+| `coder/matrix-host` | (same ES/Secret) | (same — the `<host>` half of the composed `matrixs://` URL) | Bare host, NO scheme: dev `tuwunel.matrix.homelab-dev.yansyah.my.id`, prd `tuwunel.matrix.home-ops.yansyah.my.id` |
+
+```shell
+pass insert 'acme-dev-bdo1-talos-apps-01/coder/matrix-bot-token'
+pass insert 'acme-dev-bdo1-talos-apps-01/coder/matrix-host'
+# repeat with acme-prd-bdo1-talos-apps-01 for prd
+```
+
+Data-flow: vault `coder/matrix-*` -> ES `matrix-notify` -> Secret
+`matrix-notify` -> HelmRelease env -> sink per-request `urls` (body).
+Known gap (documented in matrix NOTIFICATIONS.md): the sink reads `urls`
+from the POST body only and coderd's payload is fixed, so live delivery
+needs the sink-`?urls=`-or-injector follow-up; until then Coder posts 204
+VISIBLE.
+
 ## Environments
 
 | Env | Replicas | Patches |
