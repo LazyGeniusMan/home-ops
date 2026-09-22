@@ -1,0 +1,132 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+patches:
+  # Dev route hostname (element.matrix.homelab-dev.yansyah.my.id).
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: element.matrix.homelab-dev.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: element
+  # Dev config.json: full-string replace (the ConfigMap data value is one
+  # opaque string — positional sub-patches inside it are not addressable, so
+  # the overlay ships the complete dev config). Only hosts vary vs base:
+  # tuwunel base_url, permalink_prefix, room_directory server_name.
+  - patch: |
+      - op: replace
+        path: /data/config.json
+        value: |
+          {
+              "default_server_config": {
+                  "m.homeserver": {
+                      "base_url": "https://tuwunel.matrix.homelab-dev.yansyah.my.id"
+                  }
+              },
+              "disable_custom_urls": true,
+              "disable_guests": false,
+              "disable_login_language_selector": false,
+              "disable_3pid_login": false,
+              "brand": "Element",
+              "default_theme": "light",
+              "permalink_prefix": "https://element.matrix.homelab-dev.yansyah.my.id",
+              "branding": {},
+              "embedded_pages": {},
+              "room_directory": {
+                  "servers": [
+                      "matrix.homelab-dev.yansyah.my.id"
+                  ]
+              },
+              "integrations_ui_url": null,
+              "integrations_rest_url": null,
+              "integrations_widgets_urls": [],
+              "jitsi": {
+                  "preferred_domain": "meet.element.io"
+              },
+              "help_url": "https://element.io/help",
+              "help_encryption_url": "https://element.io/help#encryption",
+              "default_federate": false,
+              "show_labs_settings": false,
+              "features": {},
+              "setting_defaults": {
+                  "breadcrumbs": true
+              }
+          }
+    target:
+      kind: ConfigMap
+      name: element-config
+  # Dev DNS-01 solver credential vault path.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+    target:
+      kind: ExternalSecret
+      name: cloudflare-api-token
+  # Dev wildcard Certificate (wildcard-homelab-dev).
+  - patch: |
+      - op: replace
+        path: /metadata/name
+        value: wildcard-homelab-dev
+    target:
+      kind: Certificate
+      name: __WILDCARD_CERT_NAME__
+  - patch: |
+      - op: replace
+        path: /spec/secretName
+        value: wildcard-homelab-dev-tls
+    target:
+      kind: Certificate
+      name: wildcard-homelab-dev
+  - patch: |
+      - op: replace
+        path: /spec/dnsNames/0
+        value: "*.homelab-dev.yansyah.my.id"
+    target:
+      kind: Certificate
+      name: wildcard-homelab-dev
+  # Dev NetBird proxy vars: provider-token vault paths (same Proton Pass
+  # per-cluster convention as the coder dev overlay) + service FQDN
+  # (positional: /spec/vars/0 is domain — base order must not change).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/element-web/netbird-pat
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-token
+    target:
+      kind: ExternalSecret
+      name: element-proxy-vars
+  - patch: |
+      - op: replace
+        path: /spec/vars/0/value
+        value: element.matrix.homelab-dev.yansyah.my.id
+      - op: replace
+        path: /spec/vars/2/value
+        value: __CLOUDFLARE_ZONE_ID_HOMELAB_DEV__
+      - op: replace
+        path: /spec/vars/3/value
+        value: acme-dev-bdo1-talos-apps-01
+      - op: replace
+        path: /spec/vars/4/value
+        value: 192.168.1.249
+    target:
+      kind: Terraform
+      name: element-proxy
+  # Dev replica bounds: minimal single-replica footprint. No Deployment
+  # /spec/replicas patch: base replicas: 1 is the create-time seed, HPA
+  # owns runtime count (HPA minReplicas enforces the floor); scales 1-2 on
+  # CPU+memory.
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+    target:
+      kind: HorizontalPodAutoscaler
+      name: element-web

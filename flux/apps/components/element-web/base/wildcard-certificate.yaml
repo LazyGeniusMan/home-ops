@@ -1,0 +1,20 @@
+# In-namespace wildcard Certificate (same §§8.1/9.3/11.3 duplicate pattern
+# as hubble-ui). cert-manager Secrets are namespace-local, so the §9
+# Certificate (cert-manager namespace) cannot feed this component's Gateway
+# listener — this duplicate Certificate mints __WILDCARD_TLS_SECRET__ HERE
+# via the same ClusterIssuer/letsencrypt and dnsNames. The token
+# ExternalSecret (element-secrets.yaml) mirrors
+# cert-manager/configs/base/cluster-issuer.yaml (same Proton Pass remoteRef)
+# so the DNS-01 solver credential exists in this namespace too.
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: __WILDCARD_CERT_NAME__
+spec:
+  secretName: __WILDCARD_TLS_SECRET__
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.__BASE_DOMAIN__"
