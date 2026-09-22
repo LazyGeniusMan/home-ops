@@ -26,7 +26,7 @@
 # - `type=`: pinned per Provider — Flux `severity` (info|error) is NOT a
 #   valid apprise `type` (info|success|warning|failure only), so severity is
 #   NEVER remapped; the Alert eventSeverity selects the pipeline instead.
-# - `tag=`: selects the fallback-URL leg (flux|tofu|team server tags).
+# - `tag=`: selects the fallback-URL leg (flux|tofu|team|coder server tags).
 #   Mismatch -> the whole request 204s (selection lost), so every Provider
 #   tag below MUST equal a tag baked into a STATELESS_URLS entry.
 ---
@@ -73,6 +73,27 @@ metadata:
 spec:
   type: generic
   address: "http://apprise-go-api.apprise-go-api.svc:80/notify/?:message=body&:reason=title&format=text&type=info&tag=team"
+---
+# Coder -> apprise-go-api entrypoint (NOT Flux-driven): this Provider is
+# documentation + reuse of the apprise contract — no Alert references it
+# (Alert eventSources cannot watch Coder). The Coder Deployment posts
+# directly to this address via CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT (see
+# flux/apps/components/coder/base/coder.yaml). Mapping choice: BARE (no
+# `?:src=dst` remap) — Coder's fixed webhook payload already carries
+# top-level `title` + `body`, which ARE apprise field names, so the sink
+# binds them with zero remapping. `format=text` (Coder renders plain-text
+# bodies), `type=info` pinned (Coder has no severity the sink could trust),
+# `tag=coder` selects the #coder-notifications fallback leg.
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Provider
+metadata:
+  name: apprise-coder
+  labels:
+    app.kubernetes.io/name: apprise-go-api
+    app.kubernetes.io/part-of: apprise-go-api
+spec:
+  type: generic
+  address: "http://apprise-go-api.apprise-go-api.svc:80/notify/?type=info&tag=coder&format=text"
 ---
 # Alerts: which Flux events feed which Provider (room).
 # - flux-info: all-source info stream (creates/updates/health-pass/delays +

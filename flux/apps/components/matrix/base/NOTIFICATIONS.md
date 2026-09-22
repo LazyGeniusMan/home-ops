@@ -8,10 +8,11 @@ rooms provisioned by the reusable rooms module. notification-controller
 is enabled on both clusters; before this change zero Provider/Alert
 existed.
 
-Scope: `base/notifications.yaml` (4 generic Providers + 4 Alerts) +
+Scope: `base/notifications.yaml` (5 generic Providers + 4 Alerts) +
 `base/apprise-go-api-secrets.yaml` (STATELESS_URLS fallback) + room example
-CRs + this doc. Tenant/workflow onboarding (`tenants/apps.yaml`,
-`flux-apps-push.yaml`) is a separate task. NO live alert firing here.
+CRs + live `base/rooms.yaml` CRs + this doc. Tenant/workflow onboarding
+(`tenants/apps.yaml`, `flux-apps-push.yaml`) is a separate task. NO live
+alert firing here.
 
 ## Room -> source -> tag matrix
 
@@ -21,6 +22,7 @@ CRs + this doc. Tenant/workflow onboarding (`tenants/apps.yaml`,
 | `#flux-notifications` | `flux-errors` | same four kinds (`error` only) | `apprise-flux-errors` (`flux` / `failure`) | same `tag=flux` leg (distinct `type=` rendering) |
 | `#tofu-runs` | `tofu-runs` | Kustomization, HelmRelease (`info`) + `inclusionList: ["(?i)terraform\|tofu"]` | `apprise-tofu` (`tofu` / `info`) | `.../%23tofu-runs?tag=tofu&...` |
 | `#team` (opt-in template) | `team-optin` (SUSPENDED; copy + set namespace + unsuspend) | Kustomization (`info`, team namespace) minus no-change noise | `apprise-team` (`team` / `info`) | `.../%23team?tag=team&...` |
+| `#coder-notifications` | (none — Coder posts directly, NOT via Alert) | Coder Deployment webhook (`CODER_NOTIFICATIONS_METHOD=webhook`; every event fans into this ONE room) | `apprise-coder` (`coder` / `info`, bare mapping — no remap) | `.../%23coder-notifications?tag=coder&...` |
 
 Notes:
 
@@ -55,9 +57,9 @@ Notes:
   `all` token matches everything. A mismatch selects ZERO targets ->
   HTTP 204 (SILENT — the selection is lost, no fallback fires).
 - Rule: every Provider `tag=` MUST equal a tag baked into a
-  `STATELESS_URLS` entry (`flux` | `tofu` | `team`). Priority prefixes
-  (`N:tag`) are parsed but unused — flat purpose tags are enough for
-  three rooms; add priorities only if one room needs severity fan-out.
+  `STATELESS_URLS` entry (`flux` | `tofu` | `team` | `coder`). Priority
+  prefixes (`N:tag`) are parsed but unused — flat purpose tags are enough
+  for four rooms; add priorities only if one room needs severity fan-out.
 - `overflow=split` on every fallback leg: over-limit bodies continue in
   additional messages (never truncated silently). `?mode=` is ABSENT on
   purpose — webhook modes (`matrix`/`slack`/`hookshot`) apply only to
@@ -92,9 +94,38 @@ Flux generic Provider POSTs a JSON `Event`
   stays unset. `APPRISE_ATTACH_*` SSRF posture unchanged.
 - Outbound `APPRISE_WEBHOOK_URL`: unset (no second sink yet).
 
+## Coder payload mapping (webhook JSON -> notify)
+
+Coder's webhook delivery method (`CODER_NOTIFICATIONS_METHOD=webhook`)
+sends an UNSIGNED HTTP POST to `CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT`
+— the apprise-coder Provider address
+(`http://apprise-go-api.apprise-go-api.svc:80/notify/?type=info&tag=coder&format=text`).
+The generic apprise-go-api sink accepts unsigned POSTs, so no auth headers
+are needed.
+
+- **Bare mapping (no `?:src=dst` remap):** Coder's fixed payload already
+  carries top-level `title` + `body` — which ARE apprise field names — so
+  the sink binds them with zero remapping. The shorter-title remap option
+  was considered and rejected: Coder's titles (e.g.
+  `Workspace "my-workspace" deleted`) are already concise subjects.
+- The fixed payload shape (`_version`, `msg_id`, `payload{...}`, `title`,
+  `body`): only `title`/`body` feed apprise; the rest (notification name,
+  user labels, CTA actions) is ignored by the sink.
+- `?format=text` — Coder renders plain-text bodies; markdown/html would
+  attach a second fallback body for no benefit.
+- `?type=info` pinned — Coder has no severity the sink could trust, so no
+  dynamic type mapping.
+- `?tag=coder` selects the `#coder-notifications` fallback leg (tag-equality
+  rule above — mismatch 204s).
+- **Single-endpoint fan-in:** Coder exposes ONE global webhook endpoint, so
+  EVERY notification event (workspace builds, deletions, template changes)
+  lands in this single room. Per-event-type routing (delivery preferences)
+  is a Coder Premium feature — until then this room is the unified Coder
+  event log.
+
 ## E2EE-vs-plaintext decision: PLAINTEXT for notifier rooms
 
-- All three purpose rooms are `encryption_enabled: false` (live rooms in
+- All four purpose rooms are `encryption_enabled: false` (live rooms in
   `rooms.yaml` + team skeleton in `terraform/examples/`: all carry
   `encryption_enabled: false`, `events_default: 50`), and every fallback
   URL carries `e2ee=false`.

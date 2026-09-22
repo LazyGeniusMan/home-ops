@@ -116,3 +116,16 @@ spec:
           value: coder-admin,coder-user
         - name: CODER_OIDC_SIGN_IN_TEXT
           value: __SSO_SIGN_IN_TEXT__
+        # Notifications: single global unsigned webhook into the infra
+        # apprise-go-api sink (same in-cluster DNS as the matrix
+        # apprise-coder Provider — the endpoint below IS that Provider's
+        # address). Coder posts its fixed payload (top-level title/body)
+        # to ONE endpoint, so every event fans into #coder-notifications
+        # (per-event routing is Premium-only). No remap query params: title
+        # + body already match apprise field names (bare mapping). Appended
+        # LAST so the dev/prd overlay positional env patches (/env/0, /1,
+        # /4, /8, /10) keep their indices.
+        - name: CODER_NOTIFICATIONS_METHOD
+          value: webhook
+        - name: CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT
+          value: "http://apprise-go-api.apprise-go-api.svc:80/notify/?type=info&tag=coder&format=text"

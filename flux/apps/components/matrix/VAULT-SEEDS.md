@@ -29,7 +29,7 @@ tokens). Env-specific value notes are in the last column.
 | # | Vault field (`<prefix>/<path>`) | ExternalSecret → Secret (key) | Consumed by | Value notes |
 |---|---|---|---|---|
 | 1 | `cert-manager/cloudflare-api-token` | `cloudflare-api-token` → `cloudflare-api-token` (`api-token`) | cert-manager DNS-01 solver for the in-namespace wildcard `Certificate` (`tuwunel-secrets.yaml`; mirrors `cert-manager/configs/base/cluster-issuer.yaml` with the same remoteRef) | Same Cloudflare API token in both envs (zone-scoped) |
-| 2 | `matrix-rooms/notifier-bot-token` | `apprise-stateless-urls` → `apprise-stateless-urls` (`stateless-urls`) | Consumer-owned fallback for the infra `apprise-go-api` sink (namespace `apprise-go-api`) — composed into three `matrixs://<token>@<host>/%23<room>?tag=…` legs (`apprise-go-api-secrets.yaml`); the sink itself carries no credentials | Per-env bot token (`@apprise-dev` vs `@apprise`); never shared across envs |
+| 2 | `matrix-rooms/notifier-bot-token` | `apprise-stateless-urls` → `apprise-stateless-urls` (`stateless-urls`) | Consumer-owned fallback for the infra `apprise-go-api` sink (namespace `apprise-go-api`) — composed into four `matrixs://<token>@<host>/%23<room>?tag=…` legs (`apprise-go-api-secrets.yaml`); the sink itself carries no credentials | Per-env bot token (`@apprise-dev` vs `@apprise`); never shared across envs |
 | 3 | `matrix-rooms/homeserver-host` | (same ES/Secret as #2) | (same — the `<host>` half of the composed URLs) | Bare host, NO scheme: dev `tuwunel.matrix.homelab-dev.yansyah.my.id`, prd `tuwunel.matrix.home-ops.yansyah.my.id` |
 | 4 | `mautrix-discord/bot-token` | `mautrix-discord` → `mautrix-discord` (`bot-token`) | Bridge entrypoint: `login-token bot <token>` session auth at runtime, never baked into config | Discord bot token from the Discord developer portal |
 | 5 | `mautrix-discord/as-token` | (same ES/Secret, `as-token`) | Bridge registration (`registration.yaml` via `AS_TOKEN` env) + tuwunel appservice `as_token` side | Random ≥64ch; seeded ONCE, then stable forever (PVC persists `registration.yaml`) |
@@ -41,7 +41,7 @@ tokens). Env-specific value notes are in the last column.
 | 11 | `mautrix-discord/db-password` | `mautrix-discord-db-credentials` → `mautrix-discord-db-credentials` (`connection-url`, templated `postgres://discord:<pw>@mautrix-discord-db-rw.matrix.svc:5432/discord?sslmode=require`) AND `mautrix-discord-db-app-secret` → `mautrix-discord-db-app-secret` (basic-auth `discord`/`<pw>`; username MUST equal `spec.bootstrap.initdb.owner`) | Bridge `DATABASE_URL` env + CNPG `mautrix-discord-db` Cluster initdb owner password | Random ≥32ch; single field feeds BOTH Secrets |
 | 12 | `element-web/netbird-pat` | `element-proxy-vars` → `element-proxy-vars` (`netbird_token`) | Terraform `element-proxy` CR via `varsFrom` (NetBird custom-domain + reverse-proxy service registration) | Per-env NetBird PAT |
 | 13 | `element-web/cloudflare-api-token` | (same ES/Secret, `cloudflare_api_token`) | (same CR — Cloudflare side of the NetBird registration) | Distinct vault field from #1 (separate consumer), same upstream token value is fine |
-| 14 | `matrix-rooms/homeserver-url` | `matrix-rooms-terraform-vars` → `matrix-rooms-terraform-vars` (`homeserver_url`) | Live room Terraform CRs (`flux-notifications`, `tofu-runs` in `base/rooms.yaml`) via `varsFrom` (matrix provider auth) | Full URL with scheme: dev `https://tuwunel.matrix.homelab-dev.yansyah.my.id`, prd `https://tuwunel.matrix.home-ops.yansyah.my.id` |
+| 14 | `matrix-rooms/homeserver-url` | `matrix-rooms-terraform-vars` → `matrix-rooms-terraform-vars` (`homeserver_url`) | Live room Terraform CRs (`flux-notifications`, `tofu-runs`, `coder-notifications` in `base/rooms.yaml`) via `varsFrom` (matrix provider auth — the coder room REUSES the same shared mirror, no new fields) | Full URL with scheme: dev `https://tuwunel.matrix.homelab-dev.yansyah.my.id`, prd `https://tuwunel.matrix.home-ops.yansyah.my.id` |
 | 15 | `matrix-rooms/bot-access-token` | (same ES/Secret, `access_token`) | (same CRs — matrix provider token) | Per-env bot token (`@apprise-dev` vs `@apprise`); never shared across envs |
 | 16 | `matrix-rooms/bot-user-id` | (same ES/Secret, `user_id`) | (same CRs — matrix provider user) | Per-env bot mxid: dev `@apprise-dev:<server>`, prd `@apprise:<server>` |
 
@@ -91,7 +91,9 @@ pass insert 'acme-dev-bdo1-talos-apps-01/matrix-rooms/bot-user-id'
 - **matrix-rooms bot fields** (`matrix-rooms/homeserver-url`,
   `bot-access-token`, `bot-user-id`): consumed by the LIVE room-provisioning
   Terraform CRs in this tenant (`base/rooms.yaml` — `flux-notifications` +
-  `tofu-runs`; rows 14–16 above). The `matrix/terraform/examples/` files
+  `tofu-runs` + `coder-notifications`; rows 14–16 above — the coder room
+  reuses the SAME shared mirror, no new vault fields). The
+  `matrix/terraform/examples/` files
   are copy-paste skeletons for TEAM namespaces only
   (`team-terraform.yaml` stays example-only — no team room here). Related
   but separate: the apprise fallback above uses
