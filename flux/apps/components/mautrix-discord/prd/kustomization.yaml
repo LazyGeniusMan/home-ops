@@ -1,0 +1,96 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+patches:
+  # Prd Proton Pass identity: every mautrix-discord vault ref (base holds
+  # __PROTON_PASS_BASE__ placeholders). The S3 entry stays COSI-minted —
+  # no per-env patch for cnpg-s3-credentials.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/mautrix-discord/bot-token
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/mautrix-discord/as-token
+      - op: replace
+        path: /spec/data/2/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/mautrix-discord/hs-token
+      - op: replace
+        path: /spec/data/3/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/mautrix-discord/avatar-proxy-key
+      - op: replace
+        path: /spec/data/4/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/mautrix-discord/direct-media-server-key
+      - op: replace
+        path: /spec/data/5/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/mautrix-discord/provisioning-shared-secret
+      - op: replace
+        path: /spec/data/6/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/mautrix-discord/double-puppet-shared-secret
+    target:
+      kind: ExternalSecret
+      name: mautrix-discord
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/mautrix-discord/db-password
+    target:
+      kind: ExternalSecret
+      name: mautrix-discord-db-credentials
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/mautrix-discord/db-password
+    target:
+      kind: ExternalSecret
+      name: mautrix-discord-db-app-secret
+  # Prd S3 endpoint (same internal SeaweedFS name as every other component).
+  - patch: |
+      - op: replace
+        path: /spec/backup/barmanObjectStore/endpointURL
+        value: http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333
+    target:
+      kind: Cluster
+      name: mautrix-discord-db
+  # Prd homeserver link: parallel tuwunel task owns tuwunel's own value;
+  # this patch wires the BRIDGE side to the same prd instance. Positional:
+  # /spec/template/spec/containers/0/env/0 (HS_ADDRESS) +
+  # /spec/template/spec/containers/0/env/1 (HS_DOMAIN).
+  - patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: http://tuwunel.matrix.svc:8008
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1/value
+        value: tuwunel.matrix.home-ops.yansyah.my.id
+    target:
+      kind: Deployment
+      name: mautrix-discord
+  # Prd admin identity: the Matrix user that gets bridge `admin` (everyone
+  # on the prd HS keeps `user`; "*" keeps relay). Positional:
+  # /spec/template/spec/containers/0/env/3 (BRIDGE_ADMIN_MXID).
+  - patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/3/value
+        value: "@admin:tuwunel.matrix.home-ops.yansyah.my.id"
+    target:
+      kind: Deployment
+      name: mautrix-discord
+  # Prd replica counts: bridge stays 1 (singleton — the patch below only
+  # restates the base value so a future base change cannot silently scale
+  # it); CNPG goes to the recommended 3.
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: mautrix-discord
+  - patch: |
+      - op: replace
+        path: /spec/instances
+        value: 3
+    target:
+      kind: Cluster
+      name: mautrix-discord-db

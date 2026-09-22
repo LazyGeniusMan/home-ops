@@ -1,0 +1,31 @@
+# COSI credential bridge: in-namespace Kubernetes SecretStore reading the
+# COSI-minted BucketInfo JSON (Secret mautrix-discord-db-cosi-creds, key
+# BucketInfo) via the eso-k8s-reader ServiceAccount. The SA/Role/Binding live
+# in mautrix-discord-rbac.yaml (shared with any future in-namespace k8s
+# stores — the Role is unrestricted in-namespace, so no second copy is
+# registered here). Same pattern as the coder/hubble-ui cosi stores:
+# server.url omitted (defaults to kubernetes.default),
+# kube-root-ca.crt supplies the API CA. The cnpg-s3-credentials
+# ExternalSecret (in mautrix-discord-db.yaml) uses GJSON `property`
+# (BucketInfo.spec.secretS3.accessKeyID/accessSecretKey) — verified against
+# ESO v2.10.0 providers/v1/kubernetes/client.go getFromSecretData.
+---
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: mautrix-discord-cosi
+  labels:
+    app.kubernetes.io/name: mautrix-discord
+    app.kubernetes.io/part-of: mautrix-discord
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: mautrix-discord
+      server:
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        serviceAccount:
+          name: eso-k8s-reader

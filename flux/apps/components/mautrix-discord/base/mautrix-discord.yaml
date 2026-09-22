@@ -1,0 +1,417 @@
+# Mautrix Discord bridge — workload (singleton).
+# Single-replica Deployment (replicas: 1, strategy Recreate, NO HPA — see
+# below) running dock.mau.dev/mautrix/discord v0.7.7 (pinned; GH release
+# mautrix/discord is the alternative source). The image already bundles
+# ffmpeg + lottieconverter (see its Dockerfile: apk add ffmpeg ...), so no
+# sidecar is needed for voice-message or animated-sticker conversion.
+#
+# Config mechanics (legacy arch — no -e flag at this revision, so the full
+# config.yaml is authored here from example-config.yaml instead of generated):
+# - `mautrix-discord-config-tmpl` holds the complete bridge config with
+#   non-secret values baked in. Secret/token fields carry boot-time
+#   placeholders only — Git never holds values.
+# - The `mautrix-discord-entrypoint` script (same image — it ships yq-go)
+#   copies the template to /data/config.yaml and overwrites every secret and
+#   environment-wired field from env via `yq ... strenv(...)`, then generates
+#   /data/registration.yaml with `./mautrix-discord -g` ONLY if absent.
+# - /data lives on the `mautrix-discord-data` PVC, so as_token/hs_token (seeded
+#   from vault ONCE via ESO, see mautrix-discord-secrets.yaml) and the derived
+#   registration.yaml survive restarts: a restart never re-registers and never
+#   rotates tokens. To rotate, change the vault fields and delete
+#   /data/registration.yaml (runbook in README.md).
+# - Strategy Recreate (not RollingUpdate): with replicas: 1 the default
+#   RollingUpdate would briefly run TWO bridges (maxSurge), which would fight
+#   over the fixed appservice port and the Postgres rows. Recreate guarantees
+#   at most one writer.
+# - NO HPA by design: the appservice hostname:port is fixed
+#   (tuwunel dials this exact Service), portal_message_buffer is in-memory,
+#   and two writers corrupt bridge state. Scaling is vertical only via the
+#   VPA in mautrix-discord-vpa.yaml.
+# - Probes are tcpSocket on the appservice port: this revision exposes no
+#   dedicated health endpoint on that listener.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mautrix-discord-config-tmpl
+  labels:
+    app.kubernetes.io/name: mautrix-discord
+    app.kubernetes.io/part-of: mautrix-discord
+data:
+  config.yaml: |
+    # Homeserver details. Address/domain are overwritten at boot from
+    # HS_ADDRESS / HS_DOMAIN (see the entrypoint ConfigMap below).
+    homeserver:
+        address: __TUWUNEL_INTERNAL_URL__
+        domain: __TUWUNEL_SERVER_NAME__
+        software: standard
+        status_endpoint: null
+        message_send_checkpoint_endpoint: null
+        async_media: false
+        websocket: false
+        ping_interval_seconds: 0
+    appservice:
+        # What the HOMESERVER dials: the in-cluster Service DNS name, never
+        # localhost (localhost would resolve inside the tuwunel pod, not here).
+        # Env-invariant (component name == namespace in every env), so the
+        # literal is baked here AND in APPSERVICE_ADDRESS below — the
+        # entrypoint re-asserts it at boot from env.
+        address: http://mautrix-discord.mautrix-discord.svc:29334
+        hostname: 0.0.0.0
+        port: 29334
+        database:
+            type: postgres
+            # Overwritten at boot from DATABASE_URL (ESO-composed, Postgres
+            # >= 16 per the bridge setup requirements; own database `discord`
+            # on the colocated mautrix-discord-db Cluster).
+            uri: __DATABASE_URL__
+            max_open_conns: 20
+            max_idle_conns: 2
+            max_conn_idle_time: null
+            max_conn_lifetime: null
+        id: discord
+        bot:
+            username: discordbot
+            displayname: Discord bridge bot
+            avatar: mxc://maunium.net/nIdEykemnwdisvHbpxflpDlC
+        ephemeral_events: true
+        # MUST stay false: ordered delivery per portal (portal_message_buffer
+        # below depends on it).
+        async_transactions: false
+        # Overwritten at boot from AS_TOKEN / HS_TOKEN (vault-seeded once via
+        # ESO; stable across restarts — see the header comment).
+        as_token: __AS_TOKEN__
+        hs_token: __HS_TOKEN__
+    bridge:
+        username_template: discord_{{.}}
+        displayname_template: '{{if .Webhook}}Webhook{{else}}{{or .GlobalName .Username}}{{if .Bot}} (bot){{end}}{{end}}'
+        channel_name_template: '{{if or (eq .Type 3) (eq .Type 4)}}{{.Name}}{{else}}#{{.Name}}{{end}}'
+        guild_name_template: '{{.Name}}'
+        private_chat_portal_meta: default
+        # Relay avatar endpoint: null = avatars are NOT bridged. Enabling
+        # requires a public Gateway hostname routed to this Service plus a
+        # real avatar_proxy_key (already plumbed from vault for that day).
+        public_address: null
+        # Overwritten at boot from AVATAR_PROXY_KEY.
+        avatar_proxy_key: __AVATAR_PROXY_KEY__
+        portal_message_buffer: 128
+        startup_private_channel_create_limit: 5
+        delivery_receipts: false
+        message_status_events: false
+        message_error_notices: true
+        restricted_rooms: false
+        autojoin_thread_on_open: true
+        embed_fields_as_tables: true
+        mute_channels_on_create: false
+        sync_direct_chat_list: false
+        resend_bridge_info: false
+        custom_emoji_reactions: true
+        delete_portal_on_channel_delete: false
+        delete_guild_on_leave: true
+        federate_rooms: true
+        prefix_webhook_messages: true
+        enable_webhook_avatars: false
+        use_discord_cdn_upload: true
+        forbid_dming_strangers: true
+        proxy:
+        cache_media: unencrypted
+        # Direct media (MSC3860 custom mxc:// URIs): disabled. Enabling needs
+        # a real Matrix server name with .well-known delegation (or a Gateway
+        # proxy) to this bridge plus the server_key already plumbed from
+        # vault. Decision recorded in README.md.
+        direct_media:
+            enabled: false
+            # Derived at boot as discord-media.<HS_DOMAIN> (see the
+            # entrypoint) — edit the entrypoint line, not this value.
+            server_name: __DERIVED_AT_BOOT__
+            well_known_response:
+            allow_proxy: true
+            # Overwritten at boot from DIRECT_MEDIA_SERVER_KEY.
+            server_key: __DIRECT_MEDIA_SERVER_KEY__
+        animated_sticker:
+            # webp needs ffmpeg+lottieconverter — both ship in the image.
+            target: webp
+            args:
+                width: 320
+                height: 320
+                fps: 25
+        # No legacy server-wide puppet map: discovery off, per-server entries
+        # added only if a second HS ever needs double puppeting.
+        double_puppet_server_map: {}
+        double_puppet_allow_discovery: false
+        # Legacy automatic double-puppet map (THIS revision has no
+        # double_puppet.secrets block — see README.md decision). The entrypoint
+        # writes {HS_DOMAIN: <DOUBLE_PUPPET_SHARED_SECRET>} here at boot. The
+        # value is inert unless the homeserver runs a shared-secret-auth
+        # password provider; manual `login-matrix` always works.
+        login_shared_secret_map: {}
+        command_prefix: '!discord'
+        management_room_text:
+            welcome: "Hello, I'm a Discord bridge bot."
+            welcome_connected: "Use `help` for help."
+            welcome_unconnected: "Use `help` for help or `login` to log in."
+            additional_help: ""
+        backfill:
+            forward_limits:
+                initial:
+                    dm: 0
+                    channel: 0
+                    thread: 0
+                missed:
+                    dm: 0
+                    channel: 0
+                    thread: 0
+            max_guild_members: -1
+        encryption:
+            allow: false
+            default: false
+            appservice: false
+            msc4190: false
+            require: false
+            allow_key_sharing: false
+            plaintext_mentions: false
+            delete_keys:
+                delete_outbound_on_ack: false
+                dont_store_outbound: false
+                ratchet_on_decrypt: false
+                delete_fully_used_on_decrypt: false
+                delete_prev_on_new_session: false
+                delete_on_device_delete: false
+                periodically_delete_expired: false
+                delete_outdated_inbound: false
+            verification_levels:
+                receive: unverified
+                send: unverified
+                share: cross-signed-tofu
+            rotation:
+                enable_custom: false
+                milliseconds: 604800000
+                messages: 100
+                disable_device_change_key_rotation: false
+        provisioning:
+            prefix: /_matrix/provision
+            # Overwritten at boot from PROVISIONING_SHARED_SECRET.
+            shared_secret: __PROVISIONING_SHARED_SECRET__
+            debug_endpoints: false
+        # Entrypoint adds "<HS_DOMAIN>: user" and "<ADMIN_MXID>: admin" at
+        # boot; "*" stays relay so strangers can only talk via webhooks.
+        permissions:
+            "*": relay
+    logging:
+        # k8s-native: stdout only (the example's ./logs file writer is
+        # dropped — `kubectl logs` is the viewer). Raise to debug via a
+        # temporary overlay when troubleshooting.
+        min_level: info
+        writers:
+        - type: stdout
+          format: json
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mautrix-discord-entrypoint
+  labels:
+    app.kubernetes.io/name: mautrix-discord
+    app.kubernetes.io/part-of: mautrix-discord
+data:
+  entrypoint.sh: |
+    #!/bin/sh
+    # Render /data/config.yaml from the template + env, generate the
+    # registration ONCE, then exec the bridge. Registration stability (the
+    # reason restarts never re-register) comes from two facts: as/hs tokens
+    # are vault-seeded (same value every boot) and registration.yaml persists
+    # on the PVC, so `-g` runs exactly once per data volume lifetime.
+    set -eu
+    CFG=/data/config.yaml
+    REG=/data/registration.yaml
+    cp /tmpl/config.yaml "$CFG"
+    yq -i \
+      '.homeserver.address = strenv(HS_ADDRESS) |
+       .homeserver.domain = strenv(HS_DOMAIN) |
+       .appservice.address = strenv(APPSERVICE_ADDRESS) |
+       .appservice.database.uri = strenv(DATABASE_URL) |
+       .appservice.as_token = strenv(AS_TOKEN) |
+       .appservice.hs_token = strenv(HS_TOKEN) |
+       .bridge.avatar_proxy_key = strenv(AVATAR_PROXY_KEY) |
+       .bridge.direct_media.server_name = ("discord-media." + strenv(HS_DOMAIN)) |
+       .bridge.direct_media.server_key = strenv(DIRECT_MEDIA_SERVER_KEY) |
+       .bridge.login_shared_secret_map[strenv(HS_DOMAIN)] = strenv(DOUBLE_PUPPET_SHARED_SECRET) |
+       .bridge.provisioning.shared_secret = strenv(PROVISIONING_SHARED_SECRET) |
+       .bridge.permissions[strenv(HS_DOMAIN)] = "user" |
+       .bridge.permissions[strenv(BRIDGE_ADMIN_MXID)] = "admin"' "$CFG"
+    if [ ! -f "$REG" ]; then
+      /usr/bin/mautrix-discord -g -c "$CFG" -r "$REG"
+      echo "Generated new registration.yaml — install it on the homeserver (README.md runbook), then restart tuwunel."
+    fi
+    exec /usr/bin/mautrix-discord -c "$CFG" -r "$REG"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mautrix-discord-data
+  labels:
+    app.kubernetes.io/name: mautrix-discord
+    app.kubernetes.io/part-of: mautrix-discord
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-ssd-nvme
+  resources:
+    requests:
+      storage: 2Gi
+---
+# ClusterIP ONLY: the appservice listener is dialed by tuwunel inside the
+# cluster — no Gateway route (public_address / direct_media stay disabled;
+# adding a route is part of enabling them, see README.md).
+apiVersion: v1
+kind: Service
+metadata:
+  name: mautrix-discord
+  labels:
+    app.kubernetes.io/name: mautrix-discord
+    app.kubernetes.io/part-of: mautrix-discord
+spec:
+  selector:
+    app.kubernetes.io/name: mautrix-discord
+  ports:
+    - name: appservice
+      port: 29334
+      targetPort: 29334
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mautrix-discord
+  labels:
+    app.kubernetes.io/name: mautrix-discord
+    app.kubernetes.io/part-of: mautrix-discord
+spec:
+  # SINGLETON: exactly 1, forever. No HPA scales this (see header + README).
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mautrix-discord
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mautrix-discord
+        app.kubernetes.io/part-of: mautrix-discord
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1337
+        runAsGroup: 1337
+        fsGroup: 1337
+      containers:
+        - name: bridge
+          # Pinned upstream image (GH release mautrix/discord is the
+          # alternative source). No $imagepolicy marker: no update-policy
+          # file ships with this component (out of scope) — bump manually.
+          image: dock.mau.dev/mautrix/discord:v0.7.7
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - /entrypoint/entrypoint.sh
+          # Literal env FIRST (indices 0-3): overlays patch these positionally
+          # (same convention as the coder/hubble-ui overlays). Secret-backed
+          # env follows (never patched — ESO owns the values).
+          env:
+            - name: HS_ADDRESS
+              value: __TUWUNEL_INTERNAL_URL__
+            - name: HS_DOMAIN
+              value: __TUWUNEL_SERVER_NAME__
+            # Env-invariant (component name == namespace in every env), so
+            # the literal lives in base — no per-env patch.
+            - name: APPSERVICE_ADDRESS
+              value: http://mautrix-discord.mautrix-discord.svc:29334
+            - name: BRIDGE_ADMIN_MXID
+              value: __BRIDGE_ADMIN_MXID__
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: mautrix-discord-db-credentials
+                  key: connection-url
+            - name: AS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: mautrix-discord
+                  key: as-token
+            - name: HS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: mautrix-discord
+                  key: hs-token
+            - name: AVATAR_PROXY_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mautrix-discord
+                  key: avatar-proxy-key
+            - name: DIRECT_MEDIA_SERVER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mautrix-discord
+                  key: direct-media-server-key
+            - name: PROVISIONING_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: mautrix-discord
+                  key: provisioning-shared-secret
+            - name: DOUBLE_PUPPET_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: mautrix-discord
+                  key: double-puppet-shared-secret
+          ports:
+            - name: appservice
+              containerPort: 29334
+          # No dedicated health endpoint at this revision — TCP on the
+          # appservice listener. Generous startup window: first boot generates
+          # the registration and syncs Discord guilds.
+          startupProbe:
+            tcpSocket:
+              port: appservice
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            tcpSocket:
+              port: appservice
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: appservice
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config-tmpl
+              mountPath: /tmpl
+              readOnly: true
+            - name: entrypoint
+              mountPath: /entrypoint
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mautrix-discord-data
+        - name: config-tmpl
+          configMap:
+            defaultMode: 420
+            name: mautrix-discord-config-tmpl
+        - name: entrypoint
+          configMap:
+            defaultMode: 493
+            name: mautrix-discord-entrypoint
