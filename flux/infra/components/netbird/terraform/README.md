@@ -273,7 +273,7 @@ leg, raw target block for the extra leg):
 ```hcl
 # consumer Terraform CR vars (path: ./terraform):
 service_name       = "filer-ui"
-domain             = "ui.seaweedfs.proxy.example.com"
+domain             = "admin.seaweedfs.proxy.example.com"
 cloudflare_zone_id = "<zone-id>"
 network_name       = "acme-dev-bdo1-talos-apps-01"
 service_lb_ip      = "192.168.1.249"

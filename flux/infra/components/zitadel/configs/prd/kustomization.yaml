@@ -215,7 +215,7 @@ patches:
           - hubble-ui owns client `hubble`: https://hubble.home-ops.yansyah.my.id/*
           - flux-operator-ui owns client `flux-operator-ui`: https://flux-operator.home-ops.yansyah.my.id/*
           - headlamp owns client `headlamp`: https://headlamp.home-ops.yansyah.my.id/*
-          - seaweedfs owns client `seaweedfs`: https://ui.seaweedfs.home-ops.yansyah.my.id/oauth2/callback
+          - seaweedfs owns client `seaweedfs`: https://admin.seaweedfs.home-ops.yansyah.my.id/oauth2/callback
     target:
       kind: ConfigMap
       name: zitadel-identity-intent

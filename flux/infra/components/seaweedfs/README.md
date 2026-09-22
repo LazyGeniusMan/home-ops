@@ -120,7 +120,7 @@ Path-style buckets only; every bucket consumer needs an IAM identity:
 
 ## Gateway + DNS (§8 coordination)
 
-- `s3-ui-routes.yaml`: `ui.seaweedfs.…` (filer UI via `ui-auth`) +
+- `s3-ui-routes.yaml`: `admin.seaweedfs.…` (filer UI via `ui-auth`) +
   `s3.seaweedfs.…` (S3 API direct), each HTTP→HTTPS 301 + TLS route on
   the shared `Gateway/main`, `RequestRedirect` filters included so port
   80 stays a redirect source.

@@ -43,7 +43,7 @@
 #   callback under /oauth2/callback)
 # - headlamp → client `headlamp` (redirect https://headlamp.<parent>/*)
 # - seaweedfs → client `seaweedfs` (redirect
-#   https://ui.seaweedfs.<parent>/oauth2/callback, serves the filer-UI proxy)
+#   https://admin.seaweedfs.<parent>/oauth2/callback, serves the filer-UI proxy)
 # Scopes for every client: openid profile email groups.
 ---
 apiVersion: v1
@@ -69,5 +69,5 @@ data:
     - hubble-ui owns client `hubble`: https://hubble.__BASE_DOMAIN__/*
     - flux-operator-ui owns client `flux-operator-ui`: https://flux-operator.__BASE_DOMAIN__/*
     - headlamp owns client `headlamp`: https://headlamp.__BASE_DOMAIN__/*
-    - seaweedfs owns client `seaweedfs`: https://ui.seaweedfs.__BASE_DOMAIN__/oauth2/callback
+    - seaweedfs owns client `seaweedfs`: https://admin.seaweedfs.__BASE_DOMAIN__/oauth2/callback
   scopes: openid profile email groups

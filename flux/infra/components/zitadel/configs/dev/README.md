@@ -37,7 +37,7 @@ App writers build against THIS table — do not deviate.
 | Owner: `hubble-ui` → client `hubble` | `https://hubble.home-ops-dev.yansyah.my.id/*` (covers the per-instance oauth2-proxy callback under `/oauth2/callback`) |
 | Owner: `flux-operator-ui` → client `flux-operator-ui` | `https://flux-operator.home-ops-dev.yansyah.my.id/*` (covers the per-instance oauth2-proxy callback under `/oauth2/callback`) |
 | Owner: `headlamp` → client `headlamp` | `https://headlamp.home-ops-dev.yansyah.my.id/*` |
-| Owner: `seaweedfs` → client `seaweedfs` | `https://ui.seaweedfs.home-ops-dev.yansyah.my.id/oauth2/callback` (serves the filer-UI proxy) |
+| Owner: `seaweedfs` → client `seaweedfs` | `https://admin.seaweedfs.home-ops-dev.yansyah.my.id/oauth2/callback` (serves the filer-UI proxy) |
 
 Each app owns its own `zitadel_project` + `zitadel_application_oidc` client
 in its per-app `terraform/` slice (own project roles/grants assert the

@@ -1,7 +1,7 @@
 # SeaweedFS filer-UI auth (SSO decoupling): admin-only Zitadel OIDC via a
 # namespace-local oauth2-proxy (reverse-proxy mode) in front of the filer.
 # The public S3 API route stays DIRECT (SigV4-gated machine endpoint — see
-# README); only ui.seaweedfs.… flows through this proxy.
+# README); only admin.seaweedfs.… flows through this proxy.
 #
 # Own client (managed by the `seaweedfs-sso` Terraform CR in terraform.yaml):
 # - issuer __ZITADEL_ISSUER_URL__, OWN client `seaweedfs`
