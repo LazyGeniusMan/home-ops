@@ -113,6 +113,11 @@ spec:
       environment: "${ENVIRONMENT}"
       artifactSubjectWorkflow: "flux-infra-release"
       artifactSubjectGitRef: 'refs/tags/flux-infra-v\d+\.\d+\.\d+'
+    - tenant: "apprise-go-api"
+      tag: "${ARTIFACT_TAG}"
+      environment: "${ENVIRONMENT}"
+      artifactSubjectWorkflow: "flux-infra-release"
+      artifactSubjectGitRef: 'refs/tags/flux-infra-v\d+\.\d+\.\d+'
   resources:
     - apiVersion: v1
       kind: Namespace

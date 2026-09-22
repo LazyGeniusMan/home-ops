@@ -50,6 +50,7 @@ jobs:
           - cosi
           - vpa
           - netbird
+          - apprise-go-api
     runs-on: ubuntu-latest
     permissions:
       contents: read
