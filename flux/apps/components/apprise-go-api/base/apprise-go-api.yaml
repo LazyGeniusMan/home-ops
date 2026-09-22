@@ -53,6 +53,18 @@ spec:
             # (see README Matrix strategy). APPRISE_DENY_SERVICES unset.
             - name: APPRISE_ALLOW_SERVICES
               value: "matrix"
+            # Stateless fallback: the ESO-synced apprise-stateless-urls Secret
+            # (base/apprise-go-api-secrets.yaml; key stateless-urls = the
+            # per-room matrixs:// target set). optional: true so a missing
+            # Secret degrades to per-request urls only — never a CrashLoop.
+            # Arrival order is Flux reconcile order (no dependsOn between
+            # ExternalSecret + Deployment in one Kustomization).
+            - name: APPRISE_STATELESS_URLS
+              valueFrom:
+                secretKeyRef:
+                  name: apprise-stateless-urls
+                  key: stateless-urls
+                  optional: true
             # SSRF posture for remote attachment fetch (deny-first,
             # allow-second): allow all, but reject loopback/hostname tricks
             # plus the `internal` token (opt-in DNS resolution blocking

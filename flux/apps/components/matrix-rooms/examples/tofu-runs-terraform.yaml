@@ -1,0 +1,90 @@
+# Example consumer: tofu-runs room (per-run Terraform log, BOT posts only).
+# Same shape as flux-notifications-terraform.yaml: copy into
+# flux/apps/components/<team>/base/terraform.yaml alongside it (one Terraform
+# CR per room), rename every flux-notifications-*, replace mxids/hostnames.
+# Feeds from the `tofu-runs` Alert (Kustomization+HelmRelease info events
+# filtered to Terraform messages via inclusionList — see
+# flux/apps/components/apprise-go-api/base/NOTIFICATIONS.md). Overlaps the
+# flux room by design (tofu events post to BOTH rooms).
+#
+# Notification-only power lock (events_default 50) + plaintext
+# (encryption_enabled false): same rationale as the flux room header — the
+# stateless apprise notifier has no Olm persistence, so E2EE rooms are
+# unreadable to it. Upstream wiring (varsFrom Secret, OCI sourceRef, no
+# dependsOn, writeOutputsToSecret): identical to the flux example.
+---
+# Vars mirror: shared with the flux-notifications CR (same Secret, same
+# vault keys — one `pass insert` per env covers every room). This doc block
+# duplicates so each example file is self-contained when copied.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: matrix-rooms-terraform-vars
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: matrix-rooms-terraform-vars
+  data:
+    - secretKey: homeserver_url
+      remoteRef:
+        key: __PROTON_PASS_BASE__/matrix-rooms/homeserver-url
+    - secretKey: access_token
+      remoteRef:
+        key: __PROTON_PASS_BASE__/matrix-rooms/bot-access-token
+    - secretKey: user_id
+      remoteRef:
+        key: __PROTON_PASS_BASE__/matrix-rooms/bot-user-id
+---
+apiVersion: infra.contrib.fluxcd.io/v1alpha2
+kind: Terraform
+metadata:
+  name: tofu-runs
+spec:
+  interval: 30m
+  approvePlan: auto
+  destroy: false
+  destroyResourcesOnDeletion: false
+  sourceRef:
+    kind: OCIRepository
+    name: apps
+    namespace: matrix-rooms
+  path: ./terraform
+  vars:
+    - name: room_name
+      value: tofu-runs
+    - name: topic
+      value: Terraform/tofu per-run log (bot posts, humans read)
+    - name: preset
+      value: private_chat
+    - name: visibility
+      value: private
+    - name: history_visibility
+      value: shared
+    - name: room_alias_name
+      value: tofu-runs
+    - name: encryption_enabled
+      value: false
+    - name: events_default
+      value: 50
+    - name: members
+      value:
+        "@oncall-lead:__SERVER_NAME__": invite
+    - name: power_levels
+      value:
+        "@oncall-lead:__SERVER_NAME__": 50
+    - name: join_rule
+      value: invite
+    - name: bot_room_display_name
+      value: Tofu Runner
+  varsFrom:
+    - kind: Secret
+      name: matrix-rooms-terraform-vars
+  writeOutputsToSecret:
+    name: tofu-runs-outputs
+    outputs:
+      - room_id
+      - canonical_alias
+      - bot_user_id

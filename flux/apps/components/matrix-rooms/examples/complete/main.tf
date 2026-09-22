@@ -1,7 +1,13 @@
-# Local-only example: flux-notifications style test room with locked power
-# levels. Not applied in CI (no live homeserver); validates the module call
-# shape. Real deploys go through the Terraform CR
-# (flux-notifications-terraform.yaml) + varsFrom Secret, never literals.
+# Local-only example: notifier-room shape (flux-notifications + tofu-runs)
+# with locked power levels. Not applied in CI (no live homeserver); validates
+# the module call shape. Real deploys go through the Terraform CRs
+# (flux-notifications-terraform.yaml / tofu-runs-terraform.yaml /
+# team-terraform.yaml) + varsFrom Secret, never literals.
+#
+# Notifier rooms are notification-only (events_default 50: only the bot at
+# 100 posts, members read) and PLAINTEXT (encryption_enabled false — the
+# stateless apprise notifier has no Olm persistence, so E2EE rooms are
+# unreadable to it; irreversible at creation).
 #
 #   cd flux/apps/components/matrix-rooms/examples/complete
 #   tofu init -backend=false && tofu validate
@@ -24,16 +30,18 @@ provider "matrix" {
 module "flux_notifications" {
   source = "../../terraform/module"
 
-  room_name       = "flux-notifications"
-  topic           = "Flux + Apprise delivery receipts (bot posts, humans read)"
-  room_alias_name = "flux-notifications"
+  room_name          = "flux-notifications"
+  topic              = "Flux + Apprise delivery receipts (bot posts, humans read)"
+  room_alias_name    = "flux-notifications"
+  encryption_enabled = false
+  events_default     = 50
 
   members = {
     "@oncall-lead:tuwunel.matrix.home-ops.yansyah.my.id" = "invite"
   }
 
   # Locked power levels: bot pinned at 100 by the module; lead at 50;
-  # everyone else at users_default 0 (post via events_default 0 only).
+  # everyone else at users_default 0 + events_default 50 (read-only).
   power_levels = {
     "@oncall-lead:tuwunel.matrix.home-ops.yansyah.my.id" = 50
   }
@@ -43,6 +51,32 @@ module "flux_notifications" {
   bot_room_display_name = "Flux Notifier"
 }
 
+module "tofu_runs" {
+  source = "../../terraform/module"
+
+  room_name          = "tofu-runs"
+  topic              = "Terraform/tofu per-run log (bot posts, humans read)"
+  room_alias_name    = "tofu-runs"
+  encryption_enabled = false
+  events_default     = 50
+
+  members = {
+    "@oncall-lead:tuwunel.matrix.home-ops.yansyah.my.id" = "invite"
+  }
+
+  power_levels = {
+    "@oncall-lead:tuwunel.matrix.home-ops.yansyah.my.id" = 50
+  }
+
+  join_rule = "invite"
+
+  bot_room_display_name = "Tofu Runner"
+}
+
 output "room_id" {
   value = module.flux_notifications.room_id
+}
+
+output "tofu_runs_room_id" {
+  value = module.tofu_runs.room_id
 }

@@ -3,12 +3,24 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # No route/vault/cert patches: internal ClusterIP only (no HTTPRoute),
-  # no ExternalSecrets (Matrix creds ride per-request urls or a later ESO
-  # Secret — see README Matrix strategy). Prd replica counts: stateless HA
-  # floor (2). No Deployment /spec/replicas patch: base replicas: 1 is the
-  # create-time seed, HPA owns runtime count (HPA minReplicas enforces the
-  # floor); the HPA below scales 2-4 on CPU+memory.
+  # No route/cert patches: internal ClusterIP only (no HTTPRoute).
+  # Vault: per-env Proton Pass path for the stateless-URLs fallback
+  # (base holds __PROTON_PASS_BASE__ placeholders; both data entries
+  # patched — notifier token + homeserver host). Prd replica counts:
+  # stateless HA floor (2). No Deployment /spec/replicas patch: base
+  # replicas: 1 is the create-time seed, HPA owns runtime count (HPA
+  # minReplicas enforces the floor); the HPA below scales 2-4 on
+  # CPU+memory.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/matrix-rooms/notifier-bot-token
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/matrix-rooms/homeserver-host
+    target:
+      kind: ExternalSecret
+      name: apprise-stateless-urls
   - patch: |
       - op: replace
         path: /spec/minReplicas
