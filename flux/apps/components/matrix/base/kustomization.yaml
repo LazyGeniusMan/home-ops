@@ -42,8 +42,15 @@ resources:
   - element-web-vpa.yaml
   - element-httproute.yaml
   - element-proxy.yaml
-  # Live room provisioning (tofu-controller): ONE shared
-  # matrix-rooms-terraform-vars ExternalSecret + one Terraform CR per
-  # ops notification room (flux-notifications, tofu-runs). Live counterpart
+  # Bot bootstrap (zitadel-style): the matrix-bot-bootstrap Job registers the
+  # notifier bot server-side + mints its token + writes the KEPT Secret
+  # `matrix-bot-bootstrap-outputs` (rooms.yaml varsFrom + the
+  # apprise-stateless-urls ES read it directly — same namespace, NO ESO
+  # mirror hop). Registration secret wiring lives in tuwunel.yaml +
+  # tuwunel-secrets.yaml.
+  - matrix-bot-bootstrap.yaml
+  # Live room provisioning (tofu-controller): one Terraform CR per ops
+  # notification room (flux-notifications, tofu-runs, coder-notifications)
+  # reading provider auth from the bootstrap kept Secret. Live counterpart
   # of the terraform/examples/ skeletons; team room stays example-only.
   - rooms.yaml

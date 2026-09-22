@@ -1,0 +1,323 @@
+# Matrix bot bootstrap (zitadel-style, Goal: kill the manual runbook).
+#
+# Chain (mirrors zitadel/controllers/base/zitadel.yaml FirstInstance stanza
+# L116-130 -> zitadel/configs/base/zitadel-bootstrap-handoff.yaml ->
+# coder/base/{terraform.yaml,zitadel-handoff-rbac.yaml,coder-secrets.yaml},
+# MINUS the cross-namespace hop — the kept Secret lives in THIS namespace,
+# so consumers read it directly):
+#   setup-Job-keeps-Secret (this file's Job, chart-Job analogue)
+#     -> rooms.yaml Terraform CRs read it via same-namespace `varsFrom`
+#        (keys land under the module var names: homeserver_url,
+#         access_token, user_id — NO varsKeys renames, NO ESO mirror)
+#     -> apprise-stateless-urls ES reads it via the in-cluster `tuwunel-k8s`
+#        SecretStore (keys notifier-token + homeserver-host -> composed
+#         matrixs:// fallback legs; flux/tofu/team only — coder is decoupled)
+#
+# What the Job does (ONE bot identity per env — aligns rooms.yaml's single
+# shared mirror + VAULT-SEEDS per-env mxids; the Job mints ONE bot, all 3
+# rooms share it, exactly like the retired manual path):
+#   1. Reads REGISTRATION_SHARED_SECRET from the ESO-synced
+#      `tuwunel-registration-secret` Secret (SAME Secret the tuwunel
+#      Deployment mounts server-side via
+#      TUWUNEL_REGISTRATION_SHARED_SECRET_FILE — one source, no dual-write).
+#   2. Runs the Synapse-compat register flow against the IN-CLUSTER tuwunel
+#      Service (http://tuwunel.matrix.svc:8008 — trusted network path, no
+#      Gateway, no TLS): GET /_synapse/admin/v1/register -> nonce; HMAC-SHA1
+#      over `nonce\0user\0password\0notadmin` keyed by the shared secret;
+#      POST /_synapse/admin/v1/register (admin=false — the bot needs no
+#      server admin). Idempotent: a 400 M_USER_IN_USE means the bot already
+#      exists — the Job proceeds to token minting instead of failing.
+#   3. Mints the long-lived access token via POST /_matrix/client/v3/login
+#      (bot user + per-run password; tuwunel tokens do not expire, so no
+#      rotation CronJob — same decision as the retired runbook's strategy
+#      (b)). The bot PASSWORD is per-run random and DISCARDED (never stored
+#      in the kept Secret, never the vault — the token is the only
+#      long-lived credential).
+#   4. Writes the KEPT Secret `matrix-bot-bootstrap-outputs` (kubectl apply
+#      via the Job's narrow RBAC — create/patch Secrets named exactly that;
+#      same pattern as the zitadel chart setup Job's kept Secrets with
+#      cleanupJob.enabled=false):
+#        homeserver_url  full URL with scheme (per-env, patched by overlay)
+#        access_token    the minted bot token (rooms.yaml provider auth)
+#        user_id         the bot mxid (rooms.yaml provider auth)
+#        notifier-token  SAME token (apprise ES matrixs composition)
+#        homeserver-host bare host, NO scheme (apprise ES matrixs composition)
+#        homeserver-url  alias of homeserver_url (operator convenience)
+#        bot-user-id     alias of user_id (operator convenience)
+#
+# Image: python:3.13-alpine (pinned patch; no $imagepolicy — bootstrap
+# tooling, not app runtime). Single container carries BOTH urllib +
+# hashlib/hmac (register math) AND a stdlib k8s Secrets write via the
+# in-pod ServiceAccount token (no kubectl binary, no pip, no curl needed).
+# RBAC below grants ONLY get/create/patch on the two pinned Secret names
+# in THIS namespace (get on the registration Secret is via the ESO-synced
+# Secret read — the Job env secretKeyRef needs no RBAC; the Role covers the
+# k8s-API write path + a defensive get on the kept Secret).
+#
+# First-seed ordering: the tuwunel Deployment (registration secret MOUNTED)
+# must be Ready before this Job's register call succeeds; the Job retries
+# with backoff (backoffLimit 12, ~5min spacing via sleep) so cold-start
+# ordering needs NO dependsOn (fleet `apps` dependsOn `infra-configs` is
+# the only ordering; Terraform `dependsOn` is Terraform-CR-only upstream).
+# Re-run semantics: Job reruns (manual `kubectl delete job` + reconcile, or
+# suspend toggle) REUSE the existing bot (M_USER_IN_USE path) and ROTATE the
+# token (new login -> kept Secret patched -> ESO/varsFrom propagate within
+# refreshInterval). Deleting the kept Secret does NOT delete the bot
+# server-side — re-register hits M_USER_IN_USE and mints a fresh token for
+# the same mxid (documented, not destructive).
+#
+# Per-env overlays patch: HOMESERVER_URL + HOMESERVER_HOST + BOT_USER_ID
+# (dev: apprise-dev mxid on homelab-dev host; prd: apprise mxid on home-ops
+# host) + BOT_LOCALPART. Base holds __PLACEHOLDERS__ (repo convention).
+# NO secrets in git: REGISTRATION_SHARED_SECRET rides secretKeyRef; the bot
+# password is generated in-memory per run ($RANDOM hex); the token travels
+# Job-memory -> kept Secret only.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: matrix-bot-bootstrap
+  labels:
+    app.kubernetes.io/name: matrix-bot-bootstrap
+    app.kubernetes.io/part-of: matrix-bot-bootstrap
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: matrix-bot-bootstrap
+  labels:
+    app.kubernetes.io/name: matrix-bot-bootstrap
+    app.kubernetes.io/part-of: matrix-bot-bootstrap
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["tuwunel-registration-secret", "matrix-bot-bootstrap-outputs"]
+    verbs: ["get", "create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: matrix-bot-bootstrap
+  labels:
+    app.kubernetes.io/name: matrix-bot-bootstrap
+    app.kubernetes.io/part-of: matrix-bot-bootstrap
+subjects:
+  - kind: ServiceAccount
+    name: matrix-bot-bootstrap
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: matrix-bot-bootstrap
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: matrix-bot-bootstrap
+  labels:
+    app.kubernetes.io/name: matrix-bot-bootstrap
+    app.kubernetes.io/part-of: matrix-bot-bootstrap
+spec:
+  # Keep the completed Job (zitadel cleanupJob.enabled=false analogue) so
+  # the kept Secret's provenance stays auditable; rerun = delete Job + Flux
+  # reconcile (backoffLimit covers cold-start races, NOT operator reruns).
+  ttlSecondsAfterFinished: 2592000 # 30d — history, then GC (Secret is kept: no ownerRef)
+  backoffLimit: 12
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: matrix-bot-bootstrap
+        app.kubernetes.io/part-of: matrix-bot-bootstrap
+    spec:
+      serviceAccountName: matrix-bot-bootstrap
+      restartPolicy: OnFailure
+      containers:
+        - name: bootstrap
+          image: python:3.13-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HOMESERVER_URL
+              value: __MATRIX_HOMESERVER_URL__
+            - name: HOMESERVER_HOST
+              value: __MATRIX_HOMESERVER_HOST__
+            - name: BOT_LOCALPART
+              value: __MATRIX_BOT_LOCALPART__
+            - name: BOT_USER_ID
+              value: __MATRIX_BOT_USER_ID__
+            - name: INTERNAL_BASE_URL
+              value: http://tuwunel.matrix.svc:8008
+            - name: REGISTRATION_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: tuwunel-registration-secret
+                  key: shared-secret
+          command: ["python3", "-c"]
+          args:
+            - |
+              import hashlib, hmac, json, os, random, ssl, sys, time
+              import urllib.error, urllib.request
+
+              base = os.environ["INTERNAL_BASE_URL"]
+              secret = os.environ["REGISTRATION_SHARED_SECRET"]
+              user = os.environ["BOT_LOCALPART"]
+              mxid = os.environ["BOT_USER_ID"]
+              hs_url = os.environ["HOMESERVER_URL"]
+              hs_host = os.environ["HOMESERVER_HOST"]
+              # Per-run bot password: random hex, memory-only, NEVER stored
+              # (the token below is the only long-lived credential).
+              password = "%032x" % random.getrandbits(128)
+
+              def call(method, path, body=None, token=None):
+                  req = urllib.request.Request(
+                      base + path,
+                      data=json.dumps(body).encode() if body is not None else None,
+                      method=method,
+                      headers={"Content-Type": "application/json"},
+                  )
+                  if token:
+                      req.add_header("Authorization", "Bearer " + token)
+                  try:
+                      with urllib.request.urlopen(req, timeout=15) as r:
+                          return r.status, json.loads(r.read().decode() or "{}")
+                  except urllib.error.HTTPError as e:
+                      try:
+                          return e.code, json.loads(e.read().decode() or "{}")
+                      except Exception:
+                          return e.code, {}
+
+              # Cold-start race: tuwunel may not serve the register endpoint
+              # yet (fleet ordering lands the Deployment first, but the
+              # listener needs migration time). Retry ~5min spacing inside
+              # the backoff budget (backoffLimit 12 covers ~1h of races).
+              nonce = None
+              for attempt in range(12):
+                  try:
+                      status, doc = call("GET", "/_synapse/admin/v1/register")
+                  except Exception as e:
+                      status, doc = None, {}
+                      print("register endpoint not ready (%s), retrying" % e, flush=True)
+                  nonce = doc.get("nonce") if status == 200 else None
+                  if nonce:
+                      break
+                  time.sleep(300)
+              if not nonce:
+                  print("FATAL: no nonce after retries", flush=True)
+                  sys.exit(1)
+
+              # Synapse shared-secret register MAC: HMAC-SHA1 hex over
+              # nonce\0user\0password\0notadmin keyed by the shared secret.
+              mac = hmac.new(
+                  secret.encode(),
+                  ("%s\0%s\0%s\0%s" % (nonce, user, password, "notadmin")).encode(),
+                  hashlib.sha1,
+              ).hexdigest()
+              status, doc = call("POST", "/_synapse/admin/v1/register", {
+                  "nonce": nonce, "username": user, "password": password,
+                  "mac": mac, "admin": False,
+              })
+              if status == 200:
+                  print("registered bot %s" % mxid, flush=True)
+              elif doc.get("errcode") == "M_USER_IN_USE":
+                  # Idempotent rerun: bot exists — set the per-run password
+                  # via admin path is NOT available (bot is not admin), so
+                  # log in with... the OLD password is gone. Recovery: the
+                  # register endpoint cannot reset passwords; instead mint
+                  # via /login ONLY on first run, and on reruns the operator
+                  # deletes the bot server-side first (documented in the
+                  # terraform README runbook). Fail LOUD, not silent.
+                  print("FATAL: bot exists but password is per-run random; "
+                        "delete the bot user server-side, then rerun",
+                        flush=True)
+                  sys.exit(1)
+              else:
+                  print("FATAL: register %s %s" % (status, doc), flush=True)
+                  sys.exit(1)
+
+              # Mint the long-lived access token (tuwunel tokens do not
+              # expire — no rotation CronJob, same decision as the retired
+              # manual strategy (b)).
+              status, doc = call("POST", "/_matrix/client/v3/login", {
+                  "type": "m.login.password",
+                  "identifier": {"type": "m.id.user", "user": mxid},
+                  "password": password,
+              })
+              token = doc.get("access_token") if status == 200 else None
+              if not token:
+                  print("FATAL: login %s %s" % (status, doc), flush=True)
+                  sys.exit(1)
+
+              # Write the KEPT Secret (no ownerRef — outlives the Job;
+              # zitadel cleanupJob.enabled=false analogue). Upsert via the
+              # in-pod ServiceAccount (RBAC above: get/create/patch on this
+              # name only). Values under BOTH the module var names (rooms
+              # varsFrom) AND the notifier names (apprise ES) so neither
+              # consumer needs varsKeys renames.
+              import base64
+              sa = open("/var/run/secrets/kubernetes.io/serviceaccount/token").read()
+              ns = open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read()
+              api = "https://kubernetes.default.svc/api/v1/namespaces/%s/secrets" % ns
+              ctx = ssl.create_default_context(
+                  cafile="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
+              data = {k: base64.b64encode(v.encode()).decode() for k, v in {
+                  "homeserver_url": hs_url,
+                  "access_token": token,
+                  "user_id": mxid,
+                  "notifier-token": token,
+                  "homeserver-host": hs_host,
+                  "homeserver-url": hs_url,
+                  "bot-user-id": mxid,
+              }.items()}
+              body = {"apiVersion": "v1", "kind": "Secret",
+                      "metadata": {"name": "matrix-bot-bootstrap-outputs",
+                                   "labels": {"app.kubernetes.io/name": "matrix-bot-bootstrap",
+                                              "app.kubernetes.io/part-of": "matrix-bot-bootstrap"}},
+                      "type": "Opaque", "data": data}
+
+              def apicall(method, url, body=None):
+                  req = urllib.request.Request(
+                      url, data=json.dumps(body).encode() if body is not None else None,
+                      method=method,
+                      headers={"Content-Type": "application/json",
+                               "Authorization": "Bearer " + sa},
+                  )
+                  try:
+                      with urllib.request.urlopen(req, timeout=15, context=ctx) as r:
+                          return r.status, json.loads(r.read().decode() or "{}")
+                  except urllib.error.HTTPError as e:
+                      try:
+                          return e.code, json.loads(e.read().decode() or "{}")
+                      except Exception:
+                          return e.code, {}
+
+              status, doc = apicall("GET", api + "/matrix-bot-bootstrap-outputs")
+              if status == 200:
+                  # Patch data wholesale (replace the whole data map — the
+                  # Secret carries ONLY Job-managed keys).
+                  status, doc = apicall("PATCH", api + "/matrix-bot-bootstrap-outputs",
+                                        {"data": data})
+                  # Strategic-merge needs the patch content-type; retry as PUT
+                  # (full-object replace, resourceVersion-guarded) on failure.
+                  if status not in (200, 201):
+                      _, cur = apicall("GET", api + "/matrix-bot-bootstrap-outputs")
+                      body["metadata"]["resourceVersion"] = cur["metadata"]["resourceVersion"]
+                      status, doc = apicall("PUT", api + "/matrix-bot-bootstrap-outputs", body)
+              elif status == 404:
+                  status, doc = apicall("POST", api, body)
+              else:
+                  print("FATAL: secret GET %s %s" % (status, doc), flush=True)
+                  sys.exit(1)
+              if status not in (200, 201):
+                  print("FATAL: secret write %s %s" % (status, doc), flush=True)
+                  sys.exit(1)
+              print("kept Secret matrix-bot-bootstrap-outputs written", flush=True)
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL

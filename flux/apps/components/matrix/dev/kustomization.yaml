@@ -5,20 +5,12 @@ resources:
 patches:
   # ---- apprise-go-api consumer wiring (workload now in the infra
   # apprise-go-api tenant — no Deployment/Service/HPA/VPA here) ----
-  # Vault: per-env Proton Pass path for the consumer-owned stateless-URLs
-  # fallback (base holds __PROTON_PASS_BASE__ placeholders; both data
-  # entries patched — notifier token + homeserver host). Providers post to
-  # the infra Service DNS (see base/notifications.yaml).
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-dev-bdo1-talos-apps-01/matrix-rooms/notifier-bot-token
-      - op: replace
-        path: /spec/data/1/remoteRef/key
-        value: pass://acme-dev-bdo1-talos-apps-01/matrix-rooms/homeserver-host
-    target:
-      kind: ExternalSecret
-      name: apprise-stateless-urls
+  # BOOTSTRAPPED: apprise-stateless-urls reads the notifier credential from
+  # the in-cluster kept Secret (tuwunel-k8s store) — NO vault patch here
+  # (the matrix-rooms/notifier-bot-token + homeserver-host vault path is
+  # retired; see VAULT-SEEDS.md). Providers post to the infra Service DNS
+  # (see base/notifications.yaml). This stanza is intentionally absent.
+  # ---- (no apprise-stateless-urls patch — bootstrapped, see above) ----
   # ---- tuwunel (homeserver) (carried over from components/tuwunel/dev/) ----
   # Dev route hostnames (tuwunel.matrix.homelab-dev.yansyah.my.id).
   - patch: |
@@ -48,6 +40,15 @@ patches:
     target:
       kind: ExternalSecret
       name: cloudflare-api-token
+  # Dev registration shared secret (server side of the bootstrap Job flow;
+  # base holds the __PROTON_PASS_BASE__ placeholder).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/matrix/tuwunel-registration-secret
+    target:
+      kind: ExternalSecret
+      name: tuwunel-registration-secret
   # Dev wildcard Certificate (wildcard-homelab-dev).
   - patch: |
       - op: replace
@@ -74,8 +75,9 @@ patches:
       name: wildcard-homelab-dev
   # Dev identity: server_name + well-known client + Zitadel issuer +
   # SSO callback. POSITIONAL: /spec/template/spec/containers/0/env/0
-  # (SERVER_NAME) + /env/5 (WELL_KNOWN__CLIENT) + /env/24 (ISSUER_URL) +
-  # /env/25 (CALLBACK_URL) — see the order note in base/tuwunel.yaml.
+  # (SERVER_NAME) + /env/5 (WELL_KNOWN__CLIENT) + /env/25 (ISSUER_URL) +
+  # /env/26 (CALLBACK_URL) — see the order note in base/tuwunel.yaml
+  # (REGISTRATION_SHARED_SECRET_FILE at /env/18 shifts later indices +1).
   # The callback embeds the per-env matrix host; the client_id suffix
   # rides k8s $(TUWUNEL_SSO_CLIENT_ID) expansion, so no generated id
   # ever lands in git.
@@ -87,10 +89,10 @@ patches:
         path: /spec/template/spec/containers/0/env/5/value
         value: https://tuwunel.matrix.homelab-dev.yansyah.my.id
       - op: replace
-        path: /spec/template/spec/containers/0/env/24/value
+        path: /spec/template/spec/containers/0/env/25/value
         value: https://admin.zitadel.homelab-dev.yansyah.my.id
       - op: replace
-        path: /spec/template/spec/containers/0/env/25/value
+        path: /spec/template/spec/containers/0/env/26/value
         value: https://tuwunel.matrix.homelab-dev.yansyah.my.id/_matrix/client/unstable/login/sso/callback/$(TUWUNEL_SSO_CLIENT_ID)
     target:
       kind: Deployment
@@ -295,21 +297,30 @@ patches:
       kind: HorizontalPodAutoscaler
       name: element-web
   # ---- live room provisioning (tofu-controller) ----
-  # Dev vault paths for the shared matrix-rooms-terraform-vars mirror (base
-  # holds __PROTON_PASS_BASE__ placeholders; all three data entries patched).
+  # BOOTSTRAPPED: room provider auth flows from the matrix-bot-bootstrap
+  # Job's kept Secret (same-namespace varsFrom — NO ESO mirror, NO vault
+  # patch). The matrix-rooms/{homeserver-url,bot-access-token,bot-user-id}
+  # vault path is retired (see VAULT-SEEDS.md); this stanza is
+  # intentionally absent.
+  # ---- (no matrix-rooms-terraform-vars patch — bootstrapped, see above) ----
+  # Dev bot identity for the matrix-bot-bootstrap Job (ONE bot per env;
+  # base holds __PLACEHOLDERS__; Job writes the kept Secret the CRs read).
   - patch: |
       - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-dev-bdo1-talos-apps-01/matrix-rooms/homeserver-url
+        path: /spec/template/spec/containers/0/env/0/value
+        value: https://tuwunel.matrix.homelab-dev.yansyah.my.id
       - op: replace
-        path: /spec/data/1/remoteRef/key
-        value: pass://acme-dev-bdo1-talos-apps-01/matrix-rooms/bot-access-token
+        path: /spec/template/spec/containers/0/env/1/value
+        value: tuwunel.matrix.homelab-dev.yansyah.my.id
       - op: replace
-        path: /spec/data/2/remoteRef/key
-        value: pass://acme-dev-bdo1-talos-apps-01/matrix-rooms/bot-user-id
+        path: /spec/template/spec/containers/0/env/2/value
+        value: apprise-dev
+      - op: replace
+        path: /spec/template/spec/containers/0/env/3/value
+        value: "@apprise-dev:tuwunel.matrix.homelab-dev.yansyah.my.id"
     target:
-      kind: ExternalSecret
-      name: matrix-rooms-terraform-vars
+      kind: Job
+      name: matrix-bot-bootstrap
   # Dev room members: on-call lead / coder-admin mxids on the dev homeserver.
   # POSITIONAL: /spec/vars/8 is members + /spec/vars/9 is power_levels — see
   # the order note in base/rooms.yaml.

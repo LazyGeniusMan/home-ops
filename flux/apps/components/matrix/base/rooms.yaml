@@ -1,12 +1,12 @@
 # Live room provisioning: flux-notifications + tofu-runs + coder-notifications
 # (tofu-controller).
 #
-# Decision: these CRs ship in THIS tenant's base (not a team namespace) — the
-# flux/tofu/coder Provider fallback legs
+# Decision: these CRs ship in THIS tenant's base (not a team namespace) —
+# the flux/tofu fallback legs
 # (matrixs://.../%23flux-notifications?tag=flux,
-#  matrixs://.../%23tofu-runs?tag=tofu,
-#  matrixs://.../%23coder-notifications?tag=coder in
-# apprise-go-api-secrets.yaml)
+#  matrixs://.../%23tofu-runs?tag=tofu in apprise-go-api-secrets.yaml) plus
+# the coder room (coder-owned credential, per-request `urls` — NO fallback
+# leg; see NOTIFICATIONS.md ownership table)
 # resolve to rooms that must exist, and no team namespace owns ops-wide
 # notification rooms. This file is the live counterpart of the copy-paste
 # skeletons in terraform/examples/ (flux-notifications-terraform.yaml,
@@ -26,57 +26,39 @@
 # rooms only).
 #
 # Upstream wiring: provider auth (homeserver_url/access_token/user_id) flows
-# from the vault via the ESO-synced `matrix-rooms-terraform-vars` Secret
-# (ONE shared copy below; same-namespace `varsFrom` in each CR —
-# same-namespace `varsFrom` CANNOT cross namespaces (no namespace field),
-# but the bot token has no chart-minted central secret to mirror, so the
-# vault read is direct through the cluster-scoped `proton-pass`
-# ClusterSecretStore — same pattern as the netbird consumer example). Keys
-# land under the module var names so `varsFrom` needs no varsKeys renames.
-# NO token literal in git, NO manual per-env fill.
+# from the matrix-bot-bootstrap Job's KEPT Secret
+# `matrix-bot-bootstrap-outputs` (matrix-bot-bootstrap.yaml — the zitadel
+# chain analogue: setup-Job-keeps-Secret; same namespace, so the CRs read
+# it DIRECTLY via same-namespace `varsFrom`, NO ESO mirror hop needed).
+# The Job writes its keys under the module var names, so `varsFrom` needs
+# no varsKeys renames. NO token literal in git, NO manual per-env fill, NO
+# vault hop for room provisioning.
 # Backend: in-cluster Kubernetes default (state Secrets in the matrix
 # namespace) — no backendConfig needed. Drift detection stays on (default).
 # Outputs: room_id + canonical_alias + bot_user_id land in
 # `<room>-outputs`; notifiers read room IDs from those Secrets through the
 # in-cluster store — never Git, never Proton Pass.
-# First-run prerequisite: the bootstrap runbook (terraform/README.md)
-# minted the bot + token once per env. Without the
-# `matrix-rooms-terraform-vars` Secret the CRs retry on interval.
+# First-run prerequisite: the bootstrap Job ran once per env (it registers
+# the bot via the Synapse-compat admin API + mints the token server-side).
+# Without the kept Secret the CRs retry on interval. The old vault-direct
+# mirror (`matrix-rooms-terraform-vars` ExternalSecret, vault fields
+# matrix-rooms/{homeserver-url,bot-access-token,bot-user-id}) is REMOVED —
+# the manual path is dead on purpose (see VAULT-SEEDS.md: those fields are
+# retired; the registration secret matrix/tuwunel-registration-secret is
+# the ONLY first-seed left).
 # POSITIONAL: the dev/prd overlays patch /spec/vars/8 (members) +
 # /spec/vars/9 (power_levels) by index in EACH CR (flux-notifications,
 # tofu-runs, coder-notifications), so this var order must
 # not change without updating the overlays (same convention as
 # element-proxy.yaml).
 ---
-# Vars mirror: bot token + homeserver URL from the vault — no vault seeding
-# beyond the one-time `pass insert` per env, no manual step per room. Reads
-# DIRECTLY through the existing cluster-scoped `proton-pass`
-# ClusterSecretStore (no cross-namespace SecretStore + RBAC needed — unlike
-# the zitadel handoff there is no chart-minted central secret to mirror).
-# Keys land under the module var names so `varsFrom` below needs no varsKeys
-# renames. Per-env overlays replace the pass:// keys with the cluster vault
-# path (same convention as the coder dev overlay).
-apiVersion: external-secrets.io/v1
-kind: ExternalSecret
-metadata:
-  name: matrix-rooms-terraform-vars
-spec:
-  refreshInterval: 1h
-  secretStoreRef:
-    name: proton-pass
-    kind: ClusterSecretStore
-  target:
-    name: matrix-rooms-terraform-vars
-  data:
-    - secretKey: homeserver_url
-      remoteRef:
-        key: __PROTON_PASS_BASE__/matrix-rooms/homeserver-url
-    - secretKey: access_token
-      remoteRef:
-        key: __PROTON_PASS_BASE__/matrix-rooms/bot-access-token
-    - secretKey: user_id
-      remoteRef:
-        key: __PROTON_PASS_BASE__/matrix-rooms/bot-user-id
+# REMOVED (was: `matrix-rooms-terraform-vars` vault-direct ExternalSecret):
+# room provider auth now flows from the bootstrap Job's kept Secret
+# `matrix-bot-bootstrap-outputs` (same namespace — `varsFrom` reads it
+# directly, NO ESO hop). The manual vault path
+# (matrix-rooms/{homeserver-url,bot-access-token,bot-user-id}) is retired —
+# see VAULT-SEEDS.md. Kept intentionally absent: re-adding a vault-direct
+# mirror would resurrect the manual bootstrap the Job replaces.
 ---
 apiVersion: infra.contrib.fluxcd.io/v1alpha2
 kind: Terraform
@@ -141,7 +123,7 @@ spec:
       value: Flux Notifier
   varsFrom:
     - kind: Secret
-      name: matrix-rooms-terraform-vars
+      name: matrix-bot-bootstrap-outputs
   writeOutputsToSecret:
     name: flux-notifications-outputs
     outputs:
@@ -197,7 +179,7 @@ spec:
       value: Tofu Runner
   varsFrom:
     - kind: Secret
-      name: matrix-rooms-terraform-vars
+      name: matrix-bot-bootstrap-outputs
   writeOutputsToSecret:
     name: tofu-runs-outputs
     outputs:
@@ -221,8 +203,10 @@ spec:
   path: ./terraform
   # Feeds from the Coder Deployment webhook
   # (CODER_NOTIFICATIONS_METHOD=webhook +
-  # CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT pointing at the apprise-coder
-  # Provider address — see flux/apps/components/coder/base/coder.yaml).
+  # CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT = ESO-composed coder-owned value
+  # with per-request `urls` — NO apprise-coder Provider, NO matrix fallback
+  # leg; see flux/apps/components/coder/base/coder.yaml + NOTIFICATIONS.md
+  # ownership table).
   # Coder posts its fixed payload (top-level title/body) to ONE global
   # endpoint, so every event lands in this single room (per-event routing
   # is Premium-only — see base/NOTIFICATIONS.md). Same notification-only
@@ -258,7 +242,7 @@ spec:
       value: Coder Notifier
   varsFrom:
     - kind: Secret
-      name: matrix-rooms-terraform-vars
+      name: matrix-bot-bootstrap-outputs
   writeOutputsToSecret:
     name: coder-notifications-outputs
     outputs:

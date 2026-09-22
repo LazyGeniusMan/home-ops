@@ -19,8 +19,10 @@
 #   `TUWUNEL_STORAGE_PROVIDER__MEDIA_ON_S3__S3__*` form verified in
 #   docs/media/storage.md. Base holds __PLACEHOLDERS__ (repo convention);
 #   dev/prd overlays patch real hosts. POSITIONAL: overlays patch
-#   /spec/template/spec/containers/0/env/{0,5,24,25}/value by index, so this
-#   order must not change without updating the overlays.
+#   /spec/template/spec/containers/0/env/{0,5,25,26}/value by index (the
+#   TUWUNEL_REGISTRATION_SHARED_SECRET_FILE entry inserted above shifts the
+#   post-insertion indices by +1 — ISSUER_URL moved 24->25, CALLBACK 25->26),
+#   so this order must not change without updating the overlays.
 # - Secrets (SSO client id/secret, S3 keys) arrive via explicit secretKeyRef
 #   envs + a read-only file mount from ESO Secrets — never literals in git,
 #   and never envFrom (the ESO keys contain dashes, which are invalid env
@@ -120,6 +122,17 @@ spec:
               value: '["media_on_s3"]'
             - name: TUWUNEL_MEDIA_STARTUP_CHECK
               value: "true"
+            # Admin-register shared secret (server side of the
+            # matrix-bot-bootstrap Job flow): read-only file mount from the
+            # ESO `tuwunel-registration-secret` Secret (vault-seeded ONCE per
+            # env — matrix/tuwunel-registration-secret). Upstream file-option
+            # contract: `registration_shared_secret_file` enables the
+            # Synapse-compat POST /_synapse/admin/v1/register endpoint the
+            # bootstrap Job calls; same *_FILE pattern as
+            # CLIENT_SECRET_FILE above (never a literal in git, never envFrom
+            # — the key contains a dash).
+            - name: TUWUNEL_REGISTRATION_SHARED_SECRET_FILE
+              value: /etc/tuwunel-registration/shared-secret
             - name: TUWUNEL_GRANT_ADMIN_TO_FIRST_USER
               value: "true"
             - name: TUWUNEL_CREATE_ADMIN_ROOM
@@ -199,6 +212,10 @@ spec:
               mountPath: /etc/tuwunel-sso/client-secret
               subPath: client-secret
               readOnly: true
+            - name: tuwunel-registration-secret
+              mountPath: /etc/tuwunel-registration/shared-secret
+              subPath: shared-secret
+              readOnly: true
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -215,6 +232,13 @@ spec:
             items:
               - key: client-secret
                 path: client-secret
+        - name: tuwunel-registration-secret
+          secret:
+            secretName: tuwunel-registration-secret
+            defaultMode: 0400
+            items:
+              - key: shared-secret
+                path: shared-secret
 ---
 apiVersion: v1
 kind: Service
