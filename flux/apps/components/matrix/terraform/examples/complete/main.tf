@@ -1,6 +1,6 @@
 # Local-only example: notifier-room shape (flux-notifications + tofu-runs)
 # with locked power levels. Not applied in CI (no live homeserver); validates
-# the module call shape. Real deploys go through the Terraform CRs
+# the flat root call shape. Real deploys go through the Terraform CRs
 # (flux-notifications-terraform.yaml / tofu-runs-terraform.yaml /
 # team-terraform.yaml) + varsFrom Secret, never literals.
 #
@@ -28,7 +28,7 @@ provider "matrix" {
 }
 
 module "flux_notifications" {
-  source = "../../module"
+  source = "../.."
 
   room_name          = "flux-notifications"
   topic              = "Flux + Apprise delivery receipts (bot posts, humans read)"
@@ -40,7 +40,7 @@ module "flux_notifications" {
     "@oncall-lead:tuwunel.matrix.home-ops.yansyah.my.id" = "invite"
   }
 
-  # Locked power levels: bot pinned at 100 by the module; lead at 50;
+  # Locked power levels: bot pinned at 100 by the root; lead at 50;
   # everyone else at users_default 0 + events_default 50 (read-only).
   power_levels = {
     "@oncall-lead:tuwunel.matrix.home-ops.yansyah.my.id" = 50
@@ -52,7 +52,7 @@ module "flux_notifications" {
 }
 
 module "tofu_runs" {
-  source = "../../module"
+  source = "../.."
 
   room_name          = "tofu-runs"
   topic              = "Terraform/tofu per-run log (bot posts, humans read)"
