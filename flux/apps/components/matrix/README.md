@@ -1,18 +1,21 @@
 # matrix
 
 Single-tenant Matrix stack: one namespace (`matrix`), one OCI artifact
-(`apps/matrix`), one Fleet Kustomization. Consolidates the four former
-tenants `apprise-go-api`, `tuwunel`, `mautrix-discord`, `element-web` —
-they are highly integrated (bridge dials tuwunel, Element points at
-tuwunel, Providers post to apprise), never used outside the stack, and
-fail together, so one tenant fits the tenant==namespace==artifact
-invariant (fleet templates, cosign subject, push path all assume it).
+(`apps/matrix`), one Fleet Kustomization. Consolidates the three former
+tenants `tuwunel`, `mautrix-discord`, `element-web` (plus consumer-only
+apprise wiring — the `apprise-go-api` workload moved OUT to the infra
+`apprise-go-api` tenant as shared credential-free platform plumbing).
+They are highly integrated (bridge dials tuwunel, Element points at
+tuwunel, Providers post cross-namespace to the infra sink), never used
+outside the stack, and fail together, so one tenant fits the
+tenant==namespace==artifact invariant (fleet templates, cosign subject,
+push path all assume it).
 
 ## Workloads
 
 | Workload | Role | Image | Scaling |
 |---|---|---|---|
-| `apprise-go-api` | Internal ClusterIP webhook sink (`projects/apprise-go-api`): the single target for notification-controller Alert/Provider posts, forwarding to Matrix rooms | `ghcr.io/lazygeniusman/home-ops/projects/apprise-go-api` (`$imagepolicy` → `apps:apprise-go-api:tag`) | HPA 1–2 dev / 2–4 prd, VPA |
+| `apprise-go-api` (consumer only) | NO workload ships here — the sink lives in the infra `apprise-go-api` tenant (namespace `apprise-go-api`, `flux/infra/components/apprise-go-api`). This tenant keeps the consumer-owned `apprise-stateless-urls` fallback ExternalSecret + Provider/Alert wiring, posting to `http://apprise-go-api.apprise-go-api.svc:80/notify` | n/a (policy `infra:apprise-go-api:tag` owns the image) | n/a (infra HPA 1–2 dev / 2–4 prd, VPA) |
 | `tuwunel` | Matrix homeserver (`server_name == tuwunel.matrix.<env>`, Zitadel SSO, federation off, RocksDB on S3-backed media) | `ghcr.io/matrix-construct/tuwunel` (`$imagepolicy` → `apps:tuwunel:tag`) | Singleton (no HPA), VPA Auto |
 | `mautrix-discord` | Discord puppeting bridge (`@discordbot:<server>`) + colocated `mautrix-discord-db` CNPG Cluster | `dock.mau.dev/mautrix/discord:v0.7.7` (pinned, no policy) | Both singleton (bridge 1, DB 1 dev / 3 prd), VPA Initial |
 | `element-web` | Public stateless SPA speaking to tuwunel (Gateway + NetBird) | `vectorim/element-web` (`$imagepolicy` → `apps:element-web:tag`) | HPA 1–2 dev / 2–4 prd, VPA Off |
@@ -53,16 +56,19 @@ header so its origin stays auditable).
 - HTTPRoutes keep distinct names (`tuwunel-redirect` + `tuwunel-tls` +
   `element`) — no rename needed. `mautrix-discord-db.yaml` (CNPG),
   `element-proxy.yaml` (NetBird Terraform), `notifications.yaml` +
-  apprise secrets ship as-is (Provider addresses now
-  `http://apprise-go-api.matrix.svc:80/…` FQDN — the bare short name
-  only resolved inside the old per-tenant namespace layout).
+  apprise secrets ship as consumer-only wiring (Provider addresses are the
+  infra Service DNS `http://apprise-go-api.apprise-go-api.svc:80/…` —
+  cross-namespace, since the workload left this tenant).
 
 ## Image policies
 
-Markers reference policy NAMES (`apps:apprise-go-api:tag`,
-`apps:element-web:tag`, `apps:tuwunel:tag`), not paths — the three markers
-survive in the moved files and their `flux/apps/update-policies/*.yaml`
-policies track upstream. mautrix-discord (v0.7.7) stays pinned, no policy:
+Markers reference policy NAMES (`apps:element-web:tag`,
+`apps:tuwunel:tag`), not paths — the two markers survive in the moved
+files and their `flux/apps/update-policies/*.yaml` policies track
+upstream (the apprise-go-api marker moved with the workload to
+`infra:apprise-go-api:tag`, owned by
+`flux/infra/update-policies/apprise-go-api.yaml`). mautrix-discord
+(v0.7.7) stays pinned, no policy:
 upstream is `dock.mau.dev` (manual bumps per the note in
 `base/mautrix-discord.yaml`).
 

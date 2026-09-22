@@ -9,12 +9,15 @@
 # X-Signature header would be silently ignored. Revisit only if apprise
 # gains signature verification.
 #
-# Addressing: the generic Provider address carries the WHOLE apprise contract
-# as query params (remap + fallback + type + tag). Matrix credentials ride
-# the APPRISE_STATELESS_URLS fallback (ESO apprise-stateless-urls Secret),
-# NOT this address — secretRef holds headers only, and a matrixs:// token
-# cannot ride a header. Per-request `urls` stays reserved for future callers
-# that inject creds another way.
+# Addressing: Providers post to the infra apprise-go-api tenant
+# (http://apprise-go-api.apprise-go-api.svc:80/notify — workload lives in
+# the infra namespace, NOT this tenant). The generic Provider address
+# carries the WHOLE apprise contract as query params (remap + fallback +
+# type + tag). Matrix credentials ride the APPRISE_STATELESS_URLS fallback
+# (ESO apprise-stateless-urls Secret — consumer-owned, still lives here),
+# NOT this address — secretRef holds headers only, and a token-embedded
+# apprise URL cannot ride a header. Per-request `urls` stays reserved for
+# future callers that inject creds another way.
 # - `?:message=body&:reason=title`: Flux JSON Event -> apprise fields
 #   (remap engine: exact targets format|type|title|body|attachment|tag|tags|
 #   urls; failure -> HTTP 400 "Payload field mapping failed").
@@ -36,7 +39,7 @@ metadata:
     app.kubernetes.io/part-of: apprise-go-api
 spec:
   type: generic
-  address: "http://apprise-go-api.matrix.svc:80/notify/?:message=body&:reason=title&format=text&type=info&tag=flux"
+  address: "http://apprise-go-api.apprise-go-api.svc:80/notify/?:message=body&:reason=title&format=text&type=info&tag=flux"
 ---
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Provider
@@ -47,7 +50,7 @@ metadata:
     app.kubernetes.io/part-of: apprise-go-api
 spec:
   type: generic
-  address: "http://apprise-go-api.matrix.svc:80/notify/?:message=body&:reason=title&format=text&type=failure&tag=flux"
+  address: "http://apprise-go-api.apprise-go-api.svc:80/notify/?:message=body&:reason=title&format=text&type=failure&tag=flux"
 ---
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Provider
@@ -58,7 +61,7 @@ metadata:
     app.kubernetes.io/part-of: apprise-go-api
 spec:
   type: generic
-  address: "http://apprise-go-api.matrix.svc:80/notify/?:message=body&:reason=title&format=text&type=info&tag=tofu"
+  address: "http://apprise-go-api.apprise-go-api.svc:80/notify/?:message=body&:reason=title&format=text&type=info&tag=tofu"
 ---
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Provider
@@ -69,7 +72,7 @@ metadata:
     app.kubernetes.io/part-of: apprise-go-api
 spec:
   type: generic
-  address: "http://apprise-go-api.matrix.svc:80/notify/?:message=body&:reason=title&format=text&type=info&tag=team"
+  address: "http://apprise-go-api.apprise-go-api.svc:80/notify/?:message=body&:reason=title&format=text&type=info&tag=team"
 ---
 # Alerts: which Flux events feed which Provider (room).
 # - flux-info: all-source info stream (creates/updates/health-pass/delays +

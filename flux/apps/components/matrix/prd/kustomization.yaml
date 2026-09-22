@@ -3,15 +3,12 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # ---- apprise-go-api (internal webhook sink — no route/cert patches) (carried over from components/apprise-go-api/prd/) ----
-  # No route/cert patches: internal ClusterIP only (no HTTPRoute).
-  # Vault: per-env Proton Pass path for the stateless-URLs fallback
-  # (base holds __PROTON_PASS_BASE__ placeholders; both data entries
-  # patched — notifier token + homeserver host). Prd replica counts:
-  # stateless HA floor (2). No Deployment /spec/replicas patch: base
-  # replicas: 1 is the create-time seed, HPA owns runtime count (HPA
-  # minReplicas enforces the floor); the HPA below scales 2-4 on
-  # CPU+memory.
+  # ---- apprise-go-api consumer wiring (workload now in the infra
+  # apprise-go-api tenant — no Deployment/Service/HPA/VPA here) ----
+  # Vault: per-env Proton Pass path for the consumer-owned stateless-URLs
+  # fallback (base holds __PROTON_PASS_BASE__ placeholders; both data
+  # entries patched — notifier token + homeserver host). Providers post to
+  # the infra Service DNS (see base/notifications.yaml).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -22,17 +19,6 @@ patches:
     target:
       kind: ExternalSecret
       name: apprise-stateless-urls
-
-  - patch: |
-      - op: replace
-        path: /spec/minReplicas
-        value: 2
-      - op: replace
-        path: /spec/maxReplicas
-        value: 4
-    target:
-      kind: HorizontalPodAutoscaler
-      name: apprise-go-api
   # ---- tuwunel (homeserver) (carried over from components/tuwunel/prd/) ----
   # Prd route hostnames (tuwunel.matrix.home-ops.yansyah.my.id).
   - patch: |

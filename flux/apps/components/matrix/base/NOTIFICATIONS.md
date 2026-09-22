@@ -1,9 +1,12 @@
 # Flux -> apprise-go-api -> Matrix wiring (Goal 3)
 
 Greenfield Flux notification wiring: every Flux-native event source emits
-via apprise-go-api (internal ClusterIP sink) into per-purpose Matrix rooms
-provisioned by the reusable rooms module. notification-controller is enabled
-on both clusters; before this change zero Provider/Alert existed.
+via the infra apprise-go-api sink
+(`http://apprise-go-api.apprise-go-api.svc:80/notify` — workload lives in
+the infra `apprise-go-api` tenant, NOT this one) into per-purpose Matrix
+rooms provisioned by the reusable rooms module. notification-controller
+is enabled on both clusters; before this change zero Provider/Alert
+existed.
 
 Scope: `base/notifications.yaml` (4 generic Providers + 4 Alerts) +
 `base/apprise-go-api-secrets.yaml` (STATELESS_URLS fallback) + room example
@@ -143,6 +146,13 @@ homeserver host flow from Proton Pass through ESO (`varsFrom` for rooms,
 - `generic-hmac` parity (`SECRET_KEY(_FILE)` + `X-Signature` verification)
   only if apprise gains signature verification — today the header would
   be silently ignored.
+- Workload placement: the apprise-go-api Deployment/Service/HPA/VPA now
+  live in the infra `apprise-go-api` tenant
+  (`flux/infra/components/apprise-go-api`, credential-free); this tenant
+  keeps only the consumer-owned `apprise-stateless-urls` fallback +
+  Provider/Alert wiring. Per-request `urls` injection (dropping the
+  STATELESS_URLS fallback entirely) is follow-up work — the sink already
+  supports it (missing `urls` -> 204, no crash).
 - Fleet tenants/workflows onboarding (`tenants/apps.yaml` + image-update
   policies + `flux-apps-push.yaml` matrix): separate task.
 
