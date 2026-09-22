@@ -13,3 +13,4 @@ resources:
   - rclone-sync-coder-db.yaml
   - terraform.yaml
   - zitadel-handoff-rbac.yaml
+  - coder-matrix-handoff-rbac.yaml

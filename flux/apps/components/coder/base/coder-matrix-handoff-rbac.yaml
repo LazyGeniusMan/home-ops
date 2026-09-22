@@ -1,0 +1,55 @@
+# Narrow cross-namespace handoff grant for the coder matrix-ESO reader.
+# ESO mirrors the matrix bot bootstrap kept Secret
+# (`matrix-bot-bootstrap-outputs` in the `matrix` namespace, minted by the
+# `matrix-bot-bootstrap` Job — matrix/base/matrix-bot-bootstrap.yaml) into
+# this namespace's `matrix-notify` Secret through the cross-namespace
+# `coder-matrix` SecretStore (base/coder-secrets.yaml) — replacing the
+# retired `coder/matrix-bot-token` + `coder/matrix-host` vault fields
+# (proton-pass ClusterSecretStore, per-env dev/prd overlay patches).
+# The store authenticates as THIS namespace SA
+# `eso-matrix-handoff-reader`, so the SA needs get/list/watch on the kept
+# Secret only (resourceNames pins it) plus selfsubjectrulesreviews create
+# (ESO Kubernetes-provider validation) — and nothing else.
+# Ownership note: the Role + RoleBinding below carry explicit
+# `metadata.namespace: matrix` but are OWNED BY the coder component — they
+# ship in the coder base dir so they reconcile (and prune) with the app.
+# Same zitadel-consumer pattern as `zitadel-handoff-rbac.yaml` (coder ->
+# zitadel handoff). One bot = one token (@apprise-dev dev / @apprise prd
+# delivers to every room; only rooms differ), consumed from the bootstrap
+# kept Secret — no second rotation surface, no manual seeding. Sink base
+# URL literals stay decentralized in the `matrix-notify` ESO template
+# (base/coder-secrets.yaml); only the credential half centralizes.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-matrix-handoff-reader
+  namespace: matrix
+  labels:
+    app.kubernetes.io/name: coder
+    app.kubernetes.io/part-of: coder
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["matrix-bot-bootstrap-outputs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["selfsubjectrulesreviews"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-matrix-handoff-reader
+  namespace: matrix
+  labels:
+    app.kubernetes.io/name: coder
+    app.kubernetes.io/part-of: coder
+subjects:
+  - kind: ServiceAccount
+    name: eso-matrix-handoff-reader
+    namespace: coder
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-matrix-handoff-reader

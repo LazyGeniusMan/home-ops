@@ -141,8 +141,9 @@ spec:
         # string, and HelmRelease chart env entries accept
         # valueFrom.secretKeyRef — so ESO `matrix-notify`
         # (base/coder-secrets.yaml) templates the FULL endpoint value from
-        # coder-owned vault fields (coder/matrix-bot-token +
-        # coder/matrix-host) and the endpoint below reads it via secretKeyRef
+        # the matrix bot bootstrap kept Secret (`notifier-token` +
+        # `homeserver-host` via the `coder-matrix` SecretStore) and the
+        # endpoint below reads it via secretKeyRef
         # (key `webhook-endpoint`). The composed endpoint is the sink base +
         # `type=info&format=text` + the matrixs:// notifier URL carried as a
         # URL-encoded `urls` FORM FIELD inside the endpoint's query string —
@@ -150,9 +151,10 @@ spec:
         # same form path... precisely: the sink reads `urls` from the POST
         # body (form or JSON), NOT the query string — see the gap note in
         # NOTIFICATIONS.md for why the endpoint-embedded form still needs
-        # the documented injector follow-up, and why this split (coder-owned
-        # vault -> coder ES -> coder env -> sink per-request urls, zero
-        # matrix-tenant secret involved) is still the correct decoupled
+        # the documented injector follow-up, and why this split (kept Secret
+        # -> coder ES -> coder env -> sink per-request urls, zero vault +
+        # zero matrix-tenant secret involved) is still the correct
+        # decoupled
         # end-state versus silent centralization. `CODER_MATRIX_APPRISE_URLS`
         # (same Secret, key `apprise-urls`) exposes the BARE matrixs:// URL
         # for the injector / operator use. Room alias `coder-notifications`
