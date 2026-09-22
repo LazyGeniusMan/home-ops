@@ -18,7 +18,8 @@ Field count per env: **12** Proton Pass fields (1 cert-manager + 1
 registration-secret + 8 mautrix-discord + 2 element-web). The 5 retired
 `matrix-rooms/*` bot fields (notifier + room-provider) are BOOTSTRAPPED
 in-cluster now (see "Retired" below) — do NOT reseed them. Coder's 2
-notifier fields live in the CODER tenant's seed table, not here.
+notifier fields (`coder/matrix-*`) are RETIRED too — coder consumes the
+kept Secret cross-namespace now (see "Retired" below).
 Everything
 else in this tenant is minted in-cluster (COSI, Terraform outputs, CNPG,
 bootstrap kept Secret) and needs NO seeding — see "Not vault-seeded"
@@ -95,9 +96,11 @@ pass insert 'acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-token'
   files are copy-paste skeletons for TEAM namespaces only
   (`team-terraform.yaml` stays example-only — no team room here).
 - **Coder notifier fields** (`coder/matrix-bot-token`, `coder/matrix-host`):
-  NOT this tenant — they live in the CODER seed table (coder owns its
-  credential; see the coder README credentials section). Zero
-  `matrix-rooms` refs in the coder namespace.
+  RETIRED — coder's `matrix-notify` ES reads the kept Secret
+  (`notifier-token`/`homeserver-host`) cross-namespace now; they never
+  lived in this tenant's seed table (see the coder README credentials
+  section). Zero vault refs, zero `matrix-rooms` refs in the coder
+  namespace.
 - **In-namespace plumbing**: `eso-k8s-reader` RBAC, `kube-root-ca.crt`,
   the wildcard TLS Secret minted by cert-manager. No seeding.
 
@@ -110,8 +113,13 @@ pass insert 'acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-token'
 - `matrix-rooms/homeserver-url` + `matrix-rooms/bot-access-token` +
   `matrix-rooms/bot-user-id`: RETIRED — rooms.yaml reads the kept Secret
   directly. Old vault entries may stay as rollback, NOT referenced.
-- `coder/matrix-bot-token` + `coder/matrix-host`: NEW coder-owned paths
-  (NOT this table — see the coder README credentials section).
+- `coder/matrix-bot-token` + `coder/matrix-host`: RETIRED — coder's
+  `matrix-notify` ES now reads the bootstrapped `notifier-token` /
+  `homeserver-host` from the kept Secret cross-namespace (narrow
+  `coder-matrix-handoff-reader` Role/Binding in ns `matrix` +
+  `coder-matrix` SecretStore, owned by the coder component). Old vault
+  entries may stay as rollback, NOT referenced (see the coder README
+  credentials section).
 
 ## Cross-check (READMEs consulted)
 

@@ -171,23 +171,26 @@ entries stay seeded as rollback, and `cloudflare-api-token` follows the
 §9 vault path so the DNS-01 secret exists in this namespace too. Seed
 each remaining vault entry with pass-cli.
 
-Coder-owned Matrix notifier (DECOUPLED — no matrix-tenant fallback leg,
+Coder-owned Matrix notifier (BOOTSTRAPPED — no matrix-tenant fallback leg,
 no `apprise-coder` Provider; see matrix `base/NOTIFICATIONS.md` ownership
-table): `ExternalSecret/matrix-notify` composes TWO keys from coder-owned
-vault fields in ESO `target.template` (proton-pass ClusterSecretStore):
+table): `ExternalSecret/matrix-notify` composes TWO keys from the matrix
+bot bootstrap kept Secret in ESO `target.template` (cross-namespace
+`coder-matrix` SecretStore — zitadel-consumer pattern; zero vault seeding):
 
-| Vault field (per env `pass://acme-<env>-bdo1-talos-apps-01/...`) | Secret key | Consumed by | Value notes |
+| Kept-Secret key (`matrix-bot-bootstrap-outputs`, ns `matrix`) | Secret key | Consumed by | Value notes |
 |---|---|---|---|
-| `coder/matrix-bot-token` | `matrix-notify` → `matrix-notify` (`apprise-urls` bare + `webhook-endpoint` full) | `CODER_MATRIX_APPRISE_URLS` + `CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT` (valueFrom.secretKeyRef in `base/coder.yaml`) | Per-env notifier bot token; never shared across envs; NEVER `matrix-rooms/*` |
-| `coder/matrix-host` | (same ES/Secret) | (same — the `<host>` half of the composed `matrixs://` URL) | Bare host, NO scheme: dev `tuwunel.matrix.homelab-dev.yansyah.my.id`, prd `tuwunel.matrix.home-ops.yansyah.my.id` |
+| `notifier-token` | `matrix-notify` → `matrix-notify` (`apprise-urls` bare + `webhook-endpoint` full) | `CODER_MATRIX_APPRISE_URLS` + `CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT` (valueFrom.secretKeyRef in `base/coder.yaml`) | The SAME per-env bot token that delivers to every room (`@apprise-dev` dev / `@apprise` prd); only rooms differ |
+| `homeserver-host` | (same ES/Secret) | (same — the `<host>` half of the composed `matrixs://` URL) | Bare host, NO scheme (dev `tuwunel.matrix.homelab-dev.yansyah.my.id`, prd `tuwunel.matrix.home-ops.yansyah.my.id` — minted by the Job, never Git) |
 
-```shell
-pass insert 'acme-dev-bdo1-talos-apps-01/coder/matrix-bot-token'
-pass insert 'acme-dev-bdo1-talos-apps-01/coder/matrix-host'
-# repeat with acme-prd-bdo1-talos-apps-01 for prd
-```
+Retired (do NOT reseed — bootstrapped): `coder/matrix-bot-token` +
+`coder/matrix-host` — the notifier credential now flows Job -> kept Secret
+-> this ES cross-namespace (narrow `coder-matrix-handoff-reader`
+Role/Binding in ns `matrix` + `coder-matrix` SecretStore in
+`base/coder-secrets.yaml`). Old vault entries may stay as rollback, NOT
+referenced.
 
-Data-flow: vault `coder/matrix-*` -> ES `matrix-notify` -> Secret
+Data-flow: Job -> kept Secret `matrix-bot-bootstrap-outputs` (ns
+`matrix`) -> ES `matrix-notify` (coder-matrix store) -> Secret
 `matrix-notify` -> HelmRelease env -> sink per-request `urls` (body).
 Known gap (documented in matrix NOTIFICATIONS.md): the sink reads `urls`
 from the POST body only and coderd's payload is fixed, so live delivery
