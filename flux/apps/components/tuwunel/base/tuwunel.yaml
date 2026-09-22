@@ -1,0 +1,231 @@
+# Tuwunel Matrix homeserver (fresh install, federation-off).
+# - Deployment: replicas 1, strategy Recreate (RocksDB is single-writer; a
+#   second replica must never open the same database_path). Single RWO PVC
+#   (tuwunel-data, storageClassName local-ssd-nvme — the repo default class)
+#   mounted at /var/lib/tuwunel = TUWUNEL_DATABASE_PATH.
+# - Probes: exec ["tuwunel", "--health-check"] for all three (per the
+#   upstream kubernetes.md: startup failureThreshold 180 x 10s = 30 min
+#   migration budget — kubelet runs neither liveness nor readiness while
+#   startup fails, so migrations are never killed mid-flight; a pod with no
+#   readiness probe would route traffic before the listener opens, hence all
+#   three). terminationGracePeriodSeconds 600 (raised past the 30s default
+#   per the same doc — a kill mid-migration leaves RocksDB half-migrated).
+# - Service: single ClusterIP port 8008 (tuwunel default `port`; set
+#   explicitly via TUWUNEL_PORT so the listener never drifts from the route).
+# - Config is env-only (no ConfigMap/toml in git): every TUWUNEL_* var maps
+#   1:1 to a tuwunel-example.toml key (docs/configuration.mdc), including the
+#   indexed `TUWUNEL_IDENTITY_PROVIDER__0__*` array-table form verified in
+#   docs/authentication/providers/{keycloak,mas}.md and the
+#   `TUWUNEL_STORAGE_PROVIDER__MEDIA_ON_S3__S3__*` form verified in
+#   docs/media/storage.md. Base holds __PLACEHOLDERS__ (repo convention);
+#   dev/prd overlays patch real hosts. POSITIONAL: overlays patch
+#   /spec/template/spec/containers/0/env/{0,5,24,25}/value by index, so this
+#   order must not change without updating the overlays.
+# - Secrets (SSO client id/secret, S3 keys) arrive via explicit secretKeyRef
+#   envs + a read-only file mount from ESO Secrets — never literals in git,
+#   and never envFrom (the ESO keys contain dashes, which are invalid env
+#   names and would be silently skipped by kubelet). client_secret rides
+#   CLIENT_SECRET_FILE (brief contract; read at startup and on each OAuth
+#   exchange). client_id rides secretKeyRef; the callback URL embeds it via
+#   k8s $(VAR) expansion so no generated id ever lands in git.
+# - server_name is IMMUTABLE (database wipe to change): per-env value
+#   patched by the overlays; prd tuwunel.matrix.home-ops.yansyah.my.id.
+# - Federation-off BEFORE first room (brief contract): allow_federation +
+#   federate_created_rooms + federate_admin_room all false, plus the two
+#   assert-off keys; m.federate pin documented in README (rooms freeze the
+#   setting at creation).
+# - No HPA (singleton) — VPA owns sizing (tuwunel-vpa.yaml).
+# - Image pinned to the docs-snapshot version (Cargo.toml 1.9.2,
+#   ghcr.io/matrix-construct/tuwunel); no $imagepolicy marker yet — see
+#   README follow-up (update-policies/tuwunel.yaml).
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tuwunel-data
+  labels:
+    app.kubernetes.io/name: tuwunel
+    app.kubernetes.io/part-of: tuwunel
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-ssd-nvme
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tuwunel
+  labels:
+    app.kubernetes.io/name: tuwunel
+    app.kubernetes.io/part-of: tuwunel
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tuwunel
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tuwunel
+        app.kubernetes.io/part-of: tuwunel
+    spec:
+      terminationGracePeriodSeconds: 600
+      containers:
+        - name: tuwunel
+          image: ghcr.io/matrix-construct/tuwunel:v1.9.2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8008
+          env:
+            - name: TUWUNEL_SERVER_NAME
+              value: __TUWUNEL_MATRIX_HOST__
+            - name: TUWUNEL_DATABASE_PATH
+              value: /var/lib/tuwunel
+            - name: TUWUNEL_ADDRESS
+              value: '["0.0.0.0"]'
+            - name: TUWUNEL_PORT
+              value: "8008"
+            - name: TUWUNEL_IP_SOURCE
+              value: rightmost_x_forwarded_for
+            - name: TUWUNEL_WELL_KNOWN__CLIENT
+              value: https://__TUWUNEL_MATRIX_HOST__
+            - name: TUWUNEL_ALLOW_REGISTRATION
+              value: "false"
+            - name: TUWUNEL_ALLOW_GUEST_REGISTRATION
+              value: "false"
+            - name: TUWUNEL_LOGIN_WITH_PASSWORD
+              value: "false"
+            - name: TUWUNEL_LOGIN_VIA_TOKEN
+              value: "true"
+            - name: TUWUNEL_ALLOW_FEDERATION
+              value: "false"
+            - name: TUWUNEL_FEDERATE_CREATED_ROOMS
+              value: "false"
+            - name: TUWUNEL_FEDERATE_ADMIN_ROOM
+              value: "false"
+            - name: TUWUNEL_ALLOW_PUBLIC_ROOM_DIRECTORY_OVER_FEDERATION
+              value: "false"
+            - name: TUWUNEL_ALLOW_DEVICE_NAME_FEDERATION
+              value: "false"
+            - name: TUWUNEL_MEDIA_STORAGE_PROVIDERS
+              value: '["media", "media_on_s3"]'
+            - name: TUWUNEL_STORE_MEDIA_ON_PROVIDERS
+              value: '["media_on_s3"]'
+            - name: TUWUNEL_MEDIA_STARTUP_CHECK
+              value: "true"
+            - name: TUWUNEL_GRANT_ADMIN_TO_FIRST_USER
+              value: "true"
+            - name: TUWUNEL_CREATE_ADMIN_ROOM
+              value: "true"
+            - name: TUWUNEL_SSO_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: tuwunel-sso-client
+                  key: client-id
+            - name: TUWUNEL_IDENTITY_PROVIDER__0__BRAND
+              value: zitadel
+            - name: TUWUNEL_IDENTITY_PROVIDER__0__CLIENT_ID
+              value: $(TUWUNEL_SSO_CLIENT_ID)
+            - name: TUWUNEL_IDENTITY_PROVIDER__0__CLIENT_SECRET_FILE
+              value: /etc/tuwunel-sso/client-secret
+            - name: TUWUNEL_IDENTITY_PROVIDER__0__ISSUER_URL
+              value: https://__ZITADEL_ISSUER_HOST__
+            - name: TUWUNEL_IDENTITY_PROVIDER__0__CALLBACK_URL
+              value: https://__TUWUNEL_MATRIX_HOST__/_matrix/client/unstable/login/sso/callback/$(TUWUNEL_SSO_CLIENT_ID)
+            - name: TUWUNEL_IDENTITY_PROVIDER__0__TRUSTED
+              value: "true"
+            - name: TUWUNEL_IDENTITY_PROVIDER__0__USERID_CLAIMS
+              value: '["preferred_username", "email"]'
+            - name: TUWUNEL_IDENTITY_PROVIDER__0__UNIQUE_ID_FALLBACKS
+              value: "false"
+            - name: TUWUNEL_IDENTITY_PROVIDER__0__REGISTRATION
+              value: "true"
+            - name: TUWUNEL_STORAGE_PROVIDER__MEDIA_ON_S3__S3__BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: tuwunel-s3
+                  key: bucket
+            - name: TUWUNEL_STORAGE_PROVIDER__MEDIA_ON_S3__S3__REGION
+              value: us-east-1
+            - name: TUWUNEL_STORAGE_PROVIDER__MEDIA_ON_S3__S3__KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tuwunel-s3
+                  key: access-key-id
+            - name: TUWUNEL_STORAGE_PROVIDER__MEDIA_ON_S3__S3__SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: tuwunel-s3
+                  key: secret-access-key
+            - name: TUWUNEL_STORAGE_PROVIDER__MEDIA_ON_S3__S3__ENDPOINT
+              value: http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333
+            - name: TUWUNEL_STORAGE_PROVIDER__MEDIA_ON_S3__S3__BASE_PATH
+              value: tuwunel-media
+            - name: TUWUNEL_STORAGE_PROVIDER__MEDIA_ON_S3__S3__USE_VHOST_REQUEST
+              value: "false"
+          startupProbe:
+            exec:
+              command: ["tuwunel", "--health-check"]
+            periodSeconds: 10
+            failureThreshold: 180
+          livenessProbe:
+            exec:
+              command: ["tuwunel", "--health-check"]
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["tuwunel", "--health-check"]
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+          volumeMounts:
+            - name: tuwunel-data
+              mountPath: /var/lib/tuwunel
+            - name: tuwunel-sso-client
+              mountPath: /etc/tuwunel-sso/client-secret
+              subPath: client-secret
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: tuwunel-data
+          persistentVolumeClaim:
+            claimName: tuwunel-data
+        - name: tuwunel-sso-client
+          secret:
+            secretName: tuwunel-sso-client
+            defaultMode: 0400
+            items:
+              - key: client-secret
+                path: client-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tuwunel
+  labels:
+    app.kubernetes.io/name: tuwunel
+    app.kubernetes.io/part-of: tuwunel
+spec:
+  selector:
+    app.kubernetes.io/name: tuwunel
+  ports:
+    - name: http
+      port: 8008
+      targetPort: 8008

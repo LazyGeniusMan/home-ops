@@ -1,0 +1,31 @@
+# VPA applier for the tuwunel Deployment (RocksDB singleton, NO HPA):
+# updateMode Auto (modern Recreate — evict-and-recreate; in-place needs
+# VPA 1.x which the pinned 0.12.0 chart does not ship). Safe here because
+# the Deployment strategy is already Recreate (brief contract) and no PDB
+# gates the eviction — a resize IS a restart, same as any rollout. minReplicas
+# 1: the updater default --min-replicas=2 (vpa.yaml flags note) never evicts
+# single-replica targets, and no PDB exists here — without this the CR would
+# recommend-but-never-apply (same rationale as the tofu-controller and
+# external-dns-netbird singleton VPAs). minAllowed guards the RocksDB page
+# cache / LRU budget (TUWUNEL_DB_CACHE_CAPACITY_MB default varies by system
+# per tuwunel-example.toml, so the floor — not the ceiling — is what matters):
+# recommendations below it would starve reads and stall compactions.
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: tuwunel
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: tuwunel
+  updatePolicy:
+    updateMode: Auto
+    minReplicas: 1
+  resourcePolicy:
+    containerPolicies:
+      - containerName: tuwunel
+        minAllowed:
+          cpu: 100m
+          memory: 512Mi

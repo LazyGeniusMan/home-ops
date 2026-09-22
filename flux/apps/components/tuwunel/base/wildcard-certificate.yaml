@@ -1,0 +1,21 @@
+# In-namespace wildcard Certificate (same pattern as hubble-ui and
+# flux-operator-ui): cert-manager Secrets are namespace-local, so this
+# duplicate Certificate mints __WILDCARD_TLS_SECRET__ HERE via the shared
+# ClusterIssuer/letsencrypt DNS-01 solver for *.__BASE_DOMAIN__. The
+# cloudflare-api-token ExternalSecret (tuwunel-secrets.yaml) mirrors
+# cert-manager/configs/base/cluster-issuer.yaml (same Proton Pass remoteRef)
+# so the DNS-01 solver credential exists in this namespace too.
+# Covers the nested tuwunel.matrix.__BASE_DOMAIN__ service hostname (per the
+# Gateway API spec a `*.` hostname matches dots to the left).
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: __WILDCARD_CERT_NAME__
+spec:
+  secretName: __WILDCARD_TLS_SECRET__
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.__BASE_DOMAIN__"

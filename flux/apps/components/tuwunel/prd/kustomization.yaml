@@ -1,0 +1,77 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+patches:
+  # Prd route hostnames (tuwunel.matrix.home-ops.yansyah.my.id).
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: tuwunel.matrix.home-ops.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: tuwunel-redirect
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: tuwunel.matrix.home-ops.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: tuwunel-tls
+  # No tuwunel-sso-client vault patches: client_id + client_secret flow
+  # end-to-end from the tuwunel-sso outputs Secret via the in-cluster
+  # `tuwunel-k8s` SecretStore (base/tuwunel-secrets.yaml).
+  # (S3 keys are COSI-minted via the tuwunel-cosi SecretStore — no
+  # per-env vault ref patch for tuwunel-s3.)
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+    target:
+      kind: ExternalSecret
+      name: cloudflare-api-token
+  # Prd wildcard Certificate (wildcard-home-ops).
+  - patch: |
+      - op: replace
+        path: /metadata/name
+        value: wildcard-home-ops
+    target:
+      kind: Certificate
+      name: __WILDCARD_CERT_NAME__
+  - patch: |
+      - op: replace
+        path: /spec/secretName
+        value: wildcard-home-ops-tls
+    target:
+      kind: Certificate
+      name: wildcard-home-ops
+  - patch: |
+      - op: replace
+        path: /spec/dnsNames/0
+        value: "*.home-ops.yansyah.my.id"
+    target:
+      kind: Certificate
+      name: wildcard-home-ops
+  # Prd identity: server_name + well-known client + Zitadel issuer +
+  # SSO callback. POSITIONAL: /spec/template/spec/containers/0/env/0
+  # (SERVER_NAME) + /env/5 (WELL_KNOWN__CLIENT) + /env/24 (ISSUER_URL) +
+  # /env/25 (CALLBACK_URL) — see the order note in base/tuwunel.yaml.
+  # The callback embeds the per-env matrix host; the client_id suffix
+  # rides k8s $(TUWUNEL_SSO_CLIENT_ID) expansion, so no generated id
+  # ever lands in git.
+  - patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: tuwunel.matrix.home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/template/spec/containers/0/env/5/value
+        value: https://tuwunel.matrix.home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/template/spec/containers/0/env/24/value
+        value: https://admin.zitadel.home-ops.yansyah.my.id
+      - op: replace
+        path: /spec/template/spec/containers/0/env/25/value
+        value: https://tuwunel.matrix.home-ops.yansyah.my.id/_matrix/client/unstable/login/sso/callback/$(TUWUNEL_SSO_CLIENT_ID)
+    target:
+      kind: Deployment
+      name: tuwunel
