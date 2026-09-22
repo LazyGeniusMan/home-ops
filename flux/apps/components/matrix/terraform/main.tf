@@ -1,6 +1,6 @@
-# Thin root over ./module — shipped inside the apps/matrix-rooms OCI artifact
-# (flux/apps/components/matrix-rooms/terraform/). Consumers (one Terraform CR
-# per room, or per team space) reference this root via cross-namespace
+# Thin root over ./module — shipped inside the apps/matrix OCI artifact
+# (flux/apps/components/matrix/terraform/). Consumers (one Terraform CR
+# per room, or per team space) reference this root via same-namespace
 # sourceRef + their own vars, mirroring the infra/zitadel shared root.
 #
 # Flat single layer: provider auth + exactly one module call. No child

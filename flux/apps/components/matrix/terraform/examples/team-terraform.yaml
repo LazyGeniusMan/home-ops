@@ -1,21 +1,25 @@
-# Example consumer: tofu-runs room (per-run Terraform log, BOT posts only).
-# Same shape as flux-notifications-terraform.yaml: copy into
-# flux/apps/components/<team>/base/terraform.yaml alongside it (one Terraform
-# CR per room), rename every flux-notifications-*, replace mxids/hostnames.
-# Feeds from the `tofu-runs` Alert (Kustomization+HelmRelease info events
-# filtered to Terraform messages via inclusionList — see
-# flux/apps/components/matrix/base/NOTIFICATIONS.md). Overlaps the
-# flux room by design (tofu events post to BOTH rooms).
+# Example consumer: per-team opt-in room template (SUSPENDED by pairing, not
+# by CR — the Terraform CR below is live, but nothing posts until a team
+# Alert targets it).
+#
+# Copy into flux/apps/components/<team>/base/terraform.yaml, rename every
+# placeholder (room name/alias `team` -> e.g. `payments`, the member mxid,
+# the bot face), and wire the matching Alert: copy the suspended
+# `team-optin` Alert from flux/apps/components/matrix/base/
+# notifications.yaml, set eventSources[].namespace to the team tenant
+# namespace, and unsuspend it. The `apprise-team` Provider address already
+# carries `tag=team`, and the STATELESS_URLS fallback already has a
+# `.../%23team?tag=team...` leg — but that leg points at the literal `#team`
+# alias, so either (a) name the room alias `team` (single shared opt-in
+# room), or (b) give the team its own room alias AND extend the fallback
+# with a `?tag=<team>` leg pointing at it (the Provider tag must equal a
+# fallback server tag or requests 204). See NOTIFICATIONS.md tag scheme.
 #
 # Notification-only power lock (events_default 50) + plaintext
 # (encryption_enabled false): same rationale as the flux room header — the
 # stateless apprise notifier has no Olm persistence, so E2EE rooms are
-# unreadable to it. Upstream wiring (varsFrom Secret, OCI sourceRef, no
-# dependsOn, writeOutputsToSecret): identical to the flux example.
+# unreadable to it.
 ---
-# Vars mirror: shared with the flux-notifications CR (same Secret, same
-# vault keys — one `pass insert` per env covers every room). This doc block
-# duplicates so each example file is self-contained when copied.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
@@ -41,7 +45,7 @@ spec:
 apiVersion: infra.contrib.fluxcd.io/v1alpha2
 kind: Terraform
 metadata:
-  name: tofu-runs
+  name: team
 spec:
   interval: 30m
   approvePlan: auto
@@ -50,13 +54,13 @@ spec:
   sourceRef:
     kind: OCIRepository
     name: apps
-    namespace: matrix-rooms
+    namespace: matrix
   path: ./terraform
   vars:
     - name: room_name
-      value: tofu-runs
+      value: team
     - name: topic
-      value: Terraform/tofu per-run log (bot posts, humans read)
+      value: Per-team opt-in notifications (bot posts, humans read)
     - name: preset
       value: private_chat
     - name: visibility
@@ -64,26 +68,26 @@ spec:
     - name: history_visibility
       value: shared
     - name: room_alias_name
-      value: tofu-runs
+      value: team
     - name: encryption_enabled
       value: false
     - name: events_default
       value: 50
     - name: members
       value:
-        "@oncall-lead:__SERVER_NAME__": invite
+        "@team-lead:__SERVER_NAME__": invite
     - name: power_levels
       value:
-        "@oncall-lead:__SERVER_NAME__": 50
+        "@team-lead:__SERVER_NAME__": 50
     - name: join_rule
       value: invite
     - name: bot_room_display_name
-      value: Tofu Runner
+      value: Team Notifier
   varsFrom:
     - kind: Secret
       name: matrix-rooms-terraform-vars
   writeOutputsToSecret:
-    name: tofu-runs-outputs
+    name: team-outputs
     outputs:
       - room_id
       - canonical_alias

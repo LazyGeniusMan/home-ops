@@ -8,7 +8,7 @@ the Secrets (pods pend + Flux retries until then).
 
 Vault naming: `pass://acme-<env>-bdo1-talos-apps-01/<path>` where
 `<env>` is `dev` or `prd`. The `pass insert` shape drops the `pass://`
-scheme (same convention as `matrix-rooms/terraform/README.md`):
+scheme (same convention as `matrix/terraform/README.md`):
 
 ```shell
 pass insert 'acme-<env>-bdo1-talos-apps-01/<path>'
@@ -84,7 +84,7 @@ pass insert 'acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-token'
 - **matrix-rooms bot fields** (`matrix-rooms/homeserver-url`,
   `bot-access-token`, `bot-user-id`): consumed by room-provisioning
   Terraform CRs that live in TEAM namespaces (see
-  `matrix-rooms/examples/` + `matrix-rooms/terraform/README.md`), NOT by
+  `matrix/terraform/examples/` + `matrix/terraform/README.md`), NOT by
   this tenant. Related but separate: the apprise fallback above uses
   `matrix-rooms/notifier-bot-token` + `homeserver-host` (same vault
   area, different fields).

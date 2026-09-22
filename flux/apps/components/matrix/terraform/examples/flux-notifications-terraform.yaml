@@ -21,12 +21,12 @@
 # netbird consumer example). Keys land under the module var names so
 # `varsFrom` below needs no varsKeys renames. NO token literal in git, NO
 # manual per-env fill.
-# Backend: in-cluster Kubernetes default (state Secrets in the matrix-rooms
-# namespace) — no backendConfig needed. Drift detection stays on (default).
+# Backend: in-cluster Kubernetes default (state Secrets in the consumer
+# team's namespace) — no backendConfig needed. Drift detection stays on (default).
 # Outputs: room_id + canonical_alias land in `flux-notifications-outputs`;
 # notifiers read the room ID from that Secret through the in-cluster store —
 # never Git, never Proton Pass.
-# First-run prerequisite: the bootstrap runbook (../terraform/README.md)
+# First-run prerequisite: the bootstrap runbook (../README.md)
 # minted the bot + token once per env. Without the
 # `matrix-rooms-terraform-vars` Secret the CR retries on interval.
 ---
@@ -74,15 +74,14 @@ spec:
   # destroy` path exists via Flux; drift detection stays on (default).
   destroy: false
   destroyResourcesOnDeletion: false
-  # Shared reusable rooms root: the apps/matrix-rooms OCI artifact (namespace
-  # `matrix-rooms`) packs flux/apps/components/matrix-rooms/terraform/ at
-  # ./terraform. Cross-namespace sourceRef is allowed by
-  # allowCrossNamespaceRefs=true on the tofu-controller — no per-team
+  # Shared reusable rooms root: the apps/matrix OCI artifact (namespace
+  # `matrix`) packs flux/apps/components/matrix/terraform/ at
+  # ./terraform. Same-namespace sourceRef — no per-team
   # terraform/ root, no git-SHA module pin.
   sourceRef:
     kind: OCIRepository
     name: apps
-    namespace: matrix-rooms
+    namespace: matrix
   path: ./terraform
   # Plain (non-sensitive) per-room values; secrets (homeserver_url,
   # access_token, user_id) come from varsFrom below. varsFrom overrides vars

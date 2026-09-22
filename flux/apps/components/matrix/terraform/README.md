@@ -3,7 +3,7 @@
 Machine-applied by Tofu Controller. Owns ONLY per-team rooms/spaces on the
 tuwunel homeserver (`tuwunel.matrix.home-ops.yansyah.my.id`, sibling task):
 the shared root here (`main.tf` + `module/`) plus one consumer Terraform CR
-per room (see `../examples/flux-notifications-terraform.yaml`).
+per room (see `./examples/flux-notifications-terraform.yaml`).
 
 The provider (`raspbeguy/matrix ~> 0.5`) has **no user/token resources**, so
 the bot + token are bootstrapped ONCE outside Terraform (runbook below).
@@ -23,7 +23,7 @@ manual per-env fill. Same-namespace `varsFrom` CANNOT cross namespaces (no
 namespace field) — direct vault read through the cluster-scoped
 `proton-pass` ClusterSecretStore, same pattern as the netbird consumer
 example. Backend: in-cluster Kubernetes default (state Secrets in the
-`matrix-rooms` namespace) — no backendConfig needed. Drift detection stays
+consumer team's namespace) — no backendConfig needed. Drift detection stays
 on (default). Outputs (`room_id`, `canonical_alias`, `bot_user_id`) land in
 `<room>-outputs` via `writeOutputsToSecret`.
 
@@ -115,12 +115,12 @@ token, never a password).
 ## State backend + CR shape
 
 - Backend: tofu-controller in-cluster Kubernetes default — state lives in
-  Secrets in the `matrix-rooms` namespace; no `backendConfig`, no remote
+  Secrets in the consumer team's namespace; no `backendConfig`, no remote
   state, no cross-slice reads.
 - Secret refs: `MATRIX_HOMESERVER_URL` → `homeserver_url`,
   `MATRIX_ACCESS_TOKEN` → `access_token`, `MATRIX_USER_ID` → `user_id`
   (provider env fallbacks; explicit CR vars win on collision).
-- CR shape: `sourceRef` (apps/matrix-rooms OCI artifact, `path:
+- CR shape: `sourceRef` (apps/matrix OCI artifact, `path:
   ./terraform`) + plain `vars` (room config) + `varsFrom`
   (`matrix-rooms-terraform-vars`) + `writeOutputsToSecret`
   (`<room>-outputs`: `room_id`, `canonical_alias`, `bot_user_id`).
@@ -129,7 +129,7 @@ token, never a password).
 ## Usage (manual, no live apply in CI)
 
 ```shell
-cd flux/apps/components/matrix-rooms/terraform
+cd flux/apps/components/matrix/terraform
 tofu init -backend=false
 tofu validate
 ```

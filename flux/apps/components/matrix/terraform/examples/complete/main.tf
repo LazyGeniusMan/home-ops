@@ -9,7 +9,7 @@
 # stateless apprise notifier has no Olm persistence, so E2EE rooms are
 # unreadable to it; irreversible at creation).
 #
-#   cd flux/apps/components/matrix-rooms/examples/complete
+#   cd flux/apps/components/matrix/terraform/examples/complete
 #   tofu init -backend=false && tofu validate
 
 terraform {
@@ -28,7 +28,7 @@ provider "matrix" {
 }
 
 module "flux_notifications" {
-  source = "../../terraform/module"
+  source = "../../module"
 
   room_name          = "flux-notifications"
   topic              = "Flux + Apprise delivery receipts (bot posts, humans read)"
@@ -52,7 +52,7 @@ module "flux_notifications" {
 }
 
 module "tofu_runs" {
-  source = "../../terraform/module"
+  source = "../../module"
 
   room_name          = "tofu-runs"
   topic              = "Terraform/tofu per-run log (bot posts, humans read)"

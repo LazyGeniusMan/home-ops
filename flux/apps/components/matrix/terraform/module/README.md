@@ -59,7 +59,7 @@ module "flux_notifications" {
 
 The thin root (`../`) exposes the same vars plus `homeserver_url` /
 `access_token` / `user_id` provider auth; the consumer Terraform CR
-(`../../examples/flux-notifications-terraform.yaml`) renders the plain vars
+(`../examples/flux-notifications-terraform.yaml`) renders the plain vars
 and injects the secrets via `varsFrom`.
 
 ## Import paths
