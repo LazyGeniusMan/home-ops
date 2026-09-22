@@ -68,6 +68,12 @@ spec:
   values:
     # Strict kube-proxy replacement: Talos runs with kube-proxy disabled.
     kubeProxyReplacement: true
+    # LRP for the node-local DNS cache (§8.3): CiliumLocalRedirectPolicy
+    # `nodelocaldns` (configs/base/node-local-dns-lrp.yaml) steers the
+    # kube-dns VIP to the cache pod on the same node. CRD ships with the
+    # chart (ciliumlocalredirectpolicies.cilium.io).
+    localRedirectPolicies:
+      enabled: true
     # Talos K8s API VIP (Layer2VIP) — NOT the LB pool VIP (__LB_VIP__),
     # see README. Placeholder patched per environment: prd 192.168.1.198,
     # dev 192.168.1.248.
