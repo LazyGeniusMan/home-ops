@@ -1,0 +1,25 @@
+# Update policy for the element-web app: tracks the upstream Element Web
+# image, and the ImageUpdateAutomation (update cluster) opens PRs via the
+# marker in components/element-web/base/element-web.yaml. Follows the §7
+# update-policy contract (ImageRepository + ImagePolicy + $imagepolicy
+# markers).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: element-web
+spec:
+  image: "vectorim/element-web"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: element-web
+spec:
+  imageRepositoryRef:
+    name: element-web
+  policy:
+    semver:
+      range: ">=1.12.28"
