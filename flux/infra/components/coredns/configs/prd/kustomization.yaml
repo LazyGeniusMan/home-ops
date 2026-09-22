@@ -12,7 +12,13 @@ patches:
         value: |-
               cluster.local:53 in-addr.arpa:53 ip6.arpa:53 {
                   errors
-                  cache 30
+                  # Split cache: node-local caches front this server over TCP and only
+                  # forward misses, so absorb repeat NXDOMAIN storms with short denial
+                  # TTL while keeping success at the kubernetes plugin ttl (30s).
+                  cache {
+                      success 9984 30
+                      denial 9984 5
+                  }
                   kubernetes cluster.local in-addr.arpa ip6.arpa {
                       pods insecure
                       fallthrough in-addr.arpa ip6.arpa

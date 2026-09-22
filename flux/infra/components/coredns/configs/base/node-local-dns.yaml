@@ -1,0 +1,207 @@
+# Node-local DNS cache (§8.3): DaemonSet of CoreDNS cache instances (one per
+# node) + the stable upstream Service + cache Corefile. Pods keep using the
+# kube-dns VIP (10.96.0.10); the CiliumLocalRedirectPolicy in the cilium
+# component (configs/base/node-local-dns-lrp.yaml) steers that VIP to the
+# cache pod on the same node, cutting the cross-node hop + conntrack load.
+# Design notes:
+# - Pod network, NOT hostNetwork (Cilium LRP replaces the classic dummy
+#   interface + iptables hijack): hostNetwork unset (defaults false),
+#   dnsPolicy Default, -setupinterface=false -setupiptables=false
+#   -skipteardown=true. Requires node-cache image >= 1.15.16 (knobs to
+#   disable interface/iptables setup); pinned 1.26.8 (matches upstream
+#   nodelocaldns.yaml master).
+# - bind-all: -localip 0.0.0.0 + `bind 0.0.0.0` in every server block, so the
+#   pod answers on its pod IP (where LRP delivers the redirected packets).
+# - Fully concrete Corefile — NO __PILLAR__ placeholders: the classic
+#   sed-substitution step does not exist in this GitOps flow. The upstream
+#   Service gets a STATIC ClusterIP (10.96.0.11, next after the kube-dns
+#   .10 break-glass) so the cache forward target is a literal. Same
+#   silent-break class as kube-dns .10: if talos/ ever overrides
+#   serviceSubnet, both statics MUST move (see controllers/base/kube-dns.yaml).
+# - kube-dns-upstream selector pins the chart pods' stable
+#   app.kubernetes.io labels (same pin as the kube-dns Service). It does NOT
+#   select `k8s-app: kube-dns`: the coredns chart renders pods with
+#   k8s-app=coredns (k8sapplabel defaults to Chart.Name), so that selector
+#   would match nothing and blackhole the cache upstream.
+# - health/ready live ONLY in the cluster.local block (one listener each on
+#   :8080/:8181 — repeating them per block would collide); prometheus :9253
+#   in every block mirrors the upstream reference manifest.
+# - Explicit `namespace: kube-system` on every object: survives the tenant
+#   targetNamespace (coredns), same precedent as controllers/base/kube-dns.yaml.
+#   The LRP requires backends in the SAME namespace as the policy (kube-system).
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: node-local-dns
+  namespace: kube-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-dns-upstream
+  namespace: kube-system
+  labels:
+    k8s-app: kube-dns
+    kubernetes.io/cluster-service: "true"
+    kubernetes.io/name: KubeDNSUpstream
+spec:
+  # Static IP = kube-dns (.10) + 1. Distinct from the LRP-intercepted kube-dns
+  # VIP, so cache -> upstream traffic never re-enters the redirect.
+  clusterIP: 10.96.0.11
+  ports:
+    - name: dns
+      port: 53
+      protocol: UDP
+      targetPort: 53
+    - name: dns-tcp
+      port: 53
+      protocol: TCP
+      targetPort: 53
+  selector:
+    app.kubernetes.io/instance: coredns
+    app.kubernetes.io/name: coredns
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-local-dns
+  namespace: kube-system
+data:
+  Corefile: |-
+    cluster.local:53 {
+        errors
+        cache {
+            success 9984 30
+            denial 9984 5
+        }
+        reload
+        loop
+        bind 0.0.0.0
+        forward . 10.96.0.11 {
+            force_tcp
+        }
+        health :8080
+        ready :8181
+        prometheus :9253
+    }
+    in-addr.arpa:53 {
+        errors
+        cache 30
+        reload
+        loop
+        bind 0.0.0.0
+        forward . 10.96.0.11 {
+            force_tcp
+        }
+        prometheus :9253
+    }
+    ip6.arpa:53 {
+        errors
+        cache 30
+        reload
+        loop
+        bind 0.0.0.0
+        forward . 10.96.0.11 {
+            force_tcp
+        }
+        prometheus :9253
+    }
+    .:53 {
+        errors
+        cache 30
+        reload
+        loop
+        bind 0.0.0.0
+        forward . /etc/resolv.conf
+        prometheus :9253
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-local-dns
+  namespace: kube-system
+  labels:
+    k8s-app: node-local-dns
+spec:
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 10%
+  selector:
+    matchLabels:
+      k8s-app: node-local-dns
+  template:
+    metadata:
+      labels:
+        k8s-app: node-local-dns
+      annotations:
+        # Skip conntrack for DNS (cache answers locally; LRP path is eBPF).
+        policy.cilium.io/no-track-port: "53"
+        prometheus.io/port: "9253"
+        prometheus.io/scrape: "true"
+    spec:
+      priorityClassName: system-node-critical
+      serviceAccountName: node-local-dns
+      # Pod network (hostNetwork false default) + node resolvers: with LRP
+      # the pod never dials cluster DNS itself (upstreams are the .11
+      # ClusterIP literal + node /etc/resolv.conf), so Default avoids any
+      # 10.96.0.10 self-reference loop.
+      dnsPolicy: Default
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - effect: NoExecute
+          operator: Exists
+        - effect: NoSchedule
+          operator: Exists
+      containers:
+        - name: node-cache
+          image: registry.k8s.io/dns/k8s-dns-node-cache:1.26.8
+          resources:
+            requests:
+              cpu: 25m
+              memory: 5Mi
+          args:
+            - -localip
+            - 0.0.0.0
+            - -conf
+            - /etc/Corefile
+            - -upstreamsvc
+            - kube-dns-upstream
+            - -skipteardown=true
+            - -setupinterface=false
+            - -setupiptables=false
+          ports:
+            - containerPort: 53
+              name: dns
+              protocol: UDP
+            - containerPort: 53
+              name: dns-tcp
+              protocol: TCP
+            - containerPort: 9253
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/coredns
+            - name: kube-dns-config
+              mountPath: /etc/kube-dns
+      volumes:
+        - name: kube-dns-config
+          configMap:
+            name: kube-dns
+            optional: true
+        - name: config-volume
+          configMap:
+            name: node-local-dns
+            items:
+              - key: Corefile
+                path: Corefile.base
