@@ -1,0 +1,123 @@
+# Example consumer: flux-notifications room (notifiers post, humans read).
+# Copy into flux/apps/components/<team>/base/terraform.yaml, rename every
+# matrix-rooms-*, and replace the mxids/hostnames. Ships in the app
+# Kustomization (fleet `apps` dependsOn `infra-configs`), so it reconciles
+# after the tuwunel HelmRelease is Ready. Terraform `dependsOn` is
+# Terraform-CR-only upstream (checkDependencies resolves every entry as kind
+# Terraform), so NO dependsOn entry here — the fleet ordering above is the
+# mechanism.
+#
+# Upstream wiring: provider auth (homeserver_url/access_token/user_id) flows
+# from the vault via the ESO-synced `matrix-rooms-terraform-vars` Secret
+# (same-namespace `varsFrom` below; same-namespace `varsFrom` CANNOT cross
+# namespaces (no namespace field), but the bot token has no chart-minted
+# central secret to mirror, so the vault read is direct through the
+# cluster-scoped `proton-pass` ClusterSecretStore — same pattern as the
+# netbird consumer example). Keys land under the module var names so
+# `varsFrom` below needs no varsKeys renames. NO token literal in git, NO
+# manual per-env fill.
+# Backend: in-cluster Kubernetes default (state Secrets in the matrix-rooms
+# namespace) — no backendConfig needed. Drift detection stays on (default).
+# Outputs: room_id + canonical_alias land in `flux-notifications-outputs`;
+# notifiers read the room ID from that Secret through the in-cluster store —
+# never Git, never Proton Pass.
+# First-run prerequisite: the bootstrap runbook (../terraform/README.md)
+# minted the bot + token once per env. Without the
+# `matrix-rooms-terraform-vars` Secret the CR retries on interval.
+---
+# Vars mirror: bot token + homeserver URL from the vault — no vault seeding
+# beyond the one-time `pass insert` per env, no manual step per room. Reads
+# DIRECTLY through the existing cluster-scoped `proton-pass`
+# ClusterSecretStore (no cross-namespace SecretStore + RBAC needed — unlike
+# the zitadel handoff there is no chart-minted central secret to mirror).
+# Keys land under the module var names so `varsFrom` below needs no varsKeys
+# renames. Per-env overlays replace the pass:// keys with the cluster vault
+# path (same convention as the coder dev overlay).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: matrix-rooms-terraform-vars
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: matrix-rooms-terraform-vars
+  data:
+    - secretKey: homeserver_url
+      remoteRef:
+        key: __PROTON_PASS_BASE__/matrix-rooms/homeserver-url
+    - secretKey: access_token
+      remoteRef:
+        key: __PROTON_PASS_BASE__/matrix-rooms/bot-access-token
+    - secretKey: user_id
+      remoteRef:
+        key: __PROTON_PASS_BASE__/matrix-rooms/bot-user-id
+---
+apiVersion: infra.contrib.fluxcd.io/v1alpha2
+kind: Terraform
+metadata:
+  name: flux-notifications
+spec:
+  interval: 30m
+  approvePlan: auto
+  # Upsert-only guard (tofu-controller 0.16.5): the v1alpha2 CRD has no
+  # preventDestroy/destroyPlan field — `destroy` (destroy plan on reconcile)
+  # and `destroyResourcesOnDeletion` (destroy plan on CR deletion) are the
+  # only destroy knobs, both default false. Stated explicitly so no `tofu
+  # destroy` path exists via Flux; drift detection stays on (default).
+  destroy: false
+  destroyResourcesOnDeletion: false
+  # Shared reusable rooms root: the apps/matrix-rooms OCI artifact (namespace
+  # `matrix-rooms`) packs flux/apps/components/matrix-rooms/terraform/ at
+  # ./terraform. Cross-namespace sourceRef is allowed by
+  # allowCrossNamespaceRefs=true on the tofu-controller — no per-team
+  # terraform/ root, no git-SHA module pin.
+  sourceRef:
+    kind: OCIRepository
+    name: apps
+    namespace: matrix-rooms
+  path: ./terraform
+  # Plain (non-sensitive) per-room values; secrets (homeserver_url,
+  # access_token, user_id) come from varsFrom below. varsFrom overrides vars
+  # on key collision (upstream GenerateVarsForTF).
+  # Locked power levels: bot pinned at 100 by the module (self-lockout safe);
+  # on-call lead at 50 (invite/kick/redact/state), everyone else at
+  # users_default 0 (post + react via events_default 0, nothing else).
+  # Nested maps ride `vars` as HCL natively (tofu-controller renders nested
+  # YAML values as HCL — no JSON encoding needed).
+  vars:
+    - name: room_name
+      value: flux-notifications
+    - name: topic
+      value: Flux + Apprise delivery receipts (bot posts, humans read)
+    - name: preset
+      value: private_chat
+    - name: visibility
+      value: private
+    - name: history_visibility
+      value: shared
+    - name: room_alias_name
+      value: flux-notifications
+    - name: encryption_enabled
+      value: true
+    - name: members
+      value:
+        "@oncall-lead:__SERVER_NAME__": invite
+    - name: power_levels
+      value:
+        "@oncall-lead:__SERVER_NAME__": 50
+    - name: join_rule
+      value: invite
+    - name: bot_room_display_name
+      value: Flux Notifier
+  varsFrom:
+    - kind: Secret
+      name: matrix-rooms-terraform-vars
+  writeOutputsToSecret:
+    name: flux-notifications-outputs
+    outputs:
+      - room_id
+      - canonical_alias
+      - bot_user_id
