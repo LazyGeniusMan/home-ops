@@ -2,7 +2,7 @@
 # apprise-go-api image (stable + semver tag leg published by
 # .github/workflows/apprise-go-api.yml), and the ImageUpdateAutomation
 # (update cluster) opens PRs via the marker in
-# components/apprise-go-api/base/apprise-go-api.yaml. Follows the §7
+# components/matrix/base/apprise-go-api.yaml. Follows the §7
 # update-policy contract (ImageRepository + ImagePolicy + $imagepolicy
 # markers).
 ---

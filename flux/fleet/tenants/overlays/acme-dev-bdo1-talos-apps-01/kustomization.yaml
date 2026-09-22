@@ -29,7 +29,7 @@ resources:
 # removal needs no descending-order trick.
 # Current apps.yaml order (0-based):
 #   0 win11-vm, 1 talos-vm, 2 clickstack, 3 hubble-ui,
-#   4 flux-operator-ui, 5 headlamp, 6 coder
+#   4 flux-operator-ui, 5 headlamp, 6 coder, 7 matrix
 patches:
   - target:
       group: fluxcd.controlplane.io

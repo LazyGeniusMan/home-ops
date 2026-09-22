@@ -4,7 +4,7 @@
 # CR per room), rename every flux-notifications-*, replace mxids/hostnames.
 # Feeds from the `tofu-runs` Alert (Kustomization+HelmRelease info events
 # filtered to Terraform messages via inclusionList — see
-# flux/apps/components/apprise-go-api/base/NOTIFICATIONS.md). Overlaps the
+# flux/apps/components/matrix/base/NOTIFICATIONS.md). Overlaps the
 # flux room by design (tofu events post to BOTH rooms).
 #
 # Notification-only power lock (events_default 50) + plaintext

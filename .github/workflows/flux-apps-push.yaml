@@ -36,10 +36,7 @@ jobs:
           - flux-operator-ui
           - headlamp
           - coder
-          - apprise-go-api
-          - tuwunel
-          - mautrix-discord
-          - element-web
+          - matrix
     runs-on: ubuntu-latest
     permissions:
       contents: read

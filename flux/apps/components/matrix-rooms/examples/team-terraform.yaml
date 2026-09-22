@@ -5,7 +5,7 @@
 # Copy into flux/apps/components/<team>/base/terraform.yaml, rename every
 # placeholder (room name/alias `team` -> e.g. `payments`, the member mxid,
 # the bot face), and wire the matching Alert: copy the suspended
-# `team-optin` Alert from flux/apps/components/apprise-go-api/base/
+# `team-optin` Alert from flux/apps/components/matrix/base/
 # notifications.yaml, set eventSources[].namespace to the team tenant
 # namespace, and unsuspend it. The `apprise-team` Provider address already
 # carries `tag=team`, and the STATELESS_URLS fallback already has a

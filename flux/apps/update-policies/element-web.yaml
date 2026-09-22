@@ -1,6 +1,6 @@
 # Update policy for the element-web app: tracks the upstream Element Web
 # image, and the ImageUpdateAutomation (update cluster) opens PRs via the
-# marker in components/element-web/base/element-web.yaml. Follows the §7
+# marker in components/matrix/base/element-web.yaml. Follows the §7
 # update-policy contract (ImageRepository + ImagePolicy + $imagepolicy
 # markers).
 ---

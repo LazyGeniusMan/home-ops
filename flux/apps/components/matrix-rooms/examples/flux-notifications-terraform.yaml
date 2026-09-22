@@ -7,7 +7,7 @@
 # Terraform), so NO dependsOn entry here — the fleet ordering above is the
 # mechanism. Notification-only power lock: events_default 50 — the bot (100)
 # posts, the on-call lead (50) moderates, normal members CANNOT post (see
-# NOTIFICATIONS decision in flux/apps/components/apprise-go-api/base/).
+# NOTIFICATIONS decision in flux/apps/components/matrix/base/).
 # Plaintext: encryption_enabled false — the stateless apprise notifier has
 # no Olm persistence, so E2EE rooms are unreadable to it (irreversible at
 # creation; E2EE stays for human/opt-in rooms only).
