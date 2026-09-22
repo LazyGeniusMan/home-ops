@@ -13,14 +13,14 @@
 # creation; E2EE stays for human/opt-in rooms only).
 #
 # Upstream wiring: provider auth (homeserver_url/access_token/user_id) flows
-# from the vault via the ESO-synced `matrix-rooms-terraform-vars` Secret
-# (same-namespace `varsFrom` below; same-namespace `varsFrom` CANNOT cross
-# namespaces (no namespace field), but the bot token has no chart-minted
-# central secret to mirror, so the vault read is direct through the
-# cluster-scoped `proton-pass` ClusterSecretStore — same pattern as the
-# netbird consumer example). Keys land under the module var names so
-# `varsFrom` below needs no varsKeys renames. NO token literal in git, NO
-# manual per-env fill.
+# from the TEAM's own bot-token mirror Secret (same-namespace `varsFrom`
+# below; keys land under the module var names so `varsFrom` needs no
+# varsKeys renames). Team namespaces mint their own bot via their own
+# bootstrap (same Job pattern as matrix base/matrix-bot-bootstrap.yaml) or
+# a vault-direct mirror like the retired matrix-rooms-terraform-vars shape —
+# either way, NEVER the matrix tenant's kept Secret (same-namespace
+# `varsFrom` CANNOT cross namespaces). NO token literal in git, NO manual
+# per-env fill beyond the team's own first-seed.
 # Backend: in-cluster Kubernetes default (state Secrets in the consumer
 # team's namespace) — no backendConfig needed. Drift detection stays on (default).
 # Outputs: room_id + canonical_alias land in `flux-notifications-outputs`;

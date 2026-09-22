@@ -4,12 +4,14 @@ Machine-applied by Tofu Controller. Owns ONLY per-team rooms/spaces on the
 tuwunel homeserver (`tuwunel.matrix.home-ops.yansyah.my.id`, sibling task):
 the flat root here (`main.tf` + `variables.tf` + `outputs.tf`) plus one consumer Terraform CR
 per room. Live ops rooms ship in `../base/rooms.yaml`
-(`flux-notifications` + `tofu-runs`); the `./examples/` files
+(`flux-notifications` + `tofu-runs` + `coder-notifications`); the `./examples/` files
 (`flux-notifications-terraform.yaml`, `tofu-runs-terraform.yaml`,
 `team-terraform.yaml`) are copy-paste skeletons for TEAM namespaces only.
 
 The provider (`raspbeguy/matrix ~> 0.5`) has **no user/token resources**, so
-the bot + token are bootstrapped ONCE outside Terraform (runbook below).
+the bot + token are bootstrapped ONCE outside Terraform — by the
+`matrix-bot-bootstrap` Job (`../base/matrix-bot-bootstrap.yaml`, kept Secret
+`matrix-bot-bootstrap-outputs`), NOT by hand (runbook below is first-seed-only).
 Terraform then manages rooms, members, power levels, join rules, spaces,
 aliases, and the bot profile — never the token.
 
@@ -19,101 +21,87 @@ is Ready. Terraform `dependsOn` is Terraform-CR-only upstream, so NO
 dependsOn entry — the fleet ordering above is the mechanism.
 
 Upstream wiring: provider auth (`homeserver_url`, `access_token`, `user_id`)
-flows from the vault via the ESO-synced `matrix-rooms-terraform-vars`
-Secret (same-namespace `varsFrom` in the consumer CR; keys land under the
-root var names so no `varsKeys` renames). NO token literal in git, NO
-manual per-env fill. Same-namespace `varsFrom` CANNOT cross namespaces (no
-namespace field) — direct vault read through the cluster-scoped
-`proton-pass` ClusterSecretStore, same pattern as the netbird consumer
-example. Backend: in-cluster Kubernetes default (state Secrets in the
+flows from the bootstrap Job's KEPT Secret `matrix-bot-bootstrap-outputs`
+(same-namespace `varsFrom` in the consumer CR; keys land under the
+root var names so no `varsKeys` renames; NO ESO mirror hop — same namespace
+needs none). NO token literal in git, NO manual per-env fill, NO vault hop.
+Backend: in-cluster Kubernetes default (state Secrets in the
 consumer team's namespace) — no backendConfig needed. Drift detection stays
 on (default). Outputs (`room_id`, `canonical_alias`, `bot_user_id`) land in
 `<room>-outputs` via `writeOutputsToSecret`.
 
-First-run prerequisite: the bootstrap runbook below minted the bot + token
-once per env. Without the `matrix-rooms-terraform-vars` Secret the CR
-retries on interval — no vault seeding, no console step.
+First-run prerequisite: the bootstrap Job ran once per env (vault first-seed
+`matrix/tuwunel-registration-secret` ONLY — the runbook below). Without the
+kept Secret the CR retries on interval — no bot vault seeding, no console step.
 
-## Bootstrap runbook (once per env, outside Terraform)
+## Bootstrap runbook (first-seed ONLY — bot creation is automated)
 
-Prerequisites: tuwunel is Ready; you hold the `registration_shared_secret`
-(≥32 random bytes, server-side `registration_shared_secret_file`, served
-only on a **trusted network path** — never commit it, never log it). The
-secret enables the Synapse-compatible admin registration API, which tuwunel
-serves (GET/POST `/_synapse/admin/v1/register`); it is NOT served when MAS
-is active (then provision users in MAS instead and skip to token minting).
+The `matrix-bot-bootstrap` Job (`../base/matrix-bot-bootstrap.yaml`) owns
+bot creation end-to-end: it registers the bot via the Synapse-compat admin
+API + mints the token + writes the KEPT Secret
+`matrix-bot-bootstrap-outputs` the room CRs read. The ONLY manual step left
+is seeding the registration secret ONCE per env (everything else the old
+runbook did — nonce/HMAC/register/login/vault bot seeding — the Job does):
 
-Pick distinct bot + alias per env (no shared prod/dev bot):
-dev `@apprise-dev:<server>`, prd `@apprise:<server>`.
+```shell
+pass insert 'acme-<env>-bdo1-talos-apps-01/matrix/tuwunel-registration-secret'  # 32+ random bytes
+```
 
-1. **Fetch a nonce** (unauthenticated, trusted network only):
+Then verify (no console step, no token handling):
 
-   ```shell
-   NONCE=$(curl -s https://tuwunel.matrix.home-ops.yansyah.my.id/_synapse/admin/v1/register | jq -r .nonce)
-   ```
+```shell
+kubectl -n matrix get job matrix-bot-bootstrap
+kubectl -n matrix get secret matrix-bot-bootstrap-outputs -o jsonpath='{.data}' | jq 'keys'
+```
 
-2. **Compute the HMAC** (`nonce\x00user\x00password\x00admin\x00?` —
-   Synapse shared-secret register joins `nonce`, `user`, `password`,
-   `admin` (`admin`/`notadmin`), and optionally `user_type`, with NUL bytes;
-   key = the registration shared secret, SHA-1 hex):
+Rerun/rotation: `kubectl -n matrix delete job matrix-bot-bootstrap` +
+Flux reconcile — the Job re-registers (M_USER_IN_USE path fails LOUD with
+the server-side delete recovery step; see matrix-bot-bootstrap.yaml) and
+rotates the token (kept Secret patched -> ESO/varsFrom propagate within
+`refreshInterval`).
 
-   ```shell
-   printf '%s\0%s\0%s\0%s' "$NONCE" "apprise" "$BOT_PASSWORD" "notadmin" \
-     | openssl dgst -sha1 -hmac "$REG_SECRET" -hex | awk '{print $NF}'
-   ```
+<details><summary>Retired manual runbook (pre-Job; kept for forensics — DO NOT run)</summary>
 
-3. **Register the bot** (admin=false — the bot needs no server admin):
+Prerequisites were: tuwunel Ready; operator held `registration_shared_secret`
+(32+ random bytes, served only on a trusted network path). The secret
+enables the Synapse-compatible admin registration API, which tuwunel serves
+(GET/POST `/_synapse/admin/v1/register`); NOT served when MAS is active
+(then provision users in MAS instead and skip to token minting).
 
-   ```shell
-   curl -s -X POST https://tuwunel.matrix.home-ops.yansyah.my.id/_synapse/admin/v1/register \
-     -H 'Content-Type: application/json' \
-     -d '{"nonce":"'"$NONCE"'","username":"apprise","password":"'"$BOT_PASSWORD"'","mac":"'"$MAC"'","admin":false}'
-   ```
+Per-env bots (no shared prod/dev bot): dev `@apprise-dev:<server>`,
+prd `@apprise:<server>` — the Job mints the SAME identities (ONE bot per
+env shared by all 3 rooms).
 
-   Alternative without curl/HMAC: `tuwunel --execute 'users create_user
-   "apprise" "password…" false'` (or `make_user_admin` for an admin), run
-   against the server config on trusted infra.
+1. Fetched a nonce (`GET /_synapse/admin/v1/register`); 2. computed the
+HMAC-SHA1 over `nonce/user/password/notadmin` joined with NUL bytes keyed
+by the shared secret; 3. registered the bot (admin=false); 4. minted the
+token via `POST /_matrix/client/v3/login`; 5. seeded the vault
+(`matrix-rooms/homeserver-url`, `bot-access-token`, `bot-user-id` — ALL
+RETIRED, do NOT reseed).
 
-4. **Mint the long-lived access token.** Either log in once
-   (`POST /_matrix/client/v3/login` with the bot password → `access_token`)
-   or mint server-side without a password round-trip
-   (`POST /_synapse/admin/v1/users/<mxid>/login` with an admin bearer →
-   `access_token`). Store the token per the strategy below; the password can
-   then be rotated/discarded.
+</details>
 
-5. **Seed the vault** (one-time per env; the ESO ExternalSecret in the
-   consumer CR reads these — Terraform never sees a literal):
+## Token strategy (chosen: bootstrap Job v2)
 
-   ```shell
-   pass insert __PROTON_PASS_BASE__/matrix-rooms/homeserver-url    # https://tuwunel.matrix.home-ops.yansyah.my.id
-   pass insert __PROTON_PASS_BASE__/matrix-rooms/bot-access-token  # from step 4 (sensitive)
-   pass insert __PROTON_PASS_BASE__/matrix-rooms/bot-user-id       # @apprise(-dev):<server>
-   ```
-
-   Env vars for manual runs (never commit): `MATRIX_HOMESERVER_URL`,
-   `MATRIX_ACCESS_TOKEN` (sensitive), `MATRIX_USER_ID` (optional, inferred
-   from `/whoami`).
-
-## Token strategy (chosen: manual vault v1)
-
-- **(a) Vault → ESO manual (CHOSEN v1).** The token minted above lives in
-  the vault; ESO mirrors it into `matrix-rooms-terraform-vars`; the CR
-  consumes it via `varsFrom`. Rotation = re-login, update the vault entry,
-  ESO re-syncs within `refreshInterval`. No in-cluster writer, no password
-  in git — matches the netbird consumer pattern.
+- **(a) Vault → ESO manual (RETIRED v1).** The token lived in the vault;
+  ESO mirrored it into `matrix-rooms-terraform-vars`. Retired: the manual
+  path is dead on purpose (re-adding the mirror resurrects it).
+- **(a2) Bootstrap Job → kept Secret (CHOSEN v2).** The Job mints the token
+  server-side and writes `matrix-bot-bootstrap-outputs`; the CRs consume it
+  via `varsFrom`, the apprise ES via the in-cluster store. Rotation =
+  delete Job + reconcile (new login -> kept Secret patched -> propagate
+  within `refreshInterval`). No vault bot seeding, no password in git —
+  zitadel chain analogue (setup-Job-keeps-Secret).
 - **(b) CronJob re-login → Secret (NOT chosen).** A CronJob holding the bot
-  *password* re-logs-in and writes the Secret. Rejected v1: stores a second
+  *password* re-logs-in and writes the Secret. Rejected: stores a second
   long-lived credential (the password) to protect the first, for no gain —
   access tokens do not expire on tuwunel, so scheduled rotation buys
   nothing. Revisit only if the homeserver starts expiring tokens.
-- **(c) Per-env bot + alias (ADOPTED alongside (a)).** Separate mxids (and
+- **(c) Per-env bot + alias (ADOPTED alongside (a2)).** Separate mxids (and
   room aliases) per env — `@apprise-dev` vs `@apprise` — so dev applies can
   never post into prod rooms. This is scoping, not storage: it composes
-  with (a).
-
-Hard rules: no token in Git (varsFrom-only), no shared prod/dev bot, no
-`login_with_password=true` equivalent in Terraform (the provider takes a
-token, never a password).
+  with (a2); the Job mints ONE bot per env (dev overlay: `apprise-dev`;
+  prd overlay: `apprise`).
 
 ## State backend + CR shape
 
@@ -125,7 +113,8 @@ token, never a password).
   (provider env fallbacks; explicit CR vars win on collision).
 - CR shape: `sourceRef` (apps/matrix OCI artifact, `path:
   ./terraform`) + plain `vars` (room config) + `varsFrom`
-  (`matrix-rooms-terraform-vars`) + `writeOutputsToSecret`
+  (`matrix-bot-bootstrap-outputs`, the Job's kept Secret) +
+  `writeOutputsToSecret`
   (`<room>-outputs`: `room_id`, `canonical_alias`, `bot_user_id`).
   `destroy: false` + `destroyResourcesOnDeletion: false` (upsert-only).
 
@@ -152,8 +141,9 @@ optional `matrix_space` (+child) + `matrix_room_alias` + bot identity
 ## Why the root looks like this
 
 - **Bot + token are NOT manageable by the provider** (no user/token
-  resources), so bootstrap happens once outside Terraform — see the runbook
-  above. This root assumes the bot + token already exist.
+  resources), so the bootstrap Job creates them once outside Terraform —
+  see the runbook above. This root assumes the bot + token already exist
+  (kept Secret `matrix-bot-bootstrap-outputs`).
 - **Power levels are self-lockout safe.** A declared `users` map *replaces*
   the whole map homeserver-side; omitting the provider account drops it to
   `users_default` (below `state_default` = no more power-level writes, and

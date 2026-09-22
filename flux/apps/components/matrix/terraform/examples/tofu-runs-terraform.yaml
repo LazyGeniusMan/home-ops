@@ -13,9 +13,12 @@
 # unreadable to it. Upstream wiring (varsFrom Secret, OCI sourceRef, no
 # dependsOn, writeOutputsToSecret): identical to the flux example.
 ---
-# Vars mirror: shared with the flux-notifications CR (same Secret, same
-# vault keys — one `pass insert` per env covers every room). This doc block
-# duplicates so each example file is self-contained when copied.
+# Vars mirror: team-owned bot-token mirror (same-namespace `varsFrom`;
+# keys land under the module var names, no varsKeys renames). Team
+# namespaces mint their own bot via their own bootstrap (same Job pattern
+# as matrix base/matrix-bot-bootstrap.yaml) — NEVER the matrix tenant's
+# kept Secret (varsFrom CANNOT cross namespaces). This doc block duplicates
+# so each example file is self-contained when copied.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:

@@ -8,11 +8,22 @@ rooms provisioned by the reusable rooms module. notification-controller
 is enabled on both clusters; before this change zero Provider/Alert
 existed.
 
-Scope: `base/notifications.yaml` (5 generic Providers + 4 Alerts) +
-`base/apprise-go-api-secrets.yaml` (STATELESS_URLS fallback) + room example
-CRs + live `base/rooms.yaml` CRs + this doc. Tenant/workflow onboarding
-(`tenants/apps.yaml`, `flux-apps-push.yaml`) is a separate task. NO live
-alert firing here.
+Scope: `base/notifications.yaml` (4 generic Providers + 4 Alerts — the
+`apprise-coder` Provider is REMOVED, Coder posts directly) +
+`base/apprise-go-api-secrets.yaml` (STATELESS_URLS fallback: flux/tofu/team
+legs only) + `base/matrix-bot-bootstrap.yaml` (bot bootstrap Job + kept
+Secret) + room example CRs + live `base/rooms.yaml` CRs + this doc.
+Tenant/workflow onboarding (`tenants/apps.yaml`, `flux-apps-push.yaml`) is
+a separate task. NO live alert firing here.
+
+## Fallback-leg ownership (decoupled — read first)
+
+| Leg / room | Owner | Credential path | Why here |
+|---|---|---|---|
+| `tag=flux` / `#flux-notifications` | matrix tenant | bootstrap kept Secret -> `tuwunel-k8s` ES -> `apprise-stateless-urls` | room is matrix-tenant-owned; centralization legitimate |
+| `tag=tofu` / `#tofu-runs` | matrix tenant | (same ES, same Secret) | (same) |
+| `tag=team` / `#team` (opt-in) | matrix tenant | (same ES, same Secret) | (same) |
+| (none — NO `tag=coder`) / `#coder-notifications` | coder app | coder vault `coder/matrix-{bot-token,host}` -> coder ES `matrix-notify` -> `CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT` (per-request `urls`) | Coder MUST own its credential in its own deployment; the matrix tenant carries NO coder leg (centralized fallback for coder is dead weight AND a coupling violation — the infra sink is credential-free, so an unconsumed leg 204s silently) |
 
 ## Room -> source -> tag matrix
 
@@ -22,7 +33,7 @@ alert firing here.
 | `#flux-notifications` | `flux-errors` | same four kinds (`error` only) | `apprise-flux-errors` (`flux` / `failure`) | same `tag=flux` leg (distinct `type=` rendering) |
 | `#tofu-runs` | `tofu-runs` | Kustomization, HelmRelease (`info`) + `inclusionList: ["(?i)terraform\|tofu"]` | `apprise-tofu` (`tofu` / `info`) | `.../%23tofu-runs?tag=tofu&...` |
 | `#team` (opt-in template) | `team-optin` (SUSPENDED; copy + set namespace + unsuspend) | Kustomization (`info`, team namespace) minus no-change noise | `apprise-team` (`team` / `info`) | `.../%23team?tag=team&...` |
-| `#coder-notifications` | (none — Coder posts directly, NOT via Alert) | Coder Deployment webhook (`CODER_NOTIFICATIONS_METHOD=webhook`; every event fans into this ONE room) | `apprise-coder` (`coder` / `info`, bare mapping — no remap) | `.../%23coder-notifications?tag=coder&...` |
+| `#coder-notifications` | (none — Coder posts directly, NOT via Alert; NO Provider ships here) | Coder Deployment webhook (`CODER_NOTIFICATIONS_METHOD=webhook`; every event fans into this ONE room) | (none — endpoint `.../notify/?type=info&format=text` + per-request `urls` in body, bare mapping — no remap) | (none — NO fallback leg; coder-owned per-request `urls` below) |
 
 Notes:
 
@@ -57,9 +68,10 @@ Notes:
   `all` token matches everything. A mismatch selects ZERO targets ->
   HTTP 204 (SILENT — the selection is lost, no fallback fires).
 - Rule: every Provider `tag=` MUST equal a tag baked into a
-  `STATELESS_URLS` entry (`flux` | `tofu` | `team` | `coder`). Priority
-  prefixes (`N:tag`) are parsed but unused — flat purpose tags are enough
-  for four rooms; add priorities only if one room needs severity fan-out.
+  `STATELESS_URLS` entry (`flux` | `tofu` | `team` — `coder` is NOT a
+  fallback tag anymore). Priority prefixes (`N:tag`) are parsed but unused
+  — flat purpose tags are enough for three fallback legs + one decoupled
+  caller; add priorities only if one room needs severity fan-out.
 - `overflow=split` on every fallback leg: over-limit bodies continue in
   additional messages (never truncated silently). `?mode=` is ABSENT on
   purpose — webhook modes (`matrix`/`slack`/`hookshot`) apply only to
@@ -94,14 +106,30 @@ Flux generic Provider POSTs a JSON `Event`
   stays unset. `APPRISE_ATTACH_*` SSRF posture unchanged.
 - Outbound `APPRISE_WEBHOOK_URL`: unset (no second sink yet).
 
-## Coder payload mapping (webhook JSON -> notify)
+## Coder decoupled flow (webhook JSON -> notify, per-request `urls`)
 
 Coder's webhook delivery method (`CODER_NOTIFICATIONS_METHOD=webhook`)
-sends an UNSIGNED HTTP POST to `CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT`
-— the apprise-coder Provider address
-(`http://apprise-go-api.apprise-go-api.svc:80/notify/?type=info&tag=coder&format=text`).
-The generic apprise-go-api sink accepts unsigned POSTs, so no auth headers
-are needed.
+sends an UNSIGNED HTTP POST to `CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT` —
+NOT a Provider address (no `apprise-coder` Provider ships; Alert
+eventSources cannot watch Coder, and a Provider referencing the removed
+`?tag=coder` leg would 204). The generic apprise-go-api sink accepts
+unsigned POSTs, so no auth headers are needed.
+
+Data-flow trace (coder vault -> ES -> env -> sink urls, zero
+matrix-tenant secret involved):
+
+```text
+vault coder/matrix-bot-token + coder/matrix-host   (NEW coder-owned paths;
+  per-env: pass://acme-<env>-bdo1-talos-apps-01/coder/...)
+  -> ES matrix-notify (coder/base/coder-secrets.yaml, target.template:
+     apprise-urls + webhook-endpoint, proton-pass ClusterSecretStore)
+  -> Secret matrix-notify (keys apprise-urls, webhook-endpoint)
+  -> HelmRelease env valueFrom.secretKeyRef
+     (CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT <- webhook-endpoint;
+      CODER_MATRIX_APPRISE_URLS <- apprise-urls)
+  -> sink POST /notify per-request `urls` (body form field)
+  -> #coder-notifications (matrixs://{token}@{host}/%23coder-notifications)
+```
 
 - **Bare mapping (no `?:src=dst` remap):** Coder's fixed payload already
   carries top-level `title` + `body` — which ARE apprise field names — so
@@ -115,13 +143,54 @@ are needed.
   attach a second fallback body for no benefit.
 - `?type=info` pinned — Coder has no severity the sink could trust, so no
   dynamic type mapping.
-- `?tag=coder` selects the `#coder-notifications` fallback leg (tag-equality
-  rule above — mismatch 204s).
+- **NO `?tag=coder`:** the body `urls` select the target directly — no
+  fallback, no server-tag filtering, no matrix-tenant leg. (Verified sink
+  contract: `urls` is body-only — JSON `urls` key or form field;
+  `projects/apprise-go-api/internal/server/notify.go` has NO `?urls=`
+  query fallback, and the remap engine cannot constant-assign onto `urls`.)
 - **Single-endpoint fan-in:** Coder exposes ONE global webhook endpoint, so
   EVERY notification event (workspace builds, deletions, template changes)
   lands in this single room. Per-event-type routing (delivery preferences)
   is a Coder Premium feature — until then this room is the unified Coder
   event log.
+- **GAP (documented, not silent):** the sink reads `urls` from the POST
+  BODY only, and coderd POSTs its fixed JSON body to the endpoint URL
+  as-is — a query-string `urls` is NOT promoted into the body. The
+  ESO-composed endpoint delivers the credential to the coder namespace
+  (ownership split done), but live delivery still needs ONE follow-up:
+  either (a) sink `?urls=` query support (notify.go: read
+  `r.URL.Query().Get("urls")` as a fallback like tag/format/type/title),
+  or (b) a tiny in-namespace injector (sidecar/proxy that moves the query
+  `urls` into the POST body). Until then Coder posts 204 VISIBLE — no
+  silent centralization, no dead matrix leg. Prefer (a): one-line sink
+  change, covered by the existing notify_test.go table style.
+
+## Bot bootstrap chain (zitadel-style — manual runbook is dead)
+
+```text
+vault matrix/tuwunel-registration-secret (ONE first-seed per env)
+  -> ES tuwunel-registration-secret (proton-pass ClusterSecretStore)
+  -> Secret tuwunel-registration-secret (key shared-secret)
+  -> TWICE: (1) tuwunel Deployment mount
+       (TUWUNEL_REGISTRATION_SHARED_SECRET_FILE=/etc/tuwunel-registration/shared-secret)
+     + (2) matrix-bot-bootstrap Job env REGISTRATION_SHARED_SECRET
+  -> Job: GET nonce -> HMAC-SHA1 register (POST /_synapse/admin/v1/register)
+     -> login (POST /_matrix/client/v3/login) -> token
+  -> KEPT Secret matrix-bot-bootstrap-outputs (no ownerRef — outlives Job)
+     keys: homeserver_url/access_token/user_id (rooms varsFrom) +
+           notifier-token/homeserver-host (apprise ES) + url/id aliases
+  -> rooms.yaml Terraform CRs (same-namespace varsFrom, NO ESO hop)
+  -> apprise-stateless-urls ES (in-cluster tuwunel-k8s store, NO vault hop)
+```
+
+Retired vault paths (do NOT reseed): `matrix-rooms/homeserver-url`,
+`matrix-rooms/bot-access-token`, `matrix-rooms/bot-user-id`,
+`matrix-rooms/notifier-bot-token`, `matrix-rooms/homeserver-host`. New
+vault paths: `coder/matrix-bot-token`, `coder/matrix-host`,
+`matrix/tuwunel-registration-secret` (see VAULT-SEEDS.md). ONE bot per
+env (`@apprise-dev` dev / `@apprise` prd) shared by all 3 rooms — same as
+the retired manual path. Rerun = delete Job + reconcile (M_USER_IN_USE
+path fails LOUD with the recovery step; see matrix-bot-bootstrap.yaml).
 
 ## E2EE-vs-plaintext decision: PLAINTEXT for notifier rooms
 
@@ -159,9 +228,10 @@ on-call/team lead at 50 (invite/kick/redact/state), `users_default: 0`,
 `history_visibility: shared`, `preset: private_chat`. Room IDs/aliases
 reach apprise as `matrixs://` URLs (token-auth form
 `matrixs://{token}@{host}/%23{alias}?tag=...` — `%23`, never literal `#`;
-room-ID `!...` targets need no encoding). No secrets in Git: bot token +
-homeserver host flow from Proton Pass through ESO (`varsFrom` for rooms,
-`apprise-stateless-urls` for the fallback).
+room-ID `!...` targets need no encoding). No secrets in Git: the bot token
++ homeserver host flow from the bootstrap kept Secret (rooms via
+`varsFrom`, fallback via the in-cluster `tuwunel-k8s` ES); coder's token
+flows from coder-owned vault fields (coder ES `matrix-notify`).
 
 ## Deferred (explicitly NOT this change)
 
@@ -171,29 +241,37 @@ homeserver host flow from Proton Pass through ESO (`varsFrom` for rooms,
 - Prometheus `AlertmanagerConfig` / `PrometheusRule` reserved until the
   monitoring stack lands (Flux Alert CRs here cover Flux-native sources
   only).
-- Proton Pass re-check: the `notifier-bot-token` + `homeserver-host`
-  fields compose into an authenticated `matrixs://` URL (hidden-webhook
-  class secret). Re-check vault item visibility/sharing before pasting
-  anywhere; room aliases are public, tokens never are.
+- Proton Pass re-check: the bootstrapped `notifier-token` (+ coder-owned
+  `coder/matrix-bot-token`) composes into an authenticated `matrixs://`
+  URL (hidden-webhook class secret). Re-check vault item
+  visibility/sharing before pasting anywhere; room aliases are public,
+  tokens never are.
 - `generic-hmac` parity (`SECRET_KEY(_FILE)` + `X-Signature` verification)
   only if apprise gains signature verification — today the header would
   be silently ignored.
 - Workload placement: the apprise-go-api Deployment/Service/HPA/VPA now
   live in the infra `apprise-go-api` tenant
   (`flux/infra/components/apprise-go-api`, credential-free); this tenant
-  keeps only the consumer-owned `apprise-stateless-urls` fallback +
-  Provider/Alert wiring. Per-request `urls` injection (dropping the
-  STATELESS_URLS fallback entirely) is follow-up work — the sink already
-  supports it (missing `urls` -> 204, no crash).
+  keeps only the consumer-owned `apprise-stateless-urls` fallback (3 legs:
+  flux/tofu/team — coder decoupled) + Provider/Alert wiring. Per-request
+  `urls` injection is LIVE for coder (first caller); dropping the
+  STATELESS_URLS fallback entirely for flux/tofu/team is follow-up work —
+  the sink already supports body `urls` (missing `urls` -> 204, no crash);
+  the remaining gap is coder's fixed-payload body (see the Coder GAP note:
+  sink `?urls=` query support or an injector sidecar).
 - Fleet tenants/workflows onboarding (`tenants/apps.yaml` + image-update
   policies + `flux-apps-push.yaml` matrix): separate task.
 
 ## End-to-end test plan (plan-only — no cluster access here)
 
 1. Preconditions (kubectl, plan-only): `kubectl get providers,alerts -A`
-   shows `apprise-*` Ready=True; `kubectl get externalsecret
-   apprise-stateless-urls -n <tenant>` Synced; `flux-notifications-outputs`
-   / `tofu-runs-outputs` Secrets exist (room IDs minted).
+   shows `apprise-*` Ready=True (4 Providers — no apprise-coder);
+   `kubectl get externalsecret
+   apprise-stateless-urls -n <tenant>` Synced (tuwunel-k8s store);
+   `kubectl get job matrix-bot-bootstrap -n matrix` Complete +
+   `matrix-bot-bootstrap-outputs` Secret exists (7 keys);
+   `flux-notifications-outputs` / `tofu-runs-outputs` /
+   `coder-notifications-outputs` Secrets exist (room IDs minted).
 2. Trigger: `flux reconcile kustomization <tenant>-apps --with-source`
    (info path) and a forced failure (bad image tag, then revert) for the
    error leg. Suspend first if noise matters:

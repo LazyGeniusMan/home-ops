@@ -19,6 +19,11 @@
 # (encryption_enabled false): same rationale as the flux room header — the
 # stateless apprise notifier has no Olm persistence, so E2EE rooms are
 # unreadable to it.
+# Team-owned bot-token mirror (same-namespace `varsFrom`; keys land under
+# the module var names, no varsKeys renames). Team namespaces mint their own
+# bot via their own bootstrap (same Job pattern as matrix
+# base/matrix-bot-bootstrap.yaml) — NEVER the matrix tenant's kept Secret
+# (varsFrom CANNOT cross namespaces).
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

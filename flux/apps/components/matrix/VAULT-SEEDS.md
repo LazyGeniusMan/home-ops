@@ -14,43 +14,42 @@ scheme (same convention as `matrix/terraform/README.md`):
 pass insert 'acme-<env>-bdo1-talos-apps-01/<path>'
 ```
 
-Field count per env: **16** Proton Pass fields (1 cert-manager + 2
-apprise/matrix-rooms + 8 mautrix-discord + 2 element-web + 3 room-bot).
+Field count per env: **12** Proton Pass fields (1 cert-manager + 1
+registration-secret + 8 mautrix-discord + 2 element-web). The 5 retired
+`matrix-rooms/*` bot fields (notifier + room-provider) are BOOTSTRAPPED
+in-cluster now (see "Retired" below) — do NOT reseed them. Coder's 2
+notifier fields live in the CODER tenant's seed table, not here.
 Everything
-else in this tenant is minted in-cluster (COSI, Terraform outputs, CNPG)
-and needs NO seeding — see "Not vault-seeded" below.
+else in this tenant is minted in-cluster (COSI, Terraform outputs, CNPG,
+bootstrap kept Secret) and needs NO seeding — see "Not vault-seeded"
+below.
 
 ## Per-env seed table
 
-Same 16 rows for `dev` (`acme-dev-bdo1-talos-apps-01`) and `prd`
+Same 12 rows for `dev` (`acme-dev-bdo1-talos-apps-01`) and `prd`
 (`acme-prd-bdo1-talos-apps-01`); only the values differ per env (hosts,
 tokens). Env-specific value notes are in the last column.
 
 | # | Vault field (`<prefix>/<path>`) | ExternalSecret → Secret (key) | Consumed by | Value notes |
 |---|---|---|---|---|
 | 1 | `cert-manager/cloudflare-api-token` | `cloudflare-api-token` → `cloudflare-api-token` (`api-token`) | cert-manager DNS-01 solver for the in-namespace wildcard `Certificate` (`tuwunel-secrets.yaml`; mirrors `cert-manager/configs/base/cluster-issuer.yaml` with the same remoteRef) | Same Cloudflare API token in both envs (zone-scoped) |
-| 2 | `matrix-rooms/notifier-bot-token` | `apprise-stateless-urls` → `apprise-stateless-urls` (`stateless-urls`) | Consumer-owned fallback for the infra `apprise-go-api` sink (namespace `apprise-go-api`) — composed into four `matrixs://<token>@<host>/%23<room>?tag=…` legs (`apprise-go-api-secrets.yaml`); the sink itself carries no credentials | Per-env bot token (`@apprise-dev` vs `@apprise`); never shared across envs |
-| 3 | `matrix-rooms/homeserver-host` | (same ES/Secret as #2) | (same — the `<host>` half of the composed URLs) | Bare host, NO scheme: dev `tuwunel.matrix.homelab-dev.yansyah.my.id`, prd `tuwunel.matrix.home-ops.yansyah.my.id` |
-| 4 | `mautrix-discord/bot-token` | `mautrix-discord` → `mautrix-discord` (`bot-token`) | Bridge entrypoint: `login-token bot <token>` session auth at runtime, never baked into config | Discord bot token from the Discord developer portal |
-| 5 | `mautrix-discord/as-token` | (same ES/Secret, `as-token`) | Bridge registration (`registration.yaml` via `AS_TOKEN` env) + tuwunel appservice `as_token` side | Random ≥64ch; seeded ONCE, then stable forever (PVC persists `registration.yaml`) |
-| 6 | `mautrix-discord/hs-token` | (same ES/Secret, `hs-token`) | Bridge registration (`HS_TOKEN` env) + tuwunel appservice `hs_token` side | Same stability contract as `as-token` |
-| 7 | `mautrix-discord/avatar-proxy-key` | (same ES/Secret, `avatar-proxy-key`) | Bridge `/mautrix-discord/avatar` relay HMAC (`AVATAR_PROXY_KEY` env) | Random ≥32ch HMAC key |
-| 8 | `mautrix-discord/direct-media-server-key` | (same ES/Secret, `direct-media-server-key`) | Bridge federation media signing (`DIRECT_MEDIA_SERVER_KEY` env; synapse `.signing.key` format) | Generate per synapse signing-key format |
-| 9 | `mautrix-discord/provisioning-shared-secret` | (same ES/Secret, `provisioning-shared-secret`) | Bridge provisioning API auth (`PROVISIONING_SHARED_SECRET` env) | Random ≥32ch |
-| 10 | `mautrix-discord/double-puppet-shared-secret` | (same ES/Secret, `double-puppet-shared-secret`) | Legacy `login_shared_secret_map` double-puppet value (`DOUBLE_PUPPET_SHARED_SECRET` env) | Random ≥32ch |
-| 11 | `mautrix-discord/db-password` | `mautrix-discord-db-credentials` → `mautrix-discord-db-credentials` (`connection-url`, templated `postgres://discord:<pw>@mautrix-discord-db-rw.matrix.svc:5432/discord?sslmode=require`) AND `mautrix-discord-db-app-secret` → `mautrix-discord-db-app-secret` (basic-auth `discord`/`<pw>`; username MUST equal `spec.bootstrap.initdb.owner`) | Bridge `DATABASE_URL` env + CNPG `mautrix-discord-db` Cluster initdb owner password | Random ≥32ch; single field feeds BOTH Secrets |
-| 12 | `element-web/netbird-pat` | `element-proxy-vars` → `element-proxy-vars` (`netbird_token`) | Terraform `element-proxy` CR via `varsFrom` (NetBird custom-domain + reverse-proxy service registration) | Per-env NetBird PAT |
-| 13 | `element-web/cloudflare-api-token` | (same ES/Secret, `cloudflare_api_token`) | (same CR — Cloudflare side of the NetBird registration) | Distinct vault field from #1 (separate consumer), same upstream token value is fine |
-| 14 | `matrix-rooms/homeserver-url` | `matrix-rooms-terraform-vars` → `matrix-rooms-terraform-vars` (`homeserver_url`) | Live room Terraform CRs (`flux-notifications`, `tofu-runs`, `coder-notifications` in `base/rooms.yaml`) via `varsFrom` (matrix provider auth — the coder room REUSES the same shared mirror, no new fields) | Full URL with scheme: dev `https://tuwunel.matrix.homelab-dev.yansyah.my.id`, prd `https://tuwunel.matrix.home-ops.yansyah.my.id` |
-| 15 | `matrix-rooms/bot-access-token` | (same ES/Secret, `access_token`) | (same CRs — matrix provider token) | Per-env bot token (`@apprise-dev` vs `@apprise`); never shared across envs |
-| 16 | `matrix-rooms/bot-user-id` | (same ES/Secret, `user_id`) | (same CRs — matrix provider user) | Per-env bot mxid: dev `@apprise-dev:<server>`, prd `@apprise:<server>` |
+| 2 | `matrix/tuwunel-registration-secret` | `tuwunel-registration-secret` → `tuwunel-registration-secret` (`shared-secret`) | Server side of the bot bootstrap: tuwunel Deployment mount (`TUWUNEL_REGISTRATION_SHARED_SECRET_FILE`) + `matrix-bot-bootstrap` Job env (`REGISTRATION_SHARED_SECRET`) — one source, no dual-write | Random ≥32 bytes; seeded ONCE per env, then stable forever (server + Job read the same Secret) |
+| 3 | `mautrix-discord/bot-token` | `mautrix-discord` → `mautrix-discord` (`bot-token`) | Bridge entrypoint: `login-token bot <token>` session auth at runtime, never baked into config | Discord bot token from the Discord developer portal |
+| 4 | `mautrix-discord/as-token` | (same ES/Secret, `as-token`) | Bridge registration (`registration.yaml` via `AS_TOKEN` env) + tuwunel appservice `as_token` side | Random ≥64ch; seeded ONCE, then stable forever (PVC persists `registration.yaml`) |
+| 5 | `mautrix-discord/hs-token` | (same ES/Secret, `hs-token`) | Bridge registration (`HS_TOKEN` env) + tuwunel appservice `hs_token` side | Same stability contract as `as-token` |
+| 6 | `mautrix-discord/avatar-proxy-key` | (same ES/Secret, `avatar-proxy-key`) | Bridge `/mautrix-discord/avatar` relay HMAC (`AVATAR_PROXY_KEY` env) | Random ≥32ch HMAC key |
+| 7 | `mautrix-discord/direct-media-server-key` | (same ES/Secret, `direct-media-server-key`) | Bridge federation media signing (`DIRECT_MEDIA_SERVER_KEY` env; synapse `.signing.key` format) | Generate per synapse signing-key format |
+| 8 | `mautrix-discord/provisioning-shared-secret` | (same ES/Secret, `provisioning-shared-secret`) | Bridge provisioning API auth (`PROVISIONING_SHARED_SECRET` env) | Random ≥32ch |
+| 9 | `mautrix-discord/double-puppet-shared-secret` | (same ES/Secret, `double-puppet-shared-secret`) | Legacy `login_shared_secret_map` double-puppet value (`DOUBLE_PUPPET_SHARED_SECRET` env) | Random ≥32ch |
+| 10 | `mautrix-discord/db-password` | `mautrix-discord-db-credentials` → `mautrix-discord-db-credentials` (`connection-url`, templated `postgres://discord:<pw>@mautrix-discord-db-rw.matrix.svc:5432/discord?sslmode=require`) AND `mautrix-discord-db-app-secret` → `mautrix-discord-db-app-secret` (basic-auth `discord`/`<pw>`; username MUST equal `spec.bootstrap.initdb.owner`) | Bridge `DATABASE_URL` env + CNPG `mautrix-discord-db` Cluster initdb owner password | Random ≥32ch; single field feeds BOTH Secrets |
+| 11 | `element-web/netbird-pat` | `element-proxy-vars` → `element-proxy-vars` (`netbird_token`) | Terraform `element-proxy` CR via `varsFrom` (NetBird custom-domain + reverse-proxy service registration) | Per-env NetBird PAT |
+| 12 | `element-web/cloudflare-api-token` | (same ES/Secret, `cloudflare_api_token`) | (same CR — Cloudflare side of the NetBird registration) | Distinct vault field from #1 (separate consumer), same upstream token value is fine |
 
 Seed commands (dev shown; repeat with `acme-prd-bdo1-talos-apps-01` for prd):
 
 ```shell
 pass insert 'acme-dev-bdo1-talos-apps-01/cert-manager/cloudflare-api-token'
-pass insert 'acme-dev-bdo1-talos-apps-01/matrix-rooms/notifier-bot-token'
-pass insert 'acme-dev-bdo1-talos-apps-01/matrix-rooms/homeserver-host'
+pass insert 'acme-dev-bdo1-talos-apps-01/matrix/tuwunel-registration-secret'
 pass insert 'acme-dev-bdo1-talos-apps-01/mautrix-discord/bot-token'
 pass insert 'acme-dev-bdo1-talos-apps-01/mautrix-discord/as-token'
 pass insert 'acme-dev-bdo1-talos-apps-01/mautrix-discord/hs-token'
@@ -61,9 +60,6 @@ pass insert 'acme-dev-bdo1-talos-apps-01/mautrix-discord/double-puppet-shared-se
 pass insert 'acme-dev-bdo1-talos-apps-01/mautrix-discord/db-password'
 pass insert 'acme-dev-bdo1-talos-apps-01/element-web/netbird-pat'
 pass insert 'acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-token'
-pass insert 'acme-dev-bdo1-talos-apps-01/matrix-rooms/homeserver-url'
-pass insert 'acme-dev-bdo1-talos-apps-01/matrix-rooms/bot-access-token'
-pass insert 'acme-dev-bdo1-talos-apps-01/matrix-rooms/bot-user-id'
 ```
 
 ## Not vault-seeded (in-cluster minted — DO NOT `pass insert`)
@@ -88,32 +84,51 @@ pass insert 'acme-dev-bdo1-talos-apps-01/matrix-rooms/bot-user-id'
 - **NetBird proxy outputs** (`element-proxy-outputs` Secret):
   `writeOutputsToSecret` of the `element-proxy` Terraform CR. Never in
   the vault, never in Git.
-- **matrix-rooms bot fields** (`matrix-rooms/homeserver-url`,
-  `bot-access-token`, `bot-user-id`): consumed by the LIVE room-provisioning
-  Terraform CRs in this tenant (`base/rooms.yaml` — `flux-notifications` +
-  `tofu-runs` + `coder-notifications`; rows 14–16 above — the coder room
-  reuses the SAME shared mirror, no new vault fields). The
-  `matrix/terraform/examples/` files
-  are copy-paste skeletons for TEAM namespaces only
-  (`team-terraform.yaml` stays example-only — no team room here). Related
-  but separate: the apprise fallback above uses
-  `matrix-rooms/notifier-bot-token` + `homeserver-host` (same vault
-  area, different fields).
+- **matrix bot fields** (BOOTSTRAPPED — in-cluster minted, DO NOT
+  `pass insert`): the `matrix-bot-bootstrap` Job (`base/matrix-bot-bootstrap.yaml`)
+  registers the per-env bot (`@apprise-dev` dev / `@apprise` prd, ONE bot
+  shared by all 3 rooms) + mints its token + writes the KEPT Secret
+  `matrix-bot-bootstrap-outputs` (keys `homeserver_url`/`access_token`/
+  `user_id` for the rooms.yaml Terraform CRs via same-namespace `varsFrom`;
+  keys `notifier-token`/`homeserver-host` for the apprise-stateless-urls ES
+  via the in-cluster `tuwunel-k8s` store). The `matrix/terraform/examples/`
+  files are copy-paste skeletons for TEAM namespaces only
+  (`team-terraform.yaml` stays example-only — no team room here).
+- **Coder notifier fields** (`coder/matrix-bot-token`, `coder/matrix-host`):
+  NOT this tenant — they live in the CODER seed table (coder owns its
+  credential; see the coder README credentials section). Zero
+  `matrix-rooms` refs in the coder namespace.
 - **In-namespace plumbing**: `eso-k8s-reader` RBAC, `kube-root-ca.crt`,
   the wildcard TLS Secret minted by cert-manager. No seeding.
+
+## Retired (do NOT reseed — bootstrapped or decoupled)
+
+- `matrix-rooms/notifier-bot-token` + `matrix-rooms/homeserver-host`:
+  RETIRED — the apprise fallback now reads the bootstrapped
+  `notifier-token`/`homeserver-host` from the kept Secret via the
+  in-cluster store. Old vault entries may stay as rollback, NOT referenced.
+- `matrix-rooms/homeserver-url` + `matrix-rooms/bot-access-token` +
+  `matrix-rooms/bot-user-id`: RETIRED — rooms.yaml reads the kept Secret
+  directly. Old vault entries may stay as rollback, NOT referenced.
+- `coder/matrix-bot-token` + `coder/matrix-host`: NEW coder-owned paths
+  (NOT this table — see the coder README credentials section).
 
 ## Cross-check (READMEs consulted)
 
 - `base/tuwunel-secrets.yaml` + `base/tuwunel.yaml` header (SSO/S3
-  contract) → rows: none vault-seeded; checks #1 (shared solver token).
+  contract + registration-secret wiring) → row #2 (registration secret);
+  checks #1 (shared solver token).
 - `base/mautrix-discord-secrets.yaml` header (7 tokens + db-password) →
-  rows 4–11.
+  rows 3–10.
 - `base/mautrix-discord-db.yaml` header (COSI chain + `cnpg/s3-*`
   fallback note) → not-seeded list.
-- `base/apprise-go-api-secrets.yaml` header (token + host composition)
-  → rows 2–3.
-- `base/element-proxy.yaml` header (NetBird varsFrom) → rows 12–13.
-- `base/rooms.yaml` header (room-bot varsFrom + per-room CRs) → rows 14–16.
+- `base/apprise-go-api-secrets.yaml` header (bootstrapped token + host
+  composition, 3 legs) → not-seeded (kept-Secret sourced).
+- `base/element-proxy.yaml` header (NetBird varsFrom) → rows 11–12.
+- `base/rooms.yaml` header (bootstrap kept-Secret varsFrom + per-room CRs)
+  → not-seeded (kept-Secret sourced).
+- `base/matrix-bot-bootstrap.yaml` header (Job + kept Secret chain) →
+  not-seeded list.
 - `base/NOTIFICATIONS.md` + pre-consolidation `tuwunel`/`mautrix-discord`
-  READMEs (git history) → SSO Terraform follow-up + room-bot fields
+  READMEs (git history) → SSO Terraform follow-up + bootstrapped bot
   → not-seeded list.
