@@ -1,0 +1,25 @@
+# Update policy for the tuwunel Matrix homeserver: tracks the upstream
+# tuwunel image, and the ImageUpdateAutomation (update cluster) opens PRs
+# via the marker in components/matrix/base/tuwunel.yaml. Follows the §7
+# update-policy contract (ImageRepository + ImagePolicy + $imagepolicy
+# markers).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: tuwunel
+spec:
+  image: "ghcr.io/matrix-construct/tuwunel"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: tuwunel
+spec:
+  imageRepositoryRef:
+    name: tuwunel
+  policy:
+    semver:
+      range: ">=1.9.2"

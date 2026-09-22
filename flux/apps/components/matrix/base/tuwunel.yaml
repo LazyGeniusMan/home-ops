@@ -36,8 +36,9 @@
 #   setting at creation).
 # - No HPA (singleton) — VPA owns sizing (tuwunel-vpa.yaml).
 # - Image pinned to the docs-snapshot version (Cargo.toml 1.9.2,
-#   ghcr.io/matrix-construct/tuwunel); no $imagepolicy marker yet — see
-#   README follow-up (update-policies/tuwunel.yaml).
+#   ghcr.io/matrix-construct/tuwunel) tracked by
+#   update-policies/tuwunel.yaml via the $imagepolicy marker on the image
+#   (apps:tuwunel:tag).
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -77,7 +78,7 @@ spec:
       terminationGracePeriodSeconds: 600
       containers:
         - name: tuwunel
-          image: ghcr.io/matrix-construct/tuwunel:v1.9.2
+          image: ghcr.io/matrix-construct/tuwunel:v1.9.2 # {"$imagepolicy": "apps:tuwunel:tag"}
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
