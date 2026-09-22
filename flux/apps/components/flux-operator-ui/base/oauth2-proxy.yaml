@@ -54,7 +54,7 @@ spec:
             - --provider=oidc
             - --oidc-issuer-url=__ZITADEL_ISSUER_URL__
             - --redirect-url=https://__SERVICE_HOST__/oauth2/callback
-            - --upstream=http://flux-operator-ui.$(POD_NAMESPACE).svc.cluster.local:9080
+            - --upstream=http://flux-operator-ui.$(POD_NAMESPACE):9080
             - --scope=openid profile email groups
             - --oidc-groups-claim=groups
             - --allowed-group=flux-operator-ui-admin

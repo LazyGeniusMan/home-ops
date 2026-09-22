@@ -227,7 +227,7 @@ spec:
         region:
           value: us-east-1
         endpoint:
-          value: http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333
+          value: http://seaweed-main-s3.seaweedfs:8333
     destination:
       type: proton-drive
       remoteName: ""
@@ -289,7 +289,7 @@ spec:
         region:
           value: us-east-1
         endpoint:
-          value: http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333
+          value: http://seaweed-main-s3.seaweedfs:8333
     destination:
       type: proton-drive
       remoteName: ""

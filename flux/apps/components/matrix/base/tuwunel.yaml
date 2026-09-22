@@ -178,7 +178,7 @@ spec:
                   name: tuwunel-s3
                   key: secret-access-key
             - name: TUWUNEL_STORAGE_PROVIDER__MEDIA_ON_S3__S3__ENDPOINT
-              value: http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333
+              value: http://seaweed-main-s3.seaweedfs:8333
             - name: TUWUNEL_STORAGE_PROVIDER__MEDIA_ON_S3__S3__BASE_PATH
               value: tuwunel-media
             - name: TUWUNEL_STORAGE_PROVIDER__MEDIA_ON_S3__S3__USE_VHOST_REQUEST

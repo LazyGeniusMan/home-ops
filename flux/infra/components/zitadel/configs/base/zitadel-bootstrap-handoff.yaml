@@ -118,7 +118,7 @@ spec:
     name: zitadel-asset-storage
     template:
       data:
-        endpoint: http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333
+        endpoint: http://seaweed-main-s3.seaweedfs:8333
         accessKeyId: "{{ .accessKeyId }}"
         secretAccessKey: "{{ .secretAccessKey }}"
   data:

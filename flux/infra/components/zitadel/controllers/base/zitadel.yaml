@@ -140,7 +140,7 @@ spec:
       # host <name>.<namespace>.svc.cluster.local, port 6379, no auth (base
       # ships neither password nor TLS — same contract as the README).
       - name: ZITADEL_CACHES_CONNECTORS_REDIS_URL
-        value: "redis://zitadel-cache.zitadel.svc.cluster.local:6379"
+        value: "redis://zitadel-cache.zitadel:6379"
       - name: ZITADEL_CACHES_CONNECTORS_REDIS_ENABLED
         value: "true"
       # AssetStorage S3 (avatars/org logos — Secret zitadel-asset-storage,

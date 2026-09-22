@@ -54,7 +54,7 @@ spec:
             - name: SEAWEEDFS_FILER
               value: seaweed-main-filer.seaweedfs:8888
             - name: ENDPOINT
-              value: http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333
+              value: http://seaweed-main-s3.seaweedfs:8333
             - name: REGION
               value: us-east-1
           volumeMounts:
