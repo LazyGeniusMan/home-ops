@@ -293,3 +293,58 @@ patches:
     target:
       kind: HorizontalPodAutoscaler
       name: element-web
+  # ---- live room provisioning (tofu-controller) ----
+  # Prd vault paths for the shared matrix-rooms-terraform-vars mirror (base
+  # holds __PROTON_PASS_BASE__ placeholders; all three data entries patched).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/matrix-rooms/homeserver-url
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/matrix-rooms/bot-access-token
+      - op: replace
+        path: /spec/data/2/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/matrix-rooms/bot-user-id
+    target:
+      kind: ExternalSecret
+      name: matrix-rooms-terraform-vars
+  # Prd room members: on-call lead / coder-admin mxids on the prd homeserver.
+  # POSITIONAL: /spec/vars/8 is members + /spec/vars/9 is power_levels — see
+  # the order note in base/rooms.yaml.
+  - patch: |
+      - op: replace
+        path: /spec/vars/8/value
+        value:
+          "@oncall-lead:tuwunel.matrix.home-ops.yansyah.my.id": invite
+      - op: replace
+        path: /spec/vars/9/value
+        value:
+          "@oncall-lead:tuwunel.matrix.home-ops.yansyah.my.id": 50
+    target:
+      kind: Terraform
+      name: flux-notifications
+  - patch: |
+      - op: replace
+        path: /spec/vars/8/value
+        value:
+          "@oncall-lead:tuwunel.matrix.home-ops.yansyah.my.id": invite
+      - op: replace
+        path: /spec/vars/9/value
+        value:
+          "@oncall-lead:tuwunel.matrix.home-ops.yansyah.my.id": 50
+    target:
+      kind: Terraform
+      name: tofu-runs
+  - patch: |
+      - op: replace
+        path: /spec/vars/8/value
+        value:
+          "@coder-admin:tuwunel.matrix.home-ops.yansyah.my.id": invite
+      - op: replace
+        path: /spec/vars/9/value
+        value:
+          "@coder-admin:tuwunel.matrix.home-ops.yansyah.my.id": 50
+    target:
+      kind: Terraform
+      name: coder-notifications

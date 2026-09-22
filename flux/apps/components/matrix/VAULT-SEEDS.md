@@ -14,14 +14,15 @@ scheme (same convention as `matrix/terraform/README.md`):
 pass insert 'acme-<env>-bdo1-talos-apps-01/<path>'
 ```
 
-Field count per env: **13** Proton Pass fields (1 cert-manager + 2
-apprise/matrix-rooms + 8 mautrix-discord + 2 element-web). Everything
+Field count per env: **16** Proton Pass fields (1 cert-manager + 2
+apprise/matrix-rooms + 8 mautrix-discord + 2 element-web + 3 room-bot).
+Everything
 else in this tenant is minted in-cluster (COSI, Terraform outputs, CNPG)
 and needs NO seeding — see "Not vault-seeded" below.
 
 ## Per-env seed table
 
-Same 13 rows for `dev` (`acme-dev-bdo1-talos-apps-01`) and `prd`
+Same 16 rows for `dev` (`acme-dev-bdo1-talos-apps-01`) and `prd`
 (`acme-prd-bdo1-talos-apps-01`); only the values differ per env (hosts,
 tokens). Env-specific value notes are in the last column.
 
@@ -40,6 +41,9 @@ tokens). Env-specific value notes are in the last column.
 | 11 | `mautrix-discord/db-password` | `mautrix-discord-db-credentials` → `mautrix-discord-db-credentials` (`connection-url`, templated `postgres://discord:<pw>@mautrix-discord-db-rw.matrix.svc:5432/discord?sslmode=require`) AND `mautrix-discord-db-app-secret` → `mautrix-discord-db-app-secret` (basic-auth `discord`/`<pw>`; username MUST equal `spec.bootstrap.initdb.owner`) | Bridge `DATABASE_URL` env + CNPG `mautrix-discord-db` Cluster initdb owner password | Random ≥32ch; single field feeds BOTH Secrets |
 | 12 | `element-web/netbird-pat` | `element-proxy-vars` → `element-proxy-vars` (`netbird_token`) | Terraform `element-proxy` CR via `varsFrom` (NetBird custom-domain + reverse-proxy service registration) | Per-env NetBird PAT |
 | 13 | `element-web/cloudflare-api-token` | (same ES/Secret, `cloudflare_api_token`) | (same CR — Cloudflare side of the NetBird registration) | Distinct vault field from #1 (separate consumer), same upstream token value is fine |
+| 14 | `matrix-rooms/homeserver-url` | `matrix-rooms-terraform-vars` → `matrix-rooms-terraform-vars` (`homeserver_url`) | Live room Terraform CRs (`flux-notifications`, `tofu-runs` in `base/rooms.yaml`) via `varsFrom` (matrix provider auth) | Full URL with scheme: dev `https://tuwunel.matrix.homelab-dev.yansyah.my.id`, prd `https://tuwunel.matrix.home-ops.yansyah.my.id` |
+| 15 | `matrix-rooms/bot-access-token` | (same ES/Secret, `access_token`) | (same CRs — matrix provider token) | Per-env bot token (`@apprise-dev` vs `@apprise`); never shared across envs |
+| 16 | `matrix-rooms/bot-user-id` | (same ES/Secret, `user_id`) | (same CRs — matrix provider user) | Per-env bot mxid: dev `@apprise-dev:<server>`, prd `@apprise:<server>` |
 
 Seed commands (dev shown; repeat with `acme-prd-bdo1-talos-apps-01` for prd):
 
@@ -57,6 +61,9 @@ pass insert 'acme-dev-bdo1-talos-apps-01/mautrix-discord/double-puppet-shared-se
 pass insert 'acme-dev-bdo1-talos-apps-01/mautrix-discord/db-password'
 pass insert 'acme-dev-bdo1-talos-apps-01/element-web/netbird-pat'
 pass insert 'acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-token'
+pass insert 'acme-dev-bdo1-talos-apps-01/matrix-rooms/homeserver-url'
+pass insert 'acme-dev-bdo1-talos-apps-01/matrix-rooms/bot-access-token'
+pass insert 'acme-dev-bdo1-talos-apps-01/matrix-rooms/bot-user-id'
 ```
 
 ## Not vault-seeded (in-cluster minted — DO NOT `pass insert`)
@@ -82,10 +89,12 @@ pass insert 'acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-token'
   `writeOutputsToSecret` of the `element-proxy` Terraform CR. Never in
   the vault, never in Git.
 - **matrix-rooms bot fields** (`matrix-rooms/homeserver-url`,
-  `bot-access-token`, `bot-user-id`): consumed by room-provisioning
-  Terraform CRs that live in TEAM namespaces (see
-  `matrix/terraform/examples/` + `matrix/terraform/README.md`), NOT by
-  this tenant. Related but separate: the apprise fallback above uses
+  `bot-access-token`, `bot-user-id`): consumed by the LIVE room-provisioning
+  Terraform CRs in this tenant (`base/rooms.yaml` — `flux-notifications` +
+  `tofu-runs`; rows 14–16 above). The `matrix/terraform/examples/` files
+  are copy-paste skeletons for TEAM namespaces only
+  (`team-terraform.yaml` stays example-only — no team room here). Related
+  but separate: the apprise fallback above uses
   `matrix-rooms/notifier-bot-token` + `homeserver-host` (same vault
   area, different fields).
 - **In-namespace plumbing**: `eso-k8s-reader` RBAC, `kube-root-ca.crt`,
@@ -102,6 +111,7 @@ pass insert 'acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-token'
 - `base/apprise-go-api-secrets.yaml` header (token + host composition)
   → rows 2–3.
 - `base/element-proxy.yaml` header (NetBird varsFrom) → rows 12–13.
+- `base/rooms.yaml` header (room-bot varsFrom + per-room CRs) → rows 14–16.
 - `base/NOTIFICATIONS.md` + pre-consolidation `tuwunel`/`mautrix-discord`
   READMEs (git history) → SSO Terraform follow-up + room-bot fields
   → not-seeded list.

@@ -94,7 +94,8 @@ Flux generic Provider POSTs a JSON `Event`
 
 ## E2EE-vs-plaintext decision: PLAINTEXT for notifier rooms
 
-- All three purpose rooms are `encryption_enabled: false` (room examples:
+- All three purpose rooms are `encryption_enabled: false` (live rooms in
+  `rooms.yaml` + team skeleton in `terraform/examples/`: all carry
   `encryption_enabled: false`, `events_default: 50`), and every fallback
   URL carries `e2ee=false`.
 - Why: the apprise-go Matrix target defaults to `e2ee=true`, but E2EE

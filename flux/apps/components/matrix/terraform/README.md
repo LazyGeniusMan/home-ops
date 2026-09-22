@@ -3,7 +3,10 @@
 Machine-applied by Tofu Controller. Owns ONLY per-team rooms/spaces on the
 tuwunel homeserver (`tuwunel.matrix.home-ops.yansyah.my.id`, sibling task):
 the shared root here (`main.tf` + `module/`) plus one consumer Terraform CR
-per room (see `./examples/flux-notifications-terraform.yaml`).
+per room. Live ops rooms ship in `../base/rooms.yaml`
+(`flux-notifications` + `tofu-runs`); the `./examples/` files
+(`flux-notifications-terraform.yaml`, `tofu-runs-terraform.yaml`,
+`team-terraform.yaml`) are copy-paste skeletons for TEAM namespaces only.
 
 The provider (`raspbeguy/matrix ~> 0.5`) has **no user/token resources**, so
 the bot + token are bootstrapped ONCE outside Terraform (runbook below).
