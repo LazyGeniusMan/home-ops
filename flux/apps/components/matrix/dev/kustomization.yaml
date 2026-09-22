@@ -1,0 +1,310 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+patches:
+  # ---- apprise-go-api (internal webhook sink — no route/cert patches) (carried over from components/apprise-go-api/dev/) ----
+  # No route/cert patches: internal ClusterIP only (no HTTPRoute).
+  # Vault: per-env Proton Pass path for the stateless-URLs fallback
+  # (base holds __PROTON_PASS_BASE__ placeholders; both data entries
+  # patched — notifier token + homeserver host). Dev replica counts:
+  # minimal single-replica footprint. No Deployment /spec/replicas patch:
+  # base replicas: 1 is the create-time seed, HPA owns runtime count (HPA
+  # minReplicas enforces the floor); the HPA below scales 1-2 on
+  # CPU+memory.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/matrix-rooms/notifier-bot-token
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/matrix-rooms/homeserver-host
+    target:
+      kind: ExternalSecret
+      name: apprise-stateless-urls
+
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+    target:
+      kind: HorizontalPodAutoscaler
+      name: apprise-go-api
+  # ---- tuwunel (homeserver) (carried over from components/tuwunel/dev/) ----
+  # Dev route hostnames (tuwunel.matrix.homelab-dev.yansyah.my.id).
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: tuwunel.matrix.homelab-dev.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: tuwunel-redirect
+
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: tuwunel.matrix.homelab-dev.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: tuwunel-tls
+  # No tuwunel-sso-client vault patches: client_id + client_secret flow
+  # end-to-end from the tuwunel-sso outputs Secret via the in-cluster
+  # `tuwunel-k8s` SecretStore (base/tuwunel-secrets.yaml).
+  # (S3 keys are COSI-minted via the tuwunel-cosi SecretStore — no
+  # per-env vault ref patch for tuwunel-s3.)
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
+    target:
+      kind: ExternalSecret
+      name: cloudflare-api-token
+  # Dev wildcard Certificate (wildcard-homelab-dev).
+  - patch: |
+      - op: replace
+        path: /metadata/name
+        value: wildcard-homelab-dev
+    target:
+      kind: Certificate
+      name: __WILDCARD_CERT_NAME__
+
+  - patch: |
+      - op: replace
+        path: /spec/secretName
+        value: wildcard-homelab-dev-tls
+    target:
+      kind: Certificate
+      name: wildcard-homelab-dev
+
+  - patch: |
+      - op: replace
+        path: /spec/dnsNames/0
+        value: "*.homelab-dev.yansyah.my.id"
+    target:
+      kind: Certificate
+      name: wildcard-homelab-dev
+  # Dev identity: server_name + well-known client + Zitadel issuer +
+  # SSO callback. POSITIONAL: /spec/template/spec/containers/0/env/0
+  # (SERVER_NAME) + /env/5 (WELL_KNOWN__CLIENT) + /env/24 (ISSUER_URL) +
+  # /env/25 (CALLBACK_URL) — see the order note in base/tuwunel.yaml.
+  # The callback embeds the per-env matrix host; the client_id suffix
+  # rides k8s $(TUWUNEL_SSO_CLIENT_ID) expansion, so no generated id
+  # ever lands in git.
+  - patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: tuwunel.matrix.homelab-dev.yansyah.my.id
+      - op: replace
+        path: /spec/template/spec/containers/0/env/5/value
+        value: https://tuwunel.matrix.homelab-dev.yansyah.my.id
+      - op: replace
+        path: /spec/template/spec/containers/0/env/24/value
+        value: https://admin.zitadel.homelab-dev.yansyah.my.id
+      - op: replace
+        path: /spec/template/spec/containers/0/env/25/value
+        value: https://tuwunel.matrix.homelab-dev.yansyah.my.id/_matrix/client/unstable/login/sso/callback/$(TUWUNEL_SSO_CLIENT_ID)
+    target:
+      kind: Deployment
+      name: tuwunel
+  # ---- mautrix-discord (bridge + colocated Postgres) (carried over from components/mautrix-discord/dev/) ----
+  # Dev Proton Pass identity: every mautrix-discord vault ref (base holds
+  # __PROTON_PASS_BASE__ placeholders). The S3 entry stays COSI-minted —
+  # no per-env patch for cnpg-s3-credentials.
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/mautrix-discord/bot-token
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/mautrix-discord/as-token
+      - op: replace
+        path: /spec/data/2/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/mautrix-discord/hs-token
+      - op: replace
+        path: /spec/data/3/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/mautrix-discord/avatar-proxy-key
+      - op: replace
+        path: /spec/data/4/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/mautrix-discord/direct-media-server-key
+      - op: replace
+        path: /spec/data/5/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/mautrix-discord/provisioning-shared-secret
+      - op: replace
+        path: /spec/data/6/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/mautrix-discord/double-puppet-shared-secret
+    target:
+      kind: ExternalSecret
+      name: mautrix-discord
+
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/mautrix-discord/db-password
+    target:
+      kind: ExternalSecret
+      name: mautrix-discord-db-credentials
+
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/mautrix-discord/db-password
+    target:
+      kind: ExternalSecret
+      name: mautrix-discord-db-app-secret
+  # Dev S3 endpoint (same internal SeaweedFS name as every other component).
+  - patch: |
+      - op: replace
+        path: /spec/backup/barmanObjectStore/endpointURL
+        value: http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333
+    target:
+      kind: Cluster
+      name: mautrix-discord-db
+  # Dev homeserver link: the bridge talks to tuwunel over the SHARED `matrix`
+  # namespace (in-namespace Service DNS — both workloads land in `matrix` via
+  # the fleet apps Kustomization's targetNamespace). Positional:
+  # /spec/template/spec/containers/0/env/0 (HS_ADDRESS) +
+  # /spec/template/spec/containers/0/env/1 (HS_DOMAIN).
+  - patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: http://tuwunel.matrix.svc:8008
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1/value
+        value: tuwunel.matrix.homelab-dev.yansyah.my.id
+    target:
+      kind: Deployment
+      name: mautrix-discord
+  # Dev admin identity: the Matrix user that gets bridge `admin` (everyone
+  # on the dev HS keeps `user`; "*" keeps relay). Positional:
+  # /spec/template/spec/containers/0/env/3 (BRIDGE_ADMIN_MXID).
+  - patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env/3/value
+        value: "@admin:tuwunel.matrix.homelab-dev.yansyah.my.id"
+    target:
+      kind: Deployment
+      name: mautrix-discord
+  # Dev replica counts: minimal single-replica footprint everywhere.
+  # Bridge stays 1 in every env (singleton — the patch below only restates
+  # the base value so a future base change cannot silently scale it).
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: mautrix-discord
+
+  - patch: |
+      - op: replace
+        path: /spec/instances
+        value: 1
+    target:
+      kind: Cluster
+      name: mautrix-discord-db
+  # ---- element-web (stateless SPA + NetBird consumer) (carried over from components/element-web/dev/) ----
+  # Dev route hostname (element.matrix.homelab-dev.yansyah.my.id).
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: element.matrix.homelab-dev.yansyah.my.id
+    target:
+      kind: HTTPRoute
+      name: element
+  # Dev config.json: full-string replace (the ConfigMap data value is one
+  # opaque string — positional sub-patches inside it are not addressable, so
+  # the overlay ships the complete dev config). Only hosts vary vs base:
+  # tuwunel base_url, permalink_prefix, room_directory server_name.
+  - patch: |
+      - op: replace
+        path: /data/config.json
+        value: |
+          {
+              "default_server_config": {
+                  "m.homeserver": {
+                      "base_url": "https://tuwunel.matrix.homelab-dev.yansyah.my.id"
+                  }
+              },
+              "disable_custom_urls": true,
+              "disable_guests": false,
+              "disable_login_language_selector": false,
+              "disable_3pid_login": false,
+              "brand": "Element",
+              "default_theme": "light",
+              "permalink_prefix": "https://element.matrix.homelab-dev.yansyah.my.id",
+              "branding": {},
+              "embedded_pages": {},
+              "room_directory": {
+                  "servers": [
+                      "matrix.homelab-dev.yansyah.my.id"
+                  ]
+              },
+              "integrations_ui_url": null,
+              "integrations_rest_url": null,
+              "integrations_widgets_urls": [],
+              "jitsi": {
+                  "preferred_domain": "meet.element.io"
+              },
+              "help_url": "https://element.io/help",
+              "help_encryption_url": "https://element.io/help#encryption",
+              "default_federate": false,
+              "show_labs_settings": false,
+              "features": {},
+              "setting_defaults": {
+                  "breadcrumbs": true
+              }
+          }
+    target:
+      kind: ConfigMap
+      name: element-config
+  # (dropped identical ExternalSecret/cloudflare-api-token patch from element-web/dev — same ops already applied under tuwunel above; one cloudflare-api-token ES + one Certificate remain)
+  # (dropped identical Certificate/__WILDCARD_CERT_NAME__ patch from element-web/dev — same ops already applied under tuwunel above; one cloudflare-api-token ES + one Certificate remain)
+  # (dropped identical Certificate/wildcard-homelab-dev patch from element-web/dev — same ops already applied under tuwunel above; one cloudflare-api-token ES + one Certificate remain)
+  # (dropped identical Certificate/wildcard-homelab-dev patch from element-web/dev — same ops already applied under tuwunel above; one cloudflare-api-token ES + one Certificate remain)
+  # Dev NetBird proxy vars: provider-token vault paths (same Proton Pass
+  # per-cluster convention as the coder dev overlay) + service FQDN
+  # (positional: /spec/vars/0 is domain — base order must not change).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/element-web/netbird-pat
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-token
+    target:
+      kind: ExternalSecret
+      name: element-proxy-vars
+
+  - patch: |
+      - op: replace
+        path: /spec/vars/0/value
+        value: element.matrix.homelab-dev.yansyah.my.id
+      - op: replace
+        path: /spec/vars/2/value
+        value: __CLOUDFLARE_ZONE_ID_HOMELAB_DEV__
+      - op: replace
+        path: /spec/vars/3/value
+        value: acme-dev-bdo1-talos-apps-01
+      - op: replace
+        path: /spec/vars/4/value
+        value: 192.168.1.249
+    target:
+      kind: Terraform
+      name: element-proxy
+  # Dev replica bounds: minimal single-replica footprint. No Deployment
+  # /spec/replicas patch: base replicas: 1 is the create-time seed, HPA
+  # owns runtime count (HPA minReplicas enforces the floor); scales 1-2 on
+  # CPU+memory.
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+    target:
+      kind: HorizontalPodAutoscaler
+      name: element-web

@@ -1,0 +1,45 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # Shared tenant plumbing (ONE copy serves every in-namespace k8s store:
+  # tuwunel-k8s, tuwunel-cosi, mautrix-discord-cosi).
+  - matrix-rbac.yaml
+  # ONE wildcard Certificate covering both nested service hostnames
+  # (tuwunel.matrix.* + element.matrix.* — the tuwunel and element-web
+  # copies were spec-identical, so they merge here into one).
+  - wildcard-certificate.yaml
+  # apprise-go-api: internal webhook sink (Deployment+Service, secrets, HPA,
+  # VPA, Flux Provider/Alert wiring).
+  - apprise-go-api-secrets.yaml
+  - apprise-go-api.yaml
+  - apprise-go-api-hpa.yaml
+  - apprise-go-api-vpa.yaml
+  - notifications.yaml
+  # tuwunel: Matrix homeserver (Deployment+PVC+Service, secrets, COSI storage
+  # claim, COSI keys, VPA, HTTPRoutes). No HPA (singleton; RocksDB
+  # single-writer).
+  - tuwunel-secrets.yaml
+  - tuwunel-storage.yaml
+  - tuwunel-cosi-keys.yaml
+  - tuwunel.yaml
+  - tuwunel-vpa.yaml
+  - tuwunel-httproute.yaml
+  # mautrix-discord: Discord bridge singleton + colocated Postgres (secrets,
+  # storage claim, COSI keys, CNPG Cluster, workload, VPA). No HPA (fixed
+  # appservice listener + in-memory portal buffer — singleton contract).
+  - mautrix-storage.yaml
+  - mautrix-cosi-keys.yaml
+  - mautrix-discord-secrets.yaml
+  - mautrix-discord-db.yaml
+  - mautrix-discord.yaml
+  - mautrix-discord-vpa.yaml
+  # element-web: stateless SPA (DNS-01 solver secret, workload + config +
+  # Service, HTTPRoute, HPA, VPA, NetBird consumer). Only ONE
+  # cloudflare-api-token mirror ships here — the tuwunel and element-web
+  # copies were identical, so the tuwunel copy (inside tuwunel-secrets.yaml)
+  # is the survivor and element-secrets.yaml is NOT carried over.
+  - element-web.yaml
+  - element-web-hpa.yaml
+  - element-web-vpa.yaml
+  - element-httproute.yaml
+  - element-proxy.yaml

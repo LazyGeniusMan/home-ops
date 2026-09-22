@@ -1,0 +1,38 @@
+# Element Web HPA (Goal 2d): autoscaling/v2 over the hand-vendored
+# Deployment (upstream ships a plain Deployment example with replicas: 1 —
+# no autoscaling knob exists there). Stateless nginx SPA (no session, no
+# local state — every replica serves identical static files + the same
+# config.json), so horizontal scaling is safe.
+# No Deployment /spec/replicas overlay patches: base replicas: 1 is the
+# create-time seed, HPA owns runtime count (HPA minReplicas enforces the
+# floor). Dev min 1/max 2, prd min 2/max 4 via overlay patches
+# (clickstack precedent: cpu70/mem80). CPU + memory: the Deployment already
+# requests cpu/memory, so HPA works.
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: element-web
+  labels:
+    app.kubernetes.io/name: element-web
+    app.kubernetes.io/part-of: element-web
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: element-web
+  minReplicas: 1 # placeholder - overridden by dev/prd
+  maxReplicas: 2 # placeholder - overridden by dev/prd
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

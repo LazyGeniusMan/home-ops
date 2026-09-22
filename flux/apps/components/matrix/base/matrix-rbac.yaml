@@ -1,0 +1,45 @@
+# Shared in-namespace ESO Kubernetes-provider reader for the `matrix`
+# tenant (ONE copy serves every in-namespace k8s store here: tuwunel-k8s,
+# tuwunel-cosi, mautrix-discord-cosi — the tuwunel and mautrix-discord copies
+# were identical apart from labels, so they merge here; same shape as
+# coder/hubble-ui): same-cluster read, so `server.url` is omitted (defaults
+# to kubernetes.default) and the in-namespace `kube-root-ca.crt` ConfigMap
+# supplies the API CA.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-k8s-reader
+  labels:
+    app.kubernetes.io/name: matrix
+    app.kubernetes.io/part-of: matrix
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eso-k8s-reader
+  labels:
+    app.kubernetes.io/name: matrix
+    app.kubernetes.io/part-of: matrix
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["selfsubjectrulesreviews"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eso-k8s-reader
+  labels:
+    app.kubernetes.io/name: matrix
+    app.kubernetes.io/part-of: matrix
+subjects:
+  - kind: ServiceAccount
+    name: eso-k8s-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: eso-k8s-reader
