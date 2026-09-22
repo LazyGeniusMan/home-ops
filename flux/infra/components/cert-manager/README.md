@@ -13,7 +13,7 @@ token needs Zone:Read + DNS:Edit). Seed the vault entry with pass-cli.
 
 | Env | Replicas | Patches |
 | --- | --- | --- |
-| `dev` | 1 (controller + webhook + cainjector, pinned in `controllers/dev`) | LE production ACME server, vault `pass://acme-dev-bdo1-talos-apps-01/...`, ACME email `hostmaster@homelab-dev.yansyah.my.id`, `Certificate/wildcard-homelab-dev` |
+| `dev` | 1 (controller + webhook + cainjector, pinned in `controllers/dev`) | LE production ACME server, vault `pass://acme-dev-bdo1-talos-apps-01/...`, ACME email `hostmaster@home-ops-dev.yansyah.my.id`, `Certificate/wildcard-home-ops-dev` |
 | `prd` | 2 (controller + webhook + cainjector, pinned in `controllers/prd`) | LE production ACME server, vault `pass://acme-prd-bdo1-talos-apps-01/...`, ACME email, `Certificate/wildcard-home-ops` |
 
 Base issuer carries no ACME server; `dev` and `prd` each set the LE

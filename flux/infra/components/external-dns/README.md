@@ -40,7 +40,7 @@ over the TXT registry/domain.
 
 | Env | Replicas | Patches |
 | --- | --- | --- |
-| `dev` | 1 (netbird singleton) | TXT scope `home-ops-dev-netbird`, `domainFilters` + webhook `DOMAIN_FILTER` `homelab-dev.yansyah.my.id`, dev vault key; LB target `192.168.1.249` |
+| `dev` | 1 (netbird singleton) | TXT scope `home-ops-dev-netbird`, `domainFilters` + webhook `DOMAIN_FILTER` `home-ops-dev.yansyah.my.id`, dev vault key; LB target `192.168.1.249` |
 | `prd` | 1 (netbird singleton; no leader election caps `replicaCount` at 1) | TXT scope `home-ops-prd-netbird`, `domainFilters` + webhook `DOMAIN_FILTER` `home-ops.yansyah.my.id`, prd vault key; LB target `192.168.1.199` |
 
 Upstream reference (read-only): `/tmp/home-ops-docs/external-dns-docs`.

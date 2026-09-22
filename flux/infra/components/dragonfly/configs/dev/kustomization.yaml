@@ -38,7 +38,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/dnsNames/0
-        value: "*.dragonfly.homelab-dev.yansyah.my.id"
+        value: "*.dragonfly.home-ops-dev.yansyah.my.id"
     target:
       kind: Certificate
       name: wildcard-dragonfly

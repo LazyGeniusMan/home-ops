@@ -28,7 +28,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/dnsNames/0
-        value: "*.clickhouse.homelab-dev.yansyah.my.id"
+        value: "*.clickhouse.home-ops-dev.yansyah.my.id"
     target:
       kind: Certificate
       name: wildcard-clickhouse

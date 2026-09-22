@@ -13,14 +13,14 @@ patches:
   - patch: |
       - op: replace
         path: /spec/values/zitadel/configmapConfig/ExternalDomain
-        value: admin.zitadel.homelab-dev.yansyah.my.id
+        value: admin.zitadel.home-ops-dev.yansyah.my.id
       - op: add
         path: /spec/values/zitadel/configmapConfig/DefaultInstance
         value:
           Features:
             LoginV2:
               Required: true
-              BaseURI: https://login.zitadel.homelab-dev.yansyah.my.id/ui/v2/login
+              BaseURI: https://login.zitadel.home-ops-dev.yansyah.my.id/ui/v2/login
     target:
       kind: HelmRelease
       name: zitadel

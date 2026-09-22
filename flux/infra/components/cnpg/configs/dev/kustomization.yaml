@@ -38,7 +38,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/dnsNames/0
-        value: "*.postgres.homelab-dev.yansyah.my.id"
+        value: "*.postgres.home-ops-dev.yansyah.my.id"
     target:
       kind: Certificate
       name: wildcard-postgres

@@ -33,7 +33,7 @@ hostname matches dots to the left per the Gateway API spec, covering both
 
 | Env | Replicas | Patches |
 | --- | --- | --- |
-| `dev` | data-plane per-node via Cilium (N/A) | Gateway TLS `wildcard-homelab-dev-tls`, hostnames `homelab-dev.yansyah.my.id`, wildcard `Certificate` |
+| `dev` | data-plane per-node via Cilium (N/A) | Gateway TLS `wildcard-home-ops-dev-tls`, hostnames `home-ops-dev.yansyah.my.id`, wildcard `Certificate` |
 | `prd` | data-plane per-node via Cilium (N/A) | Gateway TLS `wildcard-home-ops-tls`, hostnames `home-ops.yansyah.my.id`, wildcard `Certificate` |
 
 The `Certificate` uses the shared `ClusterIssuer/letsencrypt` whose ACME

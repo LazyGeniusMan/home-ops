@@ -12,11 +12,11 @@ patches:
   # (see base/notifications.yaml). This stanza is intentionally absent.
   # ---- (no apprise-stateless-urls patch — bootstrapped, see above) ----
   # ---- tuwunel (homeserver) (carried over from components/tuwunel/dev/) ----
-  # Dev route hostnames (tuwunel.matrix.homelab-dev.yansyah.my.id).
+  # Dev route hostnames (tuwunel.matrix.home-ops-dev.yansyah.my.id).
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: tuwunel.matrix.homelab-dev.yansyah.my.id
+        value: tuwunel.matrix.home-ops-dev.yansyah.my.id
     target:
       kind: HTTPRoute
       name: tuwunel-redirect
@@ -24,7 +24,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: tuwunel.matrix.homelab-dev.yansyah.my.id
+        value: tuwunel.matrix.home-ops-dev.yansyah.my.id
     target:
       kind: HTTPRoute
       name: tuwunel-tls
@@ -49,11 +49,11 @@ patches:
     target:
       kind: ExternalSecret
       name: tuwunel-registration-secret
-  # Dev wildcard Certificate (wildcard-homelab-dev).
+  # Dev wildcard Certificate (wildcard-home-ops-dev).
   - patch: |
       - op: replace
         path: /metadata/name
-        value: wildcard-homelab-dev
+        value: wildcard-home-ops-dev
     target:
       kind: Certificate
       name: __WILDCARD_CERT_NAME__
@@ -61,18 +61,18 @@ patches:
   - patch: |
       - op: replace
         path: /spec/secretName
-        value: wildcard-homelab-dev-tls
+        value: wildcard-home-ops-dev-tls
     target:
       kind: Certificate
-      name: wildcard-homelab-dev
+      name: wildcard-home-ops-dev
 
   - patch: |
       - op: replace
         path: /spec/dnsNames/0
-        value: "*.homelab-dev.yansyah.my.id"
+        value: "*.home-ops-dev.yansyah.my.id"
     target:
       kind: Certificate
-      name: wildcard-homelab-dev
+      name: wildcard-home-ops-dev
   # Dev identity: server_name + well-known client + Zitadel issuer +
   # SSO callback. POSITIONAL: /spec/template/spec/containers/0/env/0
   # (SERVER_NAME) + /env/5 (WELL_KNOWN__CLIENT) + /env/25 (ISSUER_URL) +
@@ -84,16 +84,16 @@ patches:
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/env/0/value
-        value: tuwunel.matrix.homelab-dev.yansyah.my.id
+        value: tuwunel.matrix.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/template/spec/containers/0/env/5/value
-        value: https://tuwunel.matrix.homelab-dev.yansyah.my.id
+        value: https://tuwunel.matrix.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/template/spec/containers/0/env/25/value
-        value: https://admin.zitadel.homelab-dev.yansyah.my.id
+        value: https://admin.zitadel.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/template/spec/containers/0/env/26/value
-        value: https://tuwunel.matrix.homelab-dev.yansyah.my.id/_matrix/client/unstable/login/sso/callback/$(TUWUNEL_SSO_CLIENT_ID)
+        value: https://tuwunel.matrix.home-ops-dev.yansyah.my.id/_matrix/client/unstable/login/sso/callback/$(TUWUNEL_SSO_CLIENT_ID)
     target:
       kind: Deployment
       name: tuwunel
@@ -161,7 +161,7 @@ patches:
         value: http://tuwunel.matrix.svc:8008
       - op: replace
         path: /spec/template/spec/containers/0/env/1/value
-        value: tuwunel.matrix.homelab-dev.yansyah.my.id
+        value: tuwunel.matrix.home-ops-dev.yansyah.my.id
     target:
       kind: Deployment
       name: mautrix-discord
@@ -171,7 +171,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/env/3/value
-        value: "@admin:tuwunel.matrix.homelab-dev.yansyah.my.id"
+        value: "@admin:tuwunel.matrix.home-ops-dev.yansyah.my.id"
     target:
       kind: Deployment
       name: mautrix-discord
@@ -194,11 +194,11 @@ patches:
       kind: Cluster
       name: mautrix-discord-db
   # ---- element-web (stateless SPA + NetBird consumer) (carried over from components/element-web/dev/) ----
-  # Dev route hostname (element.matrix.homelab-dev.yansyah.my.id).
+  # Dev route hostname (element.matrix.home-ops-dev.yansyah.my.id).
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: element.matrix.homelab-dev.yansyah.my.id
+        value: element.matrix.home-ops-dev.yansyah.my.id
     target:
       kind: HTTPRoute
       name: element
@@ -213,7 +213,7 @@ patches:
           {
               "default_server_config": {
                   "m.homeserver": {
-                      "base_url": "https://tuwunel.matrix.homelab-dev.yansyah.my.id"
+                      "base_url": "https://tuwunel.matrix.home-ops-dev.yansyah.my.id"
                   }
               },
               "disable_custom_urls": true,
@@ -222,12 +222,12 @@ patches:
               "disable_3pid_login": false,
               "brand": "Element",
               "default_theme": "light",
-              "permalink_prefix": "https://element.matrix.homelab-dev.yansyah.my.id",
+              "permalink_prefix": "https://element.matrix.home-ops-dev.yansyah.my.id",
               "branding": {},
               "embedded_pages": {},
               "room_directory": {
                   "servers": [
-                      "matrix.homelab-dev.yansyah.my.id"
+                      "matrix.home-ops-dev.yansyah.my.id"
                   ]
               },
               "integrations_ui_url": null,
@@ -250,8 +250,8 @@ patches:
       name: element-config
   # (dropped identical ExternalSecret/cloudflare-api-token patch from element-web/dev — same ops already applied under tuwunel above; one cloudflare-api-token ES + one Certificate remain)
   # (dropped identical Certificate/__WILDCARD_CERT_NAME__ patch from element-web/dev — same ops already applied under tuwunel above; one cloudflare-api-token ES + one Certificate remain)
-  # (dropped identical Certificate/wildcard-homelab-dev patch from element-web/dev — same ops already applied under tuwunel above; one cloudflare-api-token ES + one Certificate remain)
-  # (dropped identical Certificate/wildcard-homelab-dev patch from element-web/dev — same ops already applied under tuwunel above; one cloudflare-api-token ES + one Certificate remain)
+  # (dropped identical Certificate/wildcard-home-ops-dev patch from element-web/dev — same ops already applied under tuwunel above; one cloudflare-api-token ES + one Certificate remain)
+  # (dropped identical Certificate/wildcard-home-ops-dev patch from element-web/dev — same ops already applied under tuwunel above; one cloudflare-api-token ES + one Certificate remain)
   # Dev NetBird proxy vars: provider-token vault paths (same Proton Pass
   # per-cluster convention as the coder dev overlay) + service FQDN
   # (positional: /spec/vars/0 is domain — base order must not change).
@@ -269,7 +269,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/vars/0/value
-        value: element.matrix.homelab-dev.yansyah.my.id
+        value: element.matrix.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/vars/2/value
         value: __CLOUDFLARE_ZONE_ID_HOMELAB_DEV__
@@ -308,16 +308,16 @@ patches:
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/env/0/value
-        value: https://tuwunel.matrix.homelab-dev.yansyah.my.id
+        value: https://tuwunel.matrix.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/template/spec/containers/0/env/1/value
-        value: tuwunel.matrix.homelab-dev.yansyah.my.id
+        value: tuwunel.matrix.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/template/spec/containers/0/env/2/value
         value: apprise-dev
       - op: replace
         path: /spec/template/spec/containers/0/env/3/value
-        value: "@apprise-dev:tuwunel.matrix.homelab-dev.yansyah.my.id"
+        value: "@apprise-dev:tuwunel.matrix.home-ops-dev.yansyah.my.id"
     target:
       kind: Job
       name: matrix-bot-bootstrap
@@ -328,11 +328,11 @@ patches:
       - op: replace
         path: /spec/vars/8/value
         value:
-          "@oncall-lead:tuwunel.matrix.homelab-dev.yansyah.my.id": invite
+          "@oncall-lead:tuwunel.matrix.home-ops-dev.yansyah.my.id": invite
       - op: replace
         path: /spec/vars/9/value
         value:
-          "@oncall-lead:tuwunel.matrix.homelab-dev.yansyah.my.id": 50
+          "@oncall-lead:tuwunel.matrix.home-ops-dev.yansyah.my.id": 50
     target:
       kind: Terraform
       name: flux-notifications
@@ -340,11 +340,11 @@ patches:
       - op: replace
         path: /spec/vars/8/value
         value:
-          "@oncall-lead:tuwunel.matrix.homelab-dev.yansyah.my.id": invite
+          "@oncall-lead:tuwunel.matrix.home-ops-dev.yansyah.my.id": invite
       - op: replace
         path: /spec/vars/9/value
         value:
-          "@oncall-lead:tuwunel.matrix.homelab-dev.yansyah.my.id": 50
+          "@oncall-lead:tuwunel.matrix.home-ops-dev.yansyah.my.id": 50
     target:
       kind: Terraform
       name: tofu-runs
@@ -352,11 +352,11 @@ patches:
       - op: replace
         path: /spec/vars/8/value
         value:
-          "@coder-admin:tuwunel.matrix.homelab-dev.yansyah.my.id": invite
+          "@coder-admin:tuwunel.matrix.home-ops-dev.yansyah.my.id": invite
       - op: replace
         path: /spec/vars/9/value
         value:
-          "@coder-admin:tuwunel.matrix.homelab-dev.yansyah.my.id": 50
+          "@coder-admin:tuwunel.matrix.home-ops-dev.yansyah.my.id": 50
     target:
       kind: Terraform
       name: coder-notifications

@@ -67,7 +67,7 @@
 # the same mxid (documented, not destructive).
 #
 # Per-env overlays patch: HOMESERVER_URL + HOMESERVER_HOST + BOT_USER_ID
-# (dev: apprise-dev mxid on homelab-dev host; prd: apprise mxid on home-ops
+# (dev: apprise-dev mxid on home-ops-dev host; prd: apprise mxid on home-ops
 # host) + BOT_LOCALPART. Base holds __PLACEHOLDERS__ (repo convention).
 # NO secrets in git: REGISTRATION_SHARED_SECRET rides secretKeyRef; the bot
 # password is generated in-memory per run ($RANDOM hex); the token travels

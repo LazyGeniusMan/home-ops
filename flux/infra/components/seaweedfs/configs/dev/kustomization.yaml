@@ -3,32 +3,32 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev UI/S3 hostnames (ui.seaweedfs.homelab-dev.yansyah.my.id / s3.seaweedfs.homelab-dev.yansyah.my.id).
+  # Dev UI/S3 hostnames (ui.seaweedfs.home-ops-dev.yansyah.my.id / s3.seaweedfs.home-ops-dev.yansyah.my.id).
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: ui.seaweedfs.homelab-dev.yansyah.my.id
+        value: ui.seaweedfs.home-ops-dev.yansyah.my.id
     target:
       kind: HTTPRoute
       name: seaweedfs-ui
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: ui.seaweedfs.homelab-dev.yansyah.my.id
+        value: ui.seaweedfs.home-ops-dev.yansyah.my.id
     target:
       kind: HTTPRoute
       name: seaweedfs-ui-tls
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: s3.seaweedfs.homelab-dev.yansyah.my.id
+        value: s3.seaweedfs.home-ops-dev.yansyah.my.id
     target:
       kind: HTTPRoute
       name: seaweedfs-s3
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: s3.seaweedfs.homelab-dev.yansyah.my.id
+        value: s3.seaweedfs.home-ops-dev.yansyah.my.id
     target:
       kind: HTTPRoute
       name: seaweedfs-s3-tls
@@ -36,13 +36,13 @@ patches:
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/args/2
-        value: --oidc-issuer-url=https://admin.zitadel.homelab-dev.yansyah.my.id
+        value: --oidc-issuer-url=https://admin.zitadel.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/template/spec/containers/0/args/3
-        value: --redirect-url=https://ui.seaweedfs.homelab-dev.yansyah.my.id/oauth2/callback
+        value: --redirect-url=https://ui.seaweedfs.home-ops-dev.yansyah.my.id/oauth2/callback
       - op: replace
         path: /spec/template/spec/containers/0/args/8
-        value: --cookie-domain=.homelab-dev.yansyah.my.id
+        value: --cookie-domain=.home-ops-dev.yansyah.my.id
     target:
       kind: Deployment
       name: ui-auth
@@ -57,16 +57,16 @@ patches:
   - patch: |
       - op: replace
         path: /spec/vars/0/value
-        value: admin.zitadel.homelab-dev.yansyah.my.id
+        value: admin.zitadel.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/vars/2/value
-        value: https://login.zitadel.homelab-dev.yansyah.my.id/ui/v2/login
+        value: https://login.zitadel.home-ops-dev.yansyah.my.id/ui/v2/login
       - op: replace
         path: /spec/vars/3/value/0
-        value: https://ui.seaweedfs.homelab-dev.yansyah.my.id/oauth2/callback
+        value: https://ui.seaweedfs.home-ops-dev.yansyah.my.id/oauth2/callback
       - op: replace
         path: /spec/vars/4/value/0
-        value: https://ui.seaweedfs.homelab-dev.yansyah.my.id/
+        value: https://ui.seaweedfs.home-ops-dev.yansyah.my.id/
     target:
       kind: Terraform
       name: seaweedfs-sso
@@ -81,7 +81,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/dnsNames/0
-        value: "*.seaweedfs.homelab-dev.yansyah.my.id"
+        value: "*.seaweedfs.home-ops-dev.yansyah.my.id"
     target:
       kind: Certificate
       name: wildcard-seaweedfs

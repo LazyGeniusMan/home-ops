@@ -180,7 +180,7 @@ bot bootstrap kept Secret in ESO `target.template` (cross-namespace
 | Kept-Secret key (`matrix-bot-bootstrap-outputs`, ns `matrix`) | Secret key | Consumed by | Value notes |
 |---|---|---|---|
 | `notifier-token` | `matrix-notify` → `matrix-notify` (`apprise-urls` bare + `webhook-endpoint` full) | `CODER_MATRIX_APPRISE_URLS` + `CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT` (valueFrom.secretKeyRef in `base/coder.yaml`) | The SAME per-env bot token that delivers to every room (`@apprise-dev` dev / `@apprise` prd); only rooms differ |
-| `homeserver-host` | (same ES/Secret) | (same — the `<host>` half of the composed `matrixs://` URL) | Bare host, NO scheme (dev `tuwunel.matrix.homelab-dev.yansyah.my.id`, prd `tuwunel.matrix.home-ops.yansyah.my.id` — minted by the Job, never Git) |
+| `homeserver-host` | (same ES/Secret) | (same — the `<host>` half of the composed `matrixs://` URL) | Bare host, NO scheme (dev `tuwunel.matrix.home-ops-dev.yansyah.my.id`, prd `tuwunel.matrix.home-ops.yansyah.my.id` — minted by the Job, never Git) |
 
 Retired (do NOT reseed — bootstrapped): `coder/matrix-bot-token` +
 `coder/matrix-host` — the notifier credential now flows Job -> kept Secret

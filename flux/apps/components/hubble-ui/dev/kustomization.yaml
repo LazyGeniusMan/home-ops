@@ -3,11 +3,11 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev route hostname (hubble.homelab-dev.yansyah.my.id).
+  # Dev route hostname (hubble.home-ops-dev.yansyah.my.id).
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: hubble.homelab-dev.yansyah.my.id
+        value: hubble.home-ops-dev.yansyah.my.id
     target:
       kind: HTTPRoute
       name: hubble
@@ -26,16 +26,16 @@ patches:
   - patch: |
       - op: replace
         path: /spec/vars/0/value
-        value: admin.zitadel.homelab-dev.yansyah.my.id
+        value: admin.zitadel.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/vars/3/value
-        value: https://login.zitadel.homelab-dev.yansyah.my.id/ui/v2/login
+        value: https://login.zitadel.home-ops-dev.yansyah.my.id/ui/v2/login
       - op: replace
         path: /spec/vars/4/value/0
-        value: https://hubble.homelab-dev.yansyah.my.id/*
+        value: https://hubble.home-ops-dev.yansyah.my.id/*
       - op: replace
         path: /spec/vars/5/value/0
-        value: https://hubble.homelab-dev.yansyah.my.id/
+        value: https://hubble.home-ops-dev.yansyah.my.id/
     target:
       kind: Terraform
       name: hubble-ui-sso
@@ -46,7 +46,7 @@ patches:
     target:
       kind: ExternalSecret
       name: cloudflare-api-token
-  # Dev wildcard Certificate (wildcard-homelab-dev).
+  # Dev wildcard Certificate (wildcard-home-ops-dev).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -57,37 +57,37 @@ patches:
   - patch: |
       - op: replace
         path: /metadata/name
-        value: wildcard-homelab-dev
+        value: wildcard-home-ops-dev
     target:
       kind: Certificate
       name: __WILDCARD_CERT_NAME__
   - patch: |
       - op: replace
         path: /spec/secretName
-        value: wildcard-homelab-dev-tls
+        value: wildcard-home-ops-dev-tls
     target:
       kind: Certificate
-      name: wildcard-homelab-dev
+      name: wildcard-home-ops-dev
   - patch: |
       - op: replace
         path: /spec/dnsNames/0
-        value: "*.homelab-dev.yansyah.my.id"
+        value: "*.home-ops-dev.yansyah.my.id"
     target:
       kind: Certificate
-      name: wildcard-homelab-dev
+      name: wildcard-home-ops-dev
   # Dev proxy: Zitadel issuer, cookie domain, callback (args/4 --client-id
   # flag dropped for the OAUTH2_PROXY_CLIENT_ID env — indices above it shift
   # down one: cookie-domain 7→6, redirect-url 16→15).
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/args/3
-        value: --oidc-issuer-url=https://admin.zitadel.homelab-dev.yansyah.my.id
+        value: --oidc-issuer-url=https://admin.zitadel.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/template/spec/containers/0/args/6
-        value: --cookie-domain=.homelab-dev.yansyah.my.id
+        value: --cookie-domain=.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/template/spec/containers/0/args/15
-        value: --redirect-url=https://hubble.homelab-dev.yansyah.my.id/oauth2/callback
+        value: --redirect-url=https://hubble.home-ops-dev.yansyah.my.id/oauth2/callback
     target:
       kind: Deployment
       name: oauth2-proxy

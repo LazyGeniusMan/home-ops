@@ -54,7 +54,7 @@ overlay (`dev`/`prd`) replaces the LAN zone block with its domain + VIP
 
 | Env | Replicas | Patches |
 | --- | --- | --- |
-| `dev` | 1 (single-instance) | Corefile LAN zone `homelab-dev.yansyah.my.id` → `.249` |
+| `dev` | 1 (single-instance) | Corefile LAN zone `home-ops-dev.yansyah.my.id` → `.249` |
 | `prd` | 2 recommended (survive a node loss once multi-node) | Corefile LAN zone `home-ops.yansyah.my.id` → `.199` |
 
 No replica patches ship yet; scale the Deployment to 2 in `prd` when the

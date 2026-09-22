@@ -2,7 +2,7 @@
 # namespace-local, so the §9 Certificate (cert-manager namespace) cannot feed
 # this component's Gateway listener — this duplicate Certificate mints
 # __WILDCARD_TLS_SECRET__ HERE via the same ClusterIssuer/letsencrypt and
-# dnsNames (prd wildcard-home-ops-tls, dev wildcard-homelab-dev-tls). Let's Encrypt permits duplicate wildcard orders, so both
+# dnsNames (prd wildcard-home-ops-tls, dev wildcard-home-ops-dev-tls). Let's Encrypt permits duplicate wildcard orders, so both
 # Certificates stay valid. The token ExternalSecret mirrors
 # cert-manager/configs/base/cluster-issuer.yaml (same Proton Pass remoteRef)
 # so the DNS-01 solver credential exists in this namespace too.

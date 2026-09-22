@@ -18,16 +18,16 @@ patches:
   - patch: |
       - op: replace
         path: /spec/vars/0/value
-        value: admin.zitadel.homelab-dev.yansyah.my.id
+        value: admin.zitadel.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/vars/2/value
-        value: https://login.zitadel.homelab-dev.yansyah.my.id/ui/v2/login
+        value: https://login.zitadel.home-ops-dev.yansyah.my.id/ui/v2/login
       - op: replace
         path: /spec/vars/3/value/0
-        value: https://coder.homelab-dev.yansyah.my.id/*
+        value: https://coder.home-ops-dev.yansyah.my.id/*
       - op: replace
         path: /spec/vars/4/value/0
-        value: https://coder.homelab-dev.yansyah.my.id/
+        value: https://coder.home-ops-dev.yansyah.my.id/
     target:
       kind: Terraform
       name: coder-sso
@@ -83,28 +83,28 @@ patches:
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: coder.homelab-dev.yansyah.my.id
+        value: coder.home-ops-dev.yansyah.my.id
     target:
       kind: HTTPRoute
       name: coder-redirect
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: coder.homelab-dev.yansyah.my.id
+        value: coder.home-ops-dev.yansyah.my.id
     target:
       kind: HTTPRoute
       name: coder
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: "*.coder.homelab-dev.yansyah.my.id"
+        value: "*.coder.home-ops-dev.yansyah.my.id"
     target:
       kind: HTTPRoute
       name: coder-workspaces
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: "*.coder.homelab-dev.yansyah.my.id"
+        value: "*.coder.home-ops-dev.yansyah.my.id"
     target:
       kind: HTTPRoute
       name: coder-workspaces-redirect
@@ -118,14 +118,14 @@ patches:
   - patch: |
       - op: replace
         path: /spec/dnsNames/0
-        value: "coder.homelab-dev.yansyah.my.id"
+        value: "coder.home-ops-dev.yansyah.my.id"
     target:
       kind: Certificate
       name: coder-root
   - patch: |
       - op: replace
         path: /spec/dnsNames/0
-        value: "*.coder.homelab-dev.yansyah.my.id"
+        value: "*.coder.home-ops-dev.yansyah.my.id"
     target:
       kind: Certificate
       name: coder-wildcard
@@ -133,19 +133,19 @@ patches:
   - patch: |
       - op: replace
         path: /spec/values/coder/env/0/value
-        value: https://coder.homelab-dev.yansyah.my.id
+        value: https://coder.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/values/coder/env/1/value
-        value: "*.coder.homelab-dev.yansyah.my.id"
+        value: "*.coder.home-ops-dev.yansyah.my.id"
       - op: replace
         path: /spec/values/coder/env/4/value
-        value: https://admin.zitadel.homelab-dev.yansyah.my.id
+        value: https://admin.zitadel.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/values/coder/env/8/value
-        value: homelab-dev.yansyah.my.id
+        value: home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/values/coder/env/10/value
-        value: Sign in with homelab-dev SSO
+        value: Sign in with home-ops-dev SSO
     target:
       kind: HelmRelease
       name: coder

@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev DNS scope: homelab-dev.yansyah.my.id (home-ops-dev-netbird, single
+  # Dev DNS scope: home-ops-dev.yansyah.my.id (home-ops-dev-netbird, single
   # NetBird webhook instance — no Cloudflare provider).
   # Merge patches (no positional paths): txtOwnerId + domainFilters are
   # wholesale scalar/single-item values, so a merge replaces them cleanly.
@@ -24,14 +24,14 @@ patches:
         values:
           txtOwnerId: home-ops-dev-netbird
           domainFilters:
-            - homelab-dev.yansyah.my.id
+            - home-ops-dev.yansyah.my.id
   - patch: |
       - op: test
         path: /spec/values/provider/webhook/env/1/name
         value: DOMAIN_FILTER
       - op: replace
         path: /spec/values/provider/webhook/env/1/value
-        value: homelab-dev.yansyah.my.id
+        value: home-ops-dev.yansyah.my.id
     target:
       kind: HelmRelease
       name: external-dns-netbird

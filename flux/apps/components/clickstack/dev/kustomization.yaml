@@ -94,11 +94,11 @@ patches:
       kind: ClickHouseInstallation
       name: clickstack
 
-  # Dev route hostname (clickstack.homelab-dev.yansyah.my.id).
+  # Dev route hostname (clickstack.home-ops-dev.yansyah.my.id).
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: clickstack.homelab-dev.yansyah.my.id
+        value: clickstack.home-ops-dev.yansyah.my.id
     target:
       kind: HTTPRoute
       name: clickstack
@@ -106,29 +106,29 @@ patches:
   - patch: |
       - op: replace
         path: /metadata/name
-        value: wildcard-homelab-dev
+        value: wildcard-home-ops-dev
     target:
       kind: Certificate
       name: __WILDCARD_CERT_NAME__
   - patch: |
       - op: replace
         path: /spec/secretName
-        value: wildcard-homelab-dev-tls
+        value: wildcard-home-ops-dev-tls
     target:
       kind: Certificate
-      name: wildcard-homelab-dev
+      name: wildcard-home-ops-dev
   - patch: |
       - op: replace
         path: /spec/dnsNames/0
-        value: "*.homelab-dev.yansyah.my.id"
+        value: "*.home-ops-dev.yansyah.my.id"
     target:
       kind: Certificate
-      name: wildcard-homelab-dev
+      name: wildcard-home-ops-dev
   # Dev app URL (FRONTEND_URL).
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/env/2/value
-        value: "https://clickstack.homelab-dev.yansyah.my.id"
+        value: "https://clickstack.home-ops-dev.yansyah.my.id"
     target:
       kind: Deployment
       name: clickstack
@@ -139,13 +139,13 @@ patches:
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/args/3
-        value: --oidc-issuer-url=https://admin.zitadel.homelab-dev.yansyah.my.id
+        value: --oidc-issuer-url=https://admin.zitadel.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/template/spec/containers/0/args/6
-        value: --cookie-domain=.homelab-dev.yansyah.my.id
+        value: --cookie-domain=.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/template/spec/containers/0/args/15
-        value: --redirect-url=https://clickstack.homelab-dev.yansyah.my.id/oauth2/callback
+        value: --redirect-url=https://clickstack.home-ops-dev.yansyah.my.id/oauth2/callback
     target:
       kind: Deployment
       name: oauth2-proxy
@@ -156,16 +156,16 @@ patches:
   - patch: |
       - op: replace
         path: /spec/vars/0/value
-        value: admin.zitadel.homelab-dev.yansyah.my.id
+        value: admin.zitadel.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/vars/2/value
-        value: https://login.zitadel.homelab-dev.yansyah.my.id/ui/v2/login
+        value: https://login.zitadel.home-ops-dev.yansyah.my.id/ui/v2/login
       - op: replace
         path: /spec/vars/3/value/0
-        value: https://clickstack.homelab-dev.yansyah.my.id/*
+        value: https://clickstack.home-ops-dev.yansyah.my.id/*
       - op: replace
         path: /spec/vars/4/value/0
-        value: https://clickstack.homelab-dev.yansyah.my.id/
+        value: https://clickstack.home-ops-dev.yansyah.my.id/
     target:
       kind: Terraform
       name: clickstack-sso

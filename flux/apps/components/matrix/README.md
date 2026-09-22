@@ -85,7 +85,7 @@ pre-consolidation narratives.
 
 | Env | Hosts | Notable patches |
 | --- | --- | --- |
-| `dev` | `tuwunel.matrix.homelab-dev.yansyah.my.id`, `element.matrix.homelab-dev.yansyah.my.id`, Zitadel `admin.zitadel.homelab-dev.yansyah.my.id` | vault refs, wildcard cert, hostnames, SERVER_NAME + well-known + issuer + callback, bridge HS link (`http://tuwunel.matrix.svc:8008`) + dev HS_DOMAIN/admin MXID, element config.json, proxy vars, HPA bounds, DB instances 1 |
+| `dev` | `tuwunel.matrix.home-ops-dev.yansyah.my.id`, `element.matrix.home-ops-dev.yansyah.my.id`, Zitadel `admin.zitadel.home-ops-dev.yansyah.my.id` | vault refs, wildcard cert, hostnames, SERVER_NAME + well-known + issuer + callback, bridge HS link (`http://tuwunel.matrix.svc:8008`) + dev HS_DOMAIN/admin MXID, element config.json, proxy vars, HPA bounds, DB instances 1 |
 | `prd` | `tuwunel.matrix.home-ops.yansyah.my.id`, `element.matrix.home-ops.yansyah.my.id`, Zitadel `admin.zitadel.home-ops.yansyah.my.id` | same shape, DB instances 3, HPA floors 2 |
 
 ## Verification

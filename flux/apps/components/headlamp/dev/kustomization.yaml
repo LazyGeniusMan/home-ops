@@ -3,11 +3,11 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev route hostname (headlamp.homelab-dev.yansyah.my.id).
+  # Dev route hostname (headlamp.home-ops-dev.yansyah.my.id).
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: headlamp.homelab-dev.yansyah.my.id
+        value: headlamp.home-ops-dev.yansyah.my.id
     target:
       kind: HTTPRoute
       name: headlamp
@@ -18,7 +18,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/target/template/data/OIDC_ISSUER_URL
-        value: https://admin.zitadel.homelab-dev.yansyah.my.id
+        value: https://admin.zitadel.home-ops-dev.yansyah.my.id
     target:
       kind: ExternalSecret
       name: headlamp-oidc
@@ -34,20 +34,20 @@ patches:
   - patch: |
       - op: replace
         path: /spec/vars/0/value
-        value: admin.zitadel.homelab-dev.yansyah.my.id
+        value: admin.zitadel.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/vars/2/value
-        value: https://login.zitadel.homelab-dev.yansyah.my.id/ui/v2/login
+        value: https://login.zitadel.home-ops-dev.yansyah.my.id/ui/v2/login
       - op: replace
         path: /spec/vars/4/value/0
-        value: https://headlamp.homelab-dev.yansyah.my.id/*
+        value: https://headlamp.home-ops-dev.yansyah.my.id/*
       - op: replace
         path: /spec/vars/4/value/0
-        value: https://headlamp.homelab-dev.yansyah.my.id/
+        value: https://headlamp.home-ops-dev.yansyah.my.id/
     target:
       kind: Terraform
       name: headlamp-sso
-  # Dev wildcard Certificate (wildcard-homelab-dev).
+  # Dev wildcard Certificate (wildcard-home-ops-dev).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -58,24 +58,24 @@ patches:
   - patch: |
       - op: replace
         path: /metadata/name
-        value: wildcard-homelab-dev
+        value: wildcard-home-ops-dev
     target:
       kind: Certificate
       name: __WILDCARD_CERT_NAME__
   - patch: |
       - op: replace
         path: /spec/secretName
-        value: wildcard-homelab-dev-tls
+        value: wildcard-home-ops-dev-tls
     target:
       kind: Certificate
-      name: wildcard-homelab-dev
+      name: wildcard-home-ops-dev
   - patch: |
       - op: replace
         path: /spec/dnsNames/0
-        value: "*.homelab-dev.yansyah.my.id"
+        value: "*.home-ops-dev.yansyah.my.id"
     target:
       kind: Certificate
-      name: wildcard-homelab-dev
+      name: wildcard-home-ops-dev
   # Dev replica counts: minimal single-replica footprint. Static
   # `replicaCount` stays at the HPA min (chart 0.45.0 has no autoscaling
   # knob); the HPA below scales 1-2 on CPU+memory.

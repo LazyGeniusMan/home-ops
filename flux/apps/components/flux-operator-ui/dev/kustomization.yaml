@@ -3,18 +3,18 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev route hostnames (flux-operator.homelab-dev.yansyah.my.id).
+  # Dev route hostnames (flux-operator.home-ops-dev.yansyah.my.id).
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: flux-operator.homelab-dev.yansyah.my.id
+        value: flux-operator.home-ops-dev.yansyah.my.id
     target:
       kind: HTTPRoute
       name: flux-operator
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: flux-operator.homelab-dev.yansyah.my.id
+        value: flux-operator.home-ops-dev.yansyah.my.id
     target:
       kind: HTTPRoute
       name: flux-operator-tls
@@ -28,7 +28,7 @@ patches:
     target:
       kind: ExternalSecret
       name: oauth2-proxy-cookie
-  # Dev wildcard Certificate (wildcard-homelab-dev).
+  # Dev wildcard Certificate (wildcard-home-ops-dev).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -39,32 +39,32 @@ patches:
   - patch: |
       - op: replace
         path: /metadata/name
-        value: wildcard-homelab-dev
+        value: wildcard-home-ops-dev
     target:
       kind: Certificate
       name: __WILDCARD_CERT_NAME__
   - patch: |
       - op: replace
         path: /spec/secretName
-        value: wildcard-homelab-dev-tls
+        value: wildcard-home-ops-dev-tls
     target:
       kind: Certificate
-      name: wildcard-homelab-dev
+      name: wildcard-home-ops-dev
   - patch: |
       - op: replace
         path: /spec/dnsNames/0
-        value: "*.homelab-dev.yansyah.my.id"
+        value: "*.home-ops-dev.yansyah.my.id"
     target:
       kind: Certificate
-      name: wildcard-homelab-dev
+      name: wildcard-home-ops-dev
   # Dev proxy issuer + callback.
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/args/2
-        value: --oidc-issuer-url=https://admin.zitadel.homelab-dev.yansyah.my.id
+        value: --oidc-issuer-url=https://admin.zitadel.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/template/spec/containers/0/args/3
-        value: --redirect-url=https://flux-operator.homelab-dev.yansyah.my.id/oauth2/callback
+        value: --redirect-url=https://flux-operator.home-ops-dev.yansyah.my.id/oauth2/callback
     target:
       kind: Deployment
       name: oauth2-proxy
@@ -75,16 +75,16 @@ patches:
   - patch: |
       - op: replace
         path: /spec/vars/0/value
-        value: admin.zitadel.homelab-dev.yansyah.my.id
+        value: admin.zitadel.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/vars/2/value
-        value: https://login.zitadel.homelab-dev.yansyah.my.id/ui/v2/login
+        value: https://login.zitadel.home-ops-dev.yansyah.my.id/ui/v2/login
       - op: replace
         path: /spec/vars/4/value/0
-        value: https://flux-operator.homelab-dev.yansyah.my.id/*
+        value: https://flux-operator.home-ops-dev.yansyah.my.id/*
       - op: replace
         path: /spec/vars/4/value/0
-        value: https://flux-operator.homelab-dev.yansyah.my.id/
+        value: https://flux-operator.home-ops-dev.yansyah.my.id/
     target:
       kind: Terraform
       name: flux-operator-ui-sso

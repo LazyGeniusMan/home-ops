@@ -11,7 +11,7 @@ patches:
     target:
       kind: ClusterIssuer
       name: letsencrypt
-  # Env values: vault pass://acme-dev-bdo1-talos-apps-01, ACME email hostmaster@homelab-dev.yansyah.my.id, cert wildcard-homelab-dev.
+  # Env values: vault pass://acme-dev-bdo1-talos-apps-01, ACME email hostmaster@home-ops-dev.yansyah.my.id, cert wildcard-home-ops-dev.
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -22,31 +22,31 @@ patches:
   - patch: |
       - op: replace
         path: /spec/acme/email
-        value: hostmaster@homelab-dev.yansyah.my.id
+        value: hostmaster@home-ops-dev.yansyah.my.id
     target:
       kind: ClusterIssuer
       name: letsencrypt
   - patch: |
       - op: replace
         path: /metadata/name
-        value: wildcard-homelab-dev
+        value: wildcard-home-ops-dev
     target:
       kind: Certificate
       name: __WILDCARD_CERT_NAME__
   - patch: |
       - op: replace
         path: /spec/secretName
-        value: wildcard-homelab-dev-tls
+        value: wildcard-home-ops-dev-tls
     target:
       kind: Certificate
-      name: wildcard-homelab-dev
+      name: wildcard-home-ops-dev
   - patch: |
       - op: replace
         path: /spec/dnsNames/0
-        value: "*.homelab-dev.yansyah.my.id"
+        value: "*.home-ops-dev.yansyah.my.id"
       - op: replace
         path: /spec/dnsNames/1
-        value: "*.zitadel.homelab-dev.yansyah.my.id"
+        value: "*.zitadel.home-ops-dev.yansyah.my.id"
     target:
       kind: Certificate
-      name: wildcard-homelab-dev
+      name: wildcard-home-ops-dev

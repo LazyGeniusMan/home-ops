@@ -112,7 +112,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/vars/0/value
-        value: login.zitadel.homelab-dev.yansyah.my.id
+        value: login.zitadel.home-ops-dev.yansyah.my.id
       - op: replace
         path: /spec/vars/2/value
         value: __CLOUDFLARE_ZONE_ID_HOMELAB_DEV__
@@ -136,35 +136,35 @@ patches:
   - patch: |
       - op: replace
         path: /metadata/name
-        value: wildcard-homelab-dev
+        value: wildcard-home-ops-dev
     target:
       kind: Certificate
       name: __WILDCARD_CERT_NAME__
   - patch: |
       - op: replace
         path: /spec/secretName
-        value: wildcard-homelab-dev-tls
+        value: wildcard-home-ops-dev-tls
     target:
       kind: Certificate
-      name: wildcard-homelab-dev
+      name: wildcard-home-ops-dev
   - patch: |
       - op: replace
         path: /spec/dnsNames/0
-        value: "*.homelab-dev.yansyah.my.id"
+        value: "*.home-ops-dev.yansyah.my.id"
       - op: replace
         path: /spec/dnsNames/1
-        value: "*.zitadel.homelab-dev.yansyah.my.id"
+        value: "*.zitadel.home-ops-dev.yansyah.my.id"
     target:
       kind: Certificate
-      name: wildcard-homelab-dev
-  # Dev admin route hostname (admin.zitadel.homelab-dev.yansyah.my.id). The
-  # end-user login host (login.zitadel.homelab-dev.yansyah.my.id) is exposed
+      name: wildcard-home-ops-dev
+  # Dev admin route hostname (admin.zitadel.home-ops-dev.yansyah.my.id). The
+  # end-user login host (login.zitadel.home-ops-dev.yansyah.my.id) is exposed
   # via the NetBird reverse-proxy consumer (zitadel-login-proxy.yaml) — no
   # Gateway zitadel-login route ships.
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: admin.zitadel.homelab-dev.yansyah.my.id
+        value: admin.zitadel.home-ops-dev.yansyah.my.id
     target:
       kind: HTTPRoute
       name: zitadel
@@ -188,7 +188,7 @@ patches:
       - op: remove
         path: /metadata/annotations/__ZITADEL_HOST__~1managed-by
       - op: add
-        path: /metadata/annotations/admin.zitadel.homelab-dev.yansyah.my.id~1managed-by
+        path: /metadata/annotations/admin.zitadel.home-ops-dev.yansyah.my.id~1managed-by
         value: zitadel-setup-job
     target:
       kind: ConfigMap
@@ -197,7 +197,7 @@ patches:
       - op: replace
         path: /data/users
         value: |
-          - email: admin@homelab-dev.yansyah.my.id
+          - email: admin@home-ops-dev.yansyah.my.id
             firstName: Home-Ops
             lastName: Admin
             groups: [admin]
@@ -210,12 +210,12 @@ patches:
         path: /data/clients
         value: |
           owned-by: per-app terraform slices (this bootstrap slice owns no clients)
-          - coder owns client `coder`: https://coder.homelab-dev.yansyah.my.id/*
-          - clickstack owns client `clickstack`: https://clickstack.homelab-dev.yansyah.my.id/*
-          - hubble-ui owns client `hubble`: https://hubble.homelab-dev.yansyah.my.id/*
-          - flux-operator-ui owns client `flux-operator-ui`: https://flux-operator.homelab-dev.yansyah.my.id/*
-          - headlamp owns client `headlamp`: https://headlamp.homelab-dev.yansyah.my.id/*
-          - seaweedfs owns client `seaweedfs`: https://ui.seaweedfs.homelab-dev.yansyah.my.id/oauth2/callback
+          - coder owns client `coder`: https://coder.home-ops-dev.yansyah.my.id/*
+          - clickstack owns client `clickstack`: https://clickstack.home-ops-dev.yansyah.my.id/*
+          - hubble-ui owns client `hubble`: https://hubble.home-ops-dev.yansyah.my.id/*
+          - flux-operator-ui owns client `flux-operator-ui`: https://flux-operator.home-ops-dev.yansyah.my.id/*
+          - headlamp owns client `headlamp`: https://headlamp.home-ops-dev.yansyah.my.id/*
+          - seaweedfs owns client `seaweedfs`: https://ui.seaweedfs.home-ops-dev.yansyah.my.id/oauth2/callback
     target:
       kind: ConfigMap
       name: zitadel-identity-intent

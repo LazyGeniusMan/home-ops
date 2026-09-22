@@ -3,30 +3,30 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev Gateway TLS secret (wildcard-homelab-dev-tls).
+  # Dev Gateway TLS secret (wildcard-home-ops-dev-tls).
   - patch: |
       - op: replace
         path: /spec/listeners/1/tls/certificateRefs/0/name
-        value: wildcard-homelab-dev-tls
+        value: wildcard-home-ops-dev-tls
     target:
       kind: Gateway
       name: main
-  # Dev hostnames (homelab-dev.yansyah.my.id).
+  # Dev hostnames (home-ops-dev.yansyah.my.id).
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: homelab-dev.yansyah.my.id
+        value: home-ops-dev.yansyah.my.id
     target:
       kind: HTTPRoute
       name: redirect-apex
   - patch: |
       - op: replace
         path: /spec/hostnames/0
-        value: "*.homelab-dev.yansyah.my.id"
+        value: "*.home-ops-dev.yansyah.my.id"
     target:
       kind: HTTPRoute
       name: redirect-services
-  # Dev wildcard Certificate (wildcard-homelab-dev).
+  # Dev wildcard Certificate (wildcard-home-ops-dev).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -37,24 +37,24 @@ patches:
   - patch: |
       - op: replace
         path: /metadata/name
-        value: wildcard-homelab-dev
+        value: wildcard-home-ops-dev
     target:
       kind: Certificate
       name: __WILDCARD_CERT_NAME__
   - patch: |
       - op: replace
         path: /spec/secretName
-        value: wildcard-homelab-dev-tls
+        value: wildcard-home-ops-dev-tls
     target:
       kind: Certificate
-      name: wildcard-homelab-dev
+      name: wildcard-home-ops-dev
   - patch: |
       - op: replace
         path: /spec/dnsNames/0
-        value: "*.homelab-dev.yansyah.my.id"
+        value: "*.home-ops-dev.yansyah.my.id"
       - op: replace
         path: /spec/dnsNames/1
-        value: "*.zitadel.homelab-dev.yansyah.my.id"
+        value: "*.zitadel.home-ops-dev.yansyah.my.id"
     target:
       kind: Certificate
-      name: wildcard-homelab-dev
+      name: wildcard-home-ops-dev
