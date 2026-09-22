@@ -1,0 +1,105 @@
+# apprise-go-api (stateless-only, credential-free): shared platform webhook
+# sink for notification-controller Alert/Provider posts, forwarding to
+# caller-supplied apprise URLs. Internal ClusterIP only — no
+# Gateway/HTTPRoute, no ServiceMonitor (monitoring.coreos.com CRDs not
+# present).
+# Image: ghcr.io/lazygeniusman/home-ops/projects/apprise-go-api (branch leg
+# dev/dev-sha, tag leg stable/semver; marker below owned by
+# update-policies/apprise-go-api.yaml).
+# Credential-free by design: no stateless-URLs fallback env, no secret key,
+# no token-embedded URLs — every caller passes full per-request apprise URLs
+# in each POST /notify `urls`. The app boots clean with an empty fallback
+# (missing urls -> HTTP 204, no crash).
+# Distroless nonroot: no volumes — APPRISE_ATTACH_DIR stays unset so
+# attachments stage request-scoped under os.TempDir() and are deleted at
+# request end (never GC-dependent, see projects/apprise-go-api/README.md).
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apprise-go-api
+  labels:
+    app.kubernetes.io/name: apprise-go-api
+    app.kubernetes.io/part-of: apprise-go-api
+spec:
+  replicas: 1 # create-time seed, HPA owns runtime count
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: apprise-go-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: apprise-go-api
+        app.kubernetes.io/part-of: apprise-go-api
+    spec:
+      containers:
+        - name: apprise-go-api
+          image: ghcr.io/lazygeniusman/home-ops/projects/apprise-go-api:dev # {"$imagepolicy": "infra:apprise-go-api:tag"}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: HTTP_PORT
+              value: "8080"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: WORKER_COUNT
+              value: "0"
+            - name: TIMEOUT
+              value: "30"
+            # Mandatory stateless guards: any other value fails startup.
+            - name: APPRISE_STATEFUL_MODE
+              value: "disabled"
+            - name: APPRISE_STATELESS_STORAGE
+              value: "no"
+            # Matrix-only service posture: exclusive allowlist (non-empty
+            # wins over deny); "matrix" prefix-matches both matrix URL
+            # schemes (see projects/apprise-go-api README Matrix strategy).
+            # APPRISE_DENY_SERVICES unset.
+            - name: APPRISE_ALLOW_SERVICES
+              value: "matrix"
+            # SSRF posture for remote attachment fetch (deny-first,
+            # allow-second): allow all, but reject loopback/hostname tricks
+            # plus the `internal` token (opt-in DNS resolution blocking
+            # loopback, private, link-local, reserved, unspecified,
+            # multicast, and CGN addresses).
+            - name: APPRISE_ATTACH_ALLOW_URL
+              value: "*"
+            - name: APPRISE_ATTACH_REJECT_URL
+              value: "127.0.* localhost* internal"
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: http
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apprise-go-api
+  labels:
+    app.kubernetes.io/name: apprise-go-api
+    app.kubernetes.io/part-of: apprise-go-api
+spec:
+  selector:
+    app.kubernetes.io/name: apprise-go-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

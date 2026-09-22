@@ -1,0 +1,7 @@
+# Empty on purpose: the sink is credential-free (no ExternalSecrets, no
+# Certificates, no consumer wiring ships here) — consumers own their
+# credentials and pass full apprise URLs per request. Env overlays inherit
+# this base.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: []

@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+patches:
+  # Prd HA scaling: HPA owns the count (min 2/max 4, restates the base
+  # values so the prd floor is explicit); base replicas: 1 stays the
+  # create-time seed.
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 4
+    target:
+      kind: HorizontalPodAutoscaler
+      name: apprise-go-api
