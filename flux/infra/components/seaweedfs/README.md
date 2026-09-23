@@ -59,9 +59,8 @@ Path-style buckets only; every bucket consumer needs an IAM identity:
   `dragonfly-backups` (dragonfly), `clickhouse` (clickhouse);
   shared prefixes ride the owner's claim, e.g.
   `zitadel`/`coder`/`ferretdb` on `cnpg-backups`, `clickstack` on
-  `clickhouse`); legacy out-of-band buckets (`weed shell` / S3 API
-  against the cluster) remain only until cutover (see the cosi README).
-  The convention is one bucket per consumer, e.g. `appname-media`.
+  `clickhouse`). The convention is one bucket per consumer, e.g.
+  `appname-media` (see the cosi README for the claim-per-bucket rule).
 - Credentials: create the S3 identity via the operator's S3 config and
   store it in Proton Pass under
   `pass://acme-prd-bdo1-talos-apps-01/seaweedfs/<consumer>/…`

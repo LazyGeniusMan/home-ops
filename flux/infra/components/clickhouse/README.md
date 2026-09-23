@@ -33,9 +33,8 @@ bucket prefix once via the SeaweedFS S3 API. In-cluster
 `storage.xml` endpoints use the FQDN
 `http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333`. Its COSI
 `BucketClaim`/`BucketAccess` pair lives here in
-`configs/base/bucketclaims.yaml`. (Former cross-namespace sharer — apps
-`clickstack` CHI — moved to a dedicated in-namespace claim; see the cosi
-README.)
+`configs/base/bucketclaims.yaml` (one pair per live bucket — see the cosi
+README).
 
 ## Environments
 

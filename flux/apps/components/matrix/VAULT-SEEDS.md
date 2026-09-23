@@ -1,17 +1,17 @@
 # matrix tenant — vault seed checklist
 
-One-time `pass insert` per env BEFORE first install. Git holds
+One-time `pass-cli item create` per env BEFORE first install. Git holds
 `remoteRef` keys only, never values. The dev/prd overlays patch every
 `remoteRef.key` below from the `__PROTON_PASS_BASE__` placeholder to the
 per-env vault path; the Deployment/StatefulSet only starts once ESO syncs
 the Secrets (pods pend + Flux retries until then).
 
 Vault naming: `pass://acme-<env>-bdo1-talos-apps-01/<path>` where
-`<env>` is `dev` or `prd`. The `pass insert` shape drops the `pass://`
+`<env>` is `dev` or `prd`. The `pass-cli item create` shape drops the `pass://`
 scheme (same convention as `matrix/terraform/README.md`):
 
 ```shell
-pass insert 'acme-<env>-bdo1-talos-apps-01/<path>'
+pass-cli item create 'acme-<env>-bdo1-talos-apps-01/<path>'
 ```
 
 Field count per env: **12** Proton Pass fields (1 cert-manager + 1
@@ -49,21 +49,21 @@ tokens). Env-specific value notes are in the last column.
 Seed commands (dev shown; repeat with `acme-prd-bdo1-talos-apps-01` for prd):
 
 ```shell
-pass insert 'acme-dev-bdo1-talos-apps-01/cert-manager/cloudflare-api-token'
-pass insert 'acme-dev-bdo1-talos-apps-01/matrix/tuwunel-registration-secret'
-pass insert 'acme-dev-bdo1-talos-apps-01/mautrix-discord/bot-token'
-pass insert 'acme-dev-bdo1-talos-apps-01/mautrix-discord/as-token'
-pass insert 'acme-dev-bdo1-talos-apps-01/mautrix-discord/hs-token'
-pass insert 'acme-dev-bdo1-talos-apps-01/mautrix-discord/avatar-proxy-key'
-pass insert 'acme-dev-bdo1-talos-apps-01/mautrix-discord/direct-media-server-key'
-pass insert 'acme-dev-bdo1-talos-apps-01/mautrix-discord/provisioning-shared-secret'
-pass insert 'acme-dev-bdo1-talos-apps-01/mautrix-discord/double-puppet-shared-secret'
-pass insert 'acme-dev-bdo1-talos-apps-01/mautrix-discord/db-password'
-pass insert 'acme-dev-bdo1-talos-apps-01/element-web/netbird-pat'
-pass insert 'acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-token'
+pass-cli item create 'acme-dev-bdo1-talos-apps-01/cert-manager/cloudflare-api-token'
+pass-cli item create 'acme-dev-bdo1-talos-apps-01/matrix/tuwunel-registration-secret'
+pass-cli item create 'acme-dev-bdo1-talos-apps-01/mautrix-discord/bot-token'
+pass-cli item create 'acme-dev-bdo1-talos-apps-01/mautrix-discord/as-token'
+pass-cli item create 'acme-dev-bdo1-talos-apps-01/mautrix-discord/hs-token'
+pass-cli item create 'acme-dev-bdo1-talos-apps-01/mautrix-discord/avatar-proxy-key'
+pass-cli item create 'acme-dev-bdo1-talos-apps-01/mautrix-discord/direct-media-server-key'
+pass-cli item create 'acme-dev-bdo1-talos-apps-01/mautrix-discord/provisioning-shared-secret'
+pass-cli item create 'acme-dev-bdo1-talos-apps-01/mautrix-discord/double-puppet-shared-secret'
+pass-cli item create 'acme-dev-bdo1-talos-apps-01/mautrix-discord/db-password'
+pass-cli item create 'acme-dev-bdo1-talos-apps-01/element-web/netbird-pat'
+pass-cli item create 'acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-token'
 ```
 
-## Not vault-seeded (in-cluster minted — DO NOT `pass insert`)
+## Not vault-seeded (in-cluster minted — DO NOT `pass-cli item create`)
 
 - **Tuwunel SSO `client_id`/`client_secret`**: NO `pass://` seeding.
   The companion `tuwunel-sso` Terraform CR (Zitadel project + `tuwunel`
@@ -86,7 +86,7 @@ pass insert 'acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-token'
   `writeOutputsToSecret` of the `element-proxy` Terraform CR. Never in
   the vault, never in Git.
 - **matrix bot fields** (BOOTSTRAPPED — in-cluster minted, DO NOT
-  `pass insert`): the `matrix-bot-bootstrap` Job (`base/matrix-bot-bootstrap.yaml`)
+  `pass-cli item create`): the `matrix-bot-bootstrap` Job (`base/matrix-bot-bootstrap.yaml`)
   registers the per-env bot (`@apprise-dev` dev / `@apprise` prd, ONE bot
   shared by all 3 rooms) + mints its token + writes the KEPT Secret
   `matrix-bot-bootstrap-outputs` (keys `homeserver_url`/`access_token`/

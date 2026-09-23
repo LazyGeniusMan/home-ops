@@ -46,7 +46,7 @@ is seeding the registration secret ONCE per env (everything else the old
 runbook did — nonce/HMAC/register/login/vault bot seeding — the Job does):
 
 ```shell
-pass insert 'acme-<env>-bdo1-talos-apps-01/matrix/tuwunel-registration-secret'  # 32+ random bytes
+pass-cli item create login --vault-name 'acme-<env>-bdo1-talos-apps-01' --title 'matrix/tuwunel-registration-secret'  # 32+ random bytes
 ```
 
 Then verify (no console step, no token handling):
@@ -62,26 +62,11 @@ the server-side delete recovery step; see matrix-bot-bootstrap.yaml) and
 rotates the token (kept Secret patched -> ESO/varsFrom propagate within
 `refreshInterval`).
 
-<details><summary>Retired manual runbook (pre-Job; kept for forensics — DO NOT run)</summary>
-
-Prerequisites were: tuwunel Ready; operator held `registration_shared_secret`
-(32+ random bytes, served only on a trusted network path). The secret
-enables the Synapse-compatible admin registration API, which tuwunel serves
-(GET/POST `/_synapse/admin/v1/register`); NOT served when MAS is active
-(then provision users in MAS instead and skip to token minting).
-
 Per-env bots (no shared prod/dev bot): dev `@apprise-dev:<server>`,
 prd `@apprise:<server>` — the Job mints the SAME identities (ONE bot per
-env shared by all 3 rooms).
-
-1. Fetched a nonce (`GET /_synapse/admin/v1/register`); 2. computed the
-HMAC-SHA1 over `nonce/user/password/notadmin` joined with NUL bytes keyed
-by the shared secret; 3. registered the bot (admin=false); 4. minted the
-token via `POST /_matrix/client/v3/login`; 5. seeded the vault
-(`matrix-rooms/homeserver-url`, `bot-access-token`, `bot-user-id` — ALL
-RETIRED, do NOT reseed).
-
-</details>
+env shared by all 3 rooms). The Job registers via the Synapse-compatible
+admin API + mints the token server-side; the manual HMAC/nonce/vault path is
+retired (the `matrix-rooms/*` vault fields below are NOT reseeded).
 
 ## Token strategy (chosen: bootstrap Job v2)
 

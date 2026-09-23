@@ -90,9 +90,8 @@ consumer needs (also stated in `dragonfly-base.yaml`):
   this component. The bucket backing `s3://dragonfly-backups/` must exist
   **before** the first Dragonfly object starts (Dragonfly never creates
   buckets). Its COSI `BucketClaim`/`BucketAccess` pair lives here in
-  `configs/base/bucketclaims.yaml`. (Former cross-namespace sharer
-  `zitadel-cache` moved to a dedicated in-namespace claim; see the cosi
-  README.)
+  `configs/base/bucketclaims.yaml` (one pair per live bucket — see the cosi
+  README).
 - Credentials: `ExternalSecret/dragonfly-s3-credentials` syncs
   `ACCESS_KEY_ID`/`SECRET_ACCESS_KEY` from the COSI-minted BucketInfo JSON
   (Secret `dragonfly-backups-cosi-creds`) through the in-namespace

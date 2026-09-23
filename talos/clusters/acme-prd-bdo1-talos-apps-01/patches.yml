@@ -1,4 +1,4 @@
-# Cluster patch: acme-prd-bdo1-talos-apps-01 (Talos v1.14, single control-plane).
+# Cluster patch: acme-prd-bdo1-talos-apps-01 (Talos v1.15.0-alpha.0, single control-plane).
 # Applied after ../_base/patches.yml:
 #   talosctl gen config acme-prd-bdo1-talos-apps-01 https://192.168.1.198:6443 \
 #     --config-patch @../_base/patches.yml \

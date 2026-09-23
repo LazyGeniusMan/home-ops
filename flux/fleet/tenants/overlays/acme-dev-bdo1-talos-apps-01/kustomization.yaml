@@ -5,7 +5,8 @@
 # (path: ./tenants/overlays/acme-dev-bdo1-talos-apps-01).
 #
 # Default: pass-through of the full shared set (apps + infra + policies).
-# No `patches:` are active, so this cluster deploys exactly what
+# An active `patches:` block below makes this cluster diverge from the
+# shared set; a cluster with no `patches:` block deploys exactly what
 # tenants/{apps,infra,policies}.yaml define.
 #
 # To add a per-cluster exception (opt-in): uncomment a `patches:` entry

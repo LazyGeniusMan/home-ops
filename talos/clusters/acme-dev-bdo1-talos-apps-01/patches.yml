@@ -1,4 +1,4 @@
-# Cluster patch: acme-dev-bdo1-talos-apps-01 (Talos v1.14, single control-plane).
+# Cluster patch: acme-dev-bdo1-talos-apps-01 (Talos v1.15.0-alpha.0, single control-plane).
 # Dev cluster addressing (node .201, VIP .248) with its own Proton Pass vault.
 # No cross-environment vault references anywhere in this tree.
 # Applied after ../_base/patches.yml (same --config-patch ordering as prd).

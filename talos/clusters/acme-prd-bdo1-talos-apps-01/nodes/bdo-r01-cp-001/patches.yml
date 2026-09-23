@@ -1,4 +1,4 @@
-# Node patch: bdo-r01-cp-001 — acme-prd-bdo1-talos-apps-01 (Talos v1.14).
+# Node patch: bdo-r01-cp-001 — acme-prd-bdo1-talos-apps-01 (Talos v1.15.0-alpha.0).
 # Applied last: --config-patch @nodes/bdo-r01-cp-001/patches.yml
 # Static IP 192.168.1.101/24 on the RTL8125 link (systemd predictable name
 # for PCI 0000:2d:00.0 is enp45s0). Manual pre-flight:
@@ -8,14 +8,8 @@
 #   UnattendedInstallConfig{installer.image, provisioning.diskSelector.match, wipe},
 #   UserVolumeConfig{name, provisioning.diskSelector.match/filesystem.type},
 #   KubeNodeConfig{nodeIP.validSubnets, labels}.
-# Disk CEL: disk.dev_path / disk.transport (sata evidenced in
-# disk-management/layout.mdx) / !system_disk (system.mdx:46,83).
-# No sata-data volume: the host has no SATA disk (AHCI controller 0000:00:17.0
-# is vfio-pci passthrough — see node schematics.yml), so a
-# disk.dev_path == "/dev/sda" selector would never match and the
-# UserVolumeConfig would block provisioning waiting for a disk.
-# Re-add a sata-data UserVolumeConfig (+ its /var/mnt/sata-data exports line)
-# only when a SATA disk is physically present.
+# Disk CEL: disk.dev_path / disk.transport / !system_disk
+# (disk-management/layout.mdx, system.mdx).
 ---
 apiVersion: v1alpha1
 kind: HostnameConfig
@@ -121,10 +115,9 @@ name: nfs-server
 environment:
   - RPCNFSDCOUNT=32
 ---
-# NFS server stack (nfs-server README §Requirements + Configuration).
-# Exports the existing user volumes — no dedicated nfs volume.
-# UserVolumeConfig <name> mounts at /var/mnt/<name>, so these paths resolve
-# against the nvme-data + sata-data volumes above.
+# NFS server stack (nfs-server README Requirements + Configuration).
+# Exports the nvme-data + sata-data user volumes above (UserVolumeConfig
+# <name> mounts at /var/mnt/<name>); no dedicated nfs volume.
 # Linux Client Example
 # fstab
 # 192.168.1.101:/var/mnt/sata-data /mnt/sata-data nfs4 nfsvers=4.2,hard,timeo=600,retrans=2,rsize=1048576,wsize=1048576,nconnect=8,noatime,nodiratime,nosuid,nodev 0 0
@@ -151,8 +144,7 @@ contents: |
   /var/mnt/nvme-data 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=1)
   /var/mnt/sata-data 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=2) 
 # LAN-only 192.168.1.0/24; default root_squash kept (no no_root_squash).
-# fsid=0 marks the NFSv4 pseudo-root on nvme-data; crossmnt lets clients
-# traverse into the sata-data export.
+# fsid values mark the NFSv4 exports (pseudo-root fsid=0).
 ---
 apiVersion: v1alpha1
 kind: EtcFileConfig

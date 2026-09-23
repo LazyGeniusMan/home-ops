@@ -2,10 +2,8 @@
 # ESO mirrors the FirstInstance handoff Secrets (`zitadel-bootstrap-credentials`
 # + `zitadel-bootstrap-outputs`, both in the `zitadel` namespace) into this
 # namespace's `seaweedfs-terraform-vars` Secret through the cross-namespace
-# `seaweedfs-zitadel` SecretStore (configs/base/terraform.yaml) — replacing the retired
-# `data.terraform_remote_state` read off
-# `tfstate-default-zitadel-bootstrap-identity` (owned by the deleted bootstrap
-# Terraform CR) and its `seaweedfs-terraform-remote-state-reader` grant.
+# `seaweedfs-zitadel` SecretStore (configs/base/terraform.yaml) — via this ESO mirror
+# (no `data.terraform_remote_state` reads; no seaweedfs-terraform-remote-state-reader grant is used).
 # The store authenticates as THIS namespace SA `eso-zitadel-handoff-reader`,
 # so the SA needs get/list/watch on the two handoff Secrets only
 # (resourceNames pins both) plus selfsubjectrulesreviews create (ESO

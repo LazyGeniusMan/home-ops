@@ -6,14 +6,9 @@ and forwarding everything else upstream.
 
 ## Chart source
 
-OCI-first was attempted per house policy but is unavailable for CoreDNS:
-
-1. D2 docs (`flux-d2-docs/d2-infra`) prescribe no CoreDNS source (no matches).
-2. `oci://ghcr.io/coredns/charts/coredns:1.14.7` — not found.
-3. `ghcr.io/controlplaneio-fluxcd/charts/coredns` — does not exist (denied).
-
-So the component uses the classic `HelmRepository` (`coredns/coredns`,
-https://coredns.github.io/helm — the upstream-published chart repo). Chart
+No OCI chart source exists for CoreDNS, so the component uses the classic
+`HelmRepository` (`coredns/coredns`, https://coredns.github.io/helm — the
+upstream-published chart repo). Chart
 1.47.0 carries app 1.14.6, so the app image is pinned explicitly to `1.14.7`
 (verified live on Docker Hub); the update policy tracks the chart at
 `>=1.47.0` while the app pin rides in `values.image.tag`.
@@ -57,8 +52,8 @@ overlay (`dev`/`prd`) replaces the LAN zone block with its domain + VIP
 | `dev` | 1 (single-instance) | Corefile LAN zone `home-ops-dev.yansyah.my.id` → `.249` |
 | `prd` | 2 recommended (survive a node loss once multi-node) | Corefile LAN zone `home-ops.yansyah.my.id` → `.199` |
 
-No replica patches ship yet; scale the Deployment to 2 in `prd` when the
-second node lands.
+No replica patches ship; each env pins its count in `controllers/{dev,prd}`
+(1 dev, 2 prd).
 
 Upstream reference (read-only): `/tmp/home-ops-docs/coredns-docs`.
 
@@ -71,10 +66,10 @@ in `talos/` overrides `serviceSubnet`, so the default holds and kubelets need
 no per-node `clusterDNS`). This is a validated assumption, not a guess — but
 it is silent-break: if a `serviceSubnet` override is ever added to
 `talos/`, the kube-dns `clusterIP` MUST move to the 10th address of the new
-range or every kubelet will point at a non-existent DNS IP. Making it
-configurable was considered and rejected: nothing consumes a variable here
-(the IP is a literal inside a static Service manifest), so a comment + this
-note is the honest record.
+range or every kubelet will point at a non-existent DNS IP. The IP stays a
+literal inside the static Service manifest (nothing consumes a variable
+here); the comment in `controllers/base/kube-dns.yaml` + this note record
+the coupling.
 
 ## Telemetry-off / monitoring / updates
 

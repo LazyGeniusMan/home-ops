@@ -15,8 +15,8 @@ only when a custom template is required; none is).
 `base/` holds every manifest (`coder.yaml` HelmRepository + HelmRelease,
 secrets, CNPG Cluster, wildcard certificates, HTTPRoutes); env overlays
 `{dev,prd}/` patch hostnames, vault refs, and chart values
-via `resources: [../base]`. Tenant is `apps/coder` (wired by the fleet tenant
-file, not here — no tenant/workflow edits in this change).
+via `resources: [../base]`. Tenant is `apps/coder` (wired in
+`flux/fleet/tenants/apps.yaml`).
 
 ## OIDC (direct — NO oauth2-proxy)
 
@@ -104,12 +104,11 @@ email-prefix username derivation collides — verify on the second user's
 first login and, if Coder rejects the duplicate username, set
 `CODER_OIDC_USERNAME_FIELD=email` in `base/coder.yaml`.
 
-Follow-up (do NOT edit zitadel files here): if distinct `git@…` IdP
-identities are later added in the zitadel terraform, extend this table and
-re-check `CODER_OIDC_EMAIL_DOMAIN` / the group allowlist against the new
-emails/groups. Related hardening after first login succeeds: set
-`CODER_DISABLE_PASSWORD_AUTH=true` so OIDC is the only sign-in path
-(left off in base so a misconfigured OIDC cannot lock out the instance).
+If distinct `git@…` IdP identities are added in the zitadel terraform,
+extend this table and re-check `CODER_OIDC_EMAIL_DOMAIN` / the group
+allowlist against the new emails/groups. Related hardening after first login
+succeeds: set `CODER_DISABLE_PASSWORD_AUTH=true` so OIDC is the only sign-in
+path (left off in base so a misconfigured OIDC cannot lock out the instance).
 
 ## Routing (dashboard + workspace wildcard)
 
@@ -140,12 +139,11 @@ single-label wildcard cannot cover the nested workspace shape, hence two
 certs. No manual DNS: issuance uses DNS-01 TXT, and A records ride on the
 §9.4 external-dns automation.
 
-Follow-up in the gateway-api component (out of scope here — this change
-touches only coder paths): the shared Gateway's `https` listener
-currently terminates with the top-level `*.home-ops.yansyah.my.id` cert,
-which does not cover `*.coder.…`. Attach `coder-wildcard-tls` (e.g. an
-additional `https` listener with that certificateRef, or a SNI-based
-listener addition) so workspace hostnames terminate correctly.
+Gateway note: the shared Gateway's `https` listener terminates with the
+top-level `*.home-ops.yansyah.my.id` cert, which does not cover
+`*.coder.…`. Attach `coder-wildcard-tls` (e.g. an additional `https`
+listener with that certificateRef, or an SNI-based listener addition) so
+workspace hostnames terminate correctly.
 
 ## Database
 
@@ -193,9 +191,8 @@ Data-flow: Job -> kept Secret `matrix-bot-bootstrap-outputs` (ns
 `matrix`) -> ES `matrix-notify` (coder-matrix store) -> Secret
 `matrix-notify` -> HelmRelease env -> sink per-request `urls` (body).
 Known gap (documented in matrix NOTIFICATIONS.md): the sink reads `urls`
-from the POST body only and coderd's payload is fixed, so live delivery
-needs the sink-`?urls=`-or-injector follow-up; until then Coder posts 204
-VISIBLE.
+from the POST body only and coderd's payload is fixed, so Coder posts 204
+VISIBLE until the sink accepts a `?urls=` query param or an injector ships.
 
 ## Environments
 

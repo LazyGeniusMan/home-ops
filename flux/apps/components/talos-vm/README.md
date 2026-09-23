@@ -15,13 +15,13 @@ virtctl start talos-vm -n talos-vm            # or: virtctl stop / restart
 flux resume kustomization apps -n talos-vm    # re-enable reconciliation
 ```
 
-## Talos nocloud ISO source (aligned to talos-docs v1.14)
+## Talos nocloud ISO source (aligned to the Talos version in `talos/ansible/group_vars/all.yml`)
 
 - `dataVolumeTemplates[].spec.source.http.url` points at the Image Factory
-  nocloud artifact for amd64 / v1.14
-  (`https://factory.talos.dev/image/nocloud/amd64/v1.14/nocloud-amd64.iso`;
+  nocloud artifact for amd64 / v1.15.0-alpha.0
+  (`https://factory.talos.dev/image/nocloud/amd64/v1.15.0-alpha.0/nocloud-amd64.iso`;
   shape per `getting-started.mdx`: "download the ISO for your architecture
-  from the Image factory"). Pin to the exact v1.14 factory URL in use and
+  from the Image factory"). Pin to the exact factory URL in use and
   refresh it with Talos minor bumps.
 - Guest-image alignment: the factory schematic for this VM needs NO extra
   system extensions — virtio disk/NIC are in-tree in Talos, and the host

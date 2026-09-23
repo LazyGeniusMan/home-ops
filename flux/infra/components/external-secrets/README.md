@@ -33,8 +33,8 @@ persists past ~10m.
 ## Bootstrap (pass-cli, one-time, never committed)
 
 ```sh
-pass insert 'acme-prd-bdo1-talos-apps-01/external-secrets/proton-pass-pat'
-pass show --field=pat 'acme-prd-bdo1-talos-apps-01/external-secrets/proton-pass-pat' \
+pass-cli item create login --vault-name 'acme-prd-bdo1-talos-apps-01' --title 'external-secrets/proton-pass-pat'
+pass-cli item view 'pass://acme-prd-bdo1-talos-apps-01/external-secrets/proton-pass-pat/pat' \
   | kubectl -n external-secrets create secret generic proton-pass-pat --from-file=pat=/dev/stdin
 ```
 
@@ -46,11 +46,10 @@ other manager for it; it lives in the vault + this one Secret. Proton PATs
 expire after at most 1 year, so renew before expiry (the vault entry carries
 an expiry annotation as the reminder):
 
-1. `pass list` — confirm the
-   `acme-prd-bdo1-talos-apps-01/external-secrets/proton-pass-pat` entry and
-   its expiry annotation.
-2. `pass renew` (create the replacement PAT in Proton Pass — new token,
-   expiry up to 1y out). Update the vault entry (`pass insert`) with the
+1. `pass-cli item list 'acme-prd-bdo1-talos-apps-01'` — confirm the
+   `external-secrets/proton-pass-pat` entry and its expiry annotation.
+2. Create the replacement PAT in Proton Pass (new token, expiry up to 1y
+   out). Update the vault entry (`pass-cli item update`) with the
    new `pat` value + new expiry annotation.
 3. `kubectl -n external-secrets create secret generic proton-pass-pat
    --from-file=pat=/dev/stdin --dry-run=client -o yaml | kubectl apply -f -`

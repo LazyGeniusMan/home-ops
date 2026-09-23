@@ -1,8 +1,8 @@
-# talos/ — Talos Linux cluster configs (Talos v1.14, `talosctl`-only)
+# talos/ — Talos Linux cluster configs (Talos v1.15.0-alpha.0, `talosctl`-only)
 
 Declarative machine configuration for all Talos clusters. No CNI, no CoreDNS,
 and no bootstrap manifests ship from this tree — Cilium, DNS, and workloads
-arrive later via GitOps. Telemetry: Talos v1.14 has no telemetry field (zero
+arrive later via GitOps. Telemetry: the Talos machine config has no telemetry field (zero
 hits in `config.schema.json`); cluster discovery is explicitly disabled in
 `_base/patches.yml` so nodes never auto-join anything.
 

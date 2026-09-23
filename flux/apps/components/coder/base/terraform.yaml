@@ -16,7 +16,7 @@
 # module vars; the cross-namespace `coder-zitadel` SecretStore + narrow
 # `coder-zitadel-handoff-reader` Role in `zitadel-handoff-rbac.yaml` do the
 # mirroring). NO org_id literal in git, NO manual per-env fill, NO email lookups,
-# NO remote-state read off the retired bootstrap state. Provider auth likewise
+# NO remote-state reads — all inputs arrive via ESO + plain vars. Provider auth likewise
 # flows from the chart handoff (`zitadel-bootstrap-credentials` key
 # `jwt_profile_json`) through the same Secret. Same-namespace `varsFrom` CANNOT
 # cross namespaces (no namespace field), which is why the ESO mirror + RBAC is

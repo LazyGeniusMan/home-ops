@@ -1,4 +1,4 @@
-# Dev-only talos-vm patch: minimal specs (v1.14 worker minima — boot+DHCP
+# Dev-only talos-vm patch: minimal specs (Talos worker minima — boot+DHCP
 # only: 1 core / 1Gi / 10Gi) + static `lan` bridge MAC. The MAC is a literal
 # here because KubeVirt `macAddress` is a plain string ESO cannot inject —
 # mirror the SAME value manually in Proton Pass at

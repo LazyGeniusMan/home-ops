@@ -8,6 +8,10 @@
 #   http  git clone over HTTPS (default, preserves historical behavior)
 #   ssh   git clone over SSH (git@github.com:, for SSH-auth environments)
 #   zip   download the branch ZIP over HTTPS and extract it (no git needed)
+#
+# The script wipes and recreates /tmp/home-ops-docs on every run, then
+# re-fetches each entry below. One failure never aborts the rest
+# (continue-on-error with a non-zero exit + failed-dest summary at the end).
 set -uo pipefail
 
 FETCH_MODE="${FETCH_MODE:-http}"
@@ -265,13 +269,13 @@ fetch_repo flux-d2-docs/d2-fleet https://github.com/controlplaneio-fluxcd/d2-fle
 fetch_repo flux-d2-docs/d2-infra https://github.com/controlplaneio-fluxcd/d2-infra main || record_fail flux-d2-docs/d2-infra
 fetch_repo flux-d2-docs/d2-apps https://github.com/controlplaneio-fluxcd/d2-apps main || record_fail flux-d2-docs/d2-apps
 
-# /tmp/home-ops-docs/flux-operator-docs/docs
+# /tmp/home-ops-docs/flux-operator-docs/docs/web
 fetch_repo flux-operator-docs https://github.com/controlplaneio-fluxcd/flux-operator main || record_fail flux-operator-docs
 
 # /tmp/home-ops-docs/flux-operator-bootstrap-terraform-docs/README.md
 fetch_repo flux-operator-bootstrap-terraform-docs https://github.com/controlplaneio-fluxcd/terraform-kubernetes-flux-operator-bootstrap main || record_fail flux-operator-bootstrap-terraform-docs
 
-# /tmp/home-ops-docs/flux-tofu-controller-docs/docs/index.md
+# /tmp/home-ops-docs/flux-tofu-controller-docs/docs (index.md, tfctl.md, branch-planner/)
 fetch_repo flux-tofu-controller-docs https://github.com/flux-iac/tofu-controller main || record_fail flux-tofu-controller-docs
 
 # /tmp/home-ops-docs/k8s-gateway-api-docs/site/hugo.toml + /tmp/home-ops-docs/k8s-gateway-api-docs/site/content/en

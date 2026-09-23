@@ -170,7 +170,7 @@ Non-expiring bootstrap auth (maintenance-free by design):
   no-expiry is the fix — not a rotation CronJob/operator (deliberately no
   new moving parts).
 
-One-time migration for pre-existing 2029 keys (FirstInstance only runs on
+One-time migration for 2029-expiry keys (FirstInstance only runs on
 fresh setup — changing values does NOT re-mint keys on existing installs):
 
 1. Delete the kept Secrets so the setup Job re-runs key creation:
@@ -190,9 +190,9 @@ fresh setup — changing values does NOT re-mint keys on existing installs):
     get/list/watch on the two setup-Job Secrets only). Per-app
     tofu-controller slices consume `jwt_profile_json` via same-namespace
     `varsFrom` (zitadel ns) or `fileMappings`; app namespaces add a narrow
-    cross-namespace Role + RoleBinding on this Secret (same shape as the old
-    `*-terraform-remote-state-reader` grants) — this replaces the old
-    `pass://<env-vault>/zitadel/terraform-jwt-profile-json` seeding step.
+    cross-namespace Role + RoleBinding on this Secret (see any
+    `zitadel-handoff-rbac.yaml` consumer). Provider auth never lives in the
+    vault — no `pass://` seeding step exists.
   - `zitadel-asset-storage` (keys `endpoint`, `accessKeyId`,
     `secretAccessKey`) via the in-namespace `zitadel-cosi` SecretStore from
     the colocated `zitadel-assets` claim — consumed as
@@ -205,14 +205,14 @@ fresh setup — changing values does NOT re-mint keys on existing installs):
   clients live in each app's own per-app `terraform/` slice (own project
   roles/grants assert the `groups` claim); this bootstrap owns no clients.
 
-Consumer handoff (for the follow-up SSO task — Secret names/namespaces/keys):
+Consumer handoff (Secret names/namespaces/keys consumed by each app's SSO Terraform CR):
 
 | Secret (namespace `zitadel`) | Keys | Producer | Consumers use |
 |---|---|---|---|
 | `zitadel-bootstrap-sa` | `zitadel-bootstrap-sa.json` (machine-key JSON) | chart setup Job (kept) | read via `zitadel-bootstrap-credentials` mirror, not directly |
 | `zitadel-bootstrap-sa-pat` | `pat` | chart setup Job (kept) | read via `zitadel-bootstrap-credentials` mirror, not directly |
 | `zitadel-bootstrap-credentials` | `jwt_profile_json`, `pat` | ESO ExternalSecret (`zitadel-bootstrap` store) | tofu `varsFrom`/`fileMappings` (`jwt_profile_json` = provider auth, `pat` = API token) |
-| `zitadel-bootstrap-outputs` | `org_id`, `admin_user_id` (plain IDs) | operator-created once post-install (see runbook below) | per-app CR `vars` (literal, non-sensitive); replaces `data.terraform_remote_state.zitadel.outputs.*` |
+| `zitadel-bootstrap-outputs` | `org_id`, `admin_user_id` (plain IDs) | operator-created once post-install (see runbook below) | per-app CR `vars` (literal, non-sensitive) |
 | `zitadel-asset-storage` | `endpoint`, `accessKeyId`, `secretAccessKey` | ESO ExternalSecret (`zitadel-cosi` store ← `zitadel-assets` claim) | `ZITADEL_ASSETSTORAGE_*` env vars (HelmRelease) |
 
 First-install runbook (zero-UI):
@@ -242,14 +242,11 @@ ESO pull-only is sufficient (no push needed):
   PushSecret`. That path is never exercised by this component — no code
   changes, no PushSecret, no push wiring needed.
 
-Retired: `configs/base/terraform-bootstrap.yaml` (ExternalSecret
-`zitadel-terraform-vars` + Terraform CR `zitadel-bootstrap-identity`) and the
-`terraform/` bootstrap slice (`zitadel_org`, `zitadel_human_user`,
-`zitadel_org_member`, central project/role/grant; provider `zitadel ~> 3.3`)
-are deleted. Per-app `data.terraform_remote_state.zitadel` reads keep
-working off the LAST tofu-controller state until that state ages out — the
-follow-up task switches them to the table above. Client secrets live in each
-app's per-app `terraform/` state — read them into Proton Pass (never Git).
+No `terraform/` bootstrap slice ships: org, users, and membership are owned
+by the FirstInstance stanza above; per-app projects/roles/grants/clients live
+in each app's own `terraform/` slice (see any app README). Client secrets
+live in each app's per-app `terraform/` state — read them into Proton Pass
+(never Git).
 
 ## Telemetry-off / monitoring / updates
 

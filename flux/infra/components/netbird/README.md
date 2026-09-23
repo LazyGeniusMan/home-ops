@@ -1,10 +1,12 @@
 # NetBird
 
-Reusable NetBird reverse-proxy Terraform root + its OCI delivery shell. No
-controllers, no configs ship yet — this component exists so the shared root
-in `terraform/` is published as `oci://ghcr.io/<owner>/home-ops/infra/netbird`
-and consumable via cross-namespace `sourceRef` (same pattern as the zitadel
-component's `terraform/` root).
+Reusable NetBird reverse-proxy Terraform root + its OCI delivery shell. The
+`controllers/` and `configs/` dirs are intentionally empty shells (see Layout)
+— this component exists so the shared root in `terraform/` is published as
+`oci://ghcr.io/lazygeniusman/home-ops/infra/netbird` and consumable via
+cross-namespace `sourceRef` (same pattern as the zitadel component's
+`terraform/` root). Live consumers: matrix `element-proxy` and zitadel
+`login-proxy` Terraform CRs.
 
 ## Layout
 
@@ -31,9 +33,9 @@ still require those paths to exist in the OCI artifact, hence the shells.
 Copy `examples/consumer-terraform.yaml` into the app's `base/` directory
 (`<app>-terraform-vars` ExternalSecret + `<app>-proxy` Terraform CR), then
 add the per-env overlay patches for hosts/zone IDs (positional
-`/spec/vars/0`, same discipline as the zitadel consumers). Full contract in
-`terraform/README.md`. The dependent task wires the first real consumer;
-do NOT split zitadel URLs here.
+`/spec/vars/*`, same discipline as the zitadel consumers). Full contract in
+`terraform/README.md`. The shared root takes no per-app host var — pass the
+service FQDN via the consumer's `domain` var (see `element-proxy.yaml`).
 
 ## Credentials
 

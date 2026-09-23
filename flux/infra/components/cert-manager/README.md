@@ -27,9 +27,10 @@ Upstream reference (read-only): `/tmp/home-ops-docs/cert-manager-docs`.
 
 ## Gateway TLS (§8 coordination)
 
-The `Certificate` lives in the `cert-manager` namespace; a Gateway listener
-needs the Secret in the Gateway's namespace — copy `wildcard-home-ops-tls`
-there or relocate this `Certificate` once the gateway namespace exists.
+Gateway listeners need their TLS Secret in the Gateway's own namespace, so
+the gateway-api component mints its own duplicate wildcard `Certificate`
+there (same `ClusterIssuer/letsencrypt`, same dnsNames) instead of consuming
+this namespace's `wildcard-home-ops-tls` Secret cross-namespace.
 
 ## Telemetry-off / monitoring / updates
 

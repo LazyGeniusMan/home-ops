@@ -5,16 +5,13 @@ via the infra apprise-go-api sink
 (`http://apprise-go-api.apprise-go-api.svc:80/notify` — workload lives in
 the infra `apprise-go-api` tenant, NOT this one) into per-purpose Matrix
 rooms provisioned by the reusable rooms module. notification-controller
-is enabled on both clusters; before this change zero Provider/Alert
-existed.
+is enabled on both clusters.
 
 Scope: `base/notifications.yaml` (4 generic Providers + 4 Alerts — the
 `apprise-coder` Provider is REMOVED, Coder posts directly) +
 `base/apprise-go-api-secrets.yaml` (STATELESS_URLS fallback: flux/tofu/team
 legs only) + `base/matrix-bot-bootstrap.yaml` (bot bootstrap Job + kept
 Secret) + room example CRs + live `base/rooms.yaml` CRs + this doc.
-Tenant/workflow onboarding (`tenants/apps.yaml`, `flux-apps-push.yaml`) is
-a separate task. NO live alert firing here.
 
 ## Fallback-leg ownership (decoupled — read first)
 

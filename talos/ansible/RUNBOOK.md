@@ -191,7 +191,7 @@ minted by Terraform, not stored in Proton Pass:
    rides `admin-users-access` and the LAN forward chain rides
    `admin-users-lan-access`) + `guest-users-access` (guest-users →
    `guest-users-resources`, TCP 80+443). The LB IP is NOT needed here
-   (proxy-only concern owned by the Flux consumer), so this root takes no
+   (proxy-only concern owned by the Flux netbird consumers), so this root takes no
    `service_lb_ip` var and manages no Service-LB resource. The module
    returns the sensitive `talos_setup_key` output
    (`outputs.talos_setup_key.value`) — never `tofu output -raw` from a
@@ -578,7 +578,7 @@ Health runs on **every** day-2 invocation; skip explicitly with
 
 ### 3.3 Talos upgrade (per-node, sequential)
 
-Talos minor upgrades are **adjacent-minors-only** (e.g. v1.14.x → v1.15.x,
+Talos minor upgrades are **adjacent-minors-only** (e.g. v1.15.x → v1.16.x,
 never skip a minor).
 
 Explicit image (read the real ID from the file — never invent one):

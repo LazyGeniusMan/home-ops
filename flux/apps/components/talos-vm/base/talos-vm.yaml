@@ -73,11 +73,11 @@ spec:
             requests:
               storage: 20Gi
         source:
-          # Talos v1.14 nocloud image, aligned with talos-docs v1.14
+          # Talos nocloud image, aligned with the Talos version in talos/ansible/group_vars/all.yml
           # (getting-started: Image factory https://factory.talos.dev/).
           # Schematic extensions for a KVM guest: none beyond the base
           # (virtio NIC/disk are in-tree; qemu-guest-agent extension optional
           # — add via factory schematic if wanted, then refresh this URL).
           # { talks to factory.talos.dev nocloud artifact }
           http:
-            url: "https://factory.talos.dev/image/nocloud/amd64/v1.14/nocloud-amd64.iso"
+            url: "https://factory.talos.dev/image/nocloud/amd64/v1.15.0-alpha.0/nocloud-amd64.iso"

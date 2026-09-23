@@ -1,4 +1,4 @@
-# Shared barebone base patch for all clusters (Talos v1.14).
+# Shared barebone base patch for all clusters (Talos v1.15.0-alpha.0).
 # Multi-document: consumed via `talosctl gen config --config-patch @file`
 # (see reference/configuration/overview.mdx: machine config is multi-doc;
 # split-doc kinds merge after it).
