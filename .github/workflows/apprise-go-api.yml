@@ -39,6 +39,9 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: Format check
+        run: gofmt -l . | tee /tmp/gofmt.out && test ! -s /tmp/gofmt.out
+
       - name: Tidy check
         run: go mod tidy && git diff --exit-code -- go.mod go.sum
 
