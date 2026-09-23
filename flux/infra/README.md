@@ -3,10 +3,10 @@
 D2 infra layer for the home-ops monorepo, adapted from upstream
 [d2-infra](https://github.com/controlplaneio-fluxcd/d2-infra). Holds cluster
 add-ons (CRDs + controllers) reconciled by Flux as cluster admin. Current
-components (17): cert-manager, cilium, clickhouse, cnpg, coredns, cosi,
-dragonfly, external-dns, external-secrets, gateway-api, kubevirt,
-local-path-provisioner, metrics-server, multus, seaweedfs, tofu-controller,
-zitadel.
+components (20): apprise-go-api, cert-manager, cilium, clickhouse, cnpg,
+coredns, cosi, dragonfly, external-dns, external-secrets, gateway-api,
+kubevirt, local-path-provisioner, metrics-server, multus, netbird,
+seaweedfs, tofu-controller, vpa, zitadel.
 
 ## Layout
 
@@ -37,3 +37,6 @@ release workflow subject.
 3. Add `<name>` to the components matrix in
    `.github/workflows/flux-infra-push.yaml`.
 4. Add `update-policies/<name>.yaml` (ImageRepository + ImagePolicy).
+   Exception: `netbird` ships no chart/image (shared Terraform root only;
+   provider pins live in its `terraform/versions.tf`), so it intentionally
+   has no update policy — see `components/netbird/README.md`.
