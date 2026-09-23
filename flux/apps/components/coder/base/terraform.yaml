@@ -151,6 +151,9 @@ spec:
         - https://__SERVICE_HOST__/
     - name: create_user_role
       value: "true"
+    # user_emails is deliberately env-invariant: the same humans get access
+    # in dev+prd (source of truth: README "SSO identity → operator mapping"
+    # table). Do NOT add dev/prd overlay patches diverging the list.
     - name: user_emails
       value:
         - git@yansyah.my.id

@@ -104,6 +104,10 @@ email-prefix username derivation collides — verify on the second user's
 first login and, if Coder rejects the duplicate username, set
 `CODER_OIDC_USERNAME_FIELD=email` in `base/coder.yaml`.
 
+Membership is deliberately env-invariant: `base/terraform.yaml`
+`user_emails` grants the same humans in dev+prd (no overlay patches) —
+this table is the source of truth for who those humans are.
+
 If distinct `git@…` IdP identities are added in the zitadel terraform,
 extend this table and re-check `CODER_OIDC_EMAIL_DOMAIN` / the group
 allowlist against the new emails/groups. Related hardening after first login
