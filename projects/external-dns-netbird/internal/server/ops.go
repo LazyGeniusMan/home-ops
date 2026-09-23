@@ -14,6 +14,8 @@ func (s *Server) opsHandler() http.Handler {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	ops.Handle("/metrics", promhttp.HandlerFor(s.registry, promhttp.HandlerOpts{}))
+	// Default registry: includes the Go runtime and process collectors
+	// registered in New plus the domain error counters.
+	ops.Handle("/metrics", promhttp.Handler())
 	return ops
 }

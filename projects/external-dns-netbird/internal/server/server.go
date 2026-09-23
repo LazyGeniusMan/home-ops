@@ -14,9 +14,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/plan"
@@ -44,37 +46,72 @@ type Server struct {
 	log         *logrus.Entry
 	webhookAddr string
 	metricsAddr string
-	registry    *prometheus.Registry
 	recordsErrs prometheus.Counter
 	applyErrs   prometheus.Counter
 	adjustErrs  prometheus.Counter
 }
 
-// New builds a Server.
+// registerDefaultCollectorsOnce ensures the standard Go runtime and process
+// collectors are registered on the default registry exactly once, regardless
+// of how many Server instances are constructed (e.g. one per test).
+// Duplicate registration is tolerated because tests may share the process
+// default registry with collectors registered elsewhere.
+var registerDefaultCollectorsOnce sync.Once
+
+// registerCollector tolerates AlreadyRegisteredError so New() stays safe when
+// the default registry already carries the collector (shared test process).
+func registerCollector(c prometheus.Collector) {
+	if err := prometheus.Register(c); err != nil {
+		if _, ok := err.(prometheus.AlreadyRegisteredError); !ok {
+			panic(err)
+		}
+	}
+}
+
+// registerOrReuse registers c on the default registry, returning the already
+// registered collector when New() runs more than once in a single process
+// (e.g. one Server per test) so every Server's counters stay live.
+func registerOrReuse(c prometheus.Counter) prometheus.Counter {
+	if err := prometheus.Register(c); err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			if existing, ok := are.ExistingCollector.(prometheus.Counter); ok {
+				return existing
+			}
+		}
+		panic(err)
+	}
+	return c
+}
+
+// New builds a Server. Domain error counters and the standard Go/process
+// collectors are registered on prometheus.DefaultRegisterer so GET /metrics
+// exposes go_* / process_* runtime series alongside the domain counters.
+// The ops listener pattern (:8080 via metricsAddr) is unchanged.
 func New(p *nbprovider.Provider, log *logrus.Entry, webhookAddr, metricsAddr string) *Server {
-	reg := prometheus.NewRegistry()
-	recordsErrs := prometheus.NewCounter(prometheus.CounterOpts{
+	registerDefaultCollectorsOnce.Do(func() {
+		registerCollector(collectors.NewGoCollector())
+		registerCollector(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	})
+	recordsErrs := registerOrReuse(prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: "external_dns_netbird",
 		Name:      "records_errors_total",
 		Help:      "Errors serving GET /records.",
-	})
-	applyErrs := prometheus.NewCounter(prometheus.CounterOpts{
+	}))
+	applyErrs := registerOrReuse(prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: "external_dns_netbird",
 		Name:      "apply_changes_errors_total",
 		Help:      "Errors serving POST /records.",
-	})
-	adjustErrs := prometheus.NewCounter(prometheus.CounterOpts{
+	}))
+	adjustErrs := registerOrReuse(prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: "external_dns_netbird",
 		Name:      "adjust_endpoints_errors_total",
 		Help:      "Errors serving POST /adjustendpoints.",
-	})
-	reg.MustRegister(recordsErrs, applyErrs, adjustErrs)
+	}))
 	return &Server{
 		provider:    p,
 		log:         log,
 		webhookAddr: webhookAddr,
 		metricsAddr: metricsAddr,
-		registry:    reg,
 		recordsErrs: recordsErrs,
 		applyErrs:   applyErrs,
 		adjustErrs:  adjustErrs,
