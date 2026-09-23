@@ -19,7 +19,7 @@ ansible/
   ansible.cfg                  # roles_path, transport=local, diff output
   requirements.yml             # collections (community.general for key-value lookups)
   group_vars/all.yml           # talos version, per-cluster map, shared filenames
-  playbooks/day0.yml           # render secrets/configs, gen + validate, install
+  playbooks/day0.yml           # render secrets/configs, gen + validate machine configs
   playbooks/day1.yml           # insecure-apply, wait gates, bootstrap etcd, kubeconfig
   playbooks/day2.yml           # health, upgrade, patch, VIP/etcd checks (operate)
   roles/talos_render/          # inject + gen config + validate (day-0)
