@@ -13,3 +13,4 @@ data:
   ENVIRONMENT: prd
   CLUSTER_NAME: acme-prd-bdo1-talos-apps-01
   CLUSTER_DOMAIN: home-ops.yansyah.my.id
+  CLUSTER_REGION: home-lab

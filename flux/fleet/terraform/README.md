@@ -52,9 +52,28 @@ values):
 | `operator_chart.repository` / `version` | `versions.yaml` (repository must match the `OCIRepository` url in `../clusters/<cluster_name>/flux-system/flux-operator.yaml`; the GitOps ref itself tracks semver `*` per D2, `versions.yaml` records the bootstrap install version) |
 | `prerequisites.charts[0]` (repository = OCI url minus `oci://`, version = ref tag, values = HelmRelease `spec.values`) | `../../infra/components/cilium/controllers/base/cilium.yaml` (the same OCIRepository + HelmRelease Flux reconciles; `k8sServiceHost` placeholder filled from `var.cilium_k8s_service_host`) |
 
-`tests/versions.tftest.hcl` asserts the operator mapping and
+`tests/versions.tftest.hcl` asserts the operator mapping (plus the 0.8.0 /
+0.59.0 pins and the per-cluster instance/values single-source) and
 `tests/prerequisites.tftest.hcl` asserts the Cilium mapping (prd + dev
-VIPs); `tofu test` fails on drift.
+VIPs, adoption check, host-networked Job, runtime seed, LB-pool guard);
+`tofu test` fails on drift.
+
+## ENVIRONMENT / CLUSTER_NAME / CLUSTER_DOMAIN / CLUSTER_REGION flow
+
+No hardcoded env leakage: the per-cluster
+`clusters/<name>/flux-system/runtime-info.yaml` ConfigMap
+(`ARTIFACT_TAG`, `ENVIRONMENT`, `CLUSTER_NAME`, `CLUSTER_DOMAIN`,
+`CLUSTER_REGION`) is the single source. Pre-Flux, Terraform seeds the
+bootstrap Job's `flux-runtime-info` ConfigMap from the SAME file (plus
+`var.cluster_region`, which must match the file) so `flux envsubst
+--strict` works inside the Job. Post-Flux, the GitOps file owns the
+ConfigMap; each infra/apps ResourceSet copies it into `<tenant>/flux-runtime-info`
+via `copyFrom`, and every tenant Kustomization declares
+`postBuild.substituteFrom` on it — so `${ENVIRONMENT}` selects
+`controllers/<env>/` paths and any component manifest can consume
+`${CLUSTER_NAME}` / `${CLUSTER_DOMAIN}` / `${CLUSTER_REGION}` with zero
+fleet changes. `tenants.yaml` per cluster wires `substituteFrom`; the
+`update` cluster is intentionally out of scope (automation only).
 
 ## First bootstrap order (the `stable` chicken-and-egg)
 
@@ -98,7 +117,14 @@ tofu plan \
 ```
 
 Use `192.168.1.248` for `acme-dev-bdo1-talos-apps-01`. `tofu plan` needs
-no cluster access beyond validation (mock providers in tests; real plan
-resolves local files only until apply).
+no live cluster: providers read `var.kubeconfig_path` (default
+`~/.kube/config` for apply), and plan resolves local files only until
+apply. In CI or on a machine without a kubeconfig, point at any dummy
+file:
 
-Bump `var.bootstrap_revision` to trigger a new bootstrap run.
+```shell
+tofu plan -var kubeconfig_path=/tmp/dummy-kubeconfig ...
+```
+
+Bump `var.bootstrap_revision` to trigger a new bootstrap run (it flows
+into the module `revision`, which re-renders the Job annotation).

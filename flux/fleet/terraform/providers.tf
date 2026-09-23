@@ -1,12 +1,13 @@
-# Provider configuration for local clusters (KinD, Talos dev).
-# For cloud clusters, point these at the cluster module outputs instead
-# (see the flux-operator-bootstrap module docs for an EKS example).
+# Provider configuration: both providers read the SAME kubeconfig file so
+# validation-only flows (`tofu plan` with a dummy kubeconfig, `tofu test`
+# with mocks) never need a live cluster. Point kubeconfig_path at the real
+# cluster kubeconfig for apply.
 provider "kubernetes" {
-  config_path = "~/.kube/config"
+  config_path = var.kubeconfig_path
 }
 
 provider "helm" {
   kubernetes = {
-    config_path = "~/.kube/config"
+    config_path = var.kubeconfig_path
   }
 }

@@ -109,6 +109,48 @@ locals {
     { for k, v in local.cilium_release_doc.spec.values : k => v if k != "k8sServiceHost" },
     { k8sServiceHost = var.cilium_k8s_service_host }
   )
+
+  cilium_prerequisite = {
+    name             = "cilium"
+    repository       = local.cilium_chart_repository
+    version          = local.cilium_chart_tag
+    namespace        = "kube-system"
+    create_namespace = false
+    values_yaml      = yamlencode(local.cilium_values)
+    # Steady-state handoff: the Flux tenant HelmRelease (releaseName
+    # cilium, targetNamespace/storageNamespace kube-system) stamps
+    # helm.toolkit.fluxcd.io/name on the `cilium` DaemonSet once it
+    # reconciles (chart .Values.name default is `cilium`, NOT
+    # `cilium-agent` — that is only the app.kubernetes.io/name label).
+    # From then on the Job skips this chart so it never fights
+    # helm-controller. kube-system already exists on Talos, so the Job
+    # must not create it (create_namespace = false).
+    flux_adoption_check = {
+      resource  = "daemonset"
+      api_group = "apps"
+      name      = "cilium"
+      namespace = "kube-system"
+    }
+  }
+
+  # Bootstrap Job network posture, single-sourced here so tests can pin it:
+  # host_network=true is required on barebone Talos (see module call below).
+  bootstrap_job = {
+    host_network = true
+  }
+
+  # Runtime-info seed for the bootstrap Job's flux-runtime-info ConfigMap.
+  # Single-sourced from the SAME runtime-info.yaml Flux reconciles after
+  # bootstrap (clusters/<cluster_name>/flux-system/runtime-info.yaml), plus
+  # CLUSTER_REGION from var.cluster_region (var wins on conflict). The Job
+  # needs this ConfigMap pre-Flux for `flux envsubst --strict`; after Flux
+  # takes over, the GitOps file (which also carries CLUSTER_REGION) is the
+  # owner and the copyFrom + postBuild.substituteFrom chain fans the keys
+  # out to every tenant namespace.
+  flux_runtime_seed = merge(
+    yamldecode(file("${path.root}/../clusters/${var.cluster_name}/flux-system/runtime-info.yaml")).data,
+    { CLUSTER_REGION = var.cluster_region }
+  )
 }
 
 module "flux_operator_bootstrap" {
@@ -122,9 +164,7 @@ module "flux_operator_bootstrap" {
   # when the job must install a CNI plugin"). Implies dnsPolicy Default, so
   # ghcr.io/quay.io pulls resolve via the node's resolvers (see header note
   # on why CoreDNS stays a Flux tenant instead of a prerequisite).
-  job = {
-    host_network = true
-  }
+  job = local.bootstrap_job
 
   gitops_resources = {
     instance_yaml = file("${path.root}/../clusters/${var.cluster_name}/flux-system/flux-instance.yaml")
@@ -134,28 +174,9 @@ module "flux_operator_bootstrap" {
       values_yaml = file("${path.root}/../clusters/${var.cluster_name}/flux-system/flux-operator-values.yaml")
     }
     prerequisites = {
-      charts = [
-        {
-          name             = "cilium"
-          repository       = local.cilium_chart_repository
-          version          = local.cilium_chart_tag
-          namespace        = "kube-system"
-          create_namespace = false
-          values_yaml      = yamlencode(local.cilium_values)
-          # Steady-state handoff: the Flux tenant HelmRelease (releaseName
-          # cilium in kube-system, serviceAccountName flux) stamps
-          # helm.toolkit.fluxcd.io/name on the cilium-agent DaemonSet once it
-          # reconciles. From then on the Job skips this chart so it never
-          # fights helm-controller. kube-system already exists on Talos, so
-          # the module must not create it (create_namespace = false).
-          flux_adoption_check = {
-            resource  = "daemonset"
-            api_group = "apps"
-            name      = "cilium-agent"
-            namespace = "kube-system"
-          }
-        }
-      ]
+      # prerequisites.charts[0] MUST stay cilium: the bootstrap Job installs
+      # node networking before the Flux Operator on barebone Talos.
+      charts = [local.cilium_prerequisite]
     }
   }
 
@@ -170,9 +191,7 @@ module "flux_operator_bootstrap" {
         .dockerconfigjson: '${replace(local.ghcr_auth_dockerconfigjson, "'", "''")}'
     YAML
     runtime_info = {
-      data = {
-        CLUSTER_REGION = var.cluster_region
-      }
+      data = local.flux_runtime_seed
     }
   }
 }

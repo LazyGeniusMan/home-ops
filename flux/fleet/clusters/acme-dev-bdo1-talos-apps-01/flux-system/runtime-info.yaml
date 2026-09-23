@@ -13,3 +13,4 @@ data:
   ENVIRONMENT: dev
   CLUSTER_NAME: acme-dev-bdo1-talos-apps-01
   CLUSTER_DOMAIN: home-ops-dev.yansyah.my.id
+  CLUSTER_REGION: home-lab

@@ -17,6 +17,13 @@ variable "cluster_region" {
   nullable    = false
 }
 
+variable "kubeconfig_path" {
+  description = "Path to the kubeconfig file for the target cluster. Defaults to ~/.kube/config for apply; validation-only flows (CI, tofu test) can point at a dummy file since providers never dial out during init/validate/test/plan."
+  type        = string
+  default     = "~/.kube/config"
+  nullable    = false
+}
+
 variable "bootstrap_revision" {
   description = "Bump to trigger a new bootstrap run."
   type        = number
