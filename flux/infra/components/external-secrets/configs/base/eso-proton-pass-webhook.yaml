@@ -1,7 +1,8 @@
 # eso-proton-pass: in-cluster ESO generic-webhook provider for Proton Pass
 # (projects/eso-proton-pass, pull-only). Registered implicitly: the
 # ClusterSecretStore above addresses it by Service DNS; no ESO chart values
-# change is needed. Liveness /metrics come from the app itself.
+# change is needed. Liveness /healthz, readiness /readyz, metrics /metrics
+# come from the app itself.
 # BOOTSTRAP PREREQUISITE (assert, do not skip): the proton-pass-pat Secret
 # must already exist in the external-secrets namespace or this Deployment
 # stays Pending (missing secret volume) and the store + every downstream
@@ -95,7 +96,7 @@ spec:
             periodSeconds: 30
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /readyz
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
