@@ -97,6 +97,28 @@ spec:
             value: /secrets/pat
           - name: DOMAIN_FILTER
             value: __BASE_DOMAIN__
+          - name: METRICS_ADDR
+            value: ":8080"
+          - name: LOG_LEVEL
+            value: info
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http-webhook
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 2
+          successThreshold: 1
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: http-webhook
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+          successThreshold: 1
         extraVolumeMounts:
           - name: pat
             mountPath: /secrets
