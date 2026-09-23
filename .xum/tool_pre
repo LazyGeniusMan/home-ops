@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# Xum Tool Hook (pre): block `pass-cli` execution by agents unless the
+# invocation only requests help (`-h` / `--help`).
+#
+# Allow-by-default: anything that is not a non-help `pass-cli` call exits 0.
+# No `set -e`: an unexpected non-zero exit would block unrelated tools, so
+# every fallible expansion is guarded and the script exits explicitly.
+# Fast by design (<1s): no network, no `flox activate`, file reads only.
+
+# Only inspect shell tool calls; all other tools pass through untouched.
+if [[ "${XUM_TOOL:-}" != "bash" ]]; then
+  exit 0
+fi
+
+script="${XUM_TOOL_INPUT_SCRIPT:-}"
+
+# Fallback: read the script content from the JSON input file when the env var
+# is empty or unset. Tries `jq`, then `python3`, then a `grep`+`sed` fallback.
+# Allows (exit 0) when no script content can be found.
+if [[ -z "$script" && -n "${XUM_TOOL_INPUT_PATH:-}" && -f "$XUM_TOOL_INPUT_PATH" ]]; then
+  if command -v jq >/dev/null 2>&1; then
+    script="$(jq -r '.script // .input.script // .command // empty' "$XUM_TOOL_INPUT_PATH" 2>/dev/null || true)"
+  elif command -v python3 >/dev/null 2>&1; then
+    script="$(python3 -c 'import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception:
+    print("")
+    raise SystemExit
+v = d.get("script", "") if isinstance(d, dict) else ""
+if not v and isinstance(d.get("input"), dict):
+    v = d["input"].get("script", "")
+if not v:
+    v = d.get("command", "")
+print(v if isinstance(v, str) else "")' "$XUM_TOOL_INPUT_PATH" 2>/dev/null || true)"
+  else
+    script="$(grep -o '"script"[[:space:]]*:[[:space:]]*"[^"]*"' "$XUM_TOOL_INPUT_PATH" 2>/dev/null | head -n 1 | sed 's/^"script"[[:space:]]*:[[:space:]]*"//; s/"$//' || true)"
+  fi
+fi
+
+# Nothing to inspect -> allow.
+if [[ -z "$script" ]]; then
+  exit 0
+fi
+
+# Split the script into segments on shell control operators (order matters:
+# multi-char `&&` / `||` before single-char `|` / `&`) and newlines, so each
+# chained / piped / backgrounded command is judged on its own.
+normalized="$(printf '%s' "$script" | sed -e 's/&&/\
+/g' -e 's/||/\
+/g' -e 's/;/\
+/g' -e 's/|/\
+/g' -e 's/&/\
+/g')"
+
+block_msg='`pass-cli` is not allowed to be executed by agents, find a way to use pass-cli by appending `-h` or `--help` to the command then tell the user to run the command manually if you need the result of the command'
+
+while IFS= read -r segment || [[ -n "$segment" ]]; do
+  # Trim leading/trailing whitespace (handles e.g. `pass-cli -h   `).
+  trimmed="${segment#"${segment%%[![:space:]]*}"}"
+  trimmed="${trimmed%"${trimmed##*[![:space:]]}"}"
+  [[ -z "$trimmed" ]] && continue
+  # Quoted text is data, not execution: strip '...' and "..." before matching
+  # so mentions inside messages/echo text don't trigger the block.
+  # Known limitation: unpaired apostrophes (e.g. don't) are left as-is.
+  unquoted="$(printf '%s' "$trimmed" | sed -e "s/'[^']*'//g" -e 's/"[^"]*"//g')"
+  # Word-boundary match for `pass-cli`: the character class on both sides
+  # excludes letters, digits, `_` and `-`, so substrings like
+  # `my-pass-cli-foo` do NOT match, while `pass-cli` after whitespace,
+  # `/`, quotes, `$()` etc. still does.
+  if [[ "$unquoted" =~ (^|[^A-Za-z0-9_-])pass-cli([^A-Za-z0-9_-]|$) ]]; then
+    # A `pass-cli` segment is only allowed when it ends with a standalone
+    # `-h` or `--help` token (i.e. it merely requests help output).
+    if ! [[ "$trimmed" =~ (^|[[:space:]])(-h|--help)[[:space:]]*$ ]]; then
+      printf '%s\n' "$block_msg" >&2
+      exit 1
+    fi
+  fi
+done <<< "$normalized"
+
+exit 0
