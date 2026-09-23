@@ -58,21 +58,22 @@ secret (or ESO `SecretStore`) without ever appearing in env or args.
 | ops          | `GET /healthz`      | Liveness: `{"status":"ok"}`, zero downstream calls |
 | ops          | `GET /readyz`       | Readiness: NetBird API probe (`200` up, `503 {"status":"not_ready","failing":"netbird-api"}` down) |
 | ops          | `GET /version`      | Release version (`internal/version.Version`, `dev` unless ldflags-injected) |
-| ops          | `GET /metrics`      | Prometheus metrics (incl. `external_dns_netbird_build_info{version}`) |
+| ops          | `GET /metrics`      | Prometheus metrics (text exposition, incl. `go_*`/`process_*`; domain: `external_dns_netbird_records_errors_total`, `external_dns_netbird_apply_changes_errors_total`, `external_dns_netbird_adjust_endpoints_errors_total`, `external_dns_netbird_build_info{version}`) |
 
-Error contract: transient NetBird failures (soft errors via
-`provider.NewSoftError`, `%w`-wrapped, lowercase) surface as `502`
-(ExternalDNS retries); permanent failures (e.g. `ErrNoMatchingZone`)
-surface as `422`. Malformed payloads are `400`. Handlers log the full
-error chain once server-side and return only a sanitized `{"error"}`
-envelope with no traces, tokens, or paths. See
-`internal/server/errors.go`.
+Error contract (`internal/server/errors.go`): transient NetBird failures
+(soft errors via `provider.NewSoftError`, `%w`-wrapped, lowercase)
+surface as `502` (ExternalDNS retries); permanent failures (e.g.
+`ErrNoMatchingZone`) surface as `422`. Malformed payloads are `400`.
+Anything unmapped is `500`. Handlers log the full error chain once
+server-side and return only a sanitized `{"error"}` envelope with no
+traces, tokens, or paths.
 
 Lifecycle: `docker stop` (SIGTERM) drains both listeners gracefully
 (`signal.NotifyContext` + `http.Server.Shutdown(10s)`); logs show
 `shutting down` then `drained`.
 
-K8s probes:
+K8s probes (ops listener on `:8080` via `METRICS_ADDR`; webhook API stays
+localhost-only on `127.0.0.1:8888` via `WEBHOOK_ADDR`):
 
 ```yaml
 livenessProbe:
@@ -81,9 +82,14 @@ readinessProbe:
   httpGet: {path: /readyz, port: 8080}
 ```
 
-## Build & test
+Sample PromQL: `external_dns_netbird_build_info`,
+`rate(external_dns_netbird_records_errors_total[5m])`.
+
+## Develop
 
 ```sh
+flox activate
+cd projects/external-dns-netbird
 go build ./...
 go vet ./...
 go test -race -shuffle=on ./...

@@ -163,6 +163,19 @@ or `503 {"status":"not_ready","failing":"attach-dir"}` when the staging
 dir is not writable. `/details` stays a domain endpoint (service catalog),
 never a probe.
 
+K8s probes (single listener on `:8080`):
+
+```yaml
+livenessProbe:
+  httpGet: {path: /healthz, port: 8080}
+readinessProbe:
+  httpGet: {path: /readyz, port: 8080}
+```
+
+Lifecycle: `docker stop` (SIGTERM) drains the listener gracefully
+(`signal.NotifyContext` + `http.Server.Shutdown`, 10s bound); logs show
+`shutting down` then `drained`.
+
 ### `GET /metrics`
 
 Prometheus exposition via `client_golang` on the default registry
@@ -387,17 +400,30 @@ internal/server/             # mux + routes; handler/sender/validation/errors/he
 internal/version/            # build version (dev default; ldflags ARG VERSION)
 ```
 
-## Checks
+## Develop
 
 ```sh
-go vet ./... && go build ./... && go test ./...
+flox activate
+cd projects/apprise-go-api
+go build ./...
+go vet ./...
+go test -race -shuffle=on ./...
+golangci-lint run ./...
+gofmt -s -l .
 ```
+
+Sample PromQL: `sum by (route)
+(rate(apprise_go_api_http_requests_total[5m]))`,
+`apprise_go_api_build_info`.
 
 CI (`.github/workflows/apprise-go-api.yml`) runs vet + build + test +
 golangci-lint on pushes to `main` touching `projects/apprise-go-api/**`,
 and publishes `dev` / `stable` image tags (`apprise-go-api-v<semver>`)
 to GHCR. The Dockerfile serves on port `8080` as distroless `nonroot`
-with no volumes.
+with no volumes. `ARG VERSION` is wired into
+`-ldflags "-X .../internal/version.Version=$VERSION"` and surfaces via
+`apprise_go_api_build_info{version="..."}` (no separate `/version`
+endpoint).
 
 ## Divergence from upstream
 

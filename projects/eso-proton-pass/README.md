@@ -71,7 +71,21 @@ redacted to `pass://vault/item/<field>` in error strings.
 
 Sample PromQL: `sum by (route)
 (rate(eso_proton_pass_http_requests_total[5m]))`,
+`histogram_quantile(0.95, sum by (le, route)
+(rate(eso_proton_pass_http_request_duration_seconds_bucket[5m])))`,
 `eso_proton_pass_build_info`.
+
+## Develop
+
+```sh
+flox activate
+cd projects/eso-proton-pass
+go build ./...
+go vet ./...
+go test -race -shuffle=on ./...
+golangci-lint run ./...
+gofmt -s -l .
+```
 
 ## Dependencies
 
@@ -94,6 +108,15 @@ stdlib (`net/http`, `os/exec`, `crypto/rand`, `log/slog`, …).
 
 Startup fails fast with `missing required env PROTON_PASS_PAT_FILE …` when the
 required `*_FILE` secret is absent — no default secrets.
+
+K8s probes (single listener on `:8080`, configurable via `LISTEN_ADDR`):
+
+```yaml
+livenessProbe:
+  httpGet: {path: /healthz, port: 8080}
+readinessProbe:
+  httpGet: {path: /readyz, port: 8080}
+```
 
 Shutdown: `signal.NotifyContext` (SIGINT/SIGTERM) + `http.Server.Shutdown`
 bounded at 10s, draining in-flight requests (`shutting down` / `drained`
