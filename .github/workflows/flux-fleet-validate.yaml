@@ -54,6 +54,8 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Setup OpenTofu
         uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1
+        with:
+          tofu_version: 1.12.6 # match .flox opentofu pin
       - name: Init (no backend, no live apply)
         shell: bash
         working-directory: flux/fleet/terraform
