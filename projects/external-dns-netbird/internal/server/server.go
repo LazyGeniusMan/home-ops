@@ -307,7 +307,10 @@ func (s *Server) writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 // withLogging emits one JSON line per webhook request with the method,
-// route, status, and duration.
+// route, status, and duration. The route is the matched ServeMux pattern
+// (r.Pattern, e.g. "GET /records"), falling back to the bounded literal
+// "notfound" for unmatched requests — never the raw path, so request logs
+// cannot carry unbounded attacker-controlled values.
 func (s *Server) withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -315,11 +318,24 @@ func (s *Server) withLogging(next http.Handler) http.Handler {
 		next.ServeHTTP(rec, r)
 		s.log.InfoContext(r.Context(), "request",
 			slog.String("method", r.Method),
-			slog.String("route", r.URL.Path),
+			slog.String("route", requestRoute(r)),
 			slog.Int("status", rec.status),
 			slog.Duration("duration", time.Since(start)),
 		)
 	})
+}
+
+// requestRoute returns the matched ServeMux pattern for request logging.
+// r.Pattern is set by the mux during dispatch (read after next.ServeHTTP
+// for outer middleware) and may carry a "METHOD /path" prefix on Go 1.22+
+// ServeMux patterns; that prefix is fine for logs. When no pattern matched
+// (r.Pattern == ""), it returns the bounded literal "notfound" instead of
+// the raw request path.
+func requestRoute(r *http.Request) string {
+	if r.Pattern != "" {
+		return r.Pattern
+	}
+	return "notfound"
 }
 
 // statusRecorder captures the status code for request logging.

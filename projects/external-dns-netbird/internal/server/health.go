@@ -54,7 +54,11 @@ func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {
 
 // withOpsLogging emits one JSON line per ops request (method, route,
 // status, duration). It mirrors the Batch-A withLogging shape for the ops
-// listener without touching the webhook middleware.
+// listener without touching the webhook middleware. The route is the matched
+// ServeMux pattern (r.Pattern, e.g. "GET /healthz" — the method prefix from
+// the "METHOD /path" pattern form is kept; it is fine for logs), falling
+// back to the bounded literal "notfound" when no pattern matched, never the
+// raw path.
 func (s *Server) withOpsLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -62,7 +66,7 @@ func (s *Server) withOpsLogging(next http.Handler) http.Handler {
 		next.ServeHTTP(rec, r)
 		s.log.InfoContext(r.Context(), "request",
 			slog.String("method", r.Method),
-			slog.String("route", r.URL.Path),
+			slog.String("route", requestRoute(r)),
 			slog.Int("status", rec.status),
 			slog.Duration("duration", time.Since(start)),
 		)
