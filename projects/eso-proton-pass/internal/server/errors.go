@@ -90,28 +90,15 @@ func statusCodeOf(err error) int {
 	if errors.Is(err, provider.ErrUpstream) {
 		return http.StatusBadGateway
 	}
-	// Genuinely unknown failures (no sentinel, no StatusCode carrier, no
-	// backend origin) are internal bugs → 500. Transient backend failures
-	// default to 502 (ESO retries).
-	if unmapped(err) {
-		return http.StatusInternalServerError
-	}
+	// Anything else with a backend origin (exec/resolver failure without a
+	// permanent-failure sentinel or StatusCode carrier) is transient → 502
+	// (ESO retries). A StatusCode carrier outside 400-599 carries no
+	// backend origin and matches nothing above: an internal bug → 500.
 	if isBackend(err) {
 		return http.StatusBadGateway
 	}
 	return http.StatusInternalServerError
 }
-
-// errUnmapped is the test-only marker exercising the 500 fallback path.
-// Production code never constructs it; it lives here (not in _test.go) so
-// both unmapped() and the table test reference the same type.
-type errUnmapped struct{}
-
-// Error implements error.
-func (errUnmapped) Error() string { return "test-only unmapped" }
-
-// errUnmappedTestOnly builds the 500-fallback probe error.
-func errUnmappedTestOnly() error { return errUnmapped{} }
 
 // backendSentinel reports whether err carries a permanent-failure sentinel
 // (input shape, miss, permanent reject, push misuse): such errors are
@@ -138,16 +125,6 @@ func isBackend(err error) bool {
 	}
 	var statusCoder interface{ StatusCode() int }
 	return !errors.As(err, &statusCoder)
-}
-
-// unmapped reports the test-only 500-fallback probe: the errUnmapped marker
-// with no wrapping. Everything else falls through to the backend-502 or
-// final-500 branches of statusCodeOf.
-func unmapped(err error) bool {
-	if _, ok := err.(errUnmapped); ok {
-		return true
-	}
-	return false
 }
 
 // publicError sanitizes err for the {"error"} envelope: sentinel failures

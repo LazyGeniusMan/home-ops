@@ -126,7 +126,10 @@ func TestStatusCodeOfTable(t *testing.T) {
 		{"push", provider.ErrPushUnimplemented, http.StatusNotImplemented},
 		{"method", errMethodNotAllowed, http.StatusMethodNotAllowed},
 		{"status coder", &statusErr{code: http.StatusTooManyRequests, msg: "m", err: errors.New("x")}, http.StatusTooManyRequests},
-		{"plain unknown", errUnmappedTestOnly(), http.StatusInternalServerError},
+		// Out-of-range StatusCode carrier (no sentinel, no backend origin):
+		// internal bug → 500 fallback. The probe lives here in _test.go so
+		// production code carries no test-only identifiers.
+		{"plain unknown", &statusErr{code: 99, msg: "m", err: errors.New("x")}, http.StatusInternalServerError},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

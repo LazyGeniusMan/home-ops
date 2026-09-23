@@ -369,14 +369,23 @@ func (s *Server) withMetrics(route string, next http.HandlerFunc) http.HandlerFu
 	}
 }
 
+// withLogging logs one line per request. Route is the matched mux pattern
+// (r.Pattern, set by ServeMux during routing — the same bounded literal the
+// metrics middleware is registered with), never the raw path, so log values
+// stay bounded. Unmatched requests fall through to the "/" handler; an empty
+// pattern (never expected through Handler) logs as "unknown".
 func (s *Server) withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rec, r)
+		route := r.Pattern
+		if route == "" {
+			route = "unknown"
+		}
 		s.logger.InfoContext(r.Context(), "request",
 			slog.String("method", r.Method),
-			slog.String("route", r.URL.Path),
+			slog.String("route", route),
 			slog.Int("status", rec.status),
 			slog.Duration("duration", time.Since(start)),
 		)
