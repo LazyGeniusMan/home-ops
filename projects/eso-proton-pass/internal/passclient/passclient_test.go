@@ -1,11 +1,85 @@
 package passclient
 
 import (
+	"bytes"
+	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+// TestBoundaryNotFoundClassification checks the ONLY substring match in the
+// codebase: CLI stderr classified once at the boundary into ErrNotFound,
+// matched above with errors.Is.
+func TestBoundaryNotFoundClassification(t *testing.T) {
+	for _, stderr := range []string{
+		"item not found",
+		"Error 404 from backend",
+		"no such vault",
+	} {
+		if !isNotFoundOutput(stderr) {
+			t.Errorf("stderr %q: expected not-found classification", stderr)
+		}
+		if !isNotFoundOutput("prefix " + stderr + " suffix") {
+			t.Errorf("stderr %q: expected wrapped classification", stderr)
+		}
+	}
+	for _, stderr := range []string{"", "connection reset", "permission denied"} {
+		if isNotFoundOutput(stderr) {
+			t.Errorf("stderr %q: must not classify as not-found", stderr)
+		}
+	}
+}
+
+// TestExecErrorRedactsStderr checks ExecError.Error carries only the
+// subcommand: stderr (secret-adjacent) is reachable via the struct for
+// operator debugging but never in the message string.
+func TestExecErrorRedactsStderr(t *testing.T) {
+	err := &ExecError{Op: "inject", Stderr: "token=supersecret path=/etc/x", Err: errors.New("exit status 1")}
+	if strings.Contains(err.Error(), "supersecret") || strings.Contains(err.Error(), "/etc/x") {
+		t.Errorf("ExecError leaks stderr: %q", err.Error())
+	}
+	if !errors.Is(err, err) {
+		t.Error("ExecError must be matchable in a chain")
+	}
+	var execErr *ExecError
+	wrapped := errors.Join(errors.New("layer"), err)
+	if !errors.As(wrapped, &execErr) {
+		t.Fatal("errors.As must find *ExecError through wrapping")
+	}
+	if execErr.Stderr == "" {
+		t.Error("ExecError must retain stderr for operator debugging")
+	}
+}
+
+// TestDummySecretNeverLogged is the negative secret-safety test: a dummy
+// secret resolved through a stubbed binary must never appear in log output.
+func TestDummySecretNeverLogged(t *testing.T) {
+	const dummySecret = "dummy-secret-value-abcdef123456"
+	dir := t.TempDir()
+	stub := filepath.Join(dir, "stub.sh")
+	script := "#!/bin/sh\nprintf '%s' '" + dummySecret + "'\n"
+	if err := os.WriteFile(stub, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	var logs bytes.Buffer
+	c := New(Options{
+		BinaryPath: stub,
+		Logger:     slog.New(slog.NewTextHandler(&logs, nil)),
+	})
+	out, err := c.ResolveSecret(t.Context(), "pass://vault/item/field", "test")
+	if err != nil {
+		t.Fatalf("ResolveSecret: %v", err)
+	}
+	if out != dummySecret {
+		t.Fatalf("got %q, want dummy secret", out)
+	}
+	if strings.Contains(logs.String(), dummySecret) {
+		t.Errorf("log output contains dummy secret:\n%s", logs.String())
+	}
+}
 
 func TestReadPATFile(t *testing.T) {
 	dir := t.TempDir()

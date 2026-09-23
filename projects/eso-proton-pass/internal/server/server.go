@@ -5,6 +5,7 @@
 //	POST /get {"remoteRef":{"key":"..."}}   pull path (JSON body variant)
 //	HEAD /  | GET /                         validate path → 200
 //	GET  /healthz                            liveness → 200 {"status":"ok"}
+//	GET  /readyz                             readiness → 200 / 503
 //	GET  /metrics                            Prometheus metrics (text)
 //	POST /push                               → 501 (pull-only, not implemented)
 //
@@ -13,16 +14,138 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
-	"sync/atomic"
+	"strconv"
+	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/LazyGeniusMan/home-ops/projects/eso-proton-pass/internal/provider"
+	"github.com/LazyGeniusMan/home-ops/projects/eso-proton-pass/internal/version"
 )
+
+// httpRequestsTotal counts webhook requests by method, route pattern, and
+// status code. Route is the registered pattern (never the raw path) so
+// label cardinality stays bounded.
+// PromQL: sum by (route) (rate(eso_proton_pass_http_requests_total[5m]))
+var httpRequestsTotal = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Namespace: "eso_proton_pass",
+		Name:      "http_requests_total",
+		Help:      "Webhook requests handled, by method, route pattern, and status code.",
+	},
+	[]string{"method", "route", "status"},
+)
+
+// httpRequestDurationSeconds observes webhook request latency by method and
+// route pattern (DefBuckets keep bucket cardinality small).
+// PromQL: histogram_quantile(0.95, sum by (le, route) (rate(eso_proton_pass_http_request_duration_seconds_bucket[5m])))
+var httpRequestDurationSeconds = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Namespace: "eso_proton_pass",
+		Name:      "http_request_duration_seconds",
+		Help:      "Webhook request latency in seconds, by method and route pattern.",
+		Buckets:   prometheus.DefBuckets,
+	},
+	[]string{"method", "route"},
+)
+
+// up is 1 while the process serves traffic.
+// PromQL: eso_proton_pass_up
+var up = prometheus.NewGauge(prometheus.GaugeOpts{
+	Namespace: "eso_proton_pass",
+	Name:      "up",
+	Help:      "1 while the process is serving traffic.",
+})
+
+// buildInfo reports the ldflags-injected release version as
+// eso_proton_pass_build_info{version="..."} == 1.
+// PromQL: eso_proton_pass_build_info
+var buildInfo = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Namespace: "eso_proton_pass",
+		Name:      "build_info",
+		Help:      "Build metadata; value is always 1, release version in the version label.",
+	},
+	[]string{"version"},
+)
+
+// registerDefaultCollectorsOnce ensures the standard Go runtime and process
+// collectors land on the default registry exactly once, however many Server
+// instances are constructed (e.g. one per test). Duplicate registration is
+// tolerated because tests share the process default registry with
+// collectors registered elsewhere.
+var registerDefaultCollectorsOnce sync.Once
+
+// registerCollector tolerates AlreadyRegisteredError so construction stays
+// safe when the default registry already carries the collector.
+func registerCollector(c prometheus.Collector) {
+	if err := prometheus.Register(c); err != nil {
+		if _, ok := err.(prometheus.AlreadyRegisteredError); !ok {
+			panic(err)
+		}
+	}
+}
+
+// registerOrReuseVec registers c on the default registry, returning the
+// already registered collector when New runs more than once in a single
+// process (e.g. one Server per test) so every Server's metrics stay live.
+func registerOrReuseVec(c *prometheus.CounterVec) *prometheus.CounterVec {
+	if err := prometheus.Register(c); err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			if existing, ok := are.ExistingCollector.(*prometheus.CounterVec); ok {
+				return existing
+			}
+		}
+		panic(err)
+	}
+	return c
+}
+
+// registerOrReuseHist registers c like registerOrReuseVec for histograms.
+func registerOrReuseHist(c *prometheus.HistogramVec) *prometheus.HistogramVec {
+	if err := prometheus.Register(c); err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			if existing, ok := are.ExistingCollector.(*prometheus.HistogramVec); ok {
+				return existing
+			}
+		}
+		panic(err)
+	}
+	return c
+}
+
+// registerOrReuseGauge registers c like registerOrReuseVec for gauges.
+func registerOrReuseGauge(c prometheus.Gauge) prometheus.Gauge {
+	if err := prometheus.Register(c); err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			if existing, ok := are.ExistingCollector.(prometheus.Gauge); ok {
+				return existing
+			}
+		}
+		panic(err)
+	}
+	return c
+}
+
+// registerOrReuseGaugeVec registers c like registerOrReuseVec for gauge vecs.
+func registerOrReuseGaugeVec(c *prometheus.GaugeVec) *prometheus.GaugeVec {
+	if err := prometheus.Register(c); err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			if existing, ok := are.ExistingCollector.(*prometheus.GaugeVec); ok {
+				return existing
+			}
+		}
+		panic(err)
+	}
+	return c
+}
 
 // Server is the HTTP front end for the provider.
 type Server struct {
@@ -30,20 +153,40 @@ type Server struct {
 	logger  *slog.Logger
 	started time.Time
 
-	requestsTotal  atomic.Uint64
-	requestsFailed atomic.Uint64
+	requestsTotal *prometheus.CounterVec
+	duration      *prometheus.HistogramVec
 }
 
 // Provider is the subset of provider.Provider used by the server.
 type Provider interface {
 	GetSecret(r *http.Request, key string) (string, error)
+	Ready(ctx context.Context) error
 }
 
 // New builds a Server. The provider dependency is the concrete
 // provider.Provider; it is adapted so tests can substitute fakes via
-// NewWithProvider.
+// NewWithProvider. Domain request/latency metrics and the standard
+// Go/process collectors are registered on prometheus.DefaultRegisterer so
+// GET /metrics exposes go_*/process_* runtime series alongside the domain
+// metrics.
 func New(p *provider.Provider, logger *slog.Logger) *Server {
-	return &Server{prov: &httpProvider{p: p}, logger: logger, started: time.Now()}
+	registerDefaultCollectorsOnce.Do(func() {
+		registerCollector(collectors.NewGoCollector())
+		registerCollector(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	})
+	requestsTotal := registerOrReuseVec(httpRequestsTotal)
+	duration := registerOrReuseHist(httpRequestDurationSeconds)
+	upGauge := registerOrReuseGauge(up)
+	upGauge.Set(1)
+	build := registerOrReuseGaugeVec(buildInfo)
+	build.WithLabelValues(version.Version).Set(1)
+	return &Server{
+		prov:          &httpProvider{p: p},
+		logger:        logger,
+		started:       time.Now(),
+		requestsTotal: requestsTotal,
+		duration:      duration,
+	}
 }
 
 // httpProvider adapts *provider.Provider to the request-scoped interface.
@@ -55,9 +198,28 @@ func (h *httpProvider) GetSecret(r *http.Request, key string) (string, error) {
 	return h.p.GetSecret(r.Context(), key)
 }
 
+func (h *httpProvider) Ready(ctx context.Context) error {
+	return h.p.Ready(ctx)
+}
+
 // NewWithProvider builds a Server over a custom Provider (tests).
+// Metrics (incl. up/build_info) reuse the shared registry collectors.
 func NewWithProvider(p Provider, logger *slog.Logger) *Server {
-	return &Server{prov: p, logger: logger, started: time.Now()}
+	registerDefaultCollectorsOnce.Do(func() {
+		registerCollector(collectors.NewGoCollector())
+		registerCollector(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	})
+	upGauge := registerOrReuseGauge(up)
+	upGauge.Set(1)
+	build := registerOrReuseGaugeVec(buildInfo)
+	build.WithLabelValues(version.Version).Set(1)
+	return &Server{
+		prov:          p,
+		logger:        logger,
+		started:       time.Now(),
+		requestsTotal: registerOrReuseVec(httpRequestsTotal),
+		duration:      registerOrReuseHist(httpRequestDurationSeconds),
+	}
 }
 
 // Handler returns the mux with all routes.
@@ -65,12 +227,14 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	// NB: method-specific patterns like "HEAD /" conflict with subtrees such
 	// as "GET /get" in Go 1.22+ ServeMux, so routes are registered without
-	// methods and dispatch on r.Method inside each handler.
-	mux.HandleFunc("/get", s.handleGetDispatch)
-	mux.HandleFunc("/", s.handleValidate)
-	mux.HandleFunc("/healthz", s.handleHealthz)
-	mux.HandleFunc("/metrics", s.handleMetrics)
-	mux.HandleFunc("/push", s.handlePush)
+	// methods and dispatch on r.Method inside each handler. Metrics labels
+	// use these literal patterns (never raw paths) to bound cardinality.
+	mux.HandleFunc("/get", s.withMetrics("/get", s.handleGetDispatch))
+	mux.HandleFunc("/", s.withMetrics("/", s.handleValidate))
+	mux.HandleFunc("/healthz", s.withMetrics("/healthz", s.handleHealthz))
+	mux.HandleFunc("/readyz", s.withMetrics("/readyz", s.handleReadyz))
+	mux.HandleFunc("/push", s.withMetrics("/push", s.handlePush))
+	mux.Handle("/metrics", promhttp.Handler())
 	return s.withLogging(mux)
 }
 
@@ -97,7 +261,7 @@ func (s *Server) handleGetDispatch(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		s.handleGetPost(w, r)
 	default:
-		writeJSON(w, http.StatusMethodNotAllowed, errorResponse{Error: "method not allowed: use GET or POST"})
+		s.writeError(w, r, errMethodNotAllowed)
 	}
 }
 
@@ -105,23 +269,14 @@ func (s *Server) handleGetDispatch(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGet(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Query().Get("key")
 	if key == "" {
-		s.count(false)
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "missing ?key=pass://{vault}/{item}/{field}"})
+		s.writeError(w, r, errMissingKey)
 		return
 	}
 	value, err := s.prov.GetSecret(r, key)
 	if err != nil {
-		s.count(false)
-		if errors.Is(err, provider.ErrNotFound) {
-			// 404 lets ESO apply the ExternalSecret deletionPolicy.
-			writeJSON(w, http.StatusNotFound, errorResponse{Error: "secret not found"})
-			return
-		}
-		s.logger.Error("get failed", slog.String("error", err.Error()))
-		writeJSON(w, http.StatusBadGateway, errorResponse{Error: "failed to resolve secret"})
+		s.writeError(w, r, err)
 		return
 	}
-	s.count(true)
 	writeJSON(w, http.StatusOK, getResponse{Value: value})
 }
 
@@ -135,37 +290,27 @@ type getPostBody struct {
 func (s *Server) handleGetPost(w http.ResponseWriter, r *http.Request) {
 	var body getPostBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		s.count(false)
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "invalid JSON body: want {\"remoteRef\": {\"key\": \"pass://...\"}}"})
+		s.writeError(w, r, errBadRequest)
 		return
 	}
 	if body.RemoteRef.Key == "" {
-		s.count(false)
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "missing remoteRef.key"})
+		s.writeError(w, r, errMissingRemoteRefKey)
 		return
 	}
 	value, err := s.prov.GetSecret(r, body.RemoteRef.Key)
 	if err != nil {
-		s.count(false)
-		if errors.Is(err, provider.ErrNotFound) {
-			writeJSON(w, http.StatusNotFound, errorResponse{Error: "secret not found"})
-			return
-		}
-		s.logger.Error("get failed", slog.String("error", err.Error()))
-		writeJSON(w, http.StatusBadGateway, errorResponse{Error: "failed to resolve secret"})
+		s.writeError(w, r, err)
 		return
 	}
-	s.count(true)
 	writeJSON(w, http.StatusOK, getResponse{Value: value})
 }
 
 // handleValidate serves HEAD / and GET / for ESO store validation.
 func (s *Server) handleValidate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		writeJSON(w, http.StatusMethodNotAllowed, errorResponse{Error: "method not allowed"})
+		s.writeError(w, r, errMethodNotAllowed)
 		return
 	}
-	s.count(true)
 	if r.Method == http.MethodHead {
 		w.WriteHeader(http.StatusOK)
 		return
@@ -173,50 +318,78 @@ func (s *Server) handleValidate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// handleHealthz serves the liveness probe.
+// handleHealthz is the liveness probe: static JSON, zero downstream calls.
+// It never touches the provider, so kubelet liveness checks cannot wedge on
+// pass-cli.
 func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// handleMetrics serves minimal Prometheus-format counters plus uptime.
-func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
-	_, _ = fmt.Fprintf(w, "# HELP eso_proton_pass_requests_total Total webhook requests handled.\n")
-	_, _ = fmt.Fprintf(w, "# TYPE eso_proton_pass_requests_total counter\n")
-	_, _ = fmt.Fprintf(w, "eso_proton_pass_requests_total %d\n", s.requestsTotal.Load())
-	_, _ = fmt.Fprintf(w, "# HELP eso_proton_pass_requests_failed_total Total failed webhook requests.\n")
-	_, _ = fmt.Fprintf(w, "# TYPE eso_proton_pass_requests_failed_total counter\n")
-	_, _ = fmt.Fprintf(w, "eso_proton_pass_requests_failed_total %d\n", s.requestsFailed.Load())
-	_, _ = fmt.Fprintf(w, "# HELP eso_proton_pass_uptime_seconds Seconds since process start.\n")
-	_, _ = fmt.Fprintf(w, "# TYPE eso_proton_pass_uptime_seconds gauge\n")
-	_, _ = fmt.Fprintf(w, "eso_proton_pass_uptime_seconds %d\n", int64(time.Since(s.started).Seconds()))
+// readyzTimeout bounds the pass-cli reachability probe so readiness checks
+// fail fast instead of hanging a full exec timeout.
+const readyzTimeout = 5 * time.Second
+
+// handleReadyz probes pass-cli reachability without resolving a secret (no
+// key material leaves the process). Reachable → 200 {"status":"ok"};
+// otherwise 503 {"status":"not_ready","failing":"pass-cli"}. The underlying
+// error is debug-logged server-side and never exposed.
+func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), readyzTimeout)
+	defer cancel()
+	if err := s.prov.Ready(ctx); err != nil {
+		s.logger.DebugContext(r.Context(), "readyz probe failed", slog.Any("err", err))
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"status":  "not_ready",
+			"failing": "pass-cli",
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 // handlePush rejects pushes: pull-only provider.
 func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, errorResponse{Error: "method not allowed: use POST"})
+		s.writeError(w, r, errMethodNotAllowedPush)
 		return
 	}
-	s.count(false)
-	writeJSON(w, http.StatusNotImplemented, errorResponse{Error: provider.ErrPushUnimplemented.Error()})
+	s.writeError(w, r, provider.ErrPushUnimplemented)
 }
 
-func (s *Server) count(ok bool) {
-	s.requestsTotal.Add(1)
-	if !ok {
-		s.requestsFailed.Add(1)
+// withMetrics records per-request counters and latency. Route is the
+// registered mux pattern passed by Handler (never the raw path), so label
+// cardinality stays bounded.
+func (s *Server) withMetrics(route string, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next(rec, r)
+		s.requestsTotal.WithLabelValues(r.Method, route, strconv.Itoa(rec.status)).Inc()
+		s.duration.WithLabelValues(r.Method, route).Observe(time.Since(start).Seconds())
 	}
 }
 
 func (s *Server) withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		next.ServeHTTP(w, r)
-		s.logger.Info("request",
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(rec, r)
+		s.logger.InfoContext(r.Context(), "request",
 			slog.String("method", r.Method),
-			slog.String("path", r.URL.Path),
-			slog.Duration("elapsed", time.Since(start)),
+			slog.String("route", r.URL.Path),
+			slog.Int("status", rec.status),
+			slog.Duration("duration", time.Since(start)),
 		)
 	})
+}
+
+// statusRecorder captures the status code for request logging and metrics.
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(status int) {
+	r.status = status
+	r.ResponseWriter.WriteHeader(status)
 }

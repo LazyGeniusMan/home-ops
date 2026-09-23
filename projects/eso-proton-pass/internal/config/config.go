@@ -59,7 +59,7 @@ func Load() (Config, error) {
 		cfg.ExecTimeout = d
 	}
 	if cfg.PATFile == "" {
-		return Config{}, fmt.Errorf("PROTON_PASS_PAT_FILE must be set to a file holding the Proton Pass PAT")
+		return Config{}, fmt.Errorf("missing required env PROTON_PASS_PAT_FILE: set it to a file holding the Proton Pass PAT")
 	}
 	return cfg, nil
 }

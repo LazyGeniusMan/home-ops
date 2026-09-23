@@ -7,11 +7,12 @@ ARG PASS_CLI_VERSION=2.3.3
 FROM golang:1.26.7@sha256:e30143be198ab04cf7ba25fba83ab3a692ca584c994aad0bf131fa0eb32dd8c1 AS build
 ARG TARGETARCH
 ARG PASS_CLI_VERSION
+ARG VERSION=dev
 WORKDIR /src
-COPY go.mod ./
+COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/eso-proton-pass ./cmd/eso-proton-pass
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X github.com/LazyGeniusMan/home-ops/projects/eso-proton-pass/internal/version.Version=${VERSION}" -o /out/eso-proton-pass ./cmd/eso-proton-pass
 # Download the pass-cli binary for the target architecture with pinned
 # per-arch SHA-256 checksums (releases page: github.com/protonpass/pass-cli).
 RUN set -eux -o pipefail; \

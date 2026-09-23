@@ -86,10 +86,26 @@ func run() error {
 
 	select {
 	case <-ctx.Done():
+		// SIGINT/SIGTERM (docker stop) drains in-flight requests before the
+		// process exits: bounded Shutdown lets handlers finish.
+		logger.Info("shutting down", slog.String("reason", ctx.Err().Error()))
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		return httpServer.Shutdown(shutdownCtx)
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			return err
+		}
+		logger.Info("drained")
+		return nil
 	case err := <-errCh:
+		// Listener failed: shut down gracefully before returning so no
+		// in-flight request is orphaned.
+		if err != nil {
+			logger.Error("listener failed, shutting down", slog.Any("err", err))
+		}
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = httpServer.Shutdown(shutdownCtx)
+		logger.Info("drained")
 		return err
 	}
 }

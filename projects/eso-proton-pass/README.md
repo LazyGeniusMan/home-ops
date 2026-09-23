@@ -1,9 +1,9 @@
 # eso-proton-pass
 
 External Secrets Operator (ESO) webhook provider for Proton Pass (pull-only).
-A zero-dependency (stdlib-only) Go HTTP service that resolves secrets via the
-`pass-cli` backend. ESO's generic webhook provider issues GET (and HEAD for
-Validate) requests; push operations are not implemented.
+A Go HTTP service that resolves secrets via the `pass-cli` backend. ESO's
+generic webhook provider issues GET (and HEAD for Validate) requests; push
+operations are not implemented.
 
 ## Webhook contract
 
@@ -21,8 +21,9 @@ Routes (see `internal/server/server.go`):
 | POST   | `/get`    | Pull (JSON body variant): `{"remoteRef":{"key":"…"}}` |
 | HEAD   | `/`       | Validate path (ESO `Validate`) → 200                 |
 | GET    | `/`       | Validate path → 200                                  |
-| GET    | `/healthz` | Liveness → `{"status":"ok"}`                        |
-| GET    | `/metrics` | Prometheus metrics (text exposition)                |
+| GET    | `/healthz` | Liveness → `{"status":"ok"}` (zero downstream calls) |
+| GET    | `/readyz` | Readiness: 200 `{"status":"ok"}`, or 503 `{"status":"not_ready","failing":"pass-cli"}` when the backend is unreachable |
+| GET    | `/metrics` | Prometheus metrics (text exposition, incl. `go_*`/`process_*`) |
 | POST   | `/push`   | → 501 (pull-only, not implemented)                   |
 
 All pull responses use the `{"value": "…"}` envelope, so ESO extracts the
@@ -43,8 +44,40 @@ provider:
 which the provider serves as `GET /get?key=pass://prod-vault/postgres/password`
 → `200 {"value": "<secret>"}`.
 
-Errors are returned as non-2xx with a `{"error": "…"}` body. The field name is
-never included in logs — only `vault/item` is logged (`vaultItem` helper).
+Errors are returned as non-2xx with a `{"error": "…"}` body. Mapping
+(`internal/server/errors.go`, apprise `StatusError` + `StatusCodeOf` shape):
+400 invalid key / malformed body, 404 secret not found (lets ESO apply the
+ExternalSecret deletionPolicy), 422 unprocessable reference, 502 transient
+backend failure, 501 push (pull-only), 500 fallback. Backend detail stays
+server-side (logged once): envelopes carry only short lowercase reasons with
+no traces, tokens, or paths. The field name is never included in logs or
+errors — only `vault/item` is logged (`vaultItem` helper) and URIs are
+redacted to `pass://vault/item/<field>` in error strings.
+
+## Metrics and version
+
+`GET /metrics` (via `promhttp` on the default registry) exposes:
+
+- `eso_proton_pass_http_requests_total{method,route,status}` — route is the
+  registered mux pattern, never the raw path, so cardinality stays bounded.
+- `eso_proton_pass_http_request_duration_seconds{method,route}`
+  (`DefBuckets`).
+- `eso_proton_pass_up` (`== 1` while serving).
+- `eso_proton_pass_build_info{version="…"}` — the `internal/version.Version`
+  string (`"dev"` for local builds, overridden by ldflags
+  `-X .../internal/version.Version=$VERSION`; the Dockerfile wires
+  `ARG VERSION` through exactly this flag).
+- Standard `go_*` / `process_*` runtime series.
+
+Sample PromQL: `sum by (route)
+(rate(eso_proton_pass_http_requests_total[5m]))`,
+`eso_proton_pass_build_info`.
+
+## Dependencies
+
+`go.mod` requires `github.com/prometheus/client_golang` (metrics +
+`go_*`/`process_*` collectors) — `go.sum` is committed. Everything else is
+stdlib (`net/http`, `os/exec`, `crypto/rand`, `log/slog`, …).
 
 ## Environment
 
@@ -59,12 +92,12 @@ never included in logs — only `vault/item` is logged (`vaultItem` helper).
 | `PASS_CLI_BIN` | no | `pass-cli` | Path to the `pass-cli` binary (`/usr/local/bin/pass-cli` in the image). |
 | `PASS_CLI_TIMEOUT` | no | `60s` | Per-invocation `pass-cli` timeout (must be a positive duration). |
 
-## Zero dependencies
+Startup fails fast with `missing required env PROTON_PASS_PAT_FILE …` when the
+required `*_FILE` secret is absent — no default secrets.
 
-`go.mod` declares only the module and the Go toolchain — no `require`
-directives. Everything is stdlib (`net/http`, `os/exec`, `crypto/rand`,
-`log/slog`, …), so `go mod download` is a no-op and the supply chain is the
-Go toolchain plus the pinned `pass-cli` binary.
+Shutdown: `signal.NotifyContext` (SIGINT/SIGTERM) + `http.Server.Shutdown`
+bounded at 10s, draining in-flight requests (`shutting down` / `drained`
+logs).
 
 ## Telemetry-off evidence
 

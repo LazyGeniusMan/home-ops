@@ -3,20 +3,31 @@ package provider
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
+
+	"github.com/LazyGeniusMan/home-ops/projects/eso-proton-pass/internal/passclient"
 )
 
 type fakeResolver struct {
-	value string
-	err   error
-	last  string
+	value   string
+	err     error
+	last    string
+	pingErr error
+	pings   int
 }
 
 func (f *fakeResolver) ResolveSecret(_ context.Context, uri, _ string) (string, error) {
 	f.last = uri
 	return f.value, f.err
+}
+
+func (f *fakeResolver) Ping(_ context.Context) error {
+	f.pings++
+	return f.pingErr
 }
 
 func testProvider(f *fakeResolver) *Provider {
@@ -61,17 +72,33 @@ func TestGetSecretParity(t *testing.T) {
 	}
 }
 
-func TestGetSecretNotFound(t *testing.T) {
-	for _, err := range []error{
-		errors.New("item not found"),
-		errors.New("404 from backend"),
-	} {
-		f := &fakeResolver{err: err}
-		p := testProvider(f)
-		if _, gerr := p.GetSecret(context.Background(), "pass://v/i/f"); !errors.Is(gerr, ErrNotFound) {
-			t.Errorf("err %v: expected ErrNotFound, got %v", err, gerr)
-		}
+// TestGetSecretSentinels checks the %w chain: typed boundary sentinel and
+// wrapped variants must surface the provider sentinel via errors.Is.
+func TestGetSecretSentinels(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want error
+	}{
+		{"boundary not found", fmt.Errorf("resolve %s: %w", "pass://v/i/<field>", passclient.ErrNotFound), ErrNotFound},
+		{"wrapped not found", fmt.Errorf("get: %w", fmt.Errorf("resolve: %w", passclient.ErrNotFound)), ErrNotFound},
+		{"unprocessable", fmt.Errorf("resolve: %w", ErrUnprocessable), ErrUnprocessable},
+		{"wrapped unprocessable", fmt.Errorf("layer: %w", fmt.Errorf("layer2: %w", ErrUnprocessable)), ErrUnprocessable},
+		{"upstream exec", fmt.Errorf("get: %w", &passclient.ExecError{Op: "inject"}), ErrUpstream},
+		{"plain backend", errors.New("boom"), ErrUpstream},
 	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &fakeResolver{err: tc.err}
+			p := testProvider(f)
+			if _, gerr := p.GetSecret(context.Background(), "pass://v/i/f"); !errors.Is(gerr, tc.want) {
+				t.Errorf("err %v: expected %v, got %v", tc.err, tc.want, gerr)
+			}
+		})
+	}
+}
+
+func TestGetSecretEmptyValueNotFound(t *testing.T) {
 	f := &fakeResolver{value: ""}
 	p := testProvider(f)
 	if _, err := p.GetSecret(context.Background(), "pass://v/i/f"); !errors.Is(err, ErrNotFound) {
@@ -79,10 +106,48 @@ func TestGetSecretNotFound(t *testing.T) {
 	}
 }
 
+// TestGetSecretInvalidKey checks shape validation maps to ErrInvalidKey and
+// never echoes the key: the field segment can be a sensitive label.
 func TestGetSecretInvalidKey(t *testing.T) {
 	p := testProvider(&fakeResolver{value: "x"})
-	if _, err := p.GetSecret(context.Background(), "bogus"); err == nil {
-		t.Error("expected error for invalid key")
+	// A well-formed key resolves through the fake.
+	if _, err := p.GetSecret(context.Background(), "pass://v/i/field"); err != nil {
+		t.Fatalf("valid key: %v", err)
+	}
+	// Shape failures report only the expected form: vault/item/field input
+	// values (which can be sensitive labels) must not appear.
+	for _, tc := range []struct{ key, secretFrag string }{
+		{"bogus", "bogus"},
+		{"pass://only-two/supersecretlabel", "supersecretlabel"},
+		{"pass://vaultname//c", "vaultname"},
+		{"https://x/supersecretlabel/z", "supersecretlabel"},
+	} {
+		_, err := p.GetSecret(context.Background(), tc.key)
+		if err == nil {
+			t.Errorf("key %q: expected error", tc.key)
+			continue
+		}
+		if !errors.Is(err, ErrInvalidKey) {
+			t.Errorf("key %q: expected ErrInvalidKey, got %v", tc.key, err)
+		}
+		if strings.Contains(err.Error(), tc.secretFrag) {
+			t.Errorf("key %q: error echoes input %q: %q", tc.key, tc.secretFrag, err.Error())
+		}
+	}
+}
+
+func TestReady(t *testing.T) {
+	f := &fakeResolver{}
+	p := testProvider(f)
+	if err := p.Ready(context.Background()); err != nil {
+		t.Fatalf("Ready: %v", err)
+	}
+	if f.pings != 1 {
+		t.Errorf("pings = %d, want 1", f.pings)
+	}
+	f.pingErr = errors.New("down")
+	if err := p.Ready(context.Background()); err == nil {
+		t.Error("Ready: expected error when backend down")
 	}
 }
 

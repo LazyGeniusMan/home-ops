@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -29,6 +30,44 @@ import (
 	"strings"
 	"time"
 )
+
+// ErrNotFound marks CLI-reported missing secrets. It is produced only by
+// ResolveSecret after classifying CLI stderr at the boundary (see
+// isNotFoundOutput) and is wrapped with %w so errors.Is finds it through
+// any chain; the provider maps it to its own ErrNotFound (HTTP 404).
+var ErrNotFound = errors.New("pass-cli: secret not found")
+
+// ExecError is a pass-cli invocation failure. Stderr is retained for
+// operator debugging (logged once by run, never returned in Error) so
+// secret-adjacent CLI output cannot leak through error strings into API
+// envelopes. Use errors.As to inspect it; use errors.Is(err,
+// ErrNotFound) for missing-secret classification.
+type ExecError struct {
+	// Op is the subcommand, e.g. "inject".
+	Op string
+	// Stderr is the trimmed tail of CLI stderr (debugging only).
+	Stderr string
+	// Err is the exit/context cause.
+	Err error
+}
+
+// Error implements error. It carries only the subcommand: no stderr, no
+// paths, no tokens. Messages stay lowercase with no punctuation per the
+// error contract (see internal/server/errors.go).
+func (e *ExecError) Error() string {
+	if e == nil {
+		return "pass-cli: <nil>"
+	}
+	return "pass-cli " + e.Op + " failed"
+}
+
+// Unwrap returns the exit/context cause.
+func (e *ExecError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
 
 // reasonMaxLen is the pass-cli limit for PROTON_PASS_AGENT_REASON (300 chars).
 const reasonMaxLen = 300
@@ -122,8 +161,10 @@ func (c *Client) baseEnv() []string {
 }
 
 // run executes pass-cli with args, stdin, and extra env entries. It returns
-// trimmed stdout or a redacted error (stderr is logged, never returned, so
-// secret material cannot leak through error strings).
+// trimmed stdout or an *ExecError carrying stderr for operator debugging.
+// Stderr is logged once here (single-handling rule); callers must wrap with
+// %w (never %v) and keep messages lowercase so secret material cannot leak
+// through error strings into API envelopes.
 func (c *Client) run(ctx context.Context, args []string, stdin string, extraEnv []string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
@@ -149,12 +190,14 @@ func (c *Client) run(ctx context.Context, args []string, stdin string, extraEnv 
 		slog.Bool("ok", err == nil),
 	)
 	if err != nil {
-		// Log stderr for operators; keep it out of the returned error.
+		// Log stderr for operators; keep it out of the returned error
+		// string (ExecError.Error carries only the subcommand).
+		stderrTail := tail(stderr.String(), 500)
 		c.logger.Error("pass-cli exec failed",
 			slog.String("args", strings.Join(args, " ")),
-			slog.String("stderr_tail", tail(stderr.String(), 500)),
+			slog.String("stderr_tail", stderrTail),
 		)
-		return "", fmt.Errorf("pass-cli %s failed: %w", firstArg(args), err)
+		return "", &ExecError{Op: firstArg(args), Stderr: stderrTail, Err: err}
 	}
 	return strings.TrimSpace(stdout.String()), nil
 }
@@ -189,9 +232,12 @@ func (c *Client) Login(ctx context.Context, pat string) error {
 
 // ResolveSecret resolves a pass://vault/item/field URI to its secret value
 // via `pass-cli inject`. A fresh audit reason is generated per call.
+// Missing-secret CLI output maps to ErrNotFound (wrapped with %w); other
+// failures wrap with %w. The URI is redacted to vault/item/<field> so field
+// names never enter error strings.
 func (c *Client) ResolveSecret(ctx context.Context, uri, reasonPrefix string) (string, error) {
 	if !strings.HasPrefix(uri, "pass://") {
-		return "", fmt.Errorf("resolve: invalid URI %q: must start with pass://", uri)
+		return "", fmt.Errorf("resolve: invalid uri: must start with pass://")
 	}
 	template := "{{ " + uri + " }}"
 	out, err := c.run(ctx, []string{"inject"},
@@ -199,9 +245,37 @@ func (c *Client) ResolveSecret(ctx context.Context, uri, reasonPrefix string) (s
 		[]string{"PROTON_PASS_AGENT_REASON=" + NewAgentReason(reasonPrefix)},
 	)
 	if err != nil {
-		return "", fmt.Errorf("resolve %q: %w", redactURI(uri), err)
+		var execErr *ExecError
+		if errors.As(err, &execErr) && isNotFoundOutput(execErr.Stderr) {
+			return "", fmt.Errorf("resolve %s: %w", redactURI(uri), ErrNotFound)
+		}
+		return "", fmt.Errorf("resolve %s: %w", redactURI(uri), err)
 	}
 	return out, nil
+}
+
+// Ping checks pass-cli reachability without touching secrets: it runs a
+// metadata-only subcommand whose stdout carries no secret material. The
+// caller (readiness probe) cares only about success vs failure.
+func (c *Client) Ping(ctx context.Context) error {
+	if _, err := c.run(ctx, []string{"info"}, "", nil); err != nil {
+		return fmt.Errorf("ping: %w", err)
+	}
+	return nil
+}
+
+// isNotFoundOutput classifies CLI stderr at the boundary. This is the ONLY
+// substring match in the codebase: the CLI exposes no typed errors, so the
+// boundary converts its free-text stderr into the ErrNotFound sentinel once,
+// and every layer above matches with errors.Is.
+func isNotFoundOutput(stderr string) bool {
+	msg := strings.ToLower(stderr)
+	for _, marker := range []string{"not found", "no such", "does not exist", "not exist", "404"} {
+		if strings.Contains(msg, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 // redactURI keeps vault/item structure for diagnostics without exposing the
