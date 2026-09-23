@@ -101,9 +101,10 @@ spec:
         # Namespaces the chart creates tf-runner ServiceAccounts (+ token
         # Secrets) in and the controller may spawn runner Pods in (the release
         # namespace itself is appended automatically by the chart helper).
-        # flux-system: chart default (kept). zitadel + the SSO app namespaces:
-        # where the first Terraform CRs will live (identity-as-code + app
-        # clients). Extend this list when Terraform CRs land anywhere new.
+        # flux-system: chart default (kept). zitadel + the SSO app namespaces
+        # + matrix (rooms/proxy/sso Terraform CRs) + netbird (cross-namespace
+        # sourceRef target for the element-proxy + zitadel-login-proxy
+        # consumers). Extend this list when Terraform CRs land anywhere new.
         allowedNamespaces:
           - flux-system
           - zitadel
@@ -113,6 +114,8 @@ spec:
           - headlamp
           - coder
           - seaweedfs
+          - matrix
+          - netbird
     metrics:
       enabled: false
       serviceMonitor:
