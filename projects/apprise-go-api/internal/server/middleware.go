@@ -2,10 +2,11 @@
 //
 // withMetrics wraps the mux: after dispatch it records method/route/status
 // on httpRequestsTotal, observes duration on httpRequestDurationSeconds,
-// and emits one JSON log line (method, route, status, duration). Route
+// and emits one JSON log line (method, route, status, duration), except
+// for the /metrics scrape path which bypasses observation entirely. Route
 // labels come from r.Pattern (the matched ServeMux pattern), falling back
-// to the path only for unmatched requests — never the raw path, so no
-// label carries user IDs, URLs, or unbounded values.
+// to the bounded literal "notfound" for unmatched requests — never the raw
+// path, so no label carries user IDs, URLs, or unbounded values.
 package server
 
 import (
@@ -17,21 +18,28 @@ import (
 
 // withMetrics observes method/route/status/duration for every request and
 // emits one JSON log line per request (method, route, status, duration).
+// The /metrics scrape path bypasses observation entirely (no counter inc,
+// no duration observe, no log line) so self-scrapes add no noise.
 func withMetrics(log *slog.Logger, next http.Handler) http.Handler {
 	if log == nil {
 		log = slog.Default()
 	}
 	registerMetrics()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/metrics" {
+			next.ServeHTTP(w, r)
+			return
+		}
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rec, r)
 		// r.Pattern is set by the mux after dispatch: it holds the matched
 		// pattern (e.g. "/notify"), never the raw path. Unmatched requests
-		// (404) fall back to the path — mux-default 404s carry no user IDs.
+		// (404, r.Pattern == "") use the bounded literal "notfound" so the
+		// route label can never carry attacker-controlled paths.
 		route := r.Pattern
 		if route == "" {
-			route = r.URL.Path
+			route = "notfound"
 		}
 		status := strconv.Itoa(rec.status)
 		httpRequestsTotal.WithLabelValues(r.Method, route, status).Inc()
