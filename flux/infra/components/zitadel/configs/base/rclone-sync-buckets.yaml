@@ -5,7 +5,7 @@
 # helm-rclone-sync CronJob" rule.
 #
 # Chart: OCI ghcr.io/lazygeniusman/home-ops/projects/helm-rclone-sync
-# v0.1.0 (projects/helm-rclone-sync; fixture
+# 0.1.0 (projects/helm-rclone-sync; fixture
 # ci/values-direction-05-s3-to-proton.yaml; README + _helpers.tpl).
 # Each HelmRelease pulls the chart by tag via its own OCIRepository
 # (chartRef), same HelmRelease shape as controllers/base/zitadel.yaml
@@ -203,15 +203,25 @@ spec:
         key: zitadel-assets-cosi-creds
         property: BucketInfo.spec.secretS3.accessSecretKey
 ---
+# Version skew guard: this tag MUST equal Chart.yaml `version` in
+# projects/helm-rclone-sync (single source of truth) and the tags in the
+# other five consumers (coder/clickstack/clickhouse/cnpg/dragonfly). Chart
+# version bumps ship as one commit touching Chart.yaml + all six consumers —
+# no floating alias, no $imagepolicy marker (Helm OCIRepositories cannot be
+# tracked by image automation), no silent skew: the Chart.yaml version,
+# the CI-published OCI artifact, and every consumer tag move together.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
-  name: helm-rclone-sync
+  name: helm-rclone-sync-chart
 spec:
   interval: 1h
   url: oci://ghcr.io/lazygeniusman/home-ops/projects/helm-rclone-sync
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
   ref:
-    tag: v0.1.0
+    tag: "0.1.0"
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -223,7 +233,7 @@ spec:
   serviceAccountName: flux
   chartRef:
     kind: OCIRepository
-    name: helm-rclone-sync
+    name: helm-rclone-sync-chart
   install:
     strategy:
       name: RetryOnFailure
@@ -284,7 +294,7 @@ spec:
   serviceAccountName: flux
   chartRef:
     kind: OCIRepository
-    name: helm-rclone-sync
+    name: helm-rclone-sync-chart
   install:
     strategy:
       name: RetryOnFailure
@@ -345,7 +355,7 @@ spec:
   serviceAccountName: flux
   chartRef:
     kind: OCIRepository
-    name: helm-rclone-sync
+    name: helm-rclone-sync-chart
   install:
     strategy:
       name: RetryOnFailure

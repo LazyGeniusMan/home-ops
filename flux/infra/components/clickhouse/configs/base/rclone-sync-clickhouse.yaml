@@ -94,8 +94,13 @@ spec:
   layerSelector:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
+  # Version skew guard: this tag MUST equal Chart.yaml `version` in
+  # projects/helm-rclone-sync (single source of truth). Chart version bumps
+  # ship as one commit touching Chart.yaml + all six consumers — no floating
+  # alias, no $imagepolicy marker (Helm OCIRepositories cannot be tracked by
+  # image automation), no silent skew.
   ref:
-    tag: 0.1.0
+    tag: "0.1.0"
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease

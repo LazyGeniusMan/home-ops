@@ -87,9 +87,10 @@ Published to `ghcr.io/lazygeniusman/home-ops/projects/eso-proton-pass` by
 the self-contained `.github/workflows/eso-proton-pass.yml` (no local
 actions):
 
-- any branch push → `:dev`
-- tag `eso-proton-pass-v*` → `:latest` plus the stripped version
-  (e.g. `eso-proton-pass-v1.2.3` → `:1.2.3`)
+- any branch push → `:dev` (+ `:dev-<sha>`)
+- tag `eso-proton-pass-v*` → `:stable` plus the stripped version
+  (e.g. `eso-proton-pass-v1.2.3` → `:1.2.3`); neither leg publishes
+  `:latest`
 
 Multi-stage build: pinned `golang:1.26.7` toolchain (digest-pinned) with
 `CGO_ENABLED=0`, downloading pinned `pass-cli` 2.3.3 (per-arch SHA-256

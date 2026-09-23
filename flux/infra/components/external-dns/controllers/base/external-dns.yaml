@@ -4,12 +4,17 @@
 # is v0.21.0 — both tags verified present on registry.k8s.io).
 #  - external-dns-netbird: NetBird Custom Zones via the in-repo webhook
 #    sidecar (projects/external-dns-netbird, :dev), PAT via NETBIRD_PAT_FILE.
-# Image stream: the webhook sidecar tag below is an intentional
-# single-stream :dev (branch pushes) for ALL envs — prd runs the dev stream
-# too. Promoting prd to :latest stays deferred until the first
-# external-dns-netbird-v* tagged release exists (policy
-# infra:external-dns-netbird in update-policies/external-dns.yaml tracks
-# :dev in alignment).
+# Image-stream decision (G5, recorded — no undocumented prd-tracks-dev):
+# the webhook sidecar tag below is an intentional single-stream :dev
+# (branch pushes) for ALL envs — prd runs the dev stream too. Risk: prd
+# inherits every main-branch webhook push with no release gate; a bad NetBird
+# push breaks prd DNS sync directly. Accepted because no
+# external-dns-netbird-v* tagged release exists yet and the sidecar is a
+# localhost-only translator behind the singleton external-dns instance.
+# Promotion trigger: when the first external-dns-netbird-v* tag lands, CI
+# publishes the :stable + semver leg and prd pins :stable (policy
+# infra:external-dns-netbird:tag in update-policies/external-dns.yaml tracks
+# the new leg) while dev stays on :dev.
 # TXT ownership: txtOwnerId/txtPrefix pin the single txt registry.
 # policy sync.
 # Sources include Gateway API routes so §8 Gateways/HTTPRoutes sync without
