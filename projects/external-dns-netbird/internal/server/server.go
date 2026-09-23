@@ -13,13 +13,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/plan"
 	"sigs.k8s.io/external-dns/provider"
@@ -43,7 +43,7 @@ const (
 // /metrics for probes and scraping.
 type Server struct {
 	provider    *nbprovider.Provider
-	log         *logrus.Entry
+	log         *slog.Logger
 	webhookAddr string
 	metricsAddr string
 	recordsErrs prometheus.Counter
@@ -87,7 +87,7 @@ func registerOrReuse(c prometheus.Counter) prometheus.Counter {
 // collectors are registered on prometheus.DefaultRegisterer so GET /metrics
 // exposes go_* / process_* runtime series alongside the domain counters.
 // The ops listener pattern (:8080 via metricsAddr) is unchanged.
-func New(p *nbprovider.Provider, log *logrus.Entry, webhookAddr, metricsAddr string) *Server {
+func New(p *nbprovider.Provider, log *slog.Logger, webhookAddr, metricsAddr string) *Server {
 	registerDefaultCollectorsOnce.Do(func() {
 		registerCollector(collectors.NewGoCollector())
 		registerCollector(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
@@ -130,7 +130,7 @@ func (s *Server) Run() error {
 
 	webhookSrv := &http.Server{
 		Addr:              s.webhookAddr,
-		Handler:           mux,
+		Handler:           s.withLogging(mux),
 		ReadTimeout:       readTimeout,
 		WriteTimeout:      writeTimeout,
 		ReadHeaderTimeout: headerTimeout,
@@ -147,32 +147,32 @@ func (s *Server) Run() error {
 
 	errCh := make(chan error, 2)
 	go func() {
-		s.log.Infof("webhook API listening on %s", s.webhookAddr)
+		s.log.Info("webhook API listening", slog.String("addr", s.webhookAddr))
 		errCh <- webhookSrv.ListenAndServe()
 	}()
 	go func() {
-		s.log.Infof("health/metrics listening on %s", s.metricsAddr)
+		s.log.Info("health/metrics listening", slog.String("addr", s.metricsAddr))
 		errCh <- metricsSrv.ListenAndServe()
 	}()
 	return <-errCh
 }
 
 func (s *Server) handleNegotiate(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, s.provider.GetDomainFilter())
+	s.writeJSON(w, http.StatusOK, s.provider.GetDomainFilter())
 }
 
 func (s *Server) handleRecords(w http.ResponseWriter, r *http.Request) {
 	records, err := s.provider.Records(r.Context())
 	if err != nil {
 		s.recordsErrs.Inc()
-		s.log.WithError(err).Error("records failed")
-		writeError(w, err)
+		s.log.ErrorContext(r.Context(), "records failed", slog.Any("err", err))
+		s.writeError(w, err)
 		return
 	}
 	if records == nil {
 		records = []*endpoint.Endpoint{}
 	}
-	writeJSON(w, http.StatusOK, records)
+	s.writeJSON(w, http.StatusOK, records)
 }
 
 func (s *Server) handleApplyChanges(w http.ResponseWriter, r *http.Request) {
@@ -181,14 +181,14 @@ func (s *Server) handleApplyChanges(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 	if err := json.NewDecoder(r.Body).Decode(&changes); err != nil {
 		s.applyErrs.Inc()
-		s.log.WithError(err).Warn("invalid changes payload")
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("decode changes: %v", err)})
+		s.log.WarnContext(r.Context(), "invalid changes payload", slog.Any("err", err))
+		s.writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("decode changes: %v", err)})
 		return
 	}
 	if err := s.provider.ApplyChanges(r.Context(), &changes); err != nil {
 		s.applyErrs.Inc()
-		s.log.WithError(err).Error("apply changes failed")
-		writeError(w, err)
+		s.log.ErrorContext(r.Context(), "apply changes failed", slog.Any("err", err))
+		s.writeError(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -200,42 +200,69 @@ func (s *Server) handleAdjustEndpoints(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 	if err := json.NewDecoder(r.Body).Decode(&eps); err != nil {
 		s.adjustErrs.Inc()
-		s.log.WithError(err).Warn("invalid adjust payload")
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("decode endpoints: %v", err)})
+		s.log.WarnContext(r.Context(), "invalid adjust payload", slog.Any("err", err))
+		s.writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("decode endpoints: %v", err)})
 		return
 	}
 	adjusted, err := s.provider.AdjustEndpoints(eps)
 	if err != nil {
 		s.adjustErrs.Inc()
-		s.log.WithError(err).Error("adjust endpoints failed")
-		writeError(w, err)
+		s.log.ErrorContext(r.Context(), "adjust endpoints failed", slog.Any("err", err))
+		s.writeError(w, err)
 		return
 	}
 	if adjusted == nil {
 		adjusted = []*endpoint.Endpoint{}
 	}
-	writeJSON(w, http.StatusOK, adjusted)
+	s.writeJSON(w, http.StatusOK, adjusted)
 }
 
 // writeError maps provider failures: transient (soft) errors become 5xx so
 // ExternalDNS retries; permanent errors become 4xx.
-func writeError(w http.ResponseWriter, err error) {
+func (s *Server) writeError(w http.ResponseWriter, err error) {
 	if isSoft(err) {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		s.writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+	s.writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
 }
 
-func writeJSON(w http.ResponseWriter, status int, v any) {
+func (s *Server) writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", MediaType)
 	w.WriteHeader(status)
 	if status == http.StatusNoContent {
 		return
 	}
 	if err := json.NewEncoder(w).Encode(v); err != nil {
-		logrus.WithError(err).Error("encode response")
+		s.log.Error("encode response", slog.Any("err", err))
 	}
+}
+
+// withLogging emits one JSON line per webhook request with the method,
+// route, status, and duration.
+func (s *Server) withLogging(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(rec, r)
+		s.log.InfoContext(r.Context(), "request",
+			slog.String("method", r.Method),
+			slog.String("route", r.URL.Path),
+			slog.Int("status", rec.status),
+			slog.Duration("duration", time.Since(start)),
+		)
+	})
+}
+
+// statusRecorder captures the status code for request logging.
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(status int) {
+	r.status = status
+	r.ResponseWriter.WriteHeader(status)
 }
 
 func isSoft(err error) bool {

@@ -13,9 +13,10 @@
 package main
 
 import (
+	"log/slog"
 	"os"
-
-	"github.com/sirupsen/logrus"
+	"strconv"
+	"strings"
 
 	"github.com/LazyGeniusMan/home-ops/projects/external-dns-netbird/internal/config"
 	"github.com/LazyGeniusMan/home-ops/projects/external-dns-netbird/internal/netbird"
@@ -24,32 +25,62 @@ import (
 )
 
 func main() {
-	log := logrus.New()
-	log.SetFormatter(&logrus.JSONFormatter{})
-	log.SetOutput(os.Stdout)
+	if err := run(); err != nil {
+		_, _ = os.Stderr.WriteString("external-dns-netbird: " + err.Error() + "\n")
+		os.Exit(1)
+	}
+}
 
+func run() error {
+	// Load config before creating the levelled logger; last-resort errors
+	// go to stderr via main.
+	boot := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	cfg, err := config.Load()
 	if err != nil {
-		log.WithError(err).Fatal("load config")
+		boot.Error("load config", slog.Any("err", err))
+		return err
 	}
-	level, err := logrus.ParseLevel(cfg.LogLevel)
+	level, err := parseLevel(cfg.LogLevel)
 	if err != nil {
-		log.WithError(err).Fatal("parse LOG_LEVEL")
+		boot.Error("parse LOG_LEVEL", slog.Any("err", err))
+		return err
 	}
-	log.SetLevel(level)
-
-	entry := log.WithFields(logrus.Fields{
-		"component":   "external-dns-netbird",
-		"webhookAddr": cfg.WebhookAddr,
-		"metricsAddr": cfg.MetricsAddr,
-		"telemetry":   "disabled",
-	})
+	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})).With(
+		slog.String("component", "external-dns-netbird"),
+		slog.String("webhookAddr", cfg.WebhookAddr),
+		slog.String("metricsAddr", cfg.MetricsAddr),
+		slog.String("telemetry", "disabled"),
+	)
 
 	api := netbird.NewClient(cfg.BaseURL, cfg.PAT)
 	p := provider.New(api, cfg.DomainFilter, cfg.DefaultTTL)
-	srv := server.New(p, entry, cfg.WebhookAddr, cfg.MetricsAddr)
-	entry.Info("starting")
+	srv := server.New(p, log, cfg.WebhookAddr, cfg.MetricsAddr)
+	log.Info("starting")
 	if err := srv.Run(); err != nil {
-		entry.WithError(err).Fatal("server exited")
+		log.Error("server exited", slog.Any("err", err))
+		return err
 	}
+	return nil
+}
+
+// parseLevel maps LOG_LEVEL names (debug, info, warn/warning, error) to slog levels.
+func parseLevel(raw string) (slog.Level, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "info":
+		return slog.LevelInfo, nil
+	case "debug":
+		return slog.LevelDebug, nil
+	case "warn", "warning":
+		return slog.LevelWarn, nil
+	case "error":
+		return slog.LevelError, nil
+	default:
+		return slog.LevelInfo, &invalidLevelError{level: raw}
+	}
+}
+
+type invalidLevelError struct{ level string }
+
+func (e *invalidLevelError) Error() string {
+	return "invalid LOG_LEVEL " + strconv.Quote(e.level) + ": want one of debug, info, warn, error"
 }

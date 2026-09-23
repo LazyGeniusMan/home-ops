@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/external-dns/endpoint"
 
 	"github.com/LazyGeniusMan/home-ops/projects/external-dns-netbird/internal/netbird"
@@ -45,7 +46,7 @@ func testServer() *Server {
 		},
 	}}}
 	p := nbprovider.New(api, []string{"example.com"}, 300)
-	return New(p, logrus.NewEntry(logrus.New()), "127.0.0.1:0", "127.0.0.1:0")
+	return New(p, slog.New(slog.NewJSONHandler(io.Discard, nil)), "127.0.0.1:0", "127.0.0.1:0")
 }
 
 func TestNegotiate(t *testing.T) {

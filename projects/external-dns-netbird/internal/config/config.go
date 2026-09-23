@@ -36,7 +36,7 @@ type Config struct {
 	MetricsAddr string
 	// DefaultTTL is applied to endpoints without an explicit TTL (DEFAULT_TTL).
 	DefaultTTL int64
-	// LogLevel is the logrus level name (LOG_LEVEL).
+	// LogLevel is the slog level name (LOG_LEVEL).
 	LogLevel string
 }
 
