@@ -41,8 +41,6 @@ on:
 
 permissions:
   contents: read
-  packages: write # helm push + oras tag
-  id-token: write # cosign keyless signing
 
 concurrency:
   group: helm-rclone-sync-publish-${{ github.ref }}
@@ -72,6 +70,9 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     needs: test
+    permissions:
+      packages: write # helm push + oras tag
+      id-token: write # cosign keyless signing
     env:
       OCI_REPO: ghcr.io/lazygeniusman/home-ops/projects/helm-rclone-sync
     steps:
