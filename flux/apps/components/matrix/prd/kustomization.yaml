@@ -291,18 +291,17 @@ patches:
       kind: ExternalSecret
       name: element-proxy-vars
 
+  # (cloudflare_zone_id intentionally absent — defaults to null, DNS
+  # self-managed; see base note).
   - patch: |
       - op: replace
         path: /spec/vars/0/value
         value: element.matrix.home-ops.yansyah.my.id
       - op: replace
         path: /spec/vars/2/value
-        value: __CLOUDFLARE_ZONE_ID_HOME_OPS__
-      - op: replace
-        path: /spec/vars/3/value
         value: acme-prd-bdo1-talos-apps-01
       - op: replace
-        path: /spec/vars/4/value
+        path: /spec/vars/3/value
         value: 192.168.1.199
     target:
       kind: Terraform

@@ -10,12 +10,28 @@
 # Config mechanics (legacy arch — no -e flag at this revision, so the full
 # config.yaml is authored here from example-config.yaml instead of generated):
 # - `mautrix-discord-config-tmpl` holds the complete bridge config with
-#   non-secret values baked in. Secret/token fields carry boot-time
-#   placeholders only — Git never holds values.
+#   non-secret values baked in. Secret/token fields carry BOOT-PLACEHOLDER
+#   tokens (__...__ markers the entrypoint overwrites at boot via
+#   `strenv(...)` — see the entrypoint ConfigMap below). They NEVER resolve
+#   through dev/prd kustomize patches, so a `kustomize build` render keeps
+#   them by design — Git never holds values.
 # - The `mautrix-discord-entrypoint` script (same image — it ships yq-go)
 #   copies the template to /data/config.yaml and overwrites every secret and
 #   environment-wired field from env via `yq ... strenv(...)`, then generates
 #   /data/registration.yaml with `./mautrix-discord -g` ONLY if absent.
+#   SWEEP NOTE (G4+G3): the strenv-overwritten BOOT-PLACEHOLDER set is
+#   HS_ADDRESS (__TUWUNEL_INTERNAL_URL__), HS_DOMAIN (__TUWUNEL_SERVER_NAME__
+#   — also patched positionally as Deployment env/1), DATABASE_URL
+#   (__DATABASE_URL__, ESO-composed via secretKeyRef), AS_TOKEN (__AS_TOKEN__),
+#   HS_TOKEN (__HS_TOKEN__), AVATAR_PROXY_KEY (__AVATAR_PROXY_KEY__),
+#   DIRECT_MEDIA server_name (__DERIVED_AT_BOOT__ = discord-media.<HS_DOMAIN>)
+#   + server_key (__DIRECT_MEDIA_SERVER_KEY__), login_shared_secret_map
+#   (boot-written, no token in the template), PROVISIONING_SHARED_SECRET
+#   (__PROVISIONING_SHARED_SECRET__), permissions (boot-written from
+#   HS_DOMAIN + BRIDGE_ADMIN_MXID). Indexed env names
+#   (TUWUNEL_IDENTITY_PROVIDER__0__*,
+#   TUWUNEL_STORAGE_PROVIDER__MEDIA_ON_S3__S3__*) are upstream
+#   array-table syntax, not placeholders.
 # - /data lives on the `mautrix-discord-data` PVC, so as_token/hs_token (seeded
 #   from vault ONCE via ESO, see mautrix-discord-secrets.yaml) and the derived
 #   registration.yaml survive restarts: a restart never re-registers and never

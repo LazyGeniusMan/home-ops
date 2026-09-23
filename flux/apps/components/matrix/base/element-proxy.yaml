@@ -31,8 +31,12 @@
 # Outputs: service_id + service_domain + proxy_url land in
 # `element-proxy-outputs` (consumable via an in-cluster SecretStore if a
 # consumer ever needs the proxy URL — never Git, never Proton Pass).
-# POSITIONAL: the dev/prd overlays patch /spec/vars/0 (domain) by index, so
-# this order must not change without updating the overlays.
+# POSITIONAL: the dev/prd overlays patch /spec/vars/0 (domain),
+# /spec/vars/2 (network_name) and /spec/vars/3 (service_lb_ip) by index,
+# so this order must not change without updating the overlays.
+# cloudflare_zone_id is intentionally absent (defaults to null = DNS
+# self-managed outside Cloudflare — the root skips the verification
+# CNAME).
 # First-run prerequisite (custom-domain path): after the first apply the
 # domain sits at Pending Verification — complete the dashboard Verify
 # within 48h (see flux/infra/components/netbird/terraform/README.md); until
@@ -97,12 +101,11 @@ spec:
       value: __SERVICE_HOST__
     - name: service_name
       value: element-web
-    - name: cloudflare_zone_id
-      value: __CLOUDFLARE_ZONE_ID__
-    # NOTE: cloudflare_zone_id / network_name / service_lb_ip are per-env
-    # literals rendered by the dev/prd overlays (/spec/vars/2, /3, /4 —
-    # positional, same convention as the zitadel login-proxy consumer:
-    # zone __CLOUDFLARE_ZONE_ID_<ENV>__ placeholder, cluster name literal,
+    # NOTE: cloudflare_zone_id is intentionally ABSENT (defaults to null =
+    # DNS self-managed outside Cloudflare — the root skips the verification
+    # CNAME; see variables.tf). The dev/prd overlays patch network_name +
+    # service_lb_ip only (/spec/vars/2, /spec/vars/3 — positional, same
+    # convention as the zitadel login-proxy consumer: cluster name literal,
     # Cilium LB VIP dev .249 / prd .199).
     - name: network_name
       value: __CLUSTER_NAME__

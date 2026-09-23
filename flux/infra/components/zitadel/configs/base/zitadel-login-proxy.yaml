@@ -26,8 +26,8 @@
 # routing peer forwards onto the cluster LAN toward the Cilium LB VIP that
 # fronts the Gateway (listeners 80/443), which routes the login host to the
 # zitadel-login Service. No peer literal lives in git: the only per-env
-# network values are network_name + service_lb_ip below (positional vars
-# 3-5 — the dev/prd overlays patch domain/zone by index, see note).
+# values are domain + network_name + service_lb_ip below (patched by the
+# dev/prd overlays by index, see note; cloudflare_zone_id stays null).
 #
 # Ordering: this object ships in the zitadel configs Kustomization (fleet
 # `infra-configs`, after controllers), so it reconciles after the login
@@ -115,16 +115,17 @@ spec:
   # Terraform task; the LB resource attaches via data-source lookup);
   # service_lb_ip is the per-env Cilium LB VIP (dev .249 / prd .199) the
   # subnet target forwards to. targets stays [] (no extra backends).
-  # POSITIONAL: the dev/prd overlays patch /spec/vars/0 (domain) and
-  # /spec/vars/2 (cloudflare_zone_id) by index, so this order must not
-  # change without updating the overlays.
+  # POSITIONAL: the dev/prd overlays patch /spec/vars/0 (domain),
+  # /spec/vars/2 (network_name) and /spec/vars/3 (service_lb_ip) by index,
+  # so this order must not change without updating the overlays.
+  # cloudflare_zone_id is intentionally absent (defaults to null = DNS
+  # self-managed outside Cloudflare — the root skips the verification
+  # CNAME; see the netbird root variables.tf).
   vars:
     - name: domain
       value: __ZITADEL_LOGIN_HOST__
     - name: service_name
       value: zitadel-login
-    - name: cloudflare_zone_id
-      value: __CLOUDFLARE_ZONE_ID__
     - name: network_name
       value: __CLUSTER_NAME__
     - name: service_lb_ip
