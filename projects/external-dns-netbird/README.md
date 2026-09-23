@@ -16,7 +16,7 @@ Public API calls plus the local webhook, health, and metrics listeners.
 | `NETBIRD_BASE_URL` | no       | `https://api.netbird.io` | NetBird Public API base URL (self-hosted override)  |
 | `DOMAIN_FILTER`    | no       | (all zones)         | Comma-separated domain allow-list                        |
 | `WEBHOOK_ADDR`     | no       | `127.0.0.1:8888`    | Listen address for the webhook API (keep localhost-only) |
-| `METRICS_ADDR`     | no       | `:8080`             | Listen address for `/healthz` and `/metrics`             |
+| `METRICS_ADDR`     | no       | `:8080`             | Listen address for `/healthz`, `/readyz`, `/version`, and `/metrics` |
 | `DEFAULT_TTL`      | no       | `300`               | TTL applied to endpoints without an explicit TTL         |
 | `LOG_LEVEL`        | no       | `info`              | JSON log level (`debug`, `info`, `warn`, `error`)        |
 
