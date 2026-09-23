@@ -20,6 +20,8 @@
 
 name: flux-image-updates
 
+permissions: {} # deny-all default; the pull-request job elevates below
+
 on:
   workflow_dispatch:
   create:
