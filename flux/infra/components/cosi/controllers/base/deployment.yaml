@@ -25,9 +25,33 @@ spec:
           image: gcr.io/k8s-staging-sig-storage/objectstorage-controller:v20250905-controllerv0.2.0-rc1-100-gd904c62 # {"$imagepolicy": "infra:cosi-controller:tag"}
           args:
             - "--v=5"
+          ports:
+            - name: health
+              containerPort: 8081
+          # Probes: controller-runtime health-probe-bind-address :8081 with
+          # /healthz + /readyz (controller/cmd/main.go: --health-probe-bind-address
+          # default :8081, mgr.AddHealthzCheck/AddReadyzCheck).
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           # CPU request required for the CPU-utilization HPA
           # (controller-hpa.yaml); mirrors the ui-auth proxy sizing.
           resources:
             requests:
               cpu: 50m
               memory: 64Mi
+            limits:
+              memory: 128Mi

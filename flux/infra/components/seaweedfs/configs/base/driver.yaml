@@ -60,6 +60,9 @@ spec:
           volumeMounts:
             - mountPath: /var/lib/cosi
               name: socket
+          # No probes: driver serves gRPC on the COSI unix socket only
+          # (cmd/seaweedfs-cosi-driver/main.go exposes no HTTP/health flags),
+          # so no httpGet/tcpSocket target exists.
           # CPU request required for the CPU-utilization HPA
           # (driver-hpa.yaml) — utilization needs requests on every
           # container in the pod.
@@ -67,6 +70,8 @@ spec:
             requests:
               cpu: 50m
               memory: 64Mi
+            limits:
+              memory: 128Mi
         - name: seaweedfs-cosi-sidecar
           image: gcr.io/k8s-staging-sig-storage/objectstorage-sidecar:v20250711-controllerv0.2.0-rc1-80-gc2f6e65 # {"$imagepolicy": "infra:cosi-sidecar:tag"}
           imagePullPolicy: IfNotPresent
@@ -80,6 +85,8 @@ spec:
           volumeMounts:
             - mountPath: /var/lib/cosi
               name: socket
+          # No probes: sidecar cobra (sidecar/cmd/cmd.go) exposes no
+          # health-probe flags; it blocks dialing the driver socket.
           # CPU request required for the CPU-utilization HPA
           # (driver-hpa.yaml) — utilization needs requests on every
           # container in the pod.
@@ -87,6 +94,8 @@ spec:
             requests:
               cpu: 50m
               memory: 64Mi
+            limits:
+              memory: 128Mi
       volumes:
         - name: socket
           emptyDir: {}

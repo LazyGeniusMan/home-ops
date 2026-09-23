@@ -29,6 +29,16 @@ spec:
           ports:
             - name: http
               containerPort: 4180
+          # Probes mirror the sibling proxies (clickstack/hubble-ui
+          # oauth2-proxy.yaml): /ping on the http port.
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
           env:
             - name: POD_NAMESPACE
               valueFrom:

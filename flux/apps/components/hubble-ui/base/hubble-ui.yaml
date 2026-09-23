@@ -160,6 +160,15 @@ spec:
           ports:
             - name: grpc
               containerPort: 8090
+          # Backend serves gRPC only (no HTTP health endpoint upstream);
+          # TCP socket on the grpc port mirrors the FerretDB
+          # Mongo-wire precedent (ferretdb.yaml).
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+          readinessProbe:
+            tcpSocket:
+              port: grpc
           resources:
             requests:
               cpu: 50m

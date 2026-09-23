@@ -163,6 +163,8 @@ spec:
             requests:
               cpu: 25m
               memory: 5Mi
+            limits:
+              memory: 128Mi
           args:
             - -localip
             - 0.0.0.0
@@ -188,6 +190,15 @@ spec:
               path: /health
               port: 8080
             initialDelaySeconds: 60
+            timeoutSeconds: 5
+          # Readiness: the Corefile serves `ready :8181` in the
+          # cluster.local block (line 86); unready pods leave the
+          # kube-dns-upstream endpoints until the cache is live.
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8181
+            initialDelaySeconds: 30
             timeoutSeconds: 5
           volumeMounts:
             - name: config-volume
