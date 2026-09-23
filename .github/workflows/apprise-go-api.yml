@@ -39,16 +39,25 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: Tidy check
+        run: go mod tidy && git diff --exit-code -- go.mod go.sum
+
       - name: Build
         run: go build ./...
 
       - name: Test
-        run: go test ./...
+        run: go test -race -shuffle=on -coverprofile=coverage.out ./...
 
       - name: Lint
         uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
         with:
           working-directory: projects/apprise-go-api
+
+      - name: Vulnerability check
+        # Pinned govulncheck release. `go run <pkg>@<version>` verifies the
+        # module against the Go checksum database, so the version pin is
+        # integrity-checked; bump the pin explicitly when x/vuln releases.
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
 
   publish:
     runs-on: ubuntu-latest
@@ -99,6 +108,16 @@ jobs:
             type=raw,value=stable,enable=${{ github.ref_type == 'tag' }}
             type=match,pattern=apprise-go-api-v(.*),group=1,enable=${{ github.ref_type == 'tag' }}
 
+      - name: Resolve VERSION build-arg
+        id: version
+        shell: bash
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            echo "version=${GITHUB_REF_NAME#apprise-go-api-v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=dev-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build and push
         id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
@@ -108,6 +127,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
 
       - name: Sign image
         if: steps.build.outputs.digest != ''
