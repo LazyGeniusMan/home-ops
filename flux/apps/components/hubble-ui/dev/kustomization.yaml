@@ -46,14 +46,10 @@ patches:
     target:
       kind: ExternalSecret
       name: cloudflare-api-token
-  # Dev wildcard Certificate (wildcard-home-ops-dev).
-  - patch: |
-      - op: replace
-        path: /spec/data/0/remoteRef/key
-        value: pass://acme-dev-bdo1-talos-apps-01/cert-manager/cloudflare-api-token
-    target:
-      kind: ExternalSecret
-      name: cloudflare-api-token
+  # Dev wildcard Certificate (wildcard-home-ops-dev). The DNS-01 solver
+  # credential ES above already renders the per-env vault path — one
+  # cloudflare-api-token ES serves both the route and the Certificate, so no
+  # second vault patch is needed here.
   - patch: |
       - op: replace
         path: /metadata/name

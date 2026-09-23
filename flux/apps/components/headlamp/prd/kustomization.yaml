@@ -29,8 +29,10 @@ patches:
   # cross-namespace `headlamp-zitadel` SecretStore — no vault ref patch, no
   # pass:// JWT seeding, no per-env ID literals. project_name,
   # create_user_role, user_emails, create_cookie_secret are env-invariant —
-  # only hosts vary per env. Positional: /spec/vars/0 (domain) +
-  # /spec/vars/2 (login_base_uri) + /spec/vars/3/value/0 (redirect) + /spec/vars/4/value/0 (post-logout).
+  # only hosts vary per env. POSITIONAL: /spec/vars/0 (domain) +
+  # /spec/vars/2 (login_base_uri) + /spec/vars/3 (redirect_uris) +
+  # /spec/vars/4 (post_logout_redirect_uris) — base/terraform.yaml var order
+  # must not change without updating this.
   - patch: |
       - op: replace
         path: /spec/vars/0/value
@@ -39,7 +41,7 @@ patches:
         path: /spec/vars/2/value
         value: https://login.zitadel.home-ops.yansyah.my.id/ui/v2/login
       - op: replace
-        path: /spec/vars/4/value/0
+        path: /spec/vars/3/value/0
         value: https://headlamp.home-ops.yansyah.my.id/*
       - op: replace
         path: /spec/vars/4/value/0

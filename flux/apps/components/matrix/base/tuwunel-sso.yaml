@@ -1,0 +1,167 @@
+# Tuwunel SSO identity, machine-applied by Tofu Controller.
+# Owns ONLY this app's slice: the `tuwunel` Zitadel project + project-scoped
+# roles (tuwunel-admin/tuwunel-user) + user grants + the `tuwunel` OIDC client.
+# Project-scoped means tuwunel-admin NEVER implies org admin.
+#
+# Ordering: this object ships in the app Kustomization (fleet `apps`
+# Kustomization dependsOn `infra-configs`), so it only reconciles after the
+# Zitadel HelmRelease + FirstInstance setup Job are Ready. Terraform
+# `dependsOn` is Terraform-CR-only upstream (checkDependencies resolves every
+# entry as kind Terraform), so NO dependsOn entry here — the fleet ordering
+# above is the mechanism.
+# Upstream wiring: org_id + admin_user_id flow from the FirstInstance handoff
+# (`zitadel-bootstrap-outputs` Secret in the `zitadel` namespace,
+# operator-created once per the zitadel README runbook) via the ESO-synced
+# `tuwunel-terraform-vars` Secret (same-namespace `varsFrom` below; the
+# cross-namespace `tuwunel-zitadel` SecretStore + narrow
+# `tuwunel-zitadel-handoff-reader` Role in `zitadel-handoff-rbac.yaml` do the
+# mirroring). NO org_id literal in git, NO manual per-env fill, NO email
+# lookups, NO remote-state read. Provider auth likewise flows from the chart
+# handoff (`zitadel-bootstrap-credentials` key `jwt_profile_json`) through
+# the same Secret. Same-namespace `varsFrom` CANNOT cross namespaces (no
+# namespace field), which is why the ESO mirror + RBAC is the mechanism here.
+# First-run prerequisite (zero-UI): chart setup Job mints the key + ESO
+# mirrors both handoff Secrets. Without the mirrored `tuwunel-terraform-vars`
+# the CR retries on interval — no vault seeding, no console step.
+# Backend: in-cluster Kubernetes default (state Secrets in the matrix
+# namespace) — no backendConfig needed. Drift detection stays on (default).
+# Outputs: client_id + client_secret land in `tuwunel-sso-outputs`
+# (sensitive); the `tuwunel-sso-client` ExternalSecret consumes BOTH from
+# that Secret through the in-cluster `tuwunel-k8s` SecretStore
+# (base/tuwunel-secrets.yaml) — never Git, never Proton Pass.
+---
+# Cross-namespace handoff reader: mirrors the two chart-minted handoff Secrets
+# from the `zitadel` namespace into this namespace's `tuwunel-terraform-vars`
+# Secret (remoteNamespace MUST be `zitadel` — ESO reads REMOTE secrets through
+# this namespace's `eso-zitadel-handoff-reader` SA; the narrow Role + RoleBinding
+# in `zitadel-handoff-rbac.yaml` grant get/list/watch on the two handoff Secrets
+# only). Same shape as the coder/headlamp consumers (server.url omitted =
+# kubernetes.default, kube-root-ca.crt supplies the API CA).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eso-zitadel-handoff-reader
+  labels:
+    app.kubernetes.io/name: tuwunel
+    app.kubernetes.io/part-of: matrix
+---
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: tuwunel-zitadel
+  labels:
+    app.kubernetes.io/name: tuwunel
+    app.kubernetes.io/part-of: matrix
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: zitadel
+      server:
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        serviceAccount:
+          name: eso-zitadel-handoff-reader
+---
+# Zero-UI vars mirror: provider auth (`jwt_profile_json`) from the chart-kept
+# `zitadel-bootstrap-credentials`, IDs (`org_id`, `admin_user_id`) from the
+# operator-created `zitadel-bootstrap-outputs` — no Proton Pass seeding, no
+# manual vault step. Keys land under the module var names so `varsFrom` below
+# needs no varsKeys renames.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: tuwunel-terraform-vars
+  labels:
+    app.kubernetes.io/name: tuwunel
+    app.kubernetes.io/part-of: matrix
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: tuwunel-zitadel
+    kind: SecretStore
+  target:
+    name: tuwunel-terraform-vars
+  data:
+    - secretKey: jwt_profile_json
+      remoteRef:
+        key: zitadel-bootstrap-credentials
+        property: jwt_profile_json
+    - secretKey: org_id
+      remoteRef:
+        key: zitadel-bootstrap-outputs
+        property: org_id
+    - secretKey: admin_user_id
+      remoteRef:
+        key: zitadel-bootstrap-outputs
+        property: admin_user_id
+---
+apiVersion: infra.contrib.fluxcd.io/v1alpha2
+kind: Terraform
+metadata:
+  name: tuwunel-sso
+spec:
+  interval: 30m
+  approvePlan: auto
+  # Upsert-only guard (tofu-controller 0.16.5): the v1alpha2 CRD has no
+  # preventDestroy/destroyPlan field — `destroy` (destroy plan on reconcile)
+  # and `destroyResourcesOnDeletion` (destroy plan on CR deletion) are the
+  # only destroy knobs, both default false. Stated explicitly so no `tofu
+  # destroy` path exists via Flux; drift detection stays on (default).
+  destroy: false
+  destroyResourcesOnDeletion: false
+  # Shared reusable SSO root: the infra/zitadel OCI artifact (namespace
+  # `zitadel`) packs flux/infra/components/zitadel/terraform/ at
+  # ./terraform. Cross-namespace sourceRef is allowed by
+  # allowCrossNamespaceRefs=true on the tofu-controller — no per-app
+  # terraform/ root, no git-SHA module pin.
+  sourceRef:
+    kind: OCIRepository
+    name: infra
+    namespace: zitadel
+  path: ./terraform
+  # Plain (non-sensitive) per-env values; secrets (jwt_profile_json, org_id,
+  # admin_user_id) come from varsFrom below. varsFrom overrides vars on key
+  # collision (upstream GenerateVarsForTF).
+  # Redirect URIs are fully rendered here (the shared root takes no
+  # app_host var): `__SERVICE_HOST__` is the per-env tuwunel hostname,
+  # replaced by the dev/prd overlay patches. `user_emails` is empty =
+  # admin-only (SSO-only homeserver — normal users ride the user role when
+  # needed; tofu-controller renders nested YAML values as HCL, no JSON
+  # encoding).
+  # POSITIONAL: the dev/prd overlays patch /spec/vars/0 (domain) +
+  # /spec/vars/2 (login_base_uri) + /spec/vars/3 (redirect_uris) +
+  # /spec/vars/4 (post_logout_redirect_uris) by index, so this order must not
+  # change without updating the overlays.
+  # No `user_initial_password` var is set (shared-root default null = no
+  # initial password): first sign-in goes through the Zitadel invite/reset
+  # flow — never commit passwords.
+  vars:
+    - name: domain
+      value: __ZITADEL_HOST__
+    - name: project_name
+      value: tuwunel
+    - name: login_base_uri
+      value: __ZITADEL_LOGIN_URI__
+    - name: redirect_uris
+      value:
+        - https://__SERVICE_HOST__/_matrix/client/unstable/login/sso/callback/*
+    - name: post_logout_redirect_uris
+      value:
+        - https://__SERVICE_HOST__/
+    - name: create_user_role
+      value: "true"
+    - name: user_emails
+      value: []
+    - name: create_cookie_secret
+      value: "false"
+  varsFrom:
+    - kind: Secret
+      name: tuwunel-terraform-vars
+  writeOutputsToSecret:
+    name: tuwunel-sso-outputs
+    outputs:
+      - client_id
+      - client_secret

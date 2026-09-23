@@ -18,6 +18,8 @@ resources:
   # claim, COSI keys, VPA, HTTPRoutes). No HPA (singleton; RocksDB
   # single-writer).
   - tuwunel-secrets.yaml
+  - tuwunel-sso.yaml
+  - zitadel-handoff-rbac.yaml
   - tuwunel-storage.yaml
   - tuwunel-cosi-keys.yaml
   - tuwunel.yaml

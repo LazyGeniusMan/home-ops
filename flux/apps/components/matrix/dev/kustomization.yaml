@@ -33,6 +33,32 @@ patches:
   # `tuwunel-k8s` SecretStore (base/tuwunel-secrets.yaml).
   # (S3 keys are COSI-minted via the tuwunel-cosi SecretStore — no
   # per-env vault ref patch for tuwunel-s3.)
+  # Dev Tuwunel SSO Terraform identity: CR vars (dev issuer host, dev login
+  # URI, dev redirect + post-logout URIs) against the shared infra/zitadel
+  # root (base/tuwunel-sso.yaml cross-namespace sourceRef). Provider auth
+  # (jwt_profile_json) + org_id + admin_user_id mirror from the FirstInstance
+  # handoff via the cross-namespace `tuwunel-zitadel` SecretStore — no vault
+  # ref patch, no per-env ID literals. project_name, create_user_role,
+  # user_emails, create_cookie_secret are env-invariant — only hosts vary per
+  # env. POSITIONAL: /spec/vars/0 (domain) + /spec/vars/2 (login_base_uri) +
+  # /spec/vars/3 (redirect_uris) + /spec/vars/4 (post_logout_redirect_uris) —
+  # base/tuwunel-sso.yaml var order must not change without updating this.
+  - patch: |
+      - op: replace
+        path: /spec/vars/0/value
+        value: admin.zitadel.home-ops-dev.yansyah.my.id
+      - op: replace
+        path: /spec/vars/2/value
+        value: https://login.zitadel.home-ops-dev.yansyah.my.id/ui/v2/login
+      - op: replace
+        path: /spec/vars/3/value/0
+        value: https://tuwunel.matrix.home-ops-dev.yansyah.my.id/_matrix/client/unstable/login/sso/callback/*
+      - op: replace
+        path: /spec/vars/4/value/0
+        value: https://tuwunel.matrix.home-ops-dev.yansyah.my.id/
+    target:
+      kind: Terraform
+      name: tuwunel-sso
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key

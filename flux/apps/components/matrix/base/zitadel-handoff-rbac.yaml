@@ -1,0 +1,49 @@
+# Narrow cross-namespace handoff grant for the tuwunel ESO reader.
+# ESO mirrors the FirstInstance handoff Secrets (`zitadel-bootstrap-credentials`
+# + `zitadel-bootstrap-outputs`, both in the `zitadel` namespace) into this
+# namespace's `tuwunel-terraform-vars` Secret through the cross-namespace
+# `tuwunel-zitadel` SecretStore (base/tuwunel-sso.yaml) — same pattern as the
+# coder/headlamp `zitadel-handoff-rbac.yaml` consumers.
+# The store authenticates as THIS namespace SA `eso-zitadel-handoff-reader`,
+# so the SA needs get/list/watch on the two handoff Secrets only
+# (resourceNames pins both) plus selfsubjectrulesreviews create (ESO
+# Kubernetes-provider validation) — and nothing else.
+# Ownership note: the Role + RoleBinding below carry explicit
+# `metadata.namespace: zitadel` but are OWNED BY the matrix component — they
+# ship in the matrix base dir so they reconcile (and prune) with the app.
+# Same-namespace `varsFrom` CANNOT cross namespaces (no namespace field),
+# which is why the ESO mirror + this RBAC is the mechanism.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tuwunel-zitadel-handoff-reader
+  namespace: zitadel
+  labels:
+    app.kubernetes.io/name: tuwunel
+    app.kubernetes.io/part-of: matrix
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["zitadel-bootstrap-credentials", "zitadel-bootstrap-outputs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["selfsubjectrulesreviews"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tuwunel-zitadel-handoff-reader
+  namespace: zitadel
+  labels:
+    app.kubernetes.io/name: tuwunel
+    app.kubernetes.io/part-of: matrix
+subjects:
+  - kind: ServiceAccount
+    name: eso-zitadel-handoff-reader
+    namespace: matrix
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tuwunel-zitadel-handoff-reader

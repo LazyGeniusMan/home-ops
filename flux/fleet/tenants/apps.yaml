@@ -15,11 +15,96 @@ metadata:
   annotations:
     fluxcd.controlplane.io/reconcileEvery: "5m"
 spec:
+  # Convergence gate (GOAL 4): the whole apps layer reconciles only after
+  # infra readiness — no app races its platform dependency. Each entry blocks
+  # with a clear dependsOn (missing dep = waiting Kustomization, never a
+  # CrashLoop). Per-app consumption:
+  # - Zitadel FirstInstance Job (configs/zitadel): clickstack, coder,
+  #   flux-operator-ui, headlamp, hubble-ui (SSO Terraform CRs read the
+  #   zitadel-bootstrap-outputs handoff) + matrix/tuwunel (tuwunel-sso CR).
+  #   matrix/rooms + element-proxy Terraform CRs ride the same gate via the
+  #   in-tenant bootstrap Job kept Secret (no separate entry — the Job itself
+  #   retries until tuwunel is Ready).
+  # - Cilium (configs/cilium: Gateway main + hubble-relay Service) +
+  #   gateway-api (configs/gateway-api: GatewayClass cilium): every app with
+  #   an HTTPRoute (all except the two VMs).
+  # - CoreDNS (configs/coredns) + Cilium kube-proxy replacement: all apps
+  #   (in-cluster DNS + Service VIPs).
+  # - cert-manager (configs/cert-manager: ClusterIssuer letsencrypt):
+  #   every app minting an in-namespace wildcard Certificate (all except the
+  #   two VMs).
+  # - external-secrets (configs/external-secrets: proton-pass
+  #   ClusterSecretStore): every app with a proton-pass ExternalSecret (all
+  #   except the two VMs).
+  # - seaweedfs (configs/seaweedfs: seaweed-main-s3): clickstack, coder,
+  #   matrix (COSI BucketClaims + CNPG barmanObjectStore endpoints).
+  # - cnpg (controllers/cnpg): clickstack, coder, matrix (CNPG Clusters).
+  # - multus (configs/multus: NAD lan-dhcp) + kubevirt (configs/kubevirt):
+  #   talos-vm + win11-vm (VirtualMachines on the secondary net).
+  # - tofu-controller (controllers/tofu-controller): every app with a
+  #   Terraform CR (all SSO apps + matrix rooms/proxy).
+  # Kustomization-level dependsOn (not Terraform-CR dependsOn, which is
+  # Terraform-CR-only upstream) is the mechanism — see each app's
+  # base/terraform.yaml header.
   dependsOn:
     - apiVersion: kustomize.toolkit.fluxcd.io/v1
       kind: Kustomization
       name: infra-configs
       namespace: zitadel
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra-configs
+      namespace: cilium
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra-configs
+      namespace: gateway-api
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra-configs
+      namespace: coredns
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra-configs
+      namespace: cert-manager
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra-configs
+      namespace: external-secrets
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra-configs
+      namespace: seaweedfs
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra-configs
+      namespace: multus
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra-configs
+      namespace: kubevirt
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra-controllers
+      namespace: tofu-controller
       ready: true
       readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
   inputs:
