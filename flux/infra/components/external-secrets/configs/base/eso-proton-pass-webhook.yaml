@@ -72,9 +72,9 @@ spec:
           # eso-proton-pass-v* tagged release exists yet. Promotion trigger:
           # when the first eso-proton-pass-v* tag lands, CI publishes the
           # :stable + semver leg and prd pins :stable (policy
-          # infra:eso-proton-pass in update-policies/external-secrets.yaml
+          # infra:eso-proton-pass:tag in update-policies/external-secrets.yaml
           # tracks the new leg) while dev stays on :dev.
-          image: ghcr.io/lazygeniusman/home-ops/projects/eso-proton-pass:dev # {"$imagepolicy": "infra:eso-proton-pass"}
+          image: ghcr.io/lazygeniusman/home-ops/projects/eso-proton-pass:dev # {"$imagepolicy": "infra:eso-proton-pass:tag"}
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

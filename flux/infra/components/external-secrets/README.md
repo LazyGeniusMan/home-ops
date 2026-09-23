@@ -77,7 +77,7 @@ login fails first). Rotate at most yearly; an early rotation is just steps
 - Controller + webhook + cert-controller metrics `Service`s on; single
   `ServiceMonitor` with `renderMode: skipIfMissing` (safe pre-Prometheus).
 - Chart bumps: `update-policies/external-secrets.yaml` (+ `:dev` webhook
-  image via `infra:eso-proton-pass` policy) → update-cluster PR automation.
+  image via `infra:eso-proton-pass:tag` policy) → update-cluster PR automation.
 
 ## Environments
 
