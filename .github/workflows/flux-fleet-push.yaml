@@ -33,7 +33,7 @@ jobs:
       - name: Install flux
         uses: controlplaneio-fluxcd/distribution/actions/setup@746d36fb6147fcb558c0e3e1c8c37d849b56b550 # v2.9.5
       - name: Install cosign
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       - name: Login to GitHub Container Registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
