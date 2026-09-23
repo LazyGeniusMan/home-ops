@@ -27,6 +27,20 @@ patches:
       name: clickhouse
   - patch: |
       - op: replace
+        path: /metadata/name
+        value: wildcard-clickhouse
+    target:
+      kind: Certificate
+      name: __WILDCARD_CERT_NAME__
+  - patch: |
+      - op: replace
+        path: /spec/secretName
+        value: wildcard-clickhouse-tls
+    target:
+      kind: Certificate
+      name: wildcard-clickhouse
+  - patch: |
+      - op: replace
         path: /spec/dnsNames/0
         value: "*.clickhouse.home-ops-dev.yansyah.my.id"
     target:

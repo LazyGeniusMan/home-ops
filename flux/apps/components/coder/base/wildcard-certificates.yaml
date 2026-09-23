@@ -1,8 +1,9 @@
 # In-namespace Certificates (§§8.1/9.3/13.6). cert-manager Secrets are
 # namespace-local, so the §9 Certificate (cert-manager namespace) cannot feed
-# this component's Gateway listeners — these Certificates mint coder-tls
-# (__SERVICE_HOST__) and coder-wildcard-tls
-# (__WILDCARD_SERVICE_HOST__) HERE via the same
+# this component's Gateway listeners — the apex Certificate (coder-root)
+# mints __WILDCARD_TLS_SECRET__ for __SERVICE_HOST__, and the wildcard
+# Certificate (__WILDCARD_CERT_NAME__) mints __WILDCARD_TLS_SECRET__ for
+# __WILDCARD_SERVICE_HOST__, both HERE via the same
 # ClusterIssuer/letsencrypt DNS-01 flow (same duplicate pattern as §8.1
 # gateway-api). Two Certificates because one TLS wildcard matches a single
 # label only: the apex wildcard covers the dashboard root but NOT
@@ -36,7 +37,7 @@ kind: Certificate
 metadata:
   name: coder-root
 spec:
-  secretName: coder-tls
+  secretName: __WILDCARD_TLS_SECRET__
   issuerRef:
     name: letsencrypt
     kind: ClusterIssuer
@@ -46,9 +47,9 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: coder-wildcard
+  name: __WILDCARD_CERT_NAME__
 spec:
-  secretName: coder-wildcard-tls
+  secretName: __WILDCARD_TLS_SECRET__
   issuerRef:
     name: letsencrypt
     kind: ClusterIssuer

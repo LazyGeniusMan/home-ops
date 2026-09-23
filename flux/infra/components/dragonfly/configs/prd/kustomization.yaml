@@ -36,6 +36,20 @@ patches:
       name: dragonfly-base
   - patch: |
       - op: replace
+        path: /metadata/name
+        value: wildcard-dragonfly
+    target:
+      kind: Certificate
+      name: __WILDCARD_CERT_NAME__
+  - patch: |
+      - op: replace
+        path: /spec/secretName
+        value: wildcard-dragonfly-tls
+    target:
+      kind: Certificate
+      name: wildcard-dragonfly
+  - patch: |
+      - op: replace
         path: /spec/dnsNames/0
         value: "*.dragonfly.home-ops.yansyah.my.id"
     target:

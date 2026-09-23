@@ -13,9 +13,9 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: wildcard-dragonfly
+  name: __WILDCARD_CERT_NAME__
 spec:
-  secretName: wildcard-dragonfly-tls
+  secretName: __WILDCARD_TLS_SECRET__
   issuerRef:
     name: letsencrypt
     kind: ClusterIssuer

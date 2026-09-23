@@ -1,7 +1,7 @@
 # __WILDCARD_DNS__ wildcard Certificate (section 12.1). Mirrors
 # the gateway-api/configs/base/wildcard-certificate.yaml discipline:
 # cert-manager Secrets are namespace-local, so this duplicate Certificate
-# mints seaweedfs-wildcard-tls HERE via ClusterIssuer/letsencrypt. The token
+# __WILDCARD_TLS_SECRET__ HERE via ClusterIssuer/letsencrypt. The token
 # ExternalSecret mirrors cert-manager/configs/base/cluster-issuer.yaml
 # (same Proton Pass remoteRef) so the DNS-01 solver credential exists in
 # this namespace too.
@@ -28,9 +28,9 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: wildcard-seaweedfs
+  name: __WILDCARD_CERT_NAME__
 spec:
-  secretName: seaweedfs-wildcard-tls
+  secretName: __WILDCARD_TLS_SECRET__
   issuerRef:
     name: letsencrypt
     kind: ClusterIssuer

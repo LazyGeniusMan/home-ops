@@ -117,11 +117,32 @@ patches:
       name: cloudflare-api-token
   - patch: |
       - op: replace
+        path: /spec/secretName
+        value: coder-tls
+    target:
+      kind: Certificate
+      name: coder-root
+  - patch: |
+      - op: replace
         path: /spec/dnsNames/0
         value: "coder.home-ops-dev.yansyah.my.id"
     target:
       kind: Certificate
       name: coder-root
+  - patch: |
+      - op: replace
+        path: /metadata/name
+        value: coder-wildcard
+    target:
+      kind: Certificate
+      name: __WILDCARD_CERT_NAME__
+  - patch: |
+      - op: replace
+        path: /spec/secretName
+        value: coder-wildcard-tls
+    target:
+      kind: Certificate
+      name: coder-wildcard
   - patch: |
       - op: replace
         path: /spec/dnsNames/0

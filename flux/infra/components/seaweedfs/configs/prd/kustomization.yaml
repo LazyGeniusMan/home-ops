@@ -80,6 +80,20 @@ patches:
       name: cloudflare-api-token
   - patch: |
       - op: replace
+        path: /metadata/name
+        value: wildcard-seaweedfs
+    target:
+      kind: Certificate
+      name: __WILDCARD_CERT_NAME__
+  - patch: |
+      - op: replace
+        path: /spec/secretName
+        value: seaweedfs-wildcard-tls
+    target:
+      kind: Certificate
+      name: wildcard-seaweedfs
+  - patch: |
+      - op: replace
         path: /spec/dnsNames/0
         value: "*.seaweedfs.home-ops.yansyah.my.id"
     target:

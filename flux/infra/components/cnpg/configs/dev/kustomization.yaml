@@ -37,6 +37,20 @@ patches:
       name: postgres-base
   - patch: |
       - op: replace
+        path: /metadata/name
+        value: wildcard-postgres
+    target:
+      kind: Certificate
+      name: __WILDCARD_CERT_NAME__
+  - patch: |
+      - op: replace
+        path: /spec/secretName
+        value: wildcard-postgres-tls
+    target:
+      kind: Certificate
+      name: wildcard-postgres
+  - patch: |
+      - op: replace
         path: /spec/dnsNames/0
         value: "*.postgres.home-ops-dev.yansyah.my.id"
     target:

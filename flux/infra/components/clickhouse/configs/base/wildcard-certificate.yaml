@@ -2,14 +2,14 @@
 # clickhouse namespace (own-namespace, via the Flux Kustomization
 # targetNamespace — no explicit namespace, like the gateway-api precedent) so
 # Ready status is observable next to the CHI; HTTPRoutes/Gateway listeners in
-# this namespace reference `wildcard-clickhouse-tls` directly.
+# this namespace reference __WILDCARD_TLS_SECRET__ directly.
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: wildcard-clickhouse
+  name: __WILDCARD_CERT_NAME__
 spec:
-  secretName: wildcard-clickhouse-tls
+  secretName: __WILDCARD_TLS_SECRET__
   issuerRef:
     name: letsencrypt
     kind: ClusterIssuer
