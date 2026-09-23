@@ -79,5 +79,5 @@ talosctl validate -c ansible/build/<cluster>/nodes/<node>/controlplane.yaml -m m
 Per-node `schematics.yml` is authoritative for that node's installer image;
 cluster `schematics.yml` holds extensions shared by all nodes in the cluster.
 Schematics list bare `siderolabs/<name>` entries — the factory pins versions
-to the Talos release. Kernel args live in schematics (`extraKernelArgs`);
+to the Talos release. Extension catalog: `/tmp/home-ops-docs/talos-system-extension-docs`. Kernel args live in schematics (`extraKernelArgs`);
 `machine.kernel.args` does not exist in v1alpha1.

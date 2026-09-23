@@ -8,6 +8,8 @@ per room. Live ops rooms ship in `../base/rooms.yaml`
 (`flux-notifications-terraform.yaml`, `tofu-runs-terraform.yaml`,
 `team-terraform.yaml`) are copy-paste skeletons for TEAM namespaces only.
 
+Upstream reference (read-only): `/tmp/home-ops-docs/matrix-terraform-provider-docs`.
+
 The provider (`raspbeguy/matrix ~> 0.5`) has **no user/token resources**, so
 the bot + token are bootstrapped ONCE outside Terraform — by the
 `matrix-bot-bootstrap` Job (`../base/matrix-bot-bootstrap.yaml`, kept Secret

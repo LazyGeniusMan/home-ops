@@ -23,7 +23,9 @@ OCI is the upstream source of truth, verified by pull:
 - Local reference: `/tmp/home-ops-docs/zitadel-docs` (upstream
   [zitadel](https://github.com/zitadel/zitadel) branch `main`); d2-infra
   carries no Zitadel component, so the bounded sources were the local docs
-  plus the pulled chart `values.yaml`/templates.
+  plus the pulled chart `values.yaml`/templates. Chart repo + provider
+  contracts: `/tmp/home-ops-docs/zitadel-helm-charts-docs`,
+  `/tmp/home-ops-docs/zitadel-terraform-provider-docs`.
 - The `update-policies/zitadel.yaml` floor `>=10.0.4` tracks the CHART line
   (ImageRepository + ImagePolicy + `$imagepolicy` marker
   `infra:zitadel:tag`, same image update policy contract as the

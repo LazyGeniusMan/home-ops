@@ -89,7 +89,7 @@ The plugin-manager sidecar resolves each `source` via ArtifactHub metadata
 Versions verified against the ArtifactHub API at authoring time
 (`headlamp-plugins` repo for ai-assistant/flux; `headlamp-kubevirt` repo for
 kubevirt — the plugin's own README prescribes exactly this source + version
-pin). Bumps flow through `update-policies/headlamp.yaml` + PR automation;
+pin; plugin contract: `/tmp/home-ops-docs/headlamp-kubevirt-plugin-docs`). Bumps flow through `update-policies/headlamp.yaml` + PR automation;
 the automation tracks the app image — plugin pins are bumped by hand in the
 `configContent` block alongside (same file, same PR).
 

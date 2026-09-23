@@ -20,8 +20,9 @@ each `kustomization.yaml`). Example patches live as commented inline
 ## How it works
 
 Each `clusters/<name>/tenants.yaml` (a Flux Kustomization) syncs
-`path: ./tenants/overlays/<name>`. Each overlay kustomization lists the
-three shared ResourceSets as resources:
+`path: ./tenants/overlays/<name>` (kustomize-style overlays — schema
+reference: `/tmp/home-ops-docs/kubectl-kustomize-docs`). Each overlay
+kustomization lists the three shared ResourceSets as resources:
 
 ```yaml
 resources:

@@ -158,7 +158,8 @@ patches. The COSI driver stays a singleton (1) in every env — never
 scale it.
 
 Upstream reference (read-only): `/tmp/home-ops-docs/seaweedfs-docs` (+
-`seaweedfs-operator-docs`, `seaweedfs-cosi-docs`).
+`seaweedfs-operator-docs`, `seaweedfs-cosi-docs`, `seaweedfs-csi-docs`
+— CSI `HelmRelease` pins mirror that chart).
 
 ## Telemetry-off / monitoring / updates
 

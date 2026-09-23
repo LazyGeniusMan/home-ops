@@ -17,7 +17,11 @@ One generic CronJob template serves **all 10 sync directions** — each directio
 is expressed purely via `source.type` / `destination.type`. There are no
 per-direction manifests; all shared logic lives in `templates/_helpers.tpl`
 behind the `helm-rclone-sync.*` prefix and is invoked with
-`include` (+`nindent`).
+`include` (+`nindent`). Chart-authoring reference:
+`/tmp/home-ops-docs/helm-docs` (template/include/nindent semantics).
+
+Upstream reference (read-only): `/tmp/home-ops-docs/flux-docs` (HelmRelease
+chart delivery contract).
 
 ## Install / upgrade
 

@@ -1,6 +1,6 @@
 # Element Web stateless SPA (Goal 2d): Deployment + config.json ConfigMap +
 # Service, vendored from the upstream Kubernetes example
-# (docs/kubernetes.md): vectorim/element-web image, config.json via ConfigMap
+# (docs/kubernetes.md, `/tmp/home-ops-docs/element-web-docs`): vectorim/element-web image, config.json via ConfigMap
 # subPath mount at /app/config.json, Service :80, probes GET / (readiness
 # initialDelay 2s / period 3s, liveness initialDelay 10s / period 10s —
 # upstream example values).

@@ -1,4 +1,6 @@
 # Mautrix Discord bridge — workload (singleton).
+# Upstream references (read-only): `/tmp/home-ops-docs/matrix-mautrix-bridge-docs`,
+# `/tmp/home-ops-docs/matrix-mautrix-discord-bridge-docs`.
 # Single-replica Deployment (replicas: 1, strategy Recreate, NO HPA — see
 # below) running dock.mau.dev/mautrix/discord v0.7.7 (pinned; GH release
 # mautrix/discord is the alternative source). The image already bundles

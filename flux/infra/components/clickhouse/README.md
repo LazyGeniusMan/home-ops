@@ -54,7 +54,9 @@ README.)
   `concurrencyPolicy: Forbid` — no scaling; overlapping runs must never
   fight over the Proton destination.
 
-Upstream reference (read-only): `/tmp/home-ops-docs/altinity-clickhouse-operator-docs`.
+Upstream reference (read-only): `/tmp/home-ops-docs/altinity-clickhouse-operator-docs`
+(+ `/tmp/home-ops-docs/clickhouse-docs` — server `ReplicatedMergeTree` /
+keeper table semantics).
 
 ## HA
 

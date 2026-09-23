@@ -265,9 +265,6 @@ fetch_repo flux-d2-docs/d2-fleet https://github.com/controlplaneio-fluxcd/d2-fle
 fetch_repo flux-d2-docs/d2-infra https://github.com/controlplaneio-fluxcd/d2-infra main || record_fail flux-d2-docs/d2-infra
 fetch_repo flux-d2-docs/d2-apps https://github.com/controlplaneio-fluxcd/d2-apps main || record_fail flux-d2-docs/d2-apps
 
-# /tmp/home-ops-docs/flux-d1-docs/d1.pdf
-fetch_pdf /tmp/home-ops-docs/flux-d1-docs/d1.pdf https://raw.githubusercontent.com/controlplaneio-fluxcd/distribution/main/guides/ControlPlane_Flux_D1_Reference_Architecture_Guide.pdf || record_fail "/tmp/home-ops-docs/flux-d1-docs/d1.pdf"
-
 # /tmp/home-ops-docs/flux-operator-docs/docs
 fetch_repo flux-operator-docs https://github.com/controlplaneio-fluxcd/flux-operator main || record_fail flux-operator-docs
 
@@ -325,7 +322,7 @@ fetch_repo altinity-clickhouse-operator-docs https://github.com/Altinity/clickho
 # /tmp/home-ops-docs/clickhouse-docs/docs/clickstack/deployment/helm.mdx
 fetch_repo clickhouse-docs https://github.com/clickhouse/clickhouse master || record_fail clickhouse-docs
 
-# /tmp/home-ops-docs/clickstack-helm-docs/README.md
+# /tmp/home-ops-docs/clickstack-helm-charts-docs/README.md
 fetch_repo clickstack-helm-charts-docs https://github.com/ClickHouse/ClickStack-helm-charts main || record_fail clickstack-helm-charts-docs
 
 # /tmp/home-ops-docs/dragonfly-operator-docs/docs
@@ -386,7 +383,7 @@ fetch_repo tuwumel-docs https://github.com/matrix-construct/tuwunel main || reco
 fetch_repo matrix-terraform-provider-docs https://github.com/raspbeguy/terraform-provider-matrix main || record_fail matrix-terraform-provider-docs
 
 # /tmp/home-ops-docs/element-web-docs/docs
-fetch_repo element-web-docs-docs https://github.com/element-hq/element-web develop || record_fail element-web-docs
+fetch_repo element-web-docs https://github.com/element-hq/element-web develop || record_fail element-web-docs
 
 # /tmp/home-ops-docs/matrix-mautrix-bridge-docs/bridges
 fetch_repo matrix-mautrix-bridge-docs https://github.com/mautrix/docs master || record_fail matrix-mautrix-bridge-docs

@@ -3,6 +3,10 @@
 Stateless-only Go port of Python `apprise-api`, backed by
 [`apprise-go`](https://github.com/unraid/apprise-go).
 
+Upstream references (read-only): `/tmp/home-ops-docs/apprise-go-docs`
+(library contract), `/tmp/home-ops-docs/apprise-api-py-docs` (Python API
+parity), `/tmp/home-ops-docs/apprise-docs` (notification-schema syntax).
+
 Send notifications to dozens of services with a single HTTP call — no
 accounts, no database, no persistent state. Every request carries its own
 target URLs; nothing is stored between requests.

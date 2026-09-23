@@ -4,6 +4,9 @@ Bootstraps the Flux Operator on a cluster with OpenTofu/Terraform, then hands
 steady-state reconciliation to Flux. No workload content lives here — the
 desired state is `../clusters/<cluster_name>`.
 
+Upstream references (read-only): `/tmp/home-ops-docs/flux-operator-bootstrap-terraform-docs`
+(bootstrap module), `/tmp/home-ops-docs/helm-docs` (Helm provider chart-install contract).
+
 ## Why barebone Talos needs prerequisites
 
 The Talos base machine config ships with no pod networking, no ClusterIP

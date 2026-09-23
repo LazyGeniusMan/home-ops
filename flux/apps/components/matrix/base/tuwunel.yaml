@@ -1,4 +1,5 @@
 # Tuwunel Matrix homeserver (fresh install, federation-off).
+# Upstream reference (read-only): `/tmp/home-ops-docs/tuwumel-docs`.
 # - Deployment: replicas 1, strategy Recreate (RocksDB is single-writer; a
 #   second replica must never open the same database_path). Single RWO PVC
 #   (tuwunel-data, storageClassName local-ssd-nvme — the repo default class)
