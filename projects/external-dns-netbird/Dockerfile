@@ -8,7 +8,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 ARG VERSION=dev
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X github.com/LazyGeniusMan/home-ops/projects/external-dns-netbird/internal/version.Version=$VERSION" -o /out/external-dns-netbird ./cmd/external-dns-netbird
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X github.com/LazyGeniusMan/home-ops/projects/external-dns-netbird/internal/version.Version=${VERSION}" -o /out/external-dns-netbird ./cmd/external-dns-netbird
 
 FROM gcr.io/distroless/base-debian13@sha256:9ef50bca108839d5986e4d84b7f7b2d79024c9293b7c35b162c6c55485bd5868
 COPY --from=build /out/external-dns-netbird /external-dns-netbird
