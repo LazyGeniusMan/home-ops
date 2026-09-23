@@ -1,4 +1,6 @@
-# Update policy for the clickhouse component (§10): tracks the OCI Helm chart, and the
+# Update policy for the clickhouse component (§10): tracks the OCI Helm chart
+# plus the server + keeper runtime images (installation-base.yaml,
+# backup-cronjob.yaml, and the clickstack ClickHouseInstallation), and the
 # ImageUpdateAutomation (update cluster) opens PRs via markers in
 # components/clickhouse (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
 ---
@@ -21,3 +23,47 @@ spec:
   policy:
     semver:
       range: ">=0.27.3"
+# Server + keeper runtime images (G5: pinned 25.9 line, tags verified live on
+# Docker Hub). Markers live on the ClickHouseInstallation pod templates
+# (installation-base.yaml + clickstack-clickhouse.yaml) and the nightly
+# backup CronJob (backup-cronjob.yaml).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: clickhouse-server
+spec:
+  image: "clickhouse/clickhouse-server"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: clickhouse-server
+spec:
+  imageRepositoryRef:
+    name: clickhouse-server
+  policy:
+    semver:
+      range: ">=25.9.0"
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: clickhouse-keeper
+spec:
+  image: "clickhouse/clickhouse-keeper"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: clickhouse-keeper
+spec:
+  imageRepositoryRef:
+    name: clickhouse-keeper
+  policy:
+    semver:
+      range: ">=25.9.0"

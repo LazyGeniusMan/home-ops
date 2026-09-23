@@ -24,8 +24,9 @@
 # OAUTH2_PROXY_* env keys the proxy consumes via envFrom.
 #
 # Image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0 (verified real on Quay;
-# hand-bumped — no ImageRepository/ImagePolicy tracks it yet, unlike the
-# seaweedfs images in flux/infra/update-policies/seaweedfs.yaml).
+# tracks the locked oauth2-proxy line shared with clickstack + hubble-ui —
+# marker apps:oauth2-proxy:tag, policy in flux/apps/update-policies, same
+# locked-contract pattern as the sibling proxies).
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -135,7 +136,7 @@ spec:
     spec:
       containers:
         - name: oauth2-proxy
-          image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0 # {"$imagepolicy": "apps:oauth2-proxy:tag"}
           imagePullPolicy: IfNotPresent
           args:
             - --provider=oidc

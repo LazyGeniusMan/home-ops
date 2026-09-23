@@ -1,6 +1,7 @@
-# Update policy for the coredns component (§8.3): tracks the classic Helm chart, and the
-# ImageUpdateAutomation (update cluster) opens PRs via markers in
-# components/coredns (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+# Update policy for the coredns component (§8.3): tracks the classic Helm chart
+# plus the node-local-dns cache image, and the ImageUpdateAutomation (update
+# cluster) opens PRs via markers in components/coredns (see README). Follows
+# the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
@@ -21,3 +22,27 @@ spec:
   policy:
     semver:
       range: ">=1.47.0"
+# Node-local DNS cache image (G5: pinned 1.26.8, matches upstream
+# nodelocaldns.yaml master; requires >= 1.15.16 for the LRP interface/
+# iptables knobs). Marker lives on the DaemonSet in
+# configs/base/node-local-dns.yaml.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: node-cache
+spec:
+  image: "registry.k8s.io/dns/k8s-dns-node-cache"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: node-cache
+spec:
+  imageRepositoryRef:
+    name: node-cache
+  policy:
+    semver:
+      range: ">=1.26.0"

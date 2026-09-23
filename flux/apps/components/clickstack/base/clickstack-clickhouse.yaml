@@ -69,7 +69,10 @@ spec:
         spec:
           containers:
             - name: clickhouse-pod
-              image: clickhouse/clickhouse-server:25.9.7.56
+              # Tracks the infra clickhouse-server line (policy lives in
+              # flux/infra/update-policies/clickhouse.yaml — the single
+              # infra: namespace owns the server/keeper image policies).
+              image: clickhouse/clickhouse-server:25.9.7.56 # {"$imagepolicy": "infra:clickhouse-server:tag"}
               env:
                 - name: CLICKHOUSE_S3_ACCESS_KEY_ID
                   valueFrom:
