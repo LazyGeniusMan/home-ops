@@ -11,7 +11,7 @@ WORKDIR /src
 COPY go.mod ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/eso-proton-pass .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/eso-proton-pass ./cmd/eso-proton-pass
 # Download the pass-cli binary for the target architecture with pinned
 # per-arch SHA-256 checksums (releases page: github.com/protonpass/pass-cli).
 RUN set -eux -o pipefail; \
