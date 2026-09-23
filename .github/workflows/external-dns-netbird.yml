@@ -112,8 +112,10 @@ jobs:
       - name: Resolve VERSION build-arg
         id: version
         shell: bash
+        env:
+          REF_TYPE: ${{ github.ref_type }}
         run: |
-          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+          if [[ "${REF_TYPE}" == "tag" ]]; then
             echo "version=${GITHUB_REF_NAME#external-dns-netbird-v}" >> "$GITHUB_OUTPUT"
           else
             echo "version=dev-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
