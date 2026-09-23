@@ -18,11 +18,11 @@ This service implements **only** the stateless notification path:
 | Supported | Not supported (stateful) |
 |---|---|
 | `POST /notify`, `POST /notify/` | Keyed routes such as `/notify/{KEY}` |
-| `GET /status`, `/details`, `/metrics` | `/add/`, `/del/`, `/cfg/`, `/json/...`, `/xml/...` |
+| `GET /status`, `/details`, `/metrics`, `/healthz`, `/readyz` | `/add/`, `/del/`, `/cfg/`, `/json/...`, `/xml/...` |
 | Request-scoped attachments | Any persistent config storage |
 | Third-party webhook remap (`?:src=dst`) + result callback | Per-key management UI / API |
 
-Any path other than the five routes above returns **404**
+Any path other than the seven routes above returns **404**
 (`APPRISE_STATELESS_STORAGE=no`; persistence is unsupported by design).
 `APPRISE_STATEFUL_MODE` must be `"disabled"` — any other value fails
 startup.
@@ -133,8 +133,9 @@ Health plus attach/config-lock flags. Always JSON.
 ```
 
 `attach_dir` resolves `APPRISE_ATTACH_DIR`, defaulting to the OS temp dir.
-A writability probe (create + remove a temp file) runs per call; failure
-adds `"attach_permission_issue": "ATTACH_PERMISSION_ISSUE"` and sets
+A writability probe (create + remove a temp file) is TTL-cached (30s, shared
+with `/readyz` and `/metrics`); failure adds
+`"attach_permission_issue": "ATTACH_PERMISSION_ISSUE"` and sets
 `can_write_attach: false`. Non-GET → `405`.
 
 ### `GET /details`
@@ -147,31 +148,45 @@ stateless route table. Always JSON. Non-GET → `405`.
   "version": "0.1.0",
   "stateful_mode": "disabled",
   "stateless_storage": "no",
-  "service_count": 123,
+  "service_count": 214,
   "services": ["discord", "json", "slack", "..."],
-  "routes": ["POST /notify", "GET /status", "GET /details", "GET /metrics"]
+  "routes": ["POST /notify", "GET /status", "GET /details", "GET /metrics", "GET /healthz", "GET /readyz"]
 }
 ```
 
+### `GET /healthz` and `GET /readyz`
+
+`GET /healthz` is the liveness probe: static `{"status":"ok"}`, zero
+downstream calls, under 50ms. `GET /readyz` is the readiness probe: it
+checks attach-dir writability (TTL-cached) and returns `{"status":"ok"}`,
+or `503 {"status":"not_ready","failing":"attach-dir"}` when the staging
+dir is not writable. `/details` stays a domain endpoint (service catalog),
+never a probe.
+
 ### `GET /metrics`
 
-Prometheus exposition format (`Content-Type: text/plain; version=0.0.4`),
-hand-rolled with stdlib only:
+Prometheus exposition via `client_golang` on the default registry
+(includes `go_*` / `process_*` runtime series):
 
 ```text
-# HELP apprise_go_api_up 1 if the service is up.
-# TYPE apprise_go_api_up gauge
 apprise_go_api_up 1
-# HELP apprise_go_api_build_info Service build info.
-# TYPE apprise_go_api_build_info gauge
-apprise_go_api_build_info{version="0.1.0"} 1
-# HELP apprise_go_api_attach_writable 1 if the attachment staging directory is writable.
-# TYPE apprise_go_api_attach_writable gauge
+apprise_go_api_build_info{version="1.2.3"} 1
 apprise_go_api_attach_writable 1
-# HELP apprise_go_api_supported_services Number of notification service schemas supported.
-# TYPE apprise_go_api_supported_services gauge
-apprise_go_api_supported_services 123
+apprise_go_api_supported_services 214
+apprise_go_api_http_requests_total{method="GET",route="/healthz",status="200"} 1
+apprise_go_api_http_request_duration_seconds_bucket{method="GET",route="/healthz",le="0.005"} 1
 ```
+
+Every request is observed as `apprise_go_api_http_requests_total` /
+`apprise_go_api_http_request_duration_seconds_bucket` by
+`method`/`route`/`status`, where `route` is the matched mux pattern (never
+the raw path), plus one slog line (`method`, `route`, `status`,
+`duration`). The version comes from `internal/version.Version`
+(`dev` for local builds; release images inject it with
+`-X .../internal/version.Version=$VERSION` via `ARG VERSION` in the
+Dockerfile, e.g. `docker build --build-arg VERSION=1.2.3`). The attach
+writability probe (`MkdirAll` + `CreateTemp`) is TTL-cached (30s) and shared
+by `/status`, `/readyz`, and `/metrics` — never per scrape.
 
 ## Attachments
 
@@ -368,7 +383,8 @@ internal/config/             # env-only config (stateless subset)
 internal/remap/              # ':' webhook payload mapper
 internal/attach/             # SSRF policy + temp-file staging
 internal/notify/             # thin wrapper over apprise-go AddAll+Send + outbound hook
-internal/server/             # mux, handlers, writeJSON/handleMetrics helpers
+internal/server/             # mux + routes; handler/sender/validation/errors/health/metrics/middleware split
+internal/version/            # build version (dev default; ldflags ARG VERSION)
 ```
 
 ## Checks

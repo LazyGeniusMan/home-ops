@@ -252,7 +252,7 @@ func (s *Stager) stageDict(m map[string]any, fallback string, no int) (Staged, b
 func (s *Stager) stageRemote(rawURL, explicit, fallback string) (Staged, bool, error) {
 	trimmed := strings.TrimSpace(rawURL)
 	if !isWebURL(trimmed) {
-		return Staged{}, false, BadAttachment("failed to load attachment (not web request): %s", rawURL)
+		return Staged{}, false, BadAttachment("failed to load attachment (not web request): %s", redactURL(rawURL))
 	}
 	if !s.policy.IsAllowed(trimmed) {
 		return Staged{}, false, Denied(trimmed)
@@ -298,7 +298,8 @@ func (s *Stager) stageFile(f Incoming, no int) (Staged, error) {
 	}
 	rc, err := f.Open()
 	if err != nil {
-		return Staged{}, BadAttachment("could not read attachment %q: %v", name, err)
+		// %w (never %v) so errors.Is/As see the open failure.
+		return Staged{}, BadAttachment("could not read attachment %q: %w", name, err)
 	}
 	defer func() { _ = rc.Close() }()
 	maxBytes := s.limits.SizeMB * 1024 * 1024

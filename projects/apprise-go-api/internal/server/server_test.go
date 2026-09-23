@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
+
 	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/config"
 	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/notify"
 )
@@ -136,16 +138,24 @@ func TestDetailsOK(t *testing.T) {
 	}
 }
 
-func TestMetricsText(t *testing.T) {
+func TestMetricsPrometheus(t *testing.T) {
+	resetAttachCache()
 	s := testServer()
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	// Generate request series before scraping.
+	req := httptest.NewRequest(http.MethodGet, "/details", nil)
 	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /details = %d, want 200", rec.Code)
+	}
+	req = httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	rec = httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET /metrics = %d, want 200", rec.Code)
 	}
-	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "text/plain") || !strings.Contains(ct, "version=0.0.4") {
-		t.Errorf("Content-Type = %q, want Prometheus text (version=0.0.4)", ct)
+	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "text/plain") {
+		t.Errorf("Content-Type = %q, want Prometheus text", ct)
 	}
 	body := rec.Body.String()
 	for _, want := range []string{
@@ -153,10 +163,34 @@ func TestMetricsText(t *testing.T) {
 		"apprise_go_api_build_info",
 		"apprise_go_api_attach_writable 1",
 		"apprise_go_api_supported_services",
+		"apprise_go_api_http_requests_total",
+		"apprise_go_api_http_request_duration_seconds_bucket",
+		"go_goroutines",
+		"process_cpu_seconds_total",
 	} {
 		if !strings.Contains(body, want) {
-			t.Errorf("metrics body missing %q:\n%s", want, body)
+			t.Errorf("metrics body missing %q", want)
 		}
+	}
+}
+
+// TestMetricsRouteLabelIsPattern asserts the request middleware labels the
+// route with the matched mux pattern, never user-controlled path content:
+// keyed /notify/{KEY} 404s must not create per-key series.
+func TestMetricsRouteLabelIsPattern(t *testing.T) {
+	resetAttachCache()
+	s := testServer()
+	req := httptest.NewRequest(http.MethodPost, "/notify/somekey", strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("POST /notify/{KEY} = %d, want 404", rec.Code)
+	}
+	// WithLabelValues creates the series on read; assert it stays zero —
+	// the middleware never observes the raw keyed path.
+	if got := testutil.ToFloat64(httpRequestsTotal.WithLabelValues(http.MethodPost, "/notify/somekey", "404")); got != 0 {
+		t.Errorf("http_requests_total{route=/notify/somekey} = %v, want 0 (route must be the matched pattern)", got)
 	}
 }
 

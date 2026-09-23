@@ -3,8 +3,19 @@ package attach
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 )
+
+// userinfoRe matches URL userinfo (user[:pass]@) so stored error messages
+// never carry credentials embedded in attachment URLs.
+var userinfoRe = regexp.MustCompile(`(?i)([a-z][a-z0-9+.-]*://)[^/@\s?#]+@`)
+
+// redactURL strips URL userinfo (user[:pass]@ → ***@). Non-URL text passes
+// through unchanged.
+func redactURL(s string) string {
+	return userinfoRe.ReplaceAllString(s, `${1}***@`)
+}
 
 // HTTP status codes mirroring the Python apprise-api ResponseCode values
 // used by the attachment and notify paths.
@@ -92,15 +103,19 @@ func BadAttachment(format string, args ...any) error {
 }
 
 // Denied reports an SSRF-policy rejection of a remote attachment URL.
-// Python: ValueError (blocked web request) -> 400.
+// Python: ValueError (blocked web request) -> 400. The URL is stored
+// redacted in Msg (userinfo stripped) so logs and %-suffixes never carry
+// secrets; the domain stays so operators can diagnose policy misses.
 func Denied(rawURL string) error {
-	return &StatusError{Code: StatusBadRequest, Msg: fmt.Sprintf("attach: denied attachment (blocked web request): %s", rawURL)}
+	return &StatusError{Code: StatusBadRequest, Msg: fmt.Sprintf("attach: denied attachment (blocked web request): %s", redactURL(rawURL))}
 }
 
 // FetchFailed reports a remote attachment download failure (network error
-// or non-2xx status). Python: ValueError (failed to retrieve) -> 400.
+// or non-2xx status). Python: ValueError (failed to retrieve) -> 400. The
+// URL is stored redacted; wrap with %w (never %v) so errors.Is/As see the
+// cause.
 func FetchFailed(rawURL string, err error) error {
-	return &StatusError{Code: StatusBadRequest, Msg: fmt.Sprintf("attach: failed to retrieve attachment: %s", rawURL), Err: err}
+	return &StatusError{Code: StatusBadRequest, Msg: fmt.Sprintf("attach: failed to retrieve attachment: %s", redactURL(rawURL)), Err: err}
 }
 
 // BodyTooLarge reports a request body exceeding

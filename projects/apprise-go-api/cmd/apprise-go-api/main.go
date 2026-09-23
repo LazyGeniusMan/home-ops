@@ -95,5 +95,7 @@ func run() error {
 	if err := httpSrv.Shutdown(shutdownCtx); err != nil {
 		return err
 	}
+	// Shutdown drains in-flight requests; docker stop waits for this.
+	log.Info("drained")
 	return <-errCh
 }
