@@ -10,6 +10,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,9 +23,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/plan"
-	"sigs.k8s.io/external-dns/provider"
 
 	nbprovider "github.com/LazyGeniusMan/home-ops/projects/external-dns-netbird/internal/provider"
+	"github.com/LazyGeniusMan/home-ops/projects/external-dns-netbird/internal/version"
 )
 
 // MediaType is the webhook content type and version negotiated with ExternalDNS.
@@ -39,8 +40,8 @@ const (
 )
 
 // Server serves the webhook provider API plus health/metrics endpoints.
-// WebhookAddr is localhost-only (sidecar); MetricsAddr exposes /healthz and
-// /metrics for probes and scraping.
+// WebhookAddr is localhost-only (sidecar); MetricsAddr exposes /healthz,
+// /readyz, /version, and /metrics for probes and scraping.
 type Server struct {
 	provider    *nbprovider.Provider
 	log         *slog.Logger
@@ -49,6 +50,22 @@ type Server struct {
 	recordsErrs prometheus.Counter
 	applyErrs   prometheus.Counter
 	adjustErrs  prometheus.Counter
+}
+
+// buildInfo reports the ldflags-injected release version as
+// external_dns_netbird_build_info{version="..."} == 1.
+// PromQL: external_dns_netbird_build_info
+var buildInfo = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Namespace: "external_dns_netbird",
+		Name:      "build_info",
+		Help:      "Build metadata; value is always 1, release version in the version label.",
+	},
+	[]string{"version"},
+)
+
+func init() {
+	registerCollector(buildInfo)
 }
 
 // registerDefaultCollectorsOnce ensures the standard Go runtime and process
@@ -107,6 +124,10 @@ func New(p *nbprovider.Provider, log *slog.Logger, webhookAddr, metricsAddr stri
 		Name:      "adjust_endpoints_errors_total",
 		Help:      "Errors serving POST /adjustendpoints.",
 	}))
+	// Build version gauge: external_dns_netbird_build_info{version="..."} == 1.
+	// Surface via build_info (documented) — no separate /version sampler
+	// needed beyond the ops endpoint.
+	buildInfo.WithLabelValues(version.Version).Set(1)
 	return &Server{
 		provider:    p,
 		log:         log,
@@ -118,8 +139,15 @@ func New(p *nbprovider.Provider, log *slog.Logger, webhookAddr, metricsAddr stri
 	}
 }
 
-// Run starts both listeners; it blocks until one of them fails.
-func (s *Server) Run() error {
+// shutdownTimeout bounds graceful drain of both listeners on SIGTERM
+// (docker stop): in-flight webhook applies finish before the process exits.
+const shutdownTimeout = 10 * time.Second
+
+// Run starts both listeners (webhook + ops) and blocks until the context
+// is cancelled or one listener fails. On context cancellation it shuts
+// both servers down gracefully with shutdownTimeout, draining in-flight
+// requests; docker stop therefore drains instead of hard-killing.
+func (s *Server) Run(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", s.handleNegotiate)
 	mux.HandleFunc("GET /records", s.handleRecords)
@@ -147,14 +175,55 @@ func (s *Server) Run() error {
 
 	errCh := make(chan error, 2)
 	go func() {
-		s.log.Info("webhook API listening", slog.String("addr", s.webhookAddr))
-		errCh <- webhookSrv.ListenAndServe()
+		s.log.InfoContext(ctx, "webhook API listening", slog.String("addr", s.webhookAddr))
+		if err := webhookSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+			return
+		}
+		errCh <- nil
 	}()
 	go func() {
-		s.log.Info("health/metrics listening", slog.String("addr", s.metricsAddr))
-		errCh <- metricsSrv.ListenAndServe()
+		s.log.InfoContext(ctx, "health/metrics listening", slog.String("addr", s.metricsAddr))
+		if err := metricsSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+			return
+		}
+		errCh <- nil
 	}()
-	return <-errCh
+
+	select {
+	case <-ctx.Done():
+		s.log.Info("shutting down", slog.String("reason", ctx.Err().Error()))
+	case err := <-errCh:
+		// One listener failed: shut the other down gracefully before
+		// returning so no listener is orphaned.
+		if err != nil {
+			s.log.Error("listener failed, shutting down", slog.Any("err", err))
+		}
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+		_ = webhookSrv.Shutdown(shutdownCtx)
+		_ = metricsSrv.Shutdown(shutdownCtx)
+		s.log.Info("drained")
+		return err
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+	var wg sync.WaitGroup
+	wg.Add(2)
+	var webhookErr, metricsErr error
+	go func() {
+		defer wg.Done()
+		webhookErr = webhookSrv.Shutdown(shutdownCtx)
+	}()
+	go func() {
+		defer wg.Done()
+		metricsErr = metricsSrv.Shutdown(shutdownCtx)
+	}()
+	wg.Wait()
+	s.log.Info("drained")
+	return errors.Join(webhookErr, metricsErr)
 }
 
 func (s *Server) handleNegotiate(w http.ResponseWriter, _ *http.Request) {
@@ -217,14 +286,13 @@ func (s *Server) handleAdjustEndpoints(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, adjusted)
 }
 
-// writeError maps provider failures: transient (soft) errors become 5xx so
-// ExternalDNS retries; permanent errors become 4xx.
+// writeError maps provider failures via statusCodeOf and sanitizes the
+// envelope via publicError: soft (transient) errors become 502 so
+// ExternalDNS retries; hard (permanent) errors become 422. The full chain
+// is logged by the caller (single-handling rule); the caller-facing
+// {"error"} string carries no traces, tokens, or paths.
 func (s *Server) writeError(w http.ResponseWriter, err error) {
-	if isSoft(err) {
-		s.writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
-		return
-	}
-	s.writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+	s.writeJSON(w, statusCodeOf(err), map[string]string{"error": publicError(err)})
 }
 
 func (s *Server) writeJSON(w http.ResponseWriter, status int, v any) {
@@ -263,8 +331,4 @@ type statusRecorder struct {
 func (r *statusRecorder) WriteHeader(status int) {
 	r.status = status
 	r.ResponseWriter.WriteHeader(status)
-}
-
-func isSoft(err error) bool {
-	return errors.Is(err, provider.SoftError)
 }

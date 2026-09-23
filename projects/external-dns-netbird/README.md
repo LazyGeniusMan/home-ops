@@ -55,20 +55,46 @@ secret (or ESO `SecretStore`) without ever appearing in env or args.
 | webhook      | `GET /records`      | Current endpoints                        |
 | webhook      | `POST /records`     | Apply planned changes (`204` on success) |
 | webhook      | `POST /adjustendpoints` | Provider-specific adjustment         |
-| ops          | `GET /healthz`      | Liveness/readiness probe                 |
-| ops          | `GET /metrics`      | Prometheus metrics                       |
+| ops          | `GET /healthz`      | Liveness: `{"status":"ok"}`, zero downstream calls |
+| ops          | `GET /readyz`       | Readiness: NetBird API probe (`200` up, `503 {"status":"not_ready","failing":"netbird-api"}` down) |
+| ops          | `GET /version`      | Release version (`internal/version.Version`, `dev` unless ldflags-injected) |
+| ops          | `GET /metrics`      | Prometheus metrics (incl. `external_dns_netbird_build_info{version}`) |
 
-Transient NetBird failures surface as `5xx` (ExternalDNS retries);
-permanent failures surface as `4xx`.
+Error contract: transient NetBird failures (soft errors via
+`provider.NewSoftError`, `%w`-wrapped, lowercase) surface as `502`
+(ExternalDNS retries); permanent failures (e.g. `ErrNoMatchingZone`)
+surface as `422`. Malformed payloads are `400`. Handlers log the full
+error chain once server-side and return only a sanitized `{"error"}`
+envelope with no traces, tokens, or paths. See
+`internal/server/errors.go`.
+
+Lifecycle: `docker stop` (SIGTERM) drains both listeners gracefully
+(`signal.NotifyContext` + `http.Server.Shutdown(10s)`); logs show
+`shutting down` then `drained`.
+
+K8s probes:
+
+```yaml
+livenessProbe:
+  httpGet: {path: /healthz, port: 8080}
+readinessProbe:
+  httpGet: {path: /readyz, port: 8080}
+```
 
 ## Build & test
 
 ```sh
 go build ./...
-go test ./...
+go vet ./...
+go test -race -shuffle=on ./...
 golangci-lint run ./...
-docker build -t external-dns-netbird:dev .
+gofmt -s -l .
+docker build --build-arg VERSION=1.2.3 -t external-dns-netbird:dev .
 ```
+
+The Docker `ARG VERSION` is wired into
+`-ldflags "-X .../internal/version.Version=$VERSION"` and surfaces via
+`GET /version` and `external_dns_netbird_build_info{version="..."}`.
 
 Image: `ghcr.io/lazygeniusman/home-ops/projects/external-dns-netbird` (`:dev`
 + `:dev-<sha>` on any branch push, `:stable` + version on

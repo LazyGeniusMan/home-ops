@@ -13,6 +13,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -25,6 +26,13 @@ import (
 
 // SupportedTypes are the DNS record types accepted by the NetBird records API.
 var SupportedTypes = map[string]bool{"A": true, "AAAA": true, "CNAME": true}
+
+// ErrNoMatchingZone marks permanent zone-resolution failures: the endpoint
+// name matches no NetBird zone and no DOMAIN_FILTER candidate may be
+// auto-created. It is wrapped with %w so errors.Is finds it through any
+// chain; the server maps it to HTTP 422 (hard error, ExternalDNS must not
+// retry). Messages stay lowercase per the error contract.
+var ErrNoMatchingZone = errors.New("netbird: no matching zone")
 
 // API is the subset of the NetBird client used by the Provider (mockable).
 type API interface {
@@ -233,7 +241,7 @@ func (p *Provider) zoneForName(ctx context.Context, dnsName string) (string, err
 	}
 	candidate := longestFilterSuffix(p.filter, name)
 	if candidate == "" {
-		return "", fmt.Errorf("netbird: no matching zone for %q", dnsName)
+		return "", fmt.Errorf("%w for %q", ErrNoMatchingZone, dnsName)
 	}
 	// Re-check: an exact zone for the candidate may exist but be shadowed
 	// above only in theory (no match implies absence); ListZones was just
@@ -243,13 +251,13 @@ func (p *Provider) zoneForName(ctx context.Context, dnsName string) (string, err
 			// Zone exists but is outside DOMAIN_FILTER: do not reuse it,
 			// report the miss as permanent.
 			if !p.filter.Match(z.Domain) {
-				return "", fmt.Errorf("netbird: no matching zone for %q (zone %q outside domain filter)", dnsName, z.Domain)
+				return "", fmt.Errorf("%w for %q (zone %q outside domain filter)", ErrNoMatchingZone, dnsName, z.Domain)
 			}
 			return z.ID, nil
 		}
 	}
 	if !p.filter.Match(candidate) {
-		return "", fmt.Errorf("netbird: no matching zone for %q (candidate zone %q outside domain filter)", dnsName, candidate)
+		return "", fmt.Errorf("%w for %q (candidate zone %q outside domain filter)", ErrNoMatchingZone, dnsName, candidate)
 	}
 	created, err := p.api.CreateZone(ctx, netbird.CreateZoneRequest{
 		Name:               candidate,
@@ -386,6 +394,9 @@ func (p *Provider) delete(ctx context.Context, idx index, ep *endpoint.Endpoint)
 	return nil
 }
 
+// softErrorf wraps transient NetBird failures for external-dns interop.
+// The %w chain is preserved so errors.Is(err, provider.SoftError) holds;
+// messages stay lowercase per the error contract (see internal/server/errors.go).
 func softErrorf(format string, a ...any) error {
 	return provider.NewSoftError(fmt.Errorf(format, a...))
 }

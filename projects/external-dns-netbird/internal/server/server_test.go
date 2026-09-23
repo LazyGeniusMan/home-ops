@@ -46,7 +46,11 @@ func testServer() *Server {
 		},
 	}}}
 	p := nbprovider.New(api, []string{"example.com"}, 300)
-	return New(p, slog.New(slog.NewJSONHandler(io.Discard, nil)), "127.0.0.1:0", "127.0.0.1:0")
+	return New(p, testLogger(), "127.0.0.1:0", "127.0.0.1:0")
+}
+
+func testLogger() *slog.Logger {
+	return slog.New(slog.NewJSONHandler(io.Discard, nil))
 }
 
 func TestNegotiate(t *testing.T) {
@@ -134,8 +138,18 @@ func TestOpsHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK || strings.TrimSpace(rec.Body.String()) != "ok" {
-		t.Errorf("healthz = %d %q", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusOK {
+		t.Fatalf("healthz status = %d", rec.Code)
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("healthz content-type = %q, want application/json", ct)
+	}
+	var health map[string]string
+	if err := json.NewDecoder(rec.Body).Decode(&health); err != nil {
+		t.Fatalf("healthz decode: %v", err)
+	}
+	if health["status"] != "ok" {
+		t.Errorf("healthz status = %q, want ok", health["status"])
 	}
 
 	req = httptest.NewRequest(http.MethodGet, "/metrics", nil)

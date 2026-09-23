@@ -13,10 +13,13 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/LazyGeniusMan/home-ops/projects/external-dns-netbird/internal/config"
 	"github.com/LazyGeniusMan/home-ops/projects/external-dns-netbird/internal/netbird"
@@ -55,8 +58,12 @@ func run() error {
 	api := netbird.NewClient(cfg.BaseURL, cfg.PAT)
 	p := provider.New(api, cfg.DomainFilter, cfg.DefaultTTL)
 	srv := server.New(p, log, cfg.WebhookAddr, cfg.MetricsAddr)
+	// signal.NotifyContext converts SIGINT/SIGTERM (docker stop) into
+	// context cancellation so Server.Run drains both listeners gracefully.
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 	log.Info("starting")
-	if err := srv.Run(); err != nil {
+	if err := srv.Run(ctx); err != nil {
 		log.Error("server exited", slog.Any("err", err))
 		return err
 	}
