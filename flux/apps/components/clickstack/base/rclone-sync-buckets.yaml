@@ -11,7 +11,7 @@
 #   barmanObjectStore prefix `cnpg-backups/ferretdb/` (see
 #   ferretdb-postgres.yaml `destinationPath: s3://cnpg-backups/ferretdb/`).
 #   rclone mirrors `<live-bucket>/cnpg-backups/ferretdb/` to Proton Drive
-#   `/home-ops/backup/<cluster>/clickstack/ferretdb` (operation `sync`,
+#   `/home-ops/backups/<cluster>/clickstack/ferretdb` (operation `sync`,
 #   daily 03:30, `concurrencyPolicy: Forbid`, image pinned via chart
 #   defaults rclone 1.75.0).
 # - `clickstack`: the namespace-local CHI S3 backups under the storage.xml
@@ -20,7 +20,7 @@
 #   credentials from the `clickhouse-s3-backup` ExternalSecret in
 #   clickstack-secrets.yaml). rclone mirrors
 #   `<live-bucket>/clickhouse/clickstack/` to Proton Drive
-#   `/home-ops/backup/<cluster>/clickstack/clickstack` (operation `sync`,
+#   `/home-ops/backups/<cluster>/clickstack/clickstack` (operation `sync`,
 #   daily 04:00 — staggered 30m after ferretdb so the two syncs never fight
 #   over Proton Drive rate limits, `concurrencyPolicy: Forbid`).
 #
@@ -55,7 +55,7 @@
 #   .../clickstack/rclone-proton-otp-secret-key
 # Per-env overlay patches (dev/prd kustomization.yaml) repoint
 # `__PROTON_PASS_BASE__` below to the full `pass://acme-<env>-...` keys and
-# each destination uri to the full `/home-ops/backup/acme-<env>-...` path.
+# each destination uri to the full `/home-ops/backups/acme-<env>-...` path.
 #
 # Runtime note: provider AWS + the internal endpoint below mirror the chart's
 # s3->proton-drive fixture
@@ -237,7 +237,7 @@ spec:
       type: proton-drive
       remoteName: ""
       uri:
-        value: /home-ops/backup/__CLUSTER_NAME__/clickstack/ferretdb
+        value: /home-ops/backups/__CLUSTER_NAME__/clickstack/ferretdb
       credentials:
         username:
           esoRef:
@@ -299,7 +299,7 @@ spec:
       type: proton-drive
       remoteName: ""
       uri:
-        value: /home-ops/backup/__CLUSTER_NAME__/clickstack/clickstack
+        value: /home-ops/backups/__CLUSTER_NAME__/clickstack/clickstack
       credentials:
         username:
           esoRef:

@@ -1,5 +1,5 @@
 # S3→ProtonDrive off-site backup for the COSI BucketClaim/clickhouse (§10.2).
-# Every COSI claim gets a colocated sync to home-ops/backup/<cluster>/<ns>/<bucket>;
+# Every COSI claim gets a colocated sync to home-ops/backups/<cluster>/<ns>/<bucket>;
 # this file owns the clickhouse leg (namespace clickhouse via the Fleet
 # infra-configs Kustomization targetNamespace — no namespace fields below).
 # - Source is the LIVE COSI bucket, not the claim name: the driver provisions
@@ -77,7 +77,7 @@ spec:
         # it): the dev/prd overlays patch the full dest-path literal with the
         # cluster name (same placeholder→patch convention as
         # __PROTON_PASS_BASE__/__S3_ENDPOINT_URL__ elsewhere in this repo).
-        dest-path: "/home-ops/backup/__CLUSTER_NAME__/clickhouse/{{ .bucketName }}"
+        dest-path: "/home-ops/backups/__CLUSTER_NAME__/clickhouse/{{ .bucketName }}"
   data:
     - secretKey: bucketName
       remoteRef:

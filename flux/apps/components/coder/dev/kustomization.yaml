@@ -69,7 +69,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/values/destination/uri/value
-        value: /home-ops/backup/acme-dev-bdo1-talos-apps-01/coder/coder-db
+        value: /home-ops/backups/acme-dev-bdo1-talos-apps-01/coder/coder-db
     target:
       kind: HelmRelease
       name: rclone-sync-coder-db

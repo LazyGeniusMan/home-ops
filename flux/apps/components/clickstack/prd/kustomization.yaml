@@ -38,14 +38,14 @@ patches:
   - patch: |
       - op: replace
         path: /spec/values/destination/uri/value
-        value: /home-ops/backup/acme-prd-bdo1-talos-apps-01/clickstack/ferretdb
+        value: /home-ops/backups/acme-prd-bdo1-talos-apps-01/clickstack/ferretdb
     target:
       kind: HelmRelease
       name: rclone-sync-ferretdb
   - patch: |
       - op: replace
         path: /spec/values/destination/uri/value
-        value: /home-ops/backup/acme-prd-bdo1-talos-apps-01/clickstack/clickstack
+        value: /home-ops/backups/acme-prd-bdo1-talos-apps-01/clickstack/clickstack
     target:
       kind: HelmRelease
       name: rclone-sync-clickstack

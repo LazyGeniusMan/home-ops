@@ -9,7 +9,7 @@
 # dragonfly-base hourly snapshots under the snapshot prefix `dragonfly/` (see
 # dragonfly-base.yaml `dir: s3://dragonfly-backups/dragonfly/`,
 # `cron: "0 * * * *"`). rclone mirrors `<live-bucket>/dragonfly-backups/dragonfly/`
-# to Proton Drive `/home-ops/backup/<cluster>/dragonfly/dragonfly-backups`
+# to Proton Drive `/home-ops/backups/<cluster>/dragonfly/dragonfly-backups`
 # (operation `sync`, hourly at minute 30 — staggered off the snapshot top so
 # each tick picks up the just-written dump, `concurrencyPolicy: Forbid`, image
 # pinned via chart defaults rclone 1.75.0).
@@ -43,7 +43,7 @@
 #   .../dragonfly/rclone-proton-otp-secret-key
 # Per-env overlay patches (dev/prd kustomization.yaml) repoint
 # `__PROTON_PASS_BASE__` below to the full `pass://acme-<env>-...` keys and
-# the destination uri to the full `/home-ops/backup/acme-<env>-...` path.
+# the destination uri to the full `/home-ops/backups/acme-<env>-...` path.
 #
 # Runtime note: provider AWS + the internal endpoint below mirror the chart's
 # s3->proton-drive fixture
@@ -188,7 +188,7 @@ spec:
       type: proton-drive
       remoteName: ""
       uri:
-        value: /home-ops/backup/__CLUSTER_NAME__/dragonfly/dragonfly-backups
+        value: /home-ops/backups/__CLUSTER_NAME__/dragonfly/dragonfly-backups
       credentials:
         username:
           esoRef:

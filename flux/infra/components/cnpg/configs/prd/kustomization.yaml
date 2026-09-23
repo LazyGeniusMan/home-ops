@@ -23,7 +23,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/values/destination/uri/value
-        value: /home-ops/backup/acme-prd-bdo1-talos-apps-01/cnpg/cnpg-backups
+        value: /home-ops/backups/acme-prd-bdo1-talos-apps-01/cnpg/cnpg-backups
     target:
       kind: HelmRelease
       name: rclone-sync-cnpg-backups

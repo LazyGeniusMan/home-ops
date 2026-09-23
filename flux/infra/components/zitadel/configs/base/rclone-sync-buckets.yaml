@@ -67,8 +67,8 @@
 #   "zitadel-assets" in controllers/base/zitadel.yaml).
 #
 # Proton destination: one ProtonDrive folder per bucket —
-# /home-ops/backup/<cluster>/zitadel/<bucket> (e.g.
-# /home-ops/backup/__CLUSTER_NAME__/zitadel/zitadel-db). The
+# /home-ops/backups/<cluster>/zitadel/<bucket> (e.g.
+# /home-ops/backups/__CLUSTER_NAME__/zitadel/zitadel-db). The
 # <cluster> segment is the __CLUSTER_NAME__ placeholder below, replaced per
 # env by the dev/prd overlays (same base-carries-placeholder convention as
 # __PROTON_PASS_BASE__/__S3_ENDPOINT_URL__ in zitadel-db.yaml and friends). Credentials: username literal
@@ -273,7 +273,7 @@ spec:
     destination:
       type: proton-drive
       uri:
-        value: /home-ops/backup/__CLUSTER_NAME__/zitadel/zitadel-db
+        value: /home-ops/backups/__CLUSTER_NAME__/zitadel/zitadel-db
       credentials:
         username:
           esoRef:
@@ -334,7 +334,7 @@ spec:
     destination:
       type: proton-drive
       uri:
-        value: /home-ops/backup/__CLUSTER_NAME__/zitadel/zitadel-cache
+        value: /home-ops/backups/__CLUSTER_NAME__/zitadel/zitadel-cache
       credentials:
         username:
           esoRef:
@@ -395,7 +395,7 @@ spec:
     destination:
       type: proton-drive
       uri:
-        value: /home-ops/backup/__CLUSTER_NAME__/zitadel/zitadel-assets
+        value: /home-ops/backups/__CLUSTER_NAME__/zitadel/zitadel-assets
       credentials:
         username:
           esoRef:

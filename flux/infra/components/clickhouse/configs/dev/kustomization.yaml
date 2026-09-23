@@ -47,7 +47,7 @@ patches:
   - patch: |
       - op: replace
         path: /spec/target/template/data/dest-path
-        value: "/home-ops/backup/acme-dev-bdo1-talos-apps-01/clickhouse/{{ .bucketName }}"
+        value: "/home-ops/backups/acme-dev-bdo1-talos-apps-01/clickhouse/{{ .bucketName }}"
     target:
       kind: ExternalSecret
       name: rclone-sync-clickhouse-paths

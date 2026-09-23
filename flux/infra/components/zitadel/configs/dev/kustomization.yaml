@@ -21,21 +21,21 @@ patches:
   - patch: |
       - op: replace
         path: /spec/values/destination/uri/value
-        value: /home-ops/backup/acme-dev-bdo1-talos-apps-01/zitadel/zitadel-db
+        value: /home-ops/backups/acme-dev-bdo1-talos-apps-01/zitadel/zitadel-db
     target:
       kind: HelmRelease
       name: zitadel-db-rclone-sync
   - patch: |
       - op: replace
         path: /spec/values/destination/uri/value
-        value: /home-ops/backup/acme-dev-bdo1-talos-apps-01/zitadel/zitadel-cache
+        value: /home-ops/backups/acme-dev-bdo1-talos-apps-01/zitadel/zitadel-cache
     target:
       kind: HelmRelease
       name: zitadel-cache-rclone-sync
   - patch: |
       - op: replace
         path: /spec/values/destination/uri/value
-        value: /home-ops/backup/acme-dev-bdo1-talos-apps-01/zitadel/zitadel-assets
+        value: /home-ops/backups/acme-dev-bdo1-talos-apps-01/zitadel/zitadel-assets
     target:
       kind: HelmRelease
       name: zitadel-assets-rclone-sync
