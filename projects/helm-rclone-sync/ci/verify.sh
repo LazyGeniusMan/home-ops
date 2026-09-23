@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Manual verification for helm-rclone-sync: lint, render all 10 sync
+# Verification for helm-rclone-sync: lint, render all 10 sync
 # directions + the four-value-source fixture, assert the env-only contract
 # (no rclone.conf anywhere), assert volume/env shape, and prove fail-fast
-# errors. No in-repo callers; run by hand from the repo root:
+# errors. Runs in CI (.github/workflows/helm-rclone-sync.yml); run by hand
+# from the repo root:
 #   bash projects/helm-rclone-sync/ci/verify.sh
 set -euo pipefail
 

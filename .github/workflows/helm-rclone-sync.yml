@@ -51,9 +51,6 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: projects/helm-rclone-sync
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -63,24 +60,14 @@ jobs:
         with:
           version: v4.2.4
 
-      - name: Lint
-        run: helm lint .
-
-      - name: Template (all fixtures)
+      - name: Verify (lint + fixtures + assertions)
         # Directions are expressed via source.type/destination.type, not a
-        # `direction` value (see ci/values-direction-*.yaml). Render every
-        # direction fixture plus the four-value-source and RWO co-location
-        # fixtures, mirroring ci/verify.sh (renders only; assertions
-        # live there).
-        run: |
-          for f in ci/values-direction-*.yaml; do
-            helm template helm-rclone-sync . -f "$f" > /dev/null
-          done
-          helm template helm-rclone-sync . \
-            -f ci/values-sources-all-four.yaml > /dev/null
-          for f in ci/values-colocate-*.yaml; do
-            helm template helm-rclone-sync . -f "$f" > /dev/null
-          done
+        # `direction` value (see ci/values-direction-*.yaml). ci/verify.sh
+        # runs lint, all fixture renders, env-only contract checks, shape
+        # assertions, and fail-fast proofs (plus yamllint/kubeconform extras
+        # where installed); it runs from the repo root, matching its
+        # hand-run form.
+        run: bash projects/helm-rclone-sync/ci/verify.sh
 
   publish:
     runs-on: ubuntu-latest
