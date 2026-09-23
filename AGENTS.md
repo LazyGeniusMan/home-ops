@@ -32,7 +32,7 @@ Key facts:
 - Toolchain source of truth is `.flox/env/manifest.toml` (ansible 2.21.3, ansible-lint 25.8.2, go 1.26.7, gopls 0.23.0, golangci-lint 2.13.2, govulncheck 1.8.0, opentofu 1.12.6, kubectl 1.37.0, helm 4.2.4, kustomize 5.8.1, fluxcd 2.9.4, yq 4.53.3, kubeconform 0.8.0, yamllint 1.37.1, cosign 3.1.3, oras 1.3.4, proton-pass-cli 2.3.3; `terraform` is aliased to `tofu`). `talosctl` v1.15.0-alpha.0 is the one exception: it is fetched by the `on-activate` hook via curl into `.flox/cache/bin`, not from the catalog. On any tool upgrade, migrate every consumer together so pins keep parity across the Flox manifest, `talos/ansible/group_vars/all.yml`, Terraform/Ansible version constraints, GitHub workflows, Dockerfiles, and Flux manifests.
 - Secrets live in Proton Pass and are injected with the `pass-cli` binary (not `proton-pass-cli`). Gate on `pass-cli info` for login state, inject with double-brace templates plus `item view`, and always export the hardened env (`PROTON_PASS_DISABLE_TELEMETRY=1`, key provider `fs`, agent reason set, `*_FILE` file-backed pattern). Unencrypted secrets are gitignored at repo root and under `talos/.gitignore`; only double-brace `{{ }}` placeholders are ever committed. For every `pass://` reference you add, document its full path length, one redacted example, and the command that generates the value.
 
-## Essential Commands
+## Essential commands
 
 Run everything from the repo root inside Flox (`terraform` already means `tofu`). Copy-paste as-is; do not invent flags.
 
@@ -110,7 +110,7 @@ CI mirrors these gates per path (Go workflows, `flux-*-validate.yaml`, push/rele
 - Do NOT use `TODO`/`FIXME` in first-party code, push unpinned `uses:` refs in workflows, or run `flux/scripts/validate.sh` against the wrong scope and call it coverage.
 - Do NOT skip the doc update, the reference-docs check, or the skill lookup when one applies. Stale docs and improvised tool usage rot this repo faster than anything else.
 
-## Code Style
+## Code style
 
 - YAML: 2-space indent, `yamllint`-clean, `kubeconform`-strict valid; multi-doc Talos patches keep each `---` document's `apiVersion`/`kind` explicit.
 - Kustomize: `base` is deployable-shaped with placeholders; overlays only patch. Keep `interval: 30m` Kustomizations, `dependsOn` infra for apps, and `Ready` readiness semantics consistent with neighboring components.
