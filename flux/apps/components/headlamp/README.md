@@ -82,7 +82,7 @@ The plugin-manager sidecar resolves each `source` via ArtifactHub metadata
 
 | Plugin | Version | Source URL |
 | --- | --- | --- |
-| ai-assistant (`headlamp_ai_assistant`) | `0.4.0-alpha` | `https://artifacthub.io/packages/headlamp/headlamp-plugins/headlamp_ai_assistant` |
+| ai-assistant (`headlamp_ai_assistant`) | `0.4.1-alpha` | `https://artifacthub.io/packages/headlamp/headlamp-plugins/headlamp_ai_assistant` |
 | flux (`headlamp_flux`) | `0.7.0` | `https://artifacthub.io/packages/headlamp/headlamp-plugins/headlamp_flux` |
 | kubevirt (`headlamp_kubevirt`) | `0.3.1` | `https://artifacthub.io/packages/headlamp/headlamp-kubevirt/headlamp_kubevirt` |
 

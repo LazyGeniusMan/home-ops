@@ -171,7 +171,7 @@ patches:
       kind: HelmRelease
       name: coder
   # Prd replica counts: stateless HA floor (2), CNPG 3. Static
-  # `coder.replicaCount` stays at the HPA min (chart 2.37.0 has no
+  # `coder.replicaCount` stays at the HPA min (chart 2.37.3 has no
   # autoscaling knob); the HPA below scales 2-4 on CPU.
   - patch: |
       - op: replace

@@ -20,9 +20,9 @@ default shape, cross-namespace):
   the `cilium` namespace (see the §8.2 cilium component), port 80 = relay
   server TLS OFF (no relay TLS block set in the §8.2 values, so the
   plaintext `:80` branch applies).
-- Images pinned to the Cilium v1.20.1 chart defaults: frontend
-  `quay.io/cilium/hubble-ui:v0.13.5`, backend
-  `quay.io/cilium/hubble-ui-backend:v0.13.5`.
+- Images pinned to the Cilium v1.20.2 chart defaults: frontend
+  `quay.io/cilium/hubble-ui:v0.13.6`, backend
+  `quay.io/cilium/hubble-ui-backend:v0.13.6`.
 - Nginx front door (`hubble-ui-nginx` ConfigMap) rendered from the chart's
   `hubble-ui/_nginx.tpl` with the default baseUrl `/` (`:80 → 8081`,
   `/api → 127.0.0.1:8090`).
@@ -34,7 +34,7 @@ default shape, cross-namespace):
 
 ## Auth (locked proxy contract)
 
-Per-instance `oauth2-proxy` (`quay.io/oauth2-proxy/oauth2-proxy:v7.6.0`)
+Per-instance `oauth2-proxy` (`quay.io/oauth2-proxy/oauth2-proxy:v7.15.4`)
 fronts the UI; the HTTPRoute backend points at the proxy (`:4180`), which
 upstreams to `http://hubble-ui.hubble-ui.svc:80`:
 
@@ -80,7 +80,7 @@ Secrets are namespace-local).
   `prometheus.enabled: true`) and the UI once the monitoring stack exists.
 - Updates flow through `flux/apps/update-policies/hubble-ui.yaml`
   (ImageRepository + ImagePolicy, `$imagepolicy` markers on all three
-  images; the UI floor `>=0.13.5` tracks the UI image line).
+  images; the UI floor `>=0.13.6` tracks the UI image line).
 
 ## Environments
 

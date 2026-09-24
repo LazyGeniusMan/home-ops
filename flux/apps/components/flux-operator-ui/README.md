@@ -15,10 +15,10 @@ Tenant is `apps/flux-operator-ui` via
 
 ## Version choice
 
-UI tag **0.59.0**, chart
+UI tag **0.60.0**, chart
 `oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator` — pinned to the
 Flux Operator release line compatible with bootstrap
-**0.59.0** / operator chart **0.59.0** (`operator_chart_version` in
+**0.60.0** / operator chart **0.60.0** (`operator_chart_version` in
 `flux/fleet/terraform/versions.yaml`, the single source: `clusters/*/flux-system/flux-operator.yaml`
 consumes the same coordinates via Flux after bootstrap, and
 `tests/versions.tftest.hcl` asserts the GitOps↔Terraform mapping). The
@@ -91,7 +91,7 @@ cert-manager Secrets cannot cross namespaces).
   serves metrics yet (monitors guarded, same discipline as cert-manager §9).
 - The UI tracks the operator release line via
   `update-policies/flux-operator-ui.yaml` (chart marker
-  `apps:flux-operator-ui:tag`, floor `>=0.59.0`). It NEVER touches fleet sync:
+  `apps:flux-operator-ui:tag`, floor `>=0.60.0`). It NEVER touches fleet sync:
   this release is `serverOnly` with `installCRDs: false`, so it owns no CRDs,
   no bootstrap values, and no Managed sync resources — bumps move the UI tag
   and `operator_chart_version` together, nothing else.

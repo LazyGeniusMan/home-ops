@@ -1,8 +1,8 @@
 # Coder (§13.6)
 
 Self-hosted remote dev environments at
-`https://coder.home-ops.yansyah.my.id`, app `v2.37.0` via chart
-`coder-v2/coder` **2.37.0** (classic `https://helm.coder.com/v2` repo —
+`https://coder.home-ops.yansyah.my.id`, app `v2.37.3` via chart
+`coder-v2/coder` **2.37.3** (classic `https://helm.coder.com/v2` repo —
 OCI pulls 403/404 on every upstream path, verified at authoring time, so
 the chart pin is bumped manually while `ghcr.io/coder/coder` auto-tracks
 through `update-policies/coder.yaml`; same split as the seaweedfs
@@ -221,4 +221,4 @@ Upstream reference (read-only): `/tmp/home-ops-docs/coder-docs`.
   (default off) until `monitoring.coreos.com` CRDs land (same §9
   deviation). Coderd health via `kube-state-metrics` meanwhile.
 - App image auto-tracks via `update-policies/coder.yaml`
-  (`ghcr.io/coder/coder:v2.37.0` marker); chart bumps are manual.
+  (`ghcr.io/coder/coder:v2.37.3` marker); chart bumps are manual.

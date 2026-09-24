@@ -22,4 +22,4 @@ spec:
     name: coder
   policy:
     semver:
-      range: ">=2.37.0"
+      range: ">=2.37.3"

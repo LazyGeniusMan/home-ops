@@ -2,7 +2,7 @@
 # authenticates against Zitadel (issuer __ZITADEL_ISSUER_URL__, own
 # `clickstack` client managed by this app's `clickstack-sso` Terraform CR),
 # gates on the `clickstack-admin` group. Image
-# quay.io/oauth2-proxy/oauth2-proxy:v7.6.0. ESO secret below holds refs only.
+# quay.io/oauth2-proxy/oauth2-proxy:v7.15.4. ESO secret below holds refs only.
 # The generated client ID comes from the vault (ESO-synced, never Git, never
 # a literal flag — see OAUTH2_PROXY_CLIENT_ID below). Callback
 # https://__SERVICE_HOST__/oauth2/callback is covered by the registered
@@ -31,7 +31,7 @@ spec:
     spec:
       containers:
         - name: oauth2-proxy
-          image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0 # {"$imagepolicy": "apps:oauth2-proxy:tag"}
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.4 # {"$imagepolicy": "apps:oauth2-proxy:tag"}
           imagePullPolicy: IfNotPresent
           args:
             - --http-address=0.0.0.0:4180

@@ -1,8 +1,8 @@
 # Flux Operator UI HPA (autoscaling/v2 over the chart-rendered Deployment
 # `flux-operator-ui` — fullnameOverride pins the Service/Deployment name).
-# Chart 0.59.0 has NO autoscaling knob (evidence: flux-operator-docs
+# Chart 0.60.0 has NO autoscaling knob (evidence: flux-operator-docs
 # docs/web/web-standalone.md documents only `web.serverOnly` +
-# `web.serverReplicas`; `helm show values ... --version 0.59.0` confirms
+# `web.serverReplicas`; `helm show values ... --version 0.60.0` confirms
 # `web.serverReplicas: 1` with no autoscaling block), so the HPA lives here
 # and static `web.serverReplicas` stays as the chart seed (dev 1 / prd 2 via
 # overlay patches); no Deployment /spec/replicas overlay patch: base

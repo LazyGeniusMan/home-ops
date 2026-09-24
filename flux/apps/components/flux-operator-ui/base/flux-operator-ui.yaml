@@ -1,5 +1,5 @@
 # Flux Operator UI (§11.4): standalone Web UI (serverOnly) from the SAME chart
-# line as bootstrap (0.59.0 — version choice documented in README).
+# line as bootstrap (0.60.0 — version choice documented in README).
 # Chart: oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator (upstream
 # source of truth per docs/web/web-standalone.md; versions.yaml is the single
 # source — this tag MUST match operator_chart_version there).
@@ -21,7 +21,7 @@ spec:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
   ref:
-    tag: 0.59.0 # {"$imagepolicy": "apps:flux-operator-ui:tag"}
+    tag: 0.60.0 # {"$imagepolicy": "apps:flux-operator-ui:tag"}
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -47,7 +47,7 @@ spec:
     fullnameOverride: flux-operator-ui
     installCRDs: false
     # Resources: chart defaults pinned explicit (verified via helm show values
-    # at 0.59.0; docs/web/web-standalone.md gives no UI-specific sizing, and
+    # at 0.60.0; docs/web/web-standalone.md gives no UI-specific sizing, and
     # the manager container in config/manager/deployment.yaml carries the
     # same limits). CPU requests REQUIRED for the targetCPU HPA denominator.
     resources:

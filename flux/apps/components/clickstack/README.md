@@ -79,7 +79,7 @@ Connection contract:
 
 ## Auth (locked proxy contract)
 
-Per-instance `oauth2-proxy` (`quay.io/oauth2-proxy/oauth2-proxy:v7.6.0`)
+Per-instance `oauth2-proxy` (`quay.io/oauth2-proxy/oauth2-proxy:v7.15.4`)
 fronts the UI; the HTTPRoute backend points at the proxy (`:4180`), which
 upstreams to `http://clickstack.clickstack.svc:3000`:
 

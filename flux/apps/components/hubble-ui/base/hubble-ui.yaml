@@ -1,7 +1,7 @@
 # Hubble UI standalone (§11.3): Deployment + Service reaching Hubble Relay BY
 # DNS NAME (hubble-relay.cilium.svc:80 — Relay itself ships in the §8.2 cilium
-# component, NOT here). Images pinned to the Cilium v1.20.1 chart defaults
-# (frontend + backend v0.13.5); bumps via update-policies/hubble-ui.yaml.
+# component, NOT here). Images pinned to the Cilium v1.20.2 chart defaults
+# (frontend + backend v0.13.6); bumps via update-policies/hubble-ui.yaml.
 # Shape mirrors the chart's hubble-ui templates (Deployment env, probes, nginx
 # ConfigMap, Service 80→8081) minus cluster-scoped RBAC (see Role below).
 # Telemetry: the chart exposes no usage-reporting keys (verified at authoring:
@@ -115,7 +115,7 @@ spec:
       serviceAccountName: hubble-ui
       containers:
         - name: frontend
-          image: quay.io/cilium/hubble-ui:v0.13.5 # {"$imagepolicy": "apps:hubble-ui:tag"}
+          image: quay.io/cilium/hubble-ui:v0.13.6 # {"$imagepolicy": "apps:hubble-ui:tag"}
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -147,7 +147,7 @@ spec:
               drop:
                 - ALL
         - name: backend
-          image: quay.io/cilium/hubble-ui-backend:v0.13.5 # {"$imagepolicy": "apps:hubble-ui-backend:tag"}
+          image: quay.io/cilium/hubble-ui-backend:v0.13.6 # {"$imagepolicy": "apps:hubble-ui-backend:tag"}
           imagePullPolicy: IfNotPresent
           env:
             - name: EVENTS_SERVER_PORT

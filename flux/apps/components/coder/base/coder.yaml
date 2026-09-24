@@ -1,6 +1,6 @@
-# Coder v2.37.0 remote dev environments (§13.6): self-hosted workspaces on the
+# Coder v2.37.3 remote dev environments (§13.6): self-hosted workspaces on the
 # Talos cluster (coderd + in-cluster provisioner via the chart service account).
-# Chart: classic HelmRepository https://helm.coder.com/v2, chart coder 2.37.0
+# Chart: classic HelmRepository https://helm.coder.com/v2, chart coder 2.37.3
 # (NO OCI index exists upstream — `helm show chart` 403s on every ghcr.io/coder
 # path and registry.coder.com carries no chart; verified at authoring time. So
 # the chart version below is bumped manually while the APP image auto-tracks
@@ -35,7 +35,7 @@ spec:
   chart:
     spec:
       chart: coder
-      version: 2.37.0
+      version: 2.37.3
       sourceRef:
         kind: HelmRepository
         name: coder
@@ -54,7 +54,7 @@ spec:
       replicaCount: 1 # placeholder - overridden by dev/prd
       image:
         repo: ghcr.io/coder/coder
-        tag: v2.37.0 # {"$imagepolicy": "apps:coder:tag"}
+        tag: v2.37.3 # {"$imagepolicy": "apps:coder:tag"}
         pullPolicy: IfNotPresent
       # ClusterIP: the §8.1 Gateway routes to the Service; no cloud LB.
       service:

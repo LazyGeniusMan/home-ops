@@ -31,15 +31,15 @@ run "operator_versions_match_gitops" {
     error_message = "flux-operator.yaml OCIRepository url must contain the versions.yaml operator_chart_repository."
   }
 
-  # Pinned versions: bootstrap module 0.8.0, operator chart 0.59.0.
+  # Pinned versions: bootstrap module 0.8.0, operator chart 0.60.0.
   assert {
     condition     = output.test_operator_ref["bootstrap_module_version"] == "0.8.0"
     error_message = "bootstrap module version must stay pinned at 0.8.0 (versions.yaml)."
   }
 
   assert {
-    condition     = output.test_operator_ref["operator_chart_version"] == "0.59.0"
-    error_message = "operator chart version must stay pinned at 0.59.0 (versions.yaml)."
+    condition     = output.test_operator_ref["operator_chart_version"] == "0.60.0"
+    error_message = "operator chart version must stay pinned at 0.60.0 (versions.yaml)."
   }
 
   assert {

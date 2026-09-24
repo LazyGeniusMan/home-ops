@@ -171,7 +171,7 @@ patches:
       kind: HelmRelease
       name: coder
   # Dev replica counts: minimal single-replica footprint. Static
-  # `coder.replicaCount` stays at the HPA min (chart 2.37.0 has no
+  # `coder.replicaCount` stays at the HPA min (chart 2.37.3 has no
   # autoscaling knob); the HPA below scales 1-2 on CPU.
   - patch: |
       - op: replace

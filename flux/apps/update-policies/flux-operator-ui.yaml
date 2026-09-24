@@ -26,4 +26,4 @@ spec:
     name: flux-operator-ui
   policy:
     semver:
-      range: ">=0.59.0"
+      range: ">=0.60.0"

@@ -2,7 +2,7 @@
 # authenticates against Zitadel (issuer __ZITADEL_ISSUER_URL__, OWN `hubble`
 # client owned by this app's `hubble-ui-sso` Terraform CR), gates on the
 # `hubble-ui-admin` project role (admin-only). Image
-# quay.io/oauth2-proxy/oauth2-proxy:v7.6.0. ESO secret below holds refs only.
+# quay.io/oauth2-proxy/oauth2-proxy:v7.15.4. ESO secret below holds refs only.
 # The generated client_id is server-side, so it rides the
 # OAUTH2_PROXY_CLIENT_ID env (from ESO) — never a --client-id flag.
 # Callback https://__SERVICE_HOST__/oauth2/callback is covered by
@@ -31,7 +31,7 @@ spec:
     spec:
       containers:
         - name: oauth2-proxy
-          image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0 # {"$imagepolicy": "apps:oauth2-proxy:tag"}
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.4 # {"$imagepolicy": "apps:oauth2-proxy:tag"}
           imagePullPolicy: IfNotPresent
           args:
             - --http-address=0.0.0.0:4180

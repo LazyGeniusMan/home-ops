@@ -22,4 +22,4 @@ spec:
     name: element-web
   policy:
     semver:
-      range: ">=1.12.28"
+      range: ">=1.12.29"

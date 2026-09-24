@@ -4,10 +4,10 @@
 # - clusters/*/flux-system/flux-operator.yaml (OCIRepository url consumed by
 #   Flux after bootstrap) MUST reference the same repository recorded here;
 #   GitOps floats on semver '*' while versions.yaml pins the bootstrap
-#   install (0.59.0).
+#   install (0.60.0).
 # - main.tf reads this file and passes repository/version to the
 #   flux-operator-bootstrap module, and tests/versions.tftest.hcl asserts the
 #   mapping so drift between GitOps and Terraform fails `tofu test`.
 operator_chart_repository: ghcr.io/controlplaneio-fluxcd/charts/flux-operator
-operator_chart_version: 0.59.0
+operator_chart_version: 0.60.0
 bootstrap_module_version: 0.8.0
