@@ -1,18 +1,18 @@
-# Update policy for the coredns component (§8.3): tracks the classic Helm chart
+# Update policy for the coredns component (§8.3): tracks the OCI Helm chart
 # plus the node-local-dns cache image, and the ImageUpdateAutomation (update
 # cluster) opens PRs via markers in components/coredns (see README). Follows
 # the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
 # Changelog: app — https://github.com/coredns/coredns/releases.
 # Changelog: chart — https://github.com/coredns/helm/releases.
-# Mode: manual (classic-repo chart `version:` hand-bump) + auto (node-cache image).
-# Coupled files: [controllers/base/coredns.yaml (chart `version:` + `values.image.tag`), configs/base/node-local-dns.yaml, configs/base/corefile.yaml].
+# Mode: auto (chart) + auto (node-cache image).
+# Coupled files: [controllers/base/coredns.yaml (chart `ref.tag` + `values.image.tag`), configs/base/node-local-dns.yaml, configs/base/corefile.yaml].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
 metadata:
   name: coredns
 spec:
-  image: "coredns/coredns"
+  image: "ghcr.io/coredns/charts/coredns"
   interval: 12h
   provider: generic
 ---
@@ -25,7 +25,7 @@ spec:
     name: coredns
   policy:
     semver:
-      range: ">=1.47.0"
+      range: ">=1.47.1"
 # Node-local DNS cache image (G5: pinned 1.26.8, matches upstream
 # nodelocaldns.yaml master; requires >= 1.15.16 for the LRP interface/
 # iptables knobs). Marker lives on the DaemonSet in

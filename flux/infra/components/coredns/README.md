@@ -6,12 +6,17 @@ and forwarding everything else upstream.
 
 ## Chart source
 
-No OCI chart source exists for CoreDNS, so the component uses the classic
-`HelmRepository` (`coredns/coredns`, https://coredns.github.io/helm — the
-upstream-published chart repo). Chart
-1.47.0 carries app 1.14.6, so the app image is pinned explicitly to `1.14.7`
+The component consumes the official upstream OCI chart
+`oci://ghcr.io/coredns/charts/coredns` via `OCIRepository` (`coredns-chart`,
+interval 1h, same shape as cert-manager/cilium) with the `$imagepolicy`
+marker `infra:coredns:tag` on `ref.tag`. Chart
+1.47.1 carries app 1.14.6, so the app image is pinned explicitly to `1.14.7`
 (verified live on Docker Hub); the update policy tracks the chart at
-`>=1.47.0` while the app pin rides in `values.image.tag`.
+`>=1.47.1` while the app pin rides in `values.image.tag`. Chart 1.47.1 over
+1.47.0 is additive-only (coredns/helm `coredns-1.47.1`, 2026-09-09: separate
+labels/selector knobs for the cluster-proportional-autoscaler Deployment —
+inert here since the autoscaler stays disabled and the out-of-band HPA owns
+the count).
 
 ## Corefile chain (template → hosts → forward)
 
@@ -80,15 +85,15 @@ the coupling.
 
 ## Upgrade runbook
 
-- Version source: the `version:` pin in `controllers/base/coredns.yaml`
-  (classic-repo chart 1.47.0, app image pinned separately in
+- Version source: the `ref.tag` pin in `controllers/base/coredns.yaml`
+  (OCI chart 1.47.1, app image pinned separately in
   `values.image.tag` to 1.14.7) plus the node-local-dns cache image in
   `configs/base/node-local-dns.yaml`.
 - Changelog (app): https://github.com/coredns/coredns/releases.
   Changelog (chart): https://github.com/coredns/helm/releases.
-- Bump: set the chart `version:` by hand (classic repo — no OCI
-  automation), move the `$imagepolicy` marker for the app image in the
-  same file, and keep the node-cache marker on the supported line
+- Bump: let the ImageUpdateAutomation propose the chart `ref.tag` move via
+  the `$imagepolicy` marker (`infra:coredns:tag`), move the app image pin in
+  the same file, and keep the node-cache marker on the supported line
   (`update-policies/coredns.yaml`).
 - Verify: re-run the three `dig` checks in Validation above (apex +
   both wildcards → LB VIP, everything else forwards upstream).

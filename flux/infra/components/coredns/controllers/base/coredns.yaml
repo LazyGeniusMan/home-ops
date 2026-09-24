@@ -1,9 +1,9 @@
 # CoreDNS v1.14.7 (§8.3): in-cluster DNS for the home-ops Tailnet edge.
 # Deployed at bootstrap alongside Cilium (§8.2) so cluster DNS is live before
 # any workload that resolves *.home-ops.yansyah.my.id lands.
-# Chart: coredns/coredns via classic HelmRepository (chart 1.47.0 carries app
+# Chart: oci://ghcr.io/coredns/charts/coredns (chart 1.47.1 carries app
 # 1.14.6; app image pinned to 1.14.7 explicitly — see README for the
-# OCI-first justification). App image verified live on Docker Hub.
+# versioning split). App image verified live on Docker Hub.
 # Telemetry: no usage-reporting/telemetry keys in chart values (verified:
 # non-comment values lines matching telemetry|usageReporting|phoneHome|
 # analytics are empty), so there is nothing to switch off.
@@ -11,12 +11,17 @@
 # ServiceMonitor stays disabled until monitoring.coreos.com CRDs land.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
+kind: OCIRepository
 metadata:
-  name: coredns
+  name: coredns-chart
 spec:
   interval: 1h
-  url: https://coredns.github.io/helm
+  url: oci://ghcr.io/coredns/charts/coredns
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: 1.47.1 # {"$imagepolicy": "infra:coredns:tag"}
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -26,13 +31,9 @@ spec:
   interval: 1h
   releaseName: coredns
   serviceAccountName: flux
-  chart:
-    spec:
-      chart: coredns
-      version: 1.47.0 # {"$imagepolicy": "infra:coredns:tag"}
-      sourceRef:
-        kind: HelmRepository
-        name: coredns
+  chartRef:
+    kind: OCIRepository
+    name: coredns-chart
   install:
     strategy:
       name: RetryOnFailure
@@ -44,10 +45,11 @@ spec:
   # https://github.com/coredns/helm/tree/master/charts/coredns
   values:
     # Replica seed - the out-of-band HPA in hpa.yaml owns the count at runtime
-    # (chart 1.47.0 has no autoscaling knob). Dev seeds 1, prd seeds 2.
+    # (chart 1.47.1 has no autoscaling knob — the CPA sub-chart stays
+    # disabled). Dev seeds 1, prd seeds 2.
     # (Chart already defaults CPU requests 100m, so targetCPU has a denominator.)
     replicaCount: 1 # placeholder - overridden by dev/prd overlays
-    # Resources: chart 1.47.0 defaults pinned explicit (verified via helm
+    # Resources: chart 1.47.1 defaults pinned explicit (verified via helm
     # show values: limits 100m/128Mi, requests 100m/128Mi). CPU requests
     # REQUIRED for the targetCPU HPA denominator.
     resources:
