@@ -85,14 +85,14 @@ OCI is the upstream source of truth, verified by pull:
   `configs/base/bucketclaims.yaml`. (`zitadel-db`, `coder-db`, and
   `ferretdb` each use a dedicated in-namespace claim; see the cosi README.)
   COSI-managed buckets live under controller-generated names — see the cosi
-  README "Bucket naming" before repointing `destinationPath`.
+  README "Bucket naming" for the name mapping used in `destinationPath`.
 - Credentials: `ExternalSecret/cnpg-s3-credentials` syncs
   `ACCESS_KEY_ID`/`ACCESS_SECRET_KEY` from the COSI-minted BucketInfo JSON
   (Secret `cnpg-backups-cosi-creds`) through the in-namespace `cnpg-cosi`
   SecretStore — GJSON `property` extracts
   `spec.secretS3.accessKeyID/accessSecretKey`. Target literal keys are
-  unchanged. The Proton Pass
-  `pass://…/cnpg/s3-*` entries stay seeded as rollback.
+  unchanged. Decommissioned vault paths (`pass://…/cnpg/s3-*`) are
+  deleted; no rollback entries are kept.
 - S3-compatible quirk per upstream docs: if boto3 checksum errors appear
   (`x-amz-content-sha256`), set `spec.env` `AWS_REQUEST_CHECKSUM_CALCULATION`
   / `AWS_RESPONSE_CHECKSUM_VALIDATION` to `when_required` on the Cluster.

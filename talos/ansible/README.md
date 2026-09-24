@@ -59,10 +59,9 @@ ansible/
   (`outputs.talos_setup_key.value`), rewrites the
   `__TALOS_NETBIRD_SETUP_KEY__` placeholder in the rendered cluster patch
   (`0600`, `no_log: true` throughout, UUID shape-gated). There is NO
-  `outputs_secret` fallback — the Flux consumer is proxy-only and no
-  longer exposes `talos_setup_key`. The old vault
-  `talos`/`netbird-setup-key` fields are retired — the setup key never
-  lives in the vault. (manual commands can also
+  `outputs_secret` fallback — the Flux consumer is proxy-only and does
+  not expose `talos_setup_key`. The setup key never lives in the vault.
+  (manual commands can also
   `export PROTON_PASS_AGENT_REASON=talos-render-manual-exec-<16 hex>` for
   audit attribution). Ansible auto-generates a fresh unique
   `PROTON_PASS_AGENT_REASON` per `pass-cli` exec
@@ -160,9 +159,8 @@ across runs — never backed up, never committed, never deleted between runs
 
 Each node also runs an NFS server stack: the node schematic layer adds
 `siderolabs/nfsd` + `nfs-utils` + `nfs-server`, configured by
-`EtcFileConfig` `exports` (existing `nvme-data` (+ `sata-data` on dev —
-prd has no `sata-data`: the host has no SATA disk, so the unsatisfiable
-selector was removed) volumes, LAN-only `192.168.1.0/24`, `root_squash`,
+`EtcFileConfig` `exports` (existing `nvme-data` volumes plus `sata-data`
+on dev — prd has no `sata-data`, LAN-only `192.168.1.0/24`, `root_squash`,
 `fsid=0` pseudo-root on `nvme-data`) + `netconfig` — no dedicated volume
 (see `RUNBOOK.md` §1.6).
 

@@ -27,7 +27,7 @@ tenant namespace.
 `crds/base/` (5 vendored v0.2.2 CRDs, fleet prune:false `infra-crds`) +
 `controllers/base/` (central controller: `namespace`/`sa`/`rbac`/`deployment`
 + HPA/VPA — CRD-free so `infra-controllers` keeps prune:true) +
-`configs/base/` (`resources: []` placeholder — the driver moved to the
+`configs/base/` (`resources: []` placeholder — the driver lives in the
 seaweedfs component) + plain `../base` passthroughs in
 `crds/{dev,prd}` and `controllers/{dev,prd}`;
 tenant is `infra/cosi` via `flux/infra/update-policies/cosi.yaml`.
@@ -40,11 +40,11 @@ tenant is `infra/cosi` via `flux/infra/update-policies/cosi.yaml`.
   `rbac.yaml` / `namespace.yaml`: from
   `kubernetes-sigs/container-object-storage-interface` @ tag `v0.2.2`
   (commit `f75d47509dae3e4ed0fd18ce0a60474b78e8d29b`, 2025-12-03 — the
-  release-0.2 branch tip, now tagged; CRDs byte-identical to the tag,
-  verified 2026-09-24). Do NOT track `main` (v1alpha2,
-  incompatible with this driver). Re-vendor all 5 CRD files together from
-  the tag to bump (never hand-edit); pins + caps move together
-  (`update-policies/cosi.yaml` + `seaweedfs.yaml`, all `<0.3.0`).
+  release-0.2 branch tip, now tagged; CRDs byte-identical to the tag).
+  Do NOT track `main` (v1alpha2, incompatible with this driver).
+  Re-vendor all 5 CRD files together from the tag to bump (never
+  hand-edit); pins + caps move together (`update-policies/cosi.yaml` +
+  `seaweedfs.yaml`, all `<0.3.0`).
 - Controller image
   `gcr.io/k8s-staging-sig-storage/objectstorage-controller:v0.2.2`:
   tag on the staging registry. No `registry.k8s.io` promotion
@@ -149,8 +149,8 @@ Kubernetes-provider stores with GJSON `property`
 
 Target literal keys are unchanged everywhere, so no consumer workload
 manifest changed — only the ExternalSecret `secretStoreRef`/`remoteRef`.
-The Proton Pass `s3-*`/`sw-*` entries stay seeded in the vault as rollback
-(each migrated file documents the repoint).
+Decommissioned vault paths (`s3-*`/`sw-*` per consumer namespace) are
+deleted; no rollback entries are kept.
 
 ## Environments
 

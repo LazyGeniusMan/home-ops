@@ -126,9 +126,9 @@ Prerequisites (per cluster vault): a `talos` item with a `netbird-pat`
 field (the NetBird management PAT — resolved via `pass-cli item view`
 as `pass://<cluster-vault>/talos/netbird-pat` and passed to the
 `community.general.terraform` module as `NB_PAT` env to apply the
-dedicated root that mints the setup key, §1.0b; the old
-`talos`/`netbird-setup-key` vault fields are retired — the setup key now
-comes from the Terraform `talos_setup_key` output, never the vault),
+dedicated root that mints the setup key, §1.0b; the setup key comes
+from the Terraform `talos_setup_key` output and never lives in the
+vault),
 **plus** an `eso-proton-pass` item with a `pat` field (referenced as
 `pass://<cluster-vault>/eso-proton-pass/pat` in that cluster's
 `talos/clusters/<cluster>/pat.yml.template`). A missing item/field fails
@@ -182,7 +182,7 @@ minted by Terraform, not stored in Proton Pass:
    `admin-users` / `guest-users` / `<cluster>-nodes` /
    `admin-users-resources` / `guest-users-resources`, network
    `<cluster-name>`, `netbird_network_router` peer routing to the nodes
-   group (`peer_groups`; the legacy `netbird_route` is unused), setup key
+   group (via `peer_groups`), setup key
    (below), `LAN CIDR` `192.168.1.0/24` resource →
    `admin-users-resources`, policies `admin-users-access` (admin-users →
    all groups, all protocols — split into TWO policies because the
@@ -212,7 +212,7 @@ whole fabric apply; the only shell-free helpers are `pass-cli`
 (`ansible.builtin.replace`).
 
 No `outputs_secret` fallback exists: the Flux consumer is proxy-only and
-no longer exposes `talos_setup_key`, so the module-driven plane above is
+does not expose `talos_setup_key`, so the module-driven plane above is
 the only source. Day-2 re-apply (`-e reapply_configs=true`) reuses the
 same plane via `include_role` (forced re-render restores the placeholder,
 then the module re-applies + rewrites).
@@ -220,16 +220,15 @@ then the module re-applies + rewrites).
 Provider schema entrypoints (fetch via `scripts/fetch-references.sh` into
 `/tmp/home-ops-docs/netbird-terraform-provider-docs/`): `index.md` (auth
 `NB_PAT`), `group.md`, `network.md`, `setup_key.md`,
-`network_router.md` (+ `route.md` for the unused legacy resource),
+`network_router.md`,
 `network_resource.md`, `policy.md`.
 
 Rotation: replace the `netbird_setup_key.talos` resource (plan first —
 `prevent_destroy` fails closed rather than silently revoking membership),
 then re-run day-0 (`rm build/<c>/patches.yml` first so the inject guard
 re-renders) or day-2 `-e reapply_configs=true` (forced re-render +
-placeholder rewrite + `apply-config`). The old vault
-`talos`/`netbird-setup-key` fields stay retired — delete them from Proton
-Pass once both clusters render clean.
+placeholder rewrite + `apply-config`). Decommissioned vault paths
+(`talos`/`netbird-setup-key`) are deleted; no rollback entries are kept.
 
 ### 1.1 Dry run (recommended first)
 
@@ -821,7 +820,7 @@ Automated equivalent (re-renders + pushes in one play, default mode
 `staged`): `ansible-playbook playbooks/day2.yml -i localhost,
 -e talos_cluster=$C -e reapply_configs=true` (see §3.6).
 
-### 4.5 Multi-node notes (future clusters)
+### 4.5 Multi-node notes
 
 - `nodes[0]` in `group_vars/all.yml` is the bootstrap node, the kubeconfig
   source, the health `--init-node`, and the etcd query target. Keep the
@@ -833,11 +832,9 @@ Automated equivalent (re-renders + pushes in one play, default mode
 
 ### 4.6 Worker caveat
 
-> ⚠️ **Warning — worker path untested:** the roles handle `role: worker`
-> (→ `worker.yaml` via `--config-patch-worker`, role-aware day-1 apply,
-> upgrade loop covers all roles), but **no cluster map contains a worker
-> node today** — both clusters are single control-plane. Treat any future
-> worker onboarding as untested until exercised end-to-end.
+Both clusters are single control-plane; the roles handle `role: worker`
+(→ `worker.yaml` via `--config-patch-worker`, role-aware day-1 apply,
+upgrade loop covers all roles).
 
 ---
 
