@@ -11,20 +11,11 @@ retention `30d`, prefix `s3://cnpg-backups/postgres/`), and a
 
 ## Chart source
 
-OCI is the upstream source of truth, verified by pull:
-
-- `oci://ghcr.io/cloudnative-pg/charts/cloudnative-pg`, tag `0.29.1`
-  (`helm template` + `helm lint` pass locally).
+- `oci://ghcr.io/cloudnative-pg/charts/cloudnative-pg`, tag `0.29.1`.
 - Chart version and operator version differ: chart **0.29.1** embeds operator
-  **1.30.0** (`appVersion: 1.30.0` in the pulled `Chart.yaml`). The
-  `OCIRepository` tag therefore pins the *chart* version; operator 1.30 is
-  carried by that chart.
-- Update policy (`flux/infra/update-policies/cnpg.yaml`) follows the image
-  update policy contract (ImageRepository + ImagePolicy + `$imagepolicy`
-  marker `infra:cnpg:tag`),
-  but the semver floor is the **chart** line `>=0.29.1` — a `>=1.30` floor
-  would never match chart tags and would deaden automation. Chart bumps stay
-  on PR review, where the chart→operator mapping is re-verified before merge.
+  **1.30.0** (`appVersion: 1.30.0`). The `OCIRepository` tag pins the
+  *chart* version; the update-policy floor tracks the chart line
+  (`>=0.29.1`). Re-verify the chart→operator mapping on every bump PR.
 
 ## Upgrade runbook
 
@@ -112,9 +103,9 @@ client traffic over TLS.
 
 ## Telemetry-off / monitoring / updates
 
-- Telemetry evidence: the chart `values.yaml` contains no phone-home,
-  analytics, or usage-reporting knobs (checked at authoring time against the
-  pulled chart); the operator exposes only a local `:8080` metrics endpoint.
+- Telemetry: the chart `values.yaml` contains no phone-home, analytics, or
+  usage-reporting knobs; the operator exposes only a local `:8080` metrics
+  endpoint.
 - Monitoring: the in-cluster Postgres exporter is on by default upstream
   (metrics port on every instance), but nothing scrapes it — `monitoring:
   podMonitorEnabled: false` in chart values and **no** `PodMonitor`/`ServiceMonitor`

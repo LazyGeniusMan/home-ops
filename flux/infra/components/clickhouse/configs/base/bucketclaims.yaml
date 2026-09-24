@@ -4,24 +4,19 @@
 # `clickstack` component has its own dedicated claim (see
 # flux/apps/components/clickstack/base/bucketclaims.yaml), not a prefix on
 # this bucket.
-# - Claim uses BucketClass/seaweedfs, protocol S3. The central controller
-#   creates the cluster-scoped Bucket; the driver (DriverCreateBucket =
-#   req.GetName()) provisions the live bucket in SeaweedFS under a
-#   controller-generated name (`bc-<uuid>`) — claim/access names do NOT map
-#   to pre-existing bucket names, so `spec.existingBucketName` is
-#   intentionally unset. Read the live name from the claim's
-#   `status.bucketName` once `status.bucketReady` is true.
+# - Claim uses BucketClass/seaweedfs, protocol S3. The driver provisions the
+#   live bucket under a controller-generated name (`bc-<uuid>`), so
+#   `spec.existingBucketName` stays unset; read the live name from the
+#   claim's `status.bucketName` once `status.bucketReady` is true.
 # - `clickhouse` backs the infra ClickHouse nightly backups: the CHI
-#   `storage.xml` endpoint
-#   (`http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333/clickhouse/`,
-#   see installation-base.yaml) targets the COSI-provisioned bucket.
-# - The BucketAccess (BucketAccessClass/seaweedfs-key, authenticationType
-#   KEY) mints S3 keys into its `credentialsSecretName` Secret in THIS
-#   namespace as a `BucketInfo` JSON file (secretS3.endpoint/region/
-#   accessKeyID/accessSecretKey). The driver hands back the INTERNAL
-#   endpoint (http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333).
-# - Credential bridge: consumers read same-namespace ExternalSecrets
-#   (Proton Pass); COSI BucketInfo JSON is the key source.
+#   `storage.xml` endpoint (see installation-base.yaml) targets the
+#   COSI-provisioned bucket.
+# - The BucketAccess mints S3 keys into its `credentialsSecretName` Secret in
+#   THIS namespace as a `BucketInfo` JSON file. The driver hands back the
+#   internal endpoint
+#   (http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333).
+# - Credential bridge: consumers read COSI BucketInfo JSON through
+#   same-namespace ExternalSecrets.
 ---
 apiVersion: objectstorage.k8s.io/v1alpha1
 kind: BucketClaim

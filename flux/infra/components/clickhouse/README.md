@@ -98,8 +98,7 @@ shard before re-enabling writers.
   (server/keeper): https://github.com/ClickHouse/ClickHouse/releases.
 - Bump: let the ImagePolicy PRs land (markers `infra:clickhouse:tag`
   plus the server/keeper markers, `update-policies/clickhouse.yaml`).
-  Read the server changelog before taking a new LTS (25.9 went EOL
-  2025-12; the 26.x jump crosses breaking changes) and keep server +
+  Read the server changelog before taking a new LTS and keep server +
   keeper on the same line.
 - Migrate: confirm the nightly `BACKUP ALL` completed BEFORE the bump
   (see the Backup / restore runbook above). Verify: keeper quorum
@@ -108,19 +107,15 @@ shard before re-enabling writers.
 
 ## DNS
 
-No `DNSEndpoint` file (bounded decision, same as the CNPG approach):
-external-dns already watches `service` + `gateway-httproute` sources, so the
-`*.clickhouse...` records materialize from a `Service` annotation or a
-Gateway `HTTPRoute` created alongside the consumer (§10.x), with no file
-overlap here. If a static record is ever needed, add it in the consumer, not
-in this component.
+No `DNSEndpoint` file: external-dns already watches `service` +
+`gateway-httproute` sources, so the `*.clickhouse...` records materialize
+from a `Service` annotation or a Gateway `HTTPRoute` created alongside the
+consumer, with no file overlap here.
 
 ## Telemetry-off / monitoring / updates
 
-- No usage-reporting/telemetry keys in chart values (verified: non-comment
-  values lines matching `telemetry|usageReporting|phoneHome|analytics` are
-  empty), so there is nothing to switch off. Re-verify with:
-  `grep -rin 'telemetry\|phonehome\|analytics\|usagereport' <chart> | grep -v '^.*#'`.
+- No usage-reporting/telemetry keys in chart values, so there is nothing
+  to switch off.
 - Metrics exporter on (`metrics.enabled: true` + `prometheus.io` annotations
   on keeper pods — safe without a stack).
 - `ServiceMonitor` (both `serviceMonitor.enabled` and

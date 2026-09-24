@@ -5,7 +5,7 @@
 # the prd floor.
 # Release `seaweedfs-operator` renders Deployment `seaweedfs-operator`;
 # release `seaweedfs-csi-driver` renders Deployment
-# `<release>-controller` (`helm template ...`, verified).
+# `<release>-controller`.
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

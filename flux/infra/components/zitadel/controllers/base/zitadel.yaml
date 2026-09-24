@@ -1,21 +1,15 @@
 # Zitadel v4.18.0 identity provider (§11.1): OIDC issuer on the admin host
 # (__ZITADEL_HOST__ = admin.zitadel.<base>) plus the per-app client contract
 # (see README). End-user logins run on the separate login host
-# (__ZITADEL_LOGIN_HOST__ = login.zitadel.<base>, NetBird-exposed) via
-# LoginV2.BaseURI (DefaultInstance Features, per-env overlay) + per-app
-# login_base_uri (terraform root).
+# (__ZITADEL_LOGIN_HOST__ = login.zitadel.<base>, NetBird-exposed).
 # Chart: oci://ghcr.io/zitadel/zitadel-charts/zitadel, tag 10.0.4
-# (digest sha256:9afa657fad65079857339f7d7fd296c73e577f6c8ec4e4a103093be35964b50c,
-# verified by pull; OCI on GHCR is the upstream source of truth).
-# Chart-to-app mapping (cnpg-style divergence, see README): chart 10.0.4 embeds
-# app v4.15.3, but the app image is pinned separately below to v4.18.0
-# (ghcr.io/zitadel/zitadel:v4.18.0 + ghcr.io/zitadel/zitadel-login:v4.18.0
-# manifests verified on GHCR). On chart bumps set image.tag AND
-# login.image.tag to the new appVersion together.
-# Telemetry: pulled chart values.yaml carries no phone-home, analytics, or
-# usage-reporting knobs (checked at authoring time); metrics.enabled stays
-# false and no ServiceMonitor is shipped until monitoring.coreos.com CRDs land
-# (same §9 deviation — flip note in README).
+# (digest sha256:9afa657fad65079857339f7d7fd296c73e577f6c8ec4e4a103093be35964b50c).
+# Chart-to-app mapping (see README): chart 10.0.4 embeds app v4.15.3, but the
+# app image is pinned separately below to v4.18.0. On chart bumps set
+# image.tag AND login.image.tag to the new appVersion together.
+# Telemetry: chart values carry no phone-home/analytics/usage-reporting
+# knobs; metrics.enabled stays false and no ServiceMonitor is shipped until
+# monitoring.coreos.com CRDs land.
 # Ordering: the masterkey/DSN ExternalSecrets live in configs (which the fleet
 # applies AFTER controllers), so the first install attempt pends until ESO
 # syncs them and Flux retries (RetryOnFailure below).
@@ -54,12 +48,9 @@ spec:
       retryInterval: 5m
   # https://zitadel.com/docs/self-hosting/deploy/kubernetes
   values:
-    # Replica placeholders - overridden by dev/prd overlays. Two API replicas
-    # survive a node loss; the login UI keeps one (stateless Next.js front
-    # for /ui/v2/login — scale with the first real load, not here).
-    # NOTE: zitadel.autoscaling / login.autoscaling (enabled per env below)
-    # omit the chart-rendered `replicas:` field when enabled, so the HPA owns
-    # the count; these replicaCounts are fallback seeds only.
+    # Replica placeholders - overridden by dev/prd overlays. Chart-native
+    # autoscaling omits the rendered `replicas:` field when enabled, so the
+    # HPA owns the count; these replicaCounts are fallback seeds only.
     replicaCount: 2 # placeholder - overridden by dev/prd overlays
     # CPU requests are REQUIRED for the targetCPU HPA below (chart defaults
     # resources {} — utilization has no denominator without requests).

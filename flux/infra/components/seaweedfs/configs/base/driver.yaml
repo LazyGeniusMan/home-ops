@@ -1,24 +1,20 @@
-# SeaweedFS COSI driver (hand-vendored workload CR — NOT a CRD: the 5 COSI
-# CRDs live in cosi/crds/base under fleet prune:false; chart `cosi.enabled`
-# stays off per the seaweedfs README). Mirrors upstream seaweedfs chart
+# SeaweedFS COSI driver (hand-vendored workload — NOT a CRD: the 5 COSI CRDs
+# live in cosi/crds/base under fleet prune:false; chart `cosi.enabled` stays
+# off per the seaweedfs README). Mirrors upstream seaweedfs chart
 # templates/cosi/cosi-deployment.yaml; auth/TLS branches dropped — plain
 # in-cluster gRPC.
 # Two containers share an emptyDir socket at /var/lib/cosi/cosi.sock:
-# - seaweedfs-cosi-driver: the provisioner gRPC server (driver binary embeds
-#   provisioner sidecar server via NewDefaultCOSIProvisionerServer). Env per
-#   cmd/seaweedfs-cosi-driver/main.go: DRIVERNAME (default
-#   seaweedfs.objectstorage.k8s.io), COSI_ENDPOINT (default
+# - seaweedfs-cosi-driver: the provisioner gRPC server. Env: DRIVERNAME
+#   (default seaweedfs.objectstorage.k8s.io), COSI_ENDPOINT (default
 #   unix:///var/lib/cosi/cosi.sock), SEAWEEDFS_FILER (filer gRPC —
 #   seaweed-main-filer.seaweedfs:8888, same as the CSI HelmRelease), ENDPOINT
 #   (S3 URL handed back in BucketAccess secrets as secretS3.endpoint —
-#   in-cluster short name http://seaweed-main-s3.seaweedfs:8333),
-#   REGION (us-east-1 — SeaweedFS ignores region; required non-empty by
-#   some S3 clients).
-# - seaweedfs-cosi-sidecar: release-0.2 objectstorage-sidecar v0.2.2 (Bucket +
-#   BucketAccess listeners, --driver-addr unix:///var/lib/cosi/cosi.sock),
-#   the release-0.2 counterpart of the COSI controller v0.2.2 pin.
-# Images: driver ghcr.io/seaweedfs/seaweedfs-cosi-driver:v0.3.1
-# (quay.io/seaweedfs repo is disabled/unauthenticated).
+#   in-cluster short name http://seaweed-main-s3.seaweedfs:8333), REGION
+#   (us-east-1 — SeaweedFS ignores region; required non-empty by some S3
+#   clients).
+# - seaweedfs-cosi-sidecar: objectstorage-sidecar v0.2.2 (Bucket +
+#   BucketAccess listeners), the counterpart of the COSI controller v0.2.2 pin.
+# Images: driver ghcr.io/seaweedfs/seaweedfs-cosi-driver:v0.3.1.
 # Driver binary runs as UID 65532 (distroless static); sidecar runs as
 # nonroot (distroless static:nonroot).
 ---

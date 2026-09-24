@@ -4,17 +4,15 @@
 # proxied to OCI); chart versions below stay pinned (operator 0.1.40, driver
 # 0.2.36) while container images track
 # flux/infra/update-policies/seaweedfs.yaml via $imagepolicy markers.
-# CRD lifecycles in this repo (do not confuse them):
+# CRD lifecycles here:
 # - Vendored COSI CRDs: cosi/crds/base (5 files, tag v0.2.2) render through
-#   the fleet's prune:false infra-crds Kustomization — never garbage-collected.
+#   the fleet's prune:false infra-crds Kustomization.
 # - Chart-templated operator CRDs: this file's `crds.create: true` below —
-#   the operator chart owns its own CRDs, Helm-managed, out of scope here.
+#   the operator chart owns its own CRDs, Helm-managed.
 # - Hand-vendored driver classes: seaweedfs/configs/base/bucketclasses.yaml
 #   (BucketClass/BucketAccessClass CRs, NOT CRDs) + driver.yaml/driver-rbac.yaml
 #   mirror the upstream seaweedfs chart templates/cosi/ (chart `cosi.enabled`
-#   stays off — see the seaweedfs README "COSI driver sourcing": it assumes a
-#   chart-managed cluster, so the three hand-vendored files are less drift
-#   surface than a second HelmRelease).
+#   stays off — see the seaweedfs README "COSI driver sourcing").
 # Telemetry: operator serviceMonitor + grafanaDashboard stay disabled
 # (unguarded monitors OFF); no usage-reporting knobs exist upstream.
 ---

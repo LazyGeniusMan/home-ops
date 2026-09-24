@@ -1,18 +1,15 @@
 # ExternalDNS (§9.4): single NetBird webhook provider over __BASE_DOMAIN__.
-# Chart mirror: oci://ghcr.io/controlplaneio-fluxcd/charts/external-dns
-# (verified tag 1.22.0); app image pinned to v0.22.0 per scope (== chart
-# 1.22.0 bundled default — both tags verified present on registry.k8s.io).
+# Chart mirror: oci://ghcr.io/controlplaneio-fluxcd/charts/external-dns, tag
+# 1.22.0; app image pinned to v0.22.0 (chart bundled default).
 #  - external-dns-netbird: NetBird Custom Zones via the in-repo webhook
 #    sidecar (projects/external-dns-netbird, :dev), PAT via NETBIRD_PAT_FILE.
 # Webhook sidecar tracks single-stream :dev in all envs; prd pins :stable
 # once the first external-dns-netbird-v* tag lands.
-# TXT ownership: txtOwnerId/txtPrefix pin the single txt registry.
-# policy sync.
+# TXT ownership: txtOwnerId/txtPrefix pin the single txt registry, policy sync.
 # Sources include Gateway API routes so §8 Gateways/HTTPRoutes sync without
-# any file overlap; the wildcard A record materializes from
-# the section 8 Gateway LB target (__LB_VIP__). No Cloudflare provider and
-# no manual Record/DNSEndpoint CRs — the Gateway routes are the only sync
-# source (verified: no DNSEndpoint/Record CRs ship anywhere in flux/).
+# file overlap; the wildcard A record materializes from the §8 Gateway LB
+# target (__LB_VIP__). No Cloudflare provider and no manual
+# Record/DNSEndpoint CRs — the Gateway routes are the only sync source.
 # Telemetry: external-dns phones home nothing. Monitoring: ServiceMonitor
 # stays disabled until monitoring.coreos.com CRDs land (see README).
 ---
@@ -50,19 +47,14 @@ spec:
       retryInterval: 5m
   # https://kubernetes-sigs.github.io/external-dns/latest/charts/external-dns/
   values:
-    # Singleton placeholder: external-dns has no leader election (chart
-    # schema caps replicaCount at 1 AND the Deployment template fails the
-    # render above 1); pinned to 1 in dev/prd overlays. NO HPA: >1 replica
-    # would issue duplicate/conflicting DNS writes (verified against
-    # external-dns-docs/charts/external-dns: values.schema.json maximum 1,
-    # templates/deployment.yaml fail guard, proposal/001-leader-election
-    # status not-planned).
+    # Singleton placeholder: external-dns has no leader election (chart schema
+    # caps replicaCount at 1); pinned to 1 in dev/prd overlays. NO HPA: >1
+    # replica would issue duplicate/conflicting DNS writes.
     replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
-    # Resources: upstream chart defaults {} (no doc sizing); tiny-singleton
-    # requests pinned for scheduling/QoS, memory-only limit so the sync loop
-    # is never CPU-throttled. The webhook sidecar
-    # (provider.webhook.resources) is a Go distroless server, sized lighter
-    # with a memory-only limit.
+    # Resources: upstream chart defaults {}; tiny-singleton requests pinned
+    # for scheduling/QoS, memory-only limit so the sync loop is never
+    # CPU-throttled. The webhook sidecar (provider.webhook.resources) is a Go
+    # distroless server, sized lighter with a memory-only limit.
     resources:
       requests:
         cpu: 50m

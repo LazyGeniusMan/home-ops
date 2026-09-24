@@ -4,13 +4,10 @@
 # backs the CNPG zitadel-db Cluster WAL + base backups (zitadel-db.yaml);
 # `zitadel-cache` backs the zitadel-cache Dragonfly snapshots
 # (zitadel-cache.yaml).
-# - Claims use BucketClass/seaweedfs, protocol S3. The central controller
-#   creates the cluster-scoped Buckets; the driver (DriverCreateBucket =
-#   req.GetName()) provisions the live buckets in SeaweedFS under
-#   controller-generated names (`bc-<uuid>`) — claim/access names do NOT map
-#   to pre-existing bucket names, so `spec.existingBucketName` is
-#   intentionally unset. Read the live names from each claim's
-#   `status.bucketName` once `status.bucketReady` is true.
+# - Claims use BucketClass/seaweedfs, protocol S3. The driver provisions the
+#   live buckets under controller-generated names (`bc-<uuid>`), so
+#   `spec.existingBucketName` stays unset; read the live names from each
+#   claim's `status.bucketName` once `status.bucketReady` is true.
 # - The `zitadel-assets` claim backs Zitadel `AssetStorage` S3 (avatars,
 #   org logos/icons — Secret `zitadel-asset-storage` via the `zitadel-cosi`
 #   SecretStore; wired as ZITADEL_ASSET_STORAGE_* env vars, see
@@ -24,16 +21,14 @@
 #   (`s3://dragonfly-backups/zitadel-cache/`) target the COSI-provisioned
 #   buckets. The `s3://` path prefixes must exist before the first Cluster /
 #   Dragonfly object starts (CNPG and Dragonfly never create buckets).
-# - Each BucketAccess (BucketAccessClass/seaweedfs-key, authenticationType
-#   KEY) mints S3 keys into its `credentialsSecretName` Secret in THIS
-#   namespace as a `BucketInfo` JSON file (secretS3.endpoint/region/
-#   accessKeyID/accessSecretKey). The driver hands back the INTERNAL
-#   endpoint (http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333).
+# - Each BucketAccess mints S3 keys into its `credentialsSecretName` Secret
+#   in THIS namespace as a `BucketInfo` JSON file. The driver hands back the
+#   internal endpoint
+#   (http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333).
 # - Credential bridge: consumers read their keys through the in-namespace
 #   `zitadel-cosi` SecretStore (cosi-keys.yaml) — GJSON `property` extracts
 #   spec.secretS3.accessKeyID/accessSecretKey. Target literal keys are
-#   unchanged, so no consumer workload manifest changed — only the
-#   ExternalSecret `secretStoreRef`/`remoteRef`.
+#   unchanged.
 ---
 apiVersion: objectstorage.k8s.io/v1alpha1
 kind: BucketClaim

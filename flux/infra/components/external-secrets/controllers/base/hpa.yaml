@@ -6,7 +6,7 @@
 # Min/max patched per env (dev 1/2, prd 2/4); base carries the prd floor.
 # Release name `external-secrets` renders Deployments `external-secrets` and
 # `external-secrets-cert-controller` in the release namespace
-# (`helm template external-secrets ...`, verified).
+#.
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

@@ -1,63 +1,22 @@
-# Zitadel login reverse-proxy consumer (§11.1): exposes the end-user login UI
-# (__ZITADEL_LOGIN_HOST__, e.g. login.zitadel.<base>) through the shared
-# NetBird reverse-proxy root — same consumer pattern as the SSO slices, plus
-# the NetBird contract (cross-namespace sourceRef to the infra/netbird OCI
-# artifact, path ./terraform).
-#
-# What it owns: this login slice ONLY — one NetBird reverse-proxy service
-# (login host → in-mesh zitadel-login backend) + the shared base-domain
-# registration + the Cloudflare wildcard CNAME for NetBird ownership
-# verification (see the netbird terraform README for the verify flow).
-#
-# Topology: login host hits the NetBird proxy edge (proxy TLS via NetBird's
-# ZeroSSL issuance off the wildcard CNAME) and forwards INSIDE the mesh to
-# the zitadel-login ClusterIP Service (port 3000, Next.js). Backend protocol
-# is http: the login UI is plain HTTP in-cluster (in-pod TLS stays OFF, same
-# as ExternalSecure-terminated-at-Gateway on the API side) and NetBird
-# terminates public TLS at the edge. pass_host_header + rewrite_redirects
-# stay true so the login app sees the public login host and its Location
-# headers keep that host (Zitadel custom-domain.mdx: the proxy must preserve
-# the original Host header; the login container's AUDIENCE /
-# CUSTOM_REQUEST_HEADERS already expect the external domain).
-#
-# Target: the backend rides the mesh on the shared Service-LB subnet target
-# the netbird root appends automatically (Service Load Balancer IP network
-# resource + LB VIP host, port 3000 http, path /ui/v2/login) — the Talos-side
-# routing peer forwards onto the cluster LAN toward the Cilium LB VIP that
-# fronts the Gateway (listeners 80/443), which routes the login host to the
-# zitadel-login Service. No peer literal lives in git: the only per-env
-# values are domain + network_name + service_lb_ip below (patched by the
-# dev/prd overlays by index, see note; cloudflare_zone_id stays null).
-#
-# Ordering: this object ships in the zitadel configs Kustomization (fleet
-# `infra-configs`, after controllers), so it reconciles after the login
-# Deployment/Service exist. Terraform `dependsOn` is Terraform-CR-only
-# upstream (checkDependencies resolves every entry as kind Terraform), so NO
-# dependsOn entry here — the fleet ordering above is the mechanism.
-# Upstream wiring: provider tokens (netbird_token, cloudflare_api_token)
-# flow from Proton Pass via the ESO-synced `zitadel-login-proxy-vars`
-# Secret (same-namespace `varsFrom` below — unlike the zitadel SSO handoff
-# there is no chart-minted central secret to mirror, so the vault read is
-# direct through the cluster-scoped `proton-pass` ClusterSecretStore, same
-# shape as the netbird consumer skeleton). NO token literal in git, NO
-# manual per-env fill. Backend: in-cluster Kubernetes default (state Secrets
-# in the zitadel namespace) — no backendConfig needed. Drift detection stays
-# on (default).
-# Outputs: service_id + service_domain + proxy_url land in
-# `zitadel-login-proxy-outputs`.
-# First-run prerequisite (custom-domain path): after the first apply the
-# base domain sits at Pending Verification — complete the dashboard Verify
-# within 48h (see the netbird terraform README); until then the CR retries
-# on interval.
+# Zitadel login reverse-proxy consumer: exposes the end-user login UI
+# (__ZITADEL_LOGIN_HOST__) through the shared NetBird reverse-proxy root (same
+# consumer pattern as the SSO slices; cross-namespace sourceRef to the
+# infra/netbird OCI artifact, path ./terraform). Owns only this login slice: one
+# reverse-proxy service (login host to in-mesh zitadel-login backend) + shared
+# base-domain registration + Cloudflare wildcard CNAME for NetBird ownership
+# verification.
+# Backend is plain http (in-pod TLS OFF; NetBird terminates public TLS at the edge);
+# pass_host_header + rewrite_redirects stay true so the login app sees the public
+# host. Target rides the shared Service-LB subnet the root appends automatically
+# (port 3000 http, path /ui/v2/login); per-env values are domain + network_name +
+# service_lb_ip only (patched by dev/prd overlays by index - keep vars order).
+# Tokens flow from Proton Pass via the ESO-synced zitadel-login-proxy-vars Secret
+# (same-namespace varsFrom); backend is in-cluster Kubernetes default; drift
+# detection stays on. First-run: complete the dashboard Verify within 48h.
 ---
-# Zero-UI vars mirror: provider tokens from Proton Pass — no vault seeding
-# beyond the one-time `pass insert` per env, no manual step per env. Reads
-# DIRECTLY through the existing cluster-scoped `proton-pass`
-# ClusterSecretStore (no cross-namespace SecretStore + RBAC needed — unlike
-# the zitadel SSO handoff there is no chart-minted central secret to mirror).
-# Keys land under the module var names so `varsFrom` below needs no varsKeys
-# renames. Per-env overlays replace the pass:// keys with the cluster vault
-# path (same convention as the coder dev overlay).
+# Vars mirror: provider tokens from Proton Pass through cluster-scoped
+# `proton-pass` ClusterSecretStore. Keys land under module var names, so
+# `varsFrom` needs no renames. Per-env overlays set the cluster vault path.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
@@ -84,43 +43,24 @@ metadata:
 spec:
   interval: 30m
   approvePlan: auto
-  # Upsert-only guard (tofu-controller 0.16.5): the v1alpha2 CRD has no
-  # preventDestroy/destroyPlan field — `destroy` (destroy plan on reconcile)
-  # and `destroyResourcesOnDeletion` (destroy plan on CR deletion) are the
-  # only destroy knobs, both default false. Stated explicitly so no `tofu
-  # destroy` path exists via Flux; drift detection stays on (default).
+  # Upsert-only: no destroy path via Flux (both destroy knobs false); drift
+  # detection stays on.
   destroy: false
   destroyResourcesOnDeletion: false
-  # Shared reusable reverse-proxy root: the infra/netbird OCI artifact
-  # (namespace `netbird`) packs flux/infra/components/netbird/terraform/ at
-  # ./terraform. Cross-namespace sourceRef is allowed by
-  # allowCrossNamespaceRefs=true on the tofu-controller — no per-app
-  # terraform/ root, no git-SHA module pin.
+  # Shared reverse-proxy root: infra/netbird OCI artifact (namespace netbird),
+  # path ./terraform (cross-namespace sourceRef allowed).
   sourceRef:
     kind: OCIRepository
     name: infra
     namespace: netbird
   path: ./terraform
-  # Plain (non-sensitive) per-env values; secrets (netbird_token,
-  # cloudflare_api_token) come from varsFrom below. varsFrom overrides vars
-  # on key collision (upstream GenerateVarsForTF).
-  # The login FQDN is fully rendered here (the shared root takes no
-  # app_host var): `__ZITADEL_LOGIN_HOST__` is the per-env login hostname,
-  # replaced by the dev/prd overlay patches. The backend rides the shared
-  # Service-LB subnet target the root appends automatically (port/protocol/
-  # path via target_port/target_protocol/target_path below; plain http —
-  # in-pod TLS stays OFF, NetBird terminates public TLS at the edge; path
-  # pins the proxy to the login UI base path). network_name selects the
-  # Talos-owned parent NetBird network (created by the Talos Ansible
-  # Terraform task; the LB resource attaches via data-source lookup);
-  # service_lb_ip is the per-env Cilium LB VIP (dev .249 / prd .199) the
-  # subnet target forwards to. targets stays [] (no extra backends).
-  # POSITIONAL: the dev/prd overlays patch /spec/vars/0 (domain),
-  # /spec/vars/2 (network_name) and /spec/vars/3 (service_lb_ip) by index,
-  # so this order must not change without updating the overlays.
-  # cloudflare_zone_id is intentionally absent (defaults to null = DNS
-  # self-managed outside Cloudflare — the root skips the verification
-  # CNAME; see the netbird root variables.tf).
+  # Plain per-env values here; secrets come from varsFrom (overrides vars on
+  # collision). Login FQDN fully rendered (__ZITADEL_LOGIN_HOST__, patched per
+  # env). Backend rides the shared Service-LB subnet target the root appends
+  # (plain http, path pins /ui/v2/login; network_name selects the Talos-owned
+  # parent network, service_lb_ip is the per-env Cilium LB VIP). POSITIONAL:
+  # overlays patch /spec/vars/0, /spec/vars/2, /spec/vars/3 by index — keep
+  # this order. cloudflare_zone_id absent (null = DNS self-managed).
   vars:
     - name: domain
       value: __ZITADEL_LOGIN_HOST__

@@ -2,36 +2,25 @@
 # v1.9.0 operator from controllers/base/kubevirt-operator.yaml.
 # Source shape: upstream kubevirt-cr.yaml at v1.9.0
 #   (https://github.com/kubevirt/kubevirt/releases/download/v1.9.0/kubevirt-cr.yaml),
-# extended per the Talos install guide
-# (talos-docs v1.14 advanced-guides/install-kubevirt.mdx) and §13.2 locks:
-#   - featureGates LiveMigration (shared live-migration path) +
-#     NetworkBindingPlugins (Multus secondary-net support);
+# extended per the Talos install guide (advanced-guides/install-kubevirt.mdx):
+#   - featureGates LiveMigration + NetworkBindingPlugins (Multus
+#     secondary-net support);
 #   - smbios TalosCloud identity block from the upstream guide;
 #   - workloadUpdateStrategy LiveMigrate (guide default);
-#   - storage: local-path scratch via local-ssd-nvme (default class) — the
-#     guide's scratchSpaceStorageClass is CDI's field; the KubeVirt CRD has no
-#     top-level storage field (verified against the v1.9.0 CRD schema:
-#     no storageClass/storage/scratchSpace keys), so default-class
-#     local-ssd-nvme is used implicitly. Set explicitly if a future schema
-#     gains the knob.
-#   - metrics: left at upstream defaults (prometheus annotations on the
-#     operator/components, no ServiceMonitor namespace/account pinned) — safe
-#     without a stack; ServiceMonitors wait for the monitoring stack.
-#   - telemetry: upstream exposes no phone-home/telemetry flags (verified:
-#     no telemetry key in the v1.9.0 CRD) — nothing to disable.
+#   - storage: the KubeVirt CRD has no top-level storage field, so
+#     default-class local-ssd-nvme is used implicitly;
+#   - metrics: upstream defaults (prometheus annotations, no ServiceMonitor
+#     namespace/account pinned); telemetry: no phone-home flags upstream,
+#     nothing to disable;
 #   - unguarded monitors: monitorNamespace/monitorAccount/
-#     serviceMonitorNamespace stay UNSET (defaults point at openshift-monitor/
-#     prometheus-k8s, which do not exist here); flip note in README.
-# Version lock: NO spec.imageTag is set here — deliberately. Per upstream
-# (kubevirt.io updating_and_deletion), an absent imageTag locks the operand
-# to the operator version, so this CR always runs the v1.9.0 pinned in
-# controllers/base/kubevirt-operator.yaml (quay.io/kubevirt/virt-operator).
-# Do NOT add imageTag to decouple them: decoupled operands require an
-# operator-first RBAC check per upgrade (see README) and break the
-# single-version vendored contract.
+#     serviceMonitorNamespace stay UNSET (defaults point at namespaces that
+#     do not exist here).
+# Version lock: NO spec.imageTag is set here — deliberately. An absent
+# imageTag locks the operand to the operator version, so this CR always runs
+# the pinned v1.9.0. Do NOT add imageTag to decouple them.
 # No `metadata.namespace`: infra-configs applies with targetNamespace=kubevirt.
-# DependsOn order matters: infra-configs waits on infra-controllers, so the
-# operator (with fresh RBAC) exists before this CR reconciles — keep it.
+# infra-configs waits on infra-controllers, so the operator (with fresh RBAC)
+# exists before this CR reconciles — keep it.
 # {"$imagepolicy": "infra:kubevirt:tag"}
 ---
 apiVersion: kubevirt.io/v1

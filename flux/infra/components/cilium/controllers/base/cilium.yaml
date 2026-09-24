@@ -1,26 +1,16 @@
 # Cilium v1.20.2 (§8.2): eBPF dataplane with kube-proxy replacement (Talos
 # runs without kube-proxy), Gateway API support, Hubble observability, and a
-# single-IP LoadBalancer pool. Chart: oci://quay.io/cilium/charts/cilium
-# (verified tag 1.20.2; OCI is the upstream source of truth).
-# NAMESPACE / BOOTSTRAP HANDOFF: this HelmRelease and the Terraform bootstrap
-# Job (flux/fleet/terraform/main.tf, prerequisites.charts[0]) manage a SINGLE
-# Helm release identity — release `cilium` in namespace `kube-system` on both
-# sides. The Job installs there first (kube-system pre-exists on Talos, so the
-# Job uses create_namespace = false); spec.targetNamespace + spec.
-# storageNamespace below force helm-controller to render AND store the release
-# in kube-system too, instead of defaulting to the HelmRelease object
-# namespace (`cilium`, forced by the infra tenant Kustomization
+# single-IP LoadBalancer pool. Chart: oci://quay.io/cilium/charts/cilium,
+# tag 1.20.2.
+# Single release identity with the Terraform bootstrap Job
+# (flux/fleet/terraform/main.tf): release `cilium` in namespace `kube-system`
+# on both sides. spec.targetNamespace + spec.storageNamespace below force
+# helm-controller to render AND store the release in kube-system too, instead
+# of the HelmRelease object namespace (`cilium`, forced by the infra tenant
 # targetNamespace). Without both overrides Flux would install a second,
-# conflicting copy of the CNI while the Job kept managing kube-system. Once
-# helm-controller reconciles, the agent DaemonSet (`cilium` — chart
-# Values.name default — in kube-system) carries the Flux ownership labels and
-# the Job's flux_adoption_check skips the chart (Terraform then stops touching
-# it; kube-system itself stays user-owned and is never adopted). The `cilium`
-# Namespace created by the infra ResourceSet only hosts Flux bookkeeping
-# (OCIRepository/Kustomizations/ServiceAccount) for this tenant.
-# Telemetry: the chart has no usage-reporting/telemetry keys (verified: non-
-# comment values lines matching telemetry|usageReporting|phoneHome|analytics
-# are empty), so there is nothing to switch off.
+# conflicting copy of the CNI. The `cilium` Namespace only hosts Flux
+# bookkeeping (OCIRepository/Kustomizations/ServiceAccount) for this tenant.
+# Telemetry: the chart has no usage-reporting keys, nothing to switch off.
 # Monitoring: plain prometheus endpoints on, ServiceMonitors off until the
 # monitoring stack (monitoring.coreos.com CRDs) lands — see README.
 ---
@@ -57,10 +47,8 @@ spec:
     # kube-system pre-exists on Talos — never create it (mirrors the Job's
     # create_namespace = false).
     createNamespace: false
-    # CRD adoption (Flux helm-controller, chart 1.20.2): CreateReplace keeps
-    # the Cilium CRDs advanced with the chart on every ImagePolicy bump.
-    # Without it CRDs freeze at bootstrap (install default Create, upgrade
-    # default Skip) while the dataplane auto-advances — schema drift.
+    # CreateReplace keeps the Cilium CRDs advanced with the chart on every
+    # ImagePolicy bump.
     crds: CreateReplace
     strategy:
       name: RetryOnFailure
@@ -94,8 +82,8 @@ spec:
     hubble:
       relay:
         enabled: true
-        # Resources: upstream defaults {} (cilium-docs values.yaml); light Go
-        # server pinned requests-only so it is never CPU-throttled.
+        # Resources: upstream defaults {}; requests-only so the relay is
+        # never CPU-throttled.
         resources:
           requests:
             cpu: 50m
@@ -116,15 +104,12 @@ spec:
           enabled: false
     operator:
       # Operator replica placeholder - overridden by dev/prd overlays.
-      # NO HPA: chart 1.20.2 has no operator autoscaling knob, and the operator
-      # Deployment renders in kube-system (release targetNamespace) while the
-      # tenant Kustomization targets namespace `cilium` — a same-base HPA would
-      # land cross-namespace from its scaleTargetRef and never bind. Static
-      # dev 1 / prd 2 is the correct scaling posture (agent is a DaemonSet, N/A).
+      # NO HPA: the chart has no operator autoscaling knob, and the operator
+      # Deployment renders in kube-system while the tenant Kustomization
+      # targets namespace `cilium` — a same-base HPA would never bind.
       replicas: 1 # placeholder - overridden by dev/prd overlays
-      # Resources: upstream defaults {} (cilium-docs values.yaml); requests
-      # pinned (control-plane only, flat memory per the scalability report).
-      # Requests-only, no limits: the operator must never be CPU-throttled.
+      # Resources: upstream defaults {}; requests-only so the operator is
+      # never CPU-throttled.
       resources:
         requests:
           cpu: 100m

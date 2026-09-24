@@ -1,12 +1,7 @@
 # ClickHouse operator 0.27.3 (§10.2): Altinity clickhouse-operator backing the
-# infra data layer. Chart: oci://registry-1.docker.io/altinity/clickhouse-operator
-# (tag 0.27.3 verified present on Docker Hub; OCI-first so chart bumps flow
-# through the §7 update-policy contract like every other §9 component — the
-# classic https://helm.altinity.com repo is the documented fallback if the OCI
-# artifact ever fails to resolve, same justification as the coredns precedent).
-# Telemetry: no usage-reporting/telemetry keys in chart values (verified:
-# non-comment values lines matching telemetry|usageReporting|phoneHome|
-# analytics are empty), so there is nothing to switch off.
+# infra data layer. Chart: oci://registry-1.docker.io/altinity/clickhouse-operator,
+# tag 0.27.3.
+# Telemetry: no usage-reporting keys in chart values, nothing to switch off.
 # Monitoring: metrics exporter on (prometheus.io annotations, safe without a
 # stack); ServiceMonitor stays disabled until monitoring.coreos.com CRDs land.
 ---
@@ -44,16 +39,12 @@ spec:
       retryInterval: 5m
   # https://github.com/Altinity/clickhouse-operator/tree/master/deploy/helm/clickhouse-operator
   # NOTE: the chart exposes no operator replica knob (the Deployment template
-  # hardcodes `replicas: 1`); no values key to pin here, so dev/prd carry no
-  # replica patches for this release. NO HPA either: the operator has no
-  # leader-election wiring, so >1 replica would double-reconcile — upstream
-  # gives exactly one operator (verified against
-  # altinity-clickhouse-operator-docs/deploy/helm/clickhouse-operator).
+  # hardcodes `replicas: 1`); dev/prd carry no replica patches. NO HPA: the
+  # operator has no leader-election wiring, so >1 replica would
+  # double-reconcile.
   values:
-    # Resources: chart defaults {} (verified via helm template at 0.27.3);
-    # upstream gives no operator sizing — only the 100m/128Mi commented
-    # example in deploy/helm/clickhouse-operator/values.yaml. Operator sized
-    # with Go watch-cache headroom; exporter is a light sidecar.
+    # Resources: chart defaults {}; operator sized with Go watch-cache
+    # headroom; exporter is a light sidecar.
     operator:
       resources:
         requests:

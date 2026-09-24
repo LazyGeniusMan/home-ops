@@ -16,25 +16,11 @@ Upgrade the Gateway API CRDs **before** the Cilium chart, then bump
 ## Preflight runbook (manual, per minor upgrade)
 
 Preflight is a one-off imperative check — never leave
-`preflight.enabled` in the release values. Render, create, verify, delete:
-
-```bash
-helm template cilium oci://quay.io/cilium/charts/cilium --version <target> \
-  --namespace kube-system \
-  --set preflight.enabled=true \
-  --set agent=false \
-  --set operator.enabled=false \
-  --set k8sServiceHost=<api-vip> --set k8sServicePort=6443 \
-  > cilium-preflight.yaml
-kubectl create -f cilium-preflight.yaml
-# wait: pre-flight DaemonSet READY == cilium DaemonSet READY,
-# and Deployment cilium-pre-flight-check 1/1
-kubectl delete -f cilium-preflight.yaml
-```
-
-(kube-proxy-less clusters must pass `k8sServiceHost`/`k8sServicePort`;
-replace `<api-vip>` with the per-env Talos API VIP: dev `.248`, prd
-`.198`. Only then let the ImagePolicy PR land.)
+`preflight.enabled` in the release values. Render with
+`preflight.enabled=true, agent=false, operator.enabled=false` plus the
+per-env Talos API VIP (`k8sServiceHost`/`k8sServicePort`), create the
+rendered manifest, verify the pre-flight DaemonSet/check report Ready,
+then delete it. Only then let the ImagePolicy PR land.
 
 ## Values rationale
 
@@ -59,31 +45,15 @@ replace `<api-vip>` with the per-env Talos API VIP: dev `.248`, prd
 The pool covers only `.199` — never `.198`. `CiliumL2AnnouncementPolicy`
 announces LB IPs on the Talos NIC `enp45s0`.
 
-## ServiceMonitor deviation (§9)
+## Telemetry-off / monitoring / updates
 
-All `serviceMonitor.enabled: false` mirrors the cert-manager deviation:
-plain `prometheus.enabled` only adds scrape annotations, while
-`ServiceMonitor` objects require the monitoring.coreos.com CRDs.
-
-## Telemetry-off evidence
-
-`helm show values oci://quay.io/cilium/charts/cilium --version 1.20.2 |
-grep -viE '^\s*#' | grep -iE 'telemetry|usageReporting|phoneHome|analytics'`
-returns empty — the chart has no usage-reporting *keys* (only comment
-mentions such as "Disable the usage of CiliumEndpoint CRD"), so there is
-nothing to switch off.
-
-## Update automation
-
-`flux/infra/update-policies/cilium.yaml` (`ImageRepository` +
-`ImagePolicy`, semver `>=1.20.2`) tracks `quay.io/cilium/charts/cilium`;
-ImageUpdateAutomation opens PRs via the `$imagepolicy` marker on the
-`OCIRepository` tag.
-
-## Tenant wave
-
-Cilium ships in the initial tenant wave (`dependsOn` policies) before
-workloads — pods need the CNI + LB pool before anything schedules.
+- The chart has no usage-reporting keys, so there is nothing to switch off.
+- All `serviceMonitor.enabled: false`: plain `prometheus.enabled` only adds
+  scrape annotations, while `ServiceMonitor` objects require the
+  monitoring.coreos.com CRDs.
+- Chart bumps: `update-policies/cilium.yaml` → PR automation.
+- Cilium ships in the initial tenant wave (`dependsOn` policies) before
+  workloads — pods need the CNI + LB pool before anything schedules.
 
 ## Environments
 

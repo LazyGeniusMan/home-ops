@@ -3,11 +3,10 @@
 # zitadel-cache-cosi-creds and zitadel-assets-cosi-creds, key BucketInfo) via the eso-k8s-reader
 # ServiceAccount. Role is least-privilege: secrets get/list/watch restricted
 # to the *-cosi-creds Secrets + selfsubjectrulesreviews create, in-namespace
-# only (db + cache + assets claims). Same pattern as the cnpg/dragonfly/clickhouse stores: server.url
-# omitted (defaults to kubernetes.default), kube-root-ca.crt supplies the API
-# CA. Consumers (cnpg-s3-credentials / dragonfly-s3-credentials here) use
-# GJSON `property` (BucketInfo.spec.secretS3.accessKeyID/accessSecretKey) —
-# verified against ESO providers/v1/kubernetes/client.go getFromSecretData.
+# only (db + cache + assets claims). server.url omitted (defaults to
+# kubernetes.default), kube-root-ca.crt supplies the API CA. Consumers
+# (cnpg-s3-credentials / dragonfly-s3-credentials here) use GJSON `property`
+# (BucketInfo.spec.secretS3.accessKeyID/accessSecretKey).
 ---
 apiVersion: v1
 kind: ServiceAccount

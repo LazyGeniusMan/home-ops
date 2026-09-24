@@ -1,14 +1,11 @@
 # Update policy for the external-dns component (§9): tracks the OCI Helm chart, and the
 # ImageUpdateAutomation (update cluster) opens PRs via markers in
 # components/external-dns (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
-# Image-stream alignment (G5 decision, recorded): the
-# infra:external-dns-netbird policy tracks the :dev stream that
-# controllers/base pins (intentional single-stream — see the decision note in
-# controllers/base/external-dns.yaml: prd-on-dev risk accepted, promotion to
-# :stable triggered by the first external-dns-netbird-v* tagged release).
+# Sidecar policy tracks the :dev stream controllers/base pins (intentional
+# single-stream; promotion to :stable on the first external-dns-netbird-v* release).
 # Changelog: chart — https://github.com/kubernetes-sigs/external-dns/releases.
 # Changelog: sidecar, in-repo — projects/external-dns-netbird.
-# Mode: auto (chart) + auto single-stream :dev (sidecar — prd-on-dev risk accepted, see note above).
+# Mode: auto (chart) + auto single-stream :dev (sidecar).
 # Coupled files: [controllers/base/external-dns.yaml (chart `version:` + `image.tag` + sidecar image)].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1

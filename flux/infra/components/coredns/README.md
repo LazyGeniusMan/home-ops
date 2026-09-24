@@ -59,25 +59,17 @@ the out-of-band HPA owns the runtime count (base min 2 / max 4,
 
 Upstream reference (read-only): `/tmp/home-ops-docs/coredns-docs`.
 
-## kube-dns Service IP assumption (break-glass)
+## kube-dns Service IP coupling
 
 `controllers/base/kube-dns.yaml` pins `clusterIP: 10.96.0.10` — the 10th
-address of the Talos **default** service subnet `10.96.0.0/12` (K8s
-convention: API at `.1`, kubelets default `--cluster-dns` to `.10`; nothing
-in `talos/` overrides `serviceSubnet`, so the default holds and kubelets need
-no per-node `clusterDNS`). This is a validated assumption, not a guess — but
-it is silent-break: if a `serviceSubnet` override is ever added to
-`talos/`, the kube-dns `clusterIP` MUST move to the 10th address of the new
-range or every kubelet will point at a non-existent DNS IP. The IP stays a
-literal inside the static Service manifest (nothing consumes a variable
-here); the comment in `controllers/base/kube-dns.yaml` + this note record
-the coupling.
+address of the Talos default service subnet `10.96.0.0/12`. If a
+`serviceSubnet` override is ever added to `talos/`, the kube-dns
+`clusterIP` MUST move to the 10th address of the new range.
 
 ## Telemetry-off / monitoring / updates
 
-- No reporting knobs in chart values (verified: no
-  telemetry/usageReporting/phoneHome/analytics keys); `prometheus.service`
-  only adds scrape annotations. `ServiceMonitor` disabled until CRDs land.
+- No reporting knobs in chart values; `prometheus.service` only adds
+  scrape annotations. `ServiceMonitor` disabled until CRDs land.
 - Chart bumps via `update-policies/coredns.yaml` → PR automation.
 
 ## Upgrade runbook

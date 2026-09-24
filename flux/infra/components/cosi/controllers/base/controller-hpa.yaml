@@ -1,19 +1,9 @@
-# HPA for the COSI central controller (safe multi-replica: the pinned
-# image gcr.io/k8s-staging-sig-storage/objectstorage-controller:v0.2.2 runs
-# controller/cmd/controller-manager.go which calls
-# internal/runtime NewDefaultObjectStorageController with lock
-# "leader-lock" — and internal/runtime/controller.go Run() executes
-# leaderelection.RunOrDie UNCONDITIONALLY (hostname identity), so standbys
-# never double-act. RBAC already grants coordination.k8s.io/leases (rbac.yaml
-# Role in namespace cosi, where the lease lands via the SA namespace).
-# See k8s-cosi-docs/controller/cmd/main.go (fresh main) + controller/
-# resources/deployment.yaml (upstream ships replicas: 1 default, election
-# makes >1 safe).
+# HPA for the COSI central controller (leader-elected, so multi-replica is
+# safe; RBAC already grants coordination.k8s.io/leases in namespace cosi).
 # Autoscaling prerequisite (not managed here): metrics-server healthy
 # (flux/infra/components/metrics-server).
-# Bounds per env via the dev/prd overlay patches: dev min 1/max 2,
-# prd min 2/max 4. Base replicas: 1 is the create-time seed, HPA owns
-# runtime count (HPA minReplicas enforces the floor).
+# Bounds per env via the dev/prd overlay patches: dev min 1/max 2, prd min
+# 2/max 4. Base replicas: 1 is the create-time seed, HPA owns runtime count.
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

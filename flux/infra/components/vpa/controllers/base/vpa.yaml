@@ -1,32 +1,23 @@
 # VPA (§9.x): Vertical Pod Autoscaler — recommender-only for HPA-paired
 # workloads, applying (Recreate/Initial) for singletons; see VPA CRs next to
 # each target Deployment. Chart: official upstream vertical-pod-autoscaler
-# 0.12.0 (app 1.7.1 — the current default per
-# vpa-docs/vertical-pod-autoscaler/docs/installation.md) via OCI
+# 0.12.0 (app 1.7.1) via OCI
 # oci://chartproxy.container-registry.com/kubernetes.github.io/autoscaler/vertical-pod-autoscaler
 # (chartproxy proxy of the official classic repo
-# https://kubernetes.github.io/autoscaler; chart install per
-# charts/vertical-pod-autoscaler/README.md). No cosign verify block:
-# proxied tarballs are live-translated by chartproxy, so no upstream
-# signature applies.
+# https://kubernetes.github.io/autoscaler). No cosign verify block: proxied
+# tarballs are live-translated by chartproxy, so no upstream signature applies.
 # CRD handling: the chart ships verticalpodautoscalers +
 # verticalpodautoscalercheckpoints CRDs as regular templates
-# (crds.enabled/keep true); Flux applies them declaratively via
-# install/upgrade crds.CreateReplace below.
-# Telemetry: no usage-reporting/telemetry keys in chart values (verified:
-# non-comment values lines matching telemetry|usageReporting|phoneHome|
-# analytics are empty), so there is nothing to switch off.
+# (crds.enabled/keep true); Flux applies them via install/upgrade
+# crds.CreateReplace below.
+# Telemetry: no usage-reporting keys in chart values, nothing to switch off.
 # Monitoring: recommender/updater/admissionController expose no ServiceMonitor
 # keys; ServiceMonitor stays out until monitoring.coreos.com CRDs land.
 # Admission: Helm-managed certgen (admissionController.registerWebhook=false
-# + certGen.enabled=true, kube-webhook-certgen pre/post hooks + Helm-owned
-# MutatingWebhookConfiguration self-registration). cert-manager path skipped
-# deliberately: certManager.enabled is mutually exclusive with certGen
-# (chart validation fails if both are true) and its self-signed sub-mode
-# would create Issuer+Certificate CRs that wedge the release when
-# cert-manager CRDs are momentarily unavailable during bootstrap ordering;
-# certgen has no such cross-component dependency. Revisit only if certgen
-# hook failures recur.
+# + certGen.enabled=true). cert-manager path skipped: certManager.enabled is
+# mutually exclusive with certGen, and its Issuer+Certificate CRs would wedge
+# the release when cert-manager CRDs are momentarily unavailable during
+# bootstrap ordering; certgen has no such cross-component dependency.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

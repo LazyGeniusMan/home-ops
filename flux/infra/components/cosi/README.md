@@ -45,9 +45,8 @@ tenant is `infra/cosi` via `flux/infra/update-policies/cosi.yaml`.
   `seaweedfs.yaml`, all `<0.3.0`).
 - Controller image
   `gcr.io/k8s-staging-sig-storage/objectstorage-controller:v0.2.2`.
-  Adapted from upstream: namespace `system`→`cosi`
-  (matches the Flux tenant namespace), leader-election Role/Binding +
-  ClusterRoleBinding subjects `default`→`cosi`.
+  Adapted from upstream: namespace `system`→`cosi`, leader-election
+  Role/Binding + ClusterRoleBinding subjects `default`→`cosi`.
 - Driver + classes live in the seaweedfs component's `configs/base/`
   (`driver.yaml`, `driver-rbac.yaml`, `bucketclasses.yaml` — the driver is
   a SeaweedFS workload, hosted in that tenant namespace): mirror the
@@ -62,9 +61,8 @@ tenant is `infra/cosi` via `flux/infra/update-policies/cosi.yaml`.
 - `bucketclasses.yaml`: mirrors the chart's
   `cosi-bucket-class.yaml` (`BucketClass/seaweedfs` deletionPolicy Delete +
   `BucketAccessClass/seaweedfs-key` authenticationType Key), plus
-  `parameters: {replication: "001", disk: ssd}` (driver keys per
-  `pkg/driver/provisioner.go`: 3-digit DC/rack/node placement + FilerConf
-  disk-type tag).
+  `parameters: {replication: "001", disk: ssd}` (3-digit DC/rack/node
+  placement + FilerConf disk-type tag).
 
 ## COSI flow
 

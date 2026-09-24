@@ -168,14 +168,10 @@ First-install runbook (zero-UI):
    --from-literal=org_id=<id> --from-literal=admin_user_id=<id>`.
    Invite `admin@…` via the console. Keys are non-expiring (nothing to rotate).
 
-ESO pull-only is sufficient (no push needed):
-
-- Generated credentials (machine-key JSON, PAT) are minted in-cluster by
-  the chart setup Job and stay in-cluster: chart kept Secrets →
-  `zitadel-bootstrap` Kubernetes-provider SecretStore → ESO ExternalSecret
-  mirrors (`zitadel-bootstrap-credentials`). Proton Pass holds only STATIC
-  secrets (masterkey, DSN, passwords); nothing generated ever flows back to
-  the vault.
+ESO pull-only is sufficient: generated credentials (machine-key JSON, PAT)
+are minted in-cluster by the chart setup Job and stay in-cluster (chart
+kept Secrets → `zitadel-bootstrap` Kubernetes-provider SecretStore → ESO
+mirrors). Proton Pass holds only static secrets.
 
 No `terraform/` bootstrap slice ships: org, users, and membership are owned
 by the FirstInstance stanza above; per-app projects/roles/grants/clients live
@@ -185,9 +181,8 @@ live in each app's per-app `terraform/` state — read them into Proton Pass
 
 ## Telemetry-off / monitoring / updates
 
-- Telemetry evidence: the pulled chart `values.yaml` contains no phone-home,
-  analytics, or usage-reporting knobs (checked at authoring time; a grep for
-  telem\*/analytic\*/phone-home/usage-report/tracking returns nothing).
+- Telemetry: the chart `values.yaml` contains no phone-home, analytics, or
+  usage-reporting knobs.
 - Unguarded monitors OFF: the chart's `metrics.enabled` stays `false` and no
   `ServiceMonitor` objects are shipped until `monitoring.coreos.com` CRDs land
   (same as the cert-manager component). Flip: set `metrics.enabled: true`

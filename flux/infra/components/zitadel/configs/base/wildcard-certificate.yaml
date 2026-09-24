@@ -1,10 +1,10 @@
-# In-namespace wildcard Certificate (§§8.1/9.3/11.1). cert-manager Secrets are
-# namespace-local, so the §9 Certificate (cert-manager namespace) cannot feed
-# this component's Gateway listener — this duplicate Certificate mints
-# wildcard-home-ops-tls HERE via the same ClusterIssuer/letsencrypt and
-# dnsNames (same pattern as §8.1 gateway-api). The token ExternalSecret mirrors
-# cert-manager/configs/base/cluster-issuer.yaml (same Proton Pass remoteRef)
-# so the DNS-01 solver credential exists in this namespace too.
+# In-namespace wildcard Certificate. cert-manager Secrets are namespace-local, so this
+# component mints wildcard-home-ops-tls HERE via ClusterIssuer/letsencrypt (same
+# dnsNames pattern as gateway-api). The token ExternalSecret mirrors
+# cert-manager/configs/base/cluster-issuer.yaml so the DNS-01 solver credential exists
+# in this namespace too.
+# SANs: single-level wildcard plus nested *.zitadel.<base> (wildcard certs match one
+# label only, so *.base does NOT cover login.zitadel.base).
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

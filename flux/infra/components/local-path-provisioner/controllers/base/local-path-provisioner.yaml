@@ -1,9 +1,8 @@
 # Local Path Provisioner v0.0.37 (§9.5): node-local dynamic volumes for the
-# data layer. Chart: oci://ghcr.io/rancher/local-path-provisioner/charts/local-path-provisioner
-# (verified tag 0.0.37 == app v0.0.37).
+# data layer. Chart: oci://ghcr.io/rancher/local-path-provisioner/charts/local-path-provisioner,
+# tag 0.0.37 == app v0.0.37.
 # Talos alignment: UserVolumeConfig volumes mount at /var/mnt/<name>, so
-# nvme-data -> /var/mnt/nvme-data and sata-data -> /var/mnt/sata-data
-# (talos/clusters/acme-prd-bdo1-talos-apps-01 node patches).
+# nvme-data -> /var/mnt/nvme-data and sata-data -> /var/mnt/sata-data.
 # Default-class discipline: exactly one default — local-ssd-nvme. The base
 # storageClass.create=false disables the chart's single built-in class so
 # only the two storageClassConfigs below exist.
@@ -48,16 +47,13 @@ spec:
       retryInterval: 5m
   # https://github.com/rancher/local-path-provisioner/tree/master/deploy/chart/local-path-provisioner
   values:
-    # Singleton placeholder: provisioner runs with LeaderElection(false)
-    # (main.go opts out while the vendored default is true); two replicas
-    # would provision/delete PVs concurrently. NO HPA — pinned to 1 in
-    # dev/prd overlays (verified against local-path-provisioner-docs/main.go
-    # + deploy/provisioner.yaml hardcoded replicas 1).
+    # Singleton placeholder: provisioner runs with LeaderElection(false); two
+    # replicas would provision/delete PVs concurrently. NO HPA — pinned to 1
+    # in dev/prd overlays.
     replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
-    # Resources: upstream leaves {} by default ("conscious choice for the
-    # user" per deploy/chart/local-path-provisioner/values.yaml); provisioner
-    # idles except on PV create/delete so requests stay light. Requests pinned
-    # for scheduling/QoS, memory-only limit.
+    # Resources: upstream leaves {} by default; provisioner idles except on PV
+    # create/delete so requests stay light. Requests pinned for scheduling/QoS,
+    # memory-only limit.
     resources:
       requests:
         cpu: 50m

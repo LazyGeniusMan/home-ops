@@ -9,18 +9,12 @@ class), hourly snapshots to SeaweedFS S3 (`0 * * * *`, master-only, prefix
 
 ## Chart source
 
-OCI is the upstream source of truth, verified by pull:
-
-- `oci://ghcr.io/dragonflydb/dragonfly-operator/helm/dragonfly-operator`, tag
-  `v1.6.1` (digest
-  `sha256:a2e9f431f46b0dfb4aee426b70efb4394f970525516ea3f51c8d60a345bbc260`,
-  `helm template` + `helm lint` pass locally).
-- Unlike §10.1 (cnpg), chart version and operator version agree here: chart
-  **v1.6.1** embeds operator **v1.6.1** (`appVersion: v1.6.1` in the pulled
-  `Chart.yaml`). No chart→operator mapping to re-verify on bumps, but the
-  `update-policies/dragonfly.yaml` floor is still `>=1.6.1` per the §7
-  contract (ImageRepository + ImagePolicy + `$imagepolicy` marker
-  `infra:dragonfly:tag`).
+- `oci://ghcr.io/dragonflydb/dragonfly-operator/helm/dragonfly-operator`,
+  tag `v1.6.1` (digest
+  `sha256:a2e9f431f46b0dfb4aee426b70efb4394f970525516ea3f51c8d60a345bbc260`).
+- Chart version and operator version agree: chart **v1.6.1** embeds
+  operator **v1.6.1** (`appVersion: v1.6.1`), so no chart→operator mapping
+  to re-verify on bumps.
 
 ## HA / replication
 
@@ -126,10 +120,9 @@ client traffic over TLS.
 
 ## Telemetry-off / monitoring / updates
 
-- Telemetry evidence: the pulled chart `values.yaml` contains no phone-home,
-  analytics, or usage-reporting knobs (checked at authoring time); the
-  operator exposes only a local metrics endpoint (`:8080` behind the
-  `kube-rbac-proxy` sidecar on `:8443`).
+- Telemetry: the chart `values.yaml` contains no phone-home, analytics, or
+  usage-reporting knobs; the operator exposes only a local metrics endpoint
+  (`:8080` behind the `kube-rbac-proxy` sidecar on `:8443`).
 - Monitoring: no `ServiceMonitor` objects are shipped and the chart's
   `serviceMonitor.enabled`/`grafanaDashboard.enabled` stay `false` until
   `monitoring.coreos.com` CRDs land (same §9 deviation). Flip: set both to

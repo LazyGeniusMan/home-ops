@@ -9,20 +9,14 @@ provider-ready Zitadel modules under
 
 ## Chart source
 
-OCI is the upstream source of truth, verified by pull:
-
 - `oci://ghcr.io/flux-iac/charts/tofu-controller`, tag **0.16.5** (digest
-  `sha256:336e9a2690b868781422165bf20550dc7e7093abeb841c498d8bd1dd594fbd27`,
-  `helm template` + full-values render pass locally). Chart == app
-  (**v0.16.5** for both `ghcr.io/flux-iac/tofu-controller` and
+  `sha256:336e9a2690b868781422165bf20550dc7e7093abeb841c498d8bd1dd594fbd27`).
+  Chart == app (**v0.16.5** for both `ghcr.io/flux-iac/tofu-controller` and
   `ghcr.io/flux-iac/tf-runner`); on chart bumps set `image.tag` AND
-  `runner.image.tag` to the new appVersion together (same divergence note
-  pattern as Zitadel).
-- No classic `HelmRepository` fallback: this chart publishes to GHCR on
-  every release.
-- Upstream reference: `/tmp/home-ops-docs/flux-tofu-controller-docs/docs/`
-  (`index.md`, `getting_started.md`, `release.yaml`); the CRD install policy
-  (`Create`/`CreateReplace`) mirrors upstream `release.yaml`.
+  `runner.image.tag` to the new appVersion together.
+- The CRD install policy (`Create`/`CreateReplace`) mirrors upstream
+  `release.yaml`.
+- Upstream reference: `/tmp/home-ops-docs/flux-tofu-controller-docs/docs/`.
 
 ## Compatibility
 
@@ -89,9 +83,8 @@ leave the cluster.
 
 ## Telemetry-off / monitoring / updates
 
-- Telemetry evidence: the chart `values.yaml` contains no phone-home,
-  analytics, or usage-reporting knobs (`telemetry|usageReport|phoneHome|
-  analytics|tracking|segment|sentry` all return nothing).
+- Telemetry: the chart `values.yaml` contains no phone-home, analytics, or
+  usage-reporting knobs.
 - Unguarded monitors OFF: `metrics.enabled` stays `false` and no
   `ServiceMonitor` is shipped (same §9 deviation).
 - Chart bumps flow through `update-policies/tofu-controller.yaml` + PR

@@ -1,7 +1,6 @@
 # Dragonfly operator 1.6.1 (§10.3): Redis-compatible cache clusters via the
-# Dragonfly API. Chart: oci://ghcr.io/dragonflydb/dragonfly-operator/helm/dragonfly-operator
-# (verified tag v1.6.1 == app v1.6.1; OCI on GHCR is the upstream source of
-# truth — the operator CI pushes the chart there on every release, see README).
+# Dragonfly API. Chart: oci://ghcr.io/dragonflydb/dragonfly-operator/helm/dragonfly-operator,
+# tag v1.6.1 == app v1.6.1.
 # Telemetry: no phone-home/usage-reporting knobs in the chart values.
 # Monitoring: ServiceMonitor + Grafana dashboard stay disabled until
 # monitoring.coreos.com CRDs land (same deviation as §9); flip notes in README.

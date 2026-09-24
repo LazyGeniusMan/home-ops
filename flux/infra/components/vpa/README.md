@@ -1,8 +1,7 @@
 # vpa (§9.x)
 
 Vertical Pod Autoscaler official upstream chart `vertical-pod-autoscaler`
-0.12.0 (app v1.7.1 — current default per
-`vpa-docs/vertical-pod-autoscaler/docs/installation.md`) via OCI
+0.12.0 (app v1.7.1) via OCI
 `oci://chartproxy.container-registry.com/kubernetes.github.io/autoscaler/vertical-pod-autoscaler`
 (chartproxy proxy of the official classic repo
 `https://kubernetes.github.io/autoscaler`). Serving resource
@@ -23,13 +22,10 @@ recommendations (`kubectl describe vpa`) for every workload; applying
   `--min-replicas=2` stands, so singleton targets need
   `updatePolicy.minReplicas: 1` on their VPA CRs to ever evict.
 
-## Telemetry-off evidence
+## Telemetry-off / monitoring / updates
 
-Upstream chart exposes no reporting knobs; values set only `recommender`,
-`updater`, `admissionController` (certgen + resources).
-
-## Monitoring / updates
-
+- Upstream chart exposes no reporting knobs; values set only `recommender`,
+  `updater`, `admissionController` (certgen + resources).
 - No `ServiceMonitor` keys exist in the chart.
 - Chart bumps: `update-policies/vpa.yaml` → PR automation (app-image
   feed never matches the chart-line range, so chart bumps stay manual

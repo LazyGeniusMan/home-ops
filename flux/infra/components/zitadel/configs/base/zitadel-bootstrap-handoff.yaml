@@ -1,35 +1,15 @@
-# Bootstrap handoff (§11.1): zero-UI FirstInstance wiring, no Tofu Controller.
-# The chart's setup Job (controllers/base/zitadel.yaml `FirstInstance` stanza)
-# creates org `home-ops` + the IAM_OWNER machine user `zitadel-bootstrap-sa`
-# and writes two kept Secrets (cleanupJob.enabled=false):
-# - `zitadel-bootstrap-sa` (key `<Username>.json` = machine-key JSON, Type 1)
-# - `zitadel-bootstrap-sa-pat` (key `pat` = personal access token)
-# This file mirrors both into consumer-ready Secrets via the in-namespace
-# `zitadel-cosi`-style Kubernetes SecretStore pattern (same-namespace reads
-# need no cross-namespace grant):
-# - `zitadel-bootstrap-credentials` (keys `jwt_profile_json`, `pat`) — the
-#   JWT-profile + PAT handoff that per-app tofu-controller `varsFrom` /
-#   `fileMappings` consume (replaces vault seeding
-#   `pass://<env-vault>/zitadel/terraform-jwt-profile-json`). No inline
-#   credentials, no manual vault seeding: the setup Job mints the key and ESO
-#   copies it.
-# - `zitadel-bootstrap-outputs` is NOT ESO-managed (nothing to mirror — org
-#   IDs are Zitadel-generated at setup time). It is a PLAIN Secret created
-#   once by the operator after first install (kubectl create secret generic
-#   zitadel-bootstrap-outputs --from-literal=org_id=<id> ...; see README
-#   runbook) carrying `org_id` + `admin_user_id` (plain IDs, non-sensitive) —
-#   same name/keys as the Terraform `writeOutputsToSecret` contract. Per-app
-#   slices read the two IDs from this Secret into their CR `vars` (literal,
-#   non-sensitive) instead of email lookups. Consumers read the two IDs via
-#   same-namespace `varsFrom` (zitadel ns) or narrow cross-ns Roles
-#   (app namespaces).
-# AssetStorage S3 (`zitadel-asset-storage`, keys endpoint/accessKeyId/
-# secretAccessKey) is ESO-mirrored here too from the colocated
-# `zitadel-assets` claim (bucketclaims.yaml) through the in-namespace
-# `zitadel-cosi` SecretStore — consumed as ZITADEL_ASSETSTORAGE_* env vars
-# (see the HelmRelease). Endpoint is the INTERNAL S3
-# (http://seaweed-main-s3.seaweedfs:8333 — plain HTTP, same
-# as CNPG/Dragonfly); per-env overlays patch only this file's endpoint literal.
+# Bootstrap handoff: zero-UI FirstInstance wiring, no Tofu Controller. The chart setup
+# Job (controllers/base/zitadel.yaml FirstInstance stanza) creates org home-ops + the
+# IAM_OWNER machine user zitadel-bootstrap-sa and writes two kept Secrets
+# (cleanupJob.enabled=false): zitadel-bootstrap-sa (machine-key JSON) and
+# zitadel-bootstrap-sa-pat (PAT). This file mirrors both into consumer-ready
+# zitadel-bootstrap-credentials (jwt_profile_json + pat) via the in-namespace
+# zitadel-bootstrap SecretStore; per-app tofu-controller varsFrom/fileMappings consume
+# it. zitadel-bootstrap-outputs (org_id + admin_user_id) is a PLAIN Secret created
+# once by the operator after first install (see README runbook). AssetStorage S3
+# (zitadel-asset-storage) is ESO-mirrored here from the colocated zitadel-assets claim
+# through the in-namespace zitadel-cosi SecretStore; overlays patch only the endpoint
+# literal.
 ---
 apiVersion: v1
 kind: ServiceAccount

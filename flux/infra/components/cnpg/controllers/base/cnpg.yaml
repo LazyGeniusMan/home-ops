@@ -1,7 +1,6 @@
 # CNPG operator 1.30.0 (§10.1): PostgreSQL HA clusters via the Cluster API.
-# Chart: oci://ghcr.io/cloudnative-pg/charts/cloudnative-pg (chart 0.29.1
-# embeds operator 1.30.0 — chart version and operator version differ;
-# OCI on GHCR is the upstream source of truth, see README).
+# Chart: oci://ghcr.io/cloudnative-pg/charts/cloudnative-pg, chart 0.29.1
+# embeds operator 1.30.0 (see README for the chart→operator mapping).
 # Telemetry: no phone-home/usage-reporting knobs in the chart values.
 # Monitoring: the operator metrics endpoint stays on; podMonitorEnabled is
 # false until monitoring.coreos.com CRDs land (same deviation as §9).

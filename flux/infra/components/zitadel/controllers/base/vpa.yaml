@@ -3,7 +3,7 @@
 # updateMode Off — recommender-only, because each HPA scales the same CPU
 # metric (known-limitations.md: never VPA-apply on a resource HPA scales on).
 # Release name `zitadel` renders Deployments `zitadel` + `zitadel-login`
-# (chart 10.0.4; autoscaling keys verified in dev/prd overlays).
+# (chart 10.0.4).
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler

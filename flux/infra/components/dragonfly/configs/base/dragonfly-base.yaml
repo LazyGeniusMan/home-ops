@@ -1,24 +1,18 @@
 # Reusable Dragonfly HA cache base template (§10.3). Copy this stanza into a
-# namespace-local Dragonfly object; it is a template, not a live instance
-# (same shape as the §10.1 cnpg cluster-base — Zitadel in §11 consumes this
-# base as its Redis-compatible cache, see README for the connection contract).
+# namespace-local Dragonfly object; it is a template, not a live instance.
 # - HA: 3 replicas (1 primary + 2 replicas), automatic failover by the
 #   operator; the <name>.<namespace>.svc.cluster.local Service always selects
 #   the current primary. Pod anti-affinity spreads replicas across nodes.
 # - Persistence: tiering.persistentVolumeClaimSpec on local-ssd-nvme (the §9
-#   default class). NOTE: upstream mounts a snapshot.persistentVolumeClaimSpec
-#   AT snapshot.dir, so a PVC snapshot volume cannot combine with an S3 dir
-#   (the mountPath would be the s3:// URI). Persistent local disk therefore
-#   lives on the tiering volume; S3 carries the snapshots (below).
-# - Backup: hourly snapshots (snapshot_cron) stream to the SeaweedFS S3
-#   endpoint (in-cluster seaweed-main-s3.seaweedfs.svc.cluster.local:8333, §12 — same wave,
-#   referenced by DNS name only, no file dependency). The internal S3 serves
-#   plain HTTP, so --s3_use_https=false rides alongside --s3_endpoint (which
-#   takes a bare host, no scheme). Credentials come from the
-#   s3-credentials ExternalSecret in this directory (AWS_* env + s3_endpoint
-#   arg on the Dragonfly object). Restore: see README runbook.
-# - Connection contract for §11 consumers: host
-#   <name>.<namespace>.svc.cluster.local, port 6379 (Redis-compatible).
+#   default class). A PVC snapshot volume cannot combine with an S3 dir, so
+#   persistent local disk lives on the tiering volume; S3 carries snapshots.
+# - Backup: hourly snapshots stream to the SeaweedFS S3 endpoint (referenced
+#   by DNS name only, no file dependency). The internal S3 serves plain HTTP,
+#   so --s3_use_https=false rides alongside --s3_endpoint (bare host, no
+#   scheme). Credentials come from the s3-credentials ExternalSecret in this
+#   directory. Restore: see README runbook.
+# - Connection contract: host <name>.<namespace>.svc.cluster.local, port
+#   6379 (Redis-compatible).
 ---
 apiVersion: dragonflydb.io/v1alpha1
 kind: Dragonfly
@@ -27,8 +21,8 @@ metadata:
 spec:
   replicas: 3 # placeholder - overridden by dev/prd overlays
 
-  # Persistent local disk for tiered entries (see header note for why the
-  # snapshot PVC is NOT used here — S3 owns snapshots in this design).
+  # Persistent local disk for tiered entries (S3 owns snapshots here, so no
+  # snapshot PVC).
   tiering:
     persistentVolumeClaimSpec:
       storageClassName: local-ssd-nvme

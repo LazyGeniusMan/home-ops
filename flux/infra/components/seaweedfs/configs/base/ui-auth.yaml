@@ -1,52 +1,25 @@
-# SeaweedFS filer-UI auth (SSO decoupling): admin-only Zitadel OIDC via a
-# namespace-local oauth2-proxy (reverse-proxy mode) in front of the filer.
-# The public S3 API route stays DIRECT (SigV4-gated machine endpoint — see
-# README); only admin.seaweedfs.… flows through this proxy.
+# SeaweedFS filer-UI auth: admin-only Zitadel OIDC via a namespace-local
+# oauth2-proxy (reverse-proxy mode) in front of the filer. The public S3 API
+# route stays DIRECT (SigV4-gated); only admin.seaweedfs flows through this proxy.
+# Own client (seaweedfs-sso Terraform CR in terraform.yaml): issuer
+# __ZITADEL_ISSUER_URL__, redirect https://__SEAWEEDFS_UI_HOST__/oauth2/callback,
+# scopes openid profile email groups, admin-only via --allowed-group=seaweedfs-admin,
+# cookie domain .__BASE_DOMAIN__.
+# Credentials flow from stored outputs: seaweedfs-sso writes client_id +
+# client_secret + cookie_secret into seaweedfs-sso-outputs, and the
+# ui-auth-credentials ExternalSecret consumes them through the in-cluster
+# seaweedfs-k8s SecretStore (no pass:// seeding; property fields map onto
+# OAUTH2_PROXY_* env keys).
 #
-# Own client (managed by the `seaweedfs-sso` Terraform CR in terraform.yaml):
-# - issuer __ZITADEL_ISSUER_URL__, OWN client `seaweedfs`
-#   (redirect https://__SEAWEEDFS_UI_HOST__/oauth2/callback — the
-#   --redirect-url below), scopes `openid profile email groups`.
-# - Admin-only via --allowed-group=seaweedfs-admin against the `groups`
-#   claim (admin@__BASE_DOMAIN__ holds the seaweedfs-admin grant; see
-#   README role matrix).
-# - Cookie domain .__BASE_DOMAIN__ (shared with sibling proxies).
-#
-# Credentials flow end-to-end from stored outputs: the `seaweedfs-sso`
-# Terraform module outputs client_id + client_secret + cookie_secret into the
-# `seaweedfs-sso-outputs` Secret (CR writeOutputsToSecret in terraform.yaml),
-# and the `ui-auth-credentials` ExternalSecret consumes all three keys from
-# that Secret through the in-cluster `seaweedfs-k8s` SecretStore below (ESO
-# Kubernetes provider). NO pass:// seeding for OIDC creds — no manual step
-# after the CR applies. The writeOutputsToSecret Secret stores outputs
-# base64-encoded under their output names (`client_id`, `client_secret`,
-# `cookie_secret`); the `property` fields below map those onto the
-# OAUTH2_PROXY_* env keys the proxy consumes via envFrom.
-#
-# Delivered by the official OCI chart
-# (oci://ghcr.io/oauth2-proxy/charts/oauth2-proxy, tag 10.7.0, digest
-# sha256:47193ebe7052f414c8c05ac2277b5b2b8fd62faf6f4f8ea6c7263a741e62acd,
-# cosign-signed by the upstream release workflow — verified by the
-# OCIRepository verify block below; app v7.15.4 set explicitly, chart 10.7.0
-# pins 7.15.3, delta is CVE/Go only).
-#
-# Chart contract: release + fullname ui-auth keeps the Deployment + Service
-# names at ui-auth (HTTPRoute backend seaweedfs-ui-tls, HPA/VPA targets, and
-# ESO target ui-auth-credentials untouched); existingSecret +
-# proxyVarsAsSecrets: false keep credential ownership in ESO (chart renders
-# no Secret); no-config mode (forceLegacyConfig: false, no configFile) keeps
-# every flag in extraArgs; metrics/ServiceMonitor off (no telemetry);
-# ServiceAccount, autoscaling, and PDB off (no SA token, create-time seed
-# replica, external HPA/VPA own scaling). Probes: liveness /ping (10s
-# delay); readiness is the chart default /ready (deep check, 5s delay),
-# same binary.
-# The chart tag auto-tracks flux/infra/update-policies/seaweedfs.yaml via the
-# $imagepolicy marker (chart marker infra:seaweedfs-ui-auth-chart; image
-# marker infra:seaweedfs-ui-auth — per-copy own policy, see
-# update-policies/seaweedfs.yaml).
-# Ordering: the ESO ExternalSecret lives alongside the release in this same
-# Kustomization, so the first install attempt pends until ESO syncs it and
-# Flux retries (RetryOnFailure below).
+# Official OCI chart (oci://ghcr.io/oauth2-proxy/charts/oauth2-proxy, tag 10.7.0;
+# app v7.15.4 set explicitly, chart 10.7.0 pins 7.15.3). Chart contract: release +
+# fullname ui-auth; existingSecret + proxyVarsAsSecrets: false keep credential
+# ownership in ESO; no-config mode keeps every flag in extraArgs;
+# metrics/ServiceMonitor, ServiceAccount, autoscaling, and PDB off (external
+# HPA/VPA own scaling). Probes: liveness /ping, readiness /ready.
+# Chart/image tags track update-policies/seaweedfs.yaml via $imagepolicy markers.
+# The ESO ExternalSecret lives alongside the release, so the first install pends
+# until ESO syncs and Flux retries (RetryOnFailure).
 apiVersion: v1
 kind: ServiceAccount
 metadata:

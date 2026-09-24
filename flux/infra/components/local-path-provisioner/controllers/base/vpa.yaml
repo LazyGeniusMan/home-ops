@@ -3,7 +3,7 @@
 # applied to new pods only, no auto-evict (provisioner restarts risk
 # orphaning in-flight volume creates). Release name
 # `local-path-provisioner` renders Deployment
-# `lpp-local-path-provisioner` (helm template, verified).
+# `lpp-local-path-provisioner`.
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler

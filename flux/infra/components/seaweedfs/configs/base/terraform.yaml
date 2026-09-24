@@ -1,34 +1,27 @@
-# SeaweedFS filer-UI SSO identity (§12 follow-up), machine-applied by Tofu
-# Controller. Owns ONLY this component's slice: the `seaweedfs` Zitadel
-# project + project-scoped admin role (seaweedfs-admin) + admin grant
-# + the `seaweedfs` OIDC client for the oauth2-proxy UI gate.
-# Project-scoped means seaweedfs-admin NEVER implies org admin.
-#
-# Ordering: this object ships in configs/ (fleet `infra-configs`
-# Kustomization dependsOn `infra-controllers`), so it only reconciles after
-# the Zitadel HelmRelease + FirstInstance setup Job are Ready. Terraform `dependsOn`
-# is Terraform-CR-only upstream (checkDependencies resolves every entry as kind Terraform),
-# so NO dependsOn entry here — the fleet ordering above is the mechanism.
+# SeaweedFS filer-UI SSO identity, machine-applied by Tofu Controller. Owns
+# ONLY this component's slice: the `seaweedfs` Zitadel project +
+# project-scoped admin role (seaweedfs-admin) + admin grant + the `seaweedfs`
+# OIDC client for the oauth2-proxy UI gate (project-scoped, never org admin).
+# Ordering: this object ships in configs/ (fleet `infra-configs` dependsOn
+# `infra-controllers`), so it reconciles after the Zitadel HelmRelease +
+# FirstInstance setup Job are Ready. Terraform `dependsOn` is
+# Terraform-CR-only upstream, so NO dependsOn entry here — the fleet ordering
+# above is the mechanism.
 # Upstream wiring: org_id + admin ID flow from the FirstInstance handoff
-# (`zitadel-bootstrap-outputs` Secret in the `zitadel` namespace, operator-created
-# once per the zitadel README runbook) via the ESO-synced `seaweedfs-terraform-vars`
-# Secret (same-namespace `varsFrom` below; the cross-namespace `seaweedfs-zitadel`
-# SecretStore + narrow `seaweedfs-zitadel-handoff-reader` Role in `zitadel-handoff-rbac.yaml` do the
-# mirroring). NO org_id literal in git, NO manual per-env fill, NO email lookups,
-# NO remote-state reads. Provider auth likewise
+# (`zitadel-bootstrap-outputs` Secret in the `zitadel` namespace) via the
+# ESO-synced `seaweedfs-terraform-vars` Secret (same-namespace `varsFrom`
+# below; the cross-namespace `seaweedfs-zitadel` SecretStore + narrow Role in
+# `zitadel-handoff-rbac.yaml` do the mirroring). NO org_id literal in git, NO
+# manual per-env fill, NO email lookups, NO remote-state reads. Provider auth
 # flows from the chart handoff (`zitadel-bootstrap-credentials` key
-# `jwt_profile_json`) through the same Secret. Same-namespace `varsFrom` CANNOT
-# cross namespaces (no namespace field), which is why the ESO mirror + RBAC is
-# the mechanism here.
-# First-run prerequisite (zero-UI): chart setup Job mints the key + ESO mirrors
-# both handoff Secrets. Without the mirrored `seaweedfs-terraform-vars` the CR
-# retries on interval — no vault seeding, no console step.
+# `jwt_profile_json`) through the same Secret. Same-namespace `varsFrom`
+# CANNOT cross namespaces, which is why the ESO mirror + RBAC is the
+# mechanism here.
 # Backend: in-cluster Kubernetes default (state Secrets in the seaweedfs
 # namespace) — no backendConfig needed. Drift detection stays on (default).
-# Outputs: client_id + client_secret (sensitive) + cookie_secret (sensitive)
-# land in `seaweedfs-sso-outputs`; the `ui-auth-credentials` ExternalSecret
-# consumes all three from that Secret through the in-cluster `seaweedfs-k8s`
-# SecretStore (ui-auth.yaml) — never Git, never Proton Pass.
+# Outputs: client_id + client_secret + cookie_secret (sensitive) land in
+# `seaweedfs-sso-outputs`; the `ui-auth-credentials` ExternalSecret consumes
+# all three through the in-cluster `seaweedfs-k8s` SecretStore (ui-auth.yaml).
 ---
 # Cross-namespace handoff reader: mirrors the two chart-minted handoff Secrets
 # from the `zitadel` namespace into this namespace's `seaweedfs-terraform-vars`

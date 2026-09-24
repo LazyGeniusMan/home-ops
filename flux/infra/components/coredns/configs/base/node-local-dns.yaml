@@ -2,33 +2,26 @@
 # node) + the stable upstream Service + cache Corefile. Pods keep using the
 # kube-dns VIP (10.96.0.10); the CiliumLocalRedirectPolicy in the cilium
 # component (configs/base/node-local-dns-lrp.yaml) steers that VIP to the
-# cache pod on the same node, cutting the cross-node hop + conntrack load.
-# Design notes:
+# cache pod on the same node.
 # - Pod network, NOT hostNetwork (Cilium LRP replaces the classic dummy
-#   interface + iptables hijack): hostNetwork unset (defaults false),
-#   dnsPolicy Default, -setupinterface=false -setupiptables=false
-#   -skipteardown=true. Requires node-cache image >= 1.15.16 (knobs to
-#   disable interface/iptables setup); pinned 1.26.8 (matches upstream
-#   nodelocaldns.yaml master).
+#   interface + iptables hijack): hostNetwork unset, dnsPolicy Default,
+#   -setupinterface=false -setupiptables=false -skipteardown=true. Node-cache
+#   image pinned 1.26.8.
 # - bind-all: -localip 0.0.0.0 + `bind 0.0.0.0` in every server block, so the
 #   pod answers on its pod IP (where LRP delivers the redirected packets).
-# - Fully concrete Corefile — NO __PILLAR__ placeholders: the classic
-#   sed-substitution step does not exist in this GitOps flow. The upstream
-#   Service gets a STATIC ClusterIP (10.96.0.11, next after the kube-dns
-#   .10 break-glass) so the cache forward target is a literal. Same
-#   silent-break class as kube-dns .10: if talos/ ever overrides
+# - Fully concrete Corefile — no __PILLAR__ placeholders. The upstream
+#   Service gets a static ClusterIP (10.96.0.11, next after kube-dns .10) so
+#   the cache forward target is a literal. If talos/ ever overrides
 #   serviceSubnet, both statics MUST move (see controllers/base/kube-dns.yaml).
 # - kube-dns-upstream selector pins the chart pods' stable
 #   app.kubernetes.io labels (same pin as the kube-dns Service). It does NOT
-#   select `k8s-app: kube-dns`: the coredns chart renders pods with
-#   k8s-app=coredns (k8sapplabel defaults to Chart.Name), so that selector
-#   would match nothing and blackhole the cache upstream.
+#   select `k8s-app: kube-dns`: the chart renders pods with k8s-app=coredns,
+#   so that selector would match nothing.
 # - health/ready live ONLY in the cluster.local block (one listener each on
-#   :8080/:8181 — repeating them per block would collide); prometheus :9253
-#   in every block mirrors the upstream reference manifest.
+#   :8080/:8181); prometheus :9253 in every block.
 # - Explicit `namespace: kube-system` on every object: survives the tenant
-#   targetNamespace (coredns), same precedent as controllers/base/kube-dns.yaml.
-#   The LRP requires backends in the SAME namespace as the policy (kube-system).
+#   targetNamespace. The LRP requires backends in the SAME namespace as the
+#   policy (kube-system).
 ---
 apiVersion: v1
 kind: ServiceAccount

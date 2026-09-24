@@ -4,8 +4,7 @@
 # updater default --min-replicas=2 (flags.md) never evicts single-replica
 # targets, and no PDB exists here — without this the CR would
 # recommend-but-never-apply. Release name `tofu-controller` renders the
-# controller Deployment in the release namespace (chart 0.16.5;
-# control-plane: controller label, verified).
+# controller Deployment in the release namespace.
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler

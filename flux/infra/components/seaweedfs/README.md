@@ -89,9 +89,8 @@ Path-style buckets only; every bucket consumer needs an IAM identity:
   module outputs all three into the `seaweedfs-sso-outputs` Secret (CR
   `writeOutputsToSecret`), and the `ui-auth-credentials` ExternalSecret
   consumes them from that Secret through the in-cluster `seaweedfs-k8s`
-  SecretStore (ESO Kubernetes provider, `eso-k8s-reader` SA + Role) —
-  no Proton Pass seeding, never Git. The cookie secret is generated
-  in-Tofu (`random_bytes`, 32 bytes base64). Chart + image auto-track
+  SecretStore — no Proton Pass seeding, never Git. The cookie secret is
+  generated in-Tofu (`random_bytes`, 32 bytes base64). Chart + image auto-track
   `flux/infra/update-policies/seaweedfs.yaml` (markers
   `infra:seaweedfs-ui-auth-chart` + `infra:seaweedfs-ui-auth` — per-copy own
   policy, not the shared apps: markers).
@@ -112,12 +111,10 @@ Path-style buckets only; every bucket consumer needs an IAM identity:
   for any SSO input.
 - `s3-ui-routes.yaml`: `seaweedfs-ui-tls` points at the `ui-auth`
   Service — the filer UI is reachable ONLY through the proxy. The S3
-  API route (`seaweedfs-s3-tls`) stays DIRECT to `seaweed-main-s3:8333`
-  on purpose: S3 is a SigV4-gated machine endpoint (access/secret keys
-  distributed via ESO from Proton Pass), and browser-cookie OIDC would
-  break SigV4 clients (the CNPG/clickhouse/dragonfly backup
-  writers address the public S3 hostname directly). Admin-only on S3 is
-  enforced by credential distribution, not by the Gateway.
+  API route (`seaweedfs-s3-tls`) stays DIRECT to `seaweed-main-s3:8333`:
+  S3 is a SigV4-gated machine endpoint, and browser-cookie OIDC would
+  break SigV4 clients. Admin-only on S3 is enforced by credential
+  distribution, not by the Gateway.
 - In-cluster clients SHOULD use the direct Services
   (`seaweed-main-filer:8888`, `seaweed-main-s3:8333`) and never hairpin
   through the public hostnames.
@@ -169,9 +166,6 @@ Upstream reference (read-only): `/tmp/home-ops-docs/seaweedfs-docs` (+
 
 - Operator `serviceMonitor` + `grafanaDashboard` disabled (unguarded
   monitors OFF); no usage-reporting knobs exist in either chart.
-  Evidence: operator `values.yaml` exposes only `serviceMonitor.enabled`
-  / `grafanaDashboard.enabled` (both false here); CSI chart 0.2.36 has no
-  metrics/telemetry values at all.
 - Health is observed via kubelet + kube-state-metrics.
 - Operator chart 0.1.40 + CSI chart 0.2.36 are hand-bumped (see Chart
   source above); images auto-track via `update-policies/seaweedfs.yaml`.

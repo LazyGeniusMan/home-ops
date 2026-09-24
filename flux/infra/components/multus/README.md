@@ -9,11 +9,11 @@ No official upstream chart exists — vendored pinned release manifest +
 flux-pushed OCI artifact:
 
 - Upstream:
-  `https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/v4.3.0/deployments/multus-daemonset-thick.yml`
-  (v4.3.0 GitHub release).
-- Image pin: upstream tags the DaemonSet `snapshot-thick` (floating); both
-  image fields (daemon + install-multus-binary init container) are pinned to
-  `ghcr.io/k8snetworkplumbingwg/multus-cni:v4.3.0-thick`.
+  `https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/v4.3.0/deployments/multus-daemonset-thick.yml`.
+- Image pin: both image fields (daemon + install-multus-binary init
+  container) are pinned to
+  `ghcr.io/k8snetworkplumbingwg/multus-cni:v4.3.0-thick` (upstream tags the
+  DaemonSet `snapshot-thick`, which floats — never track it).
 - The `kube-system` ServiceAccount/ClusterRole(Binding)/ConfigMap/DaemonSet
   namespaces are upstream's and are correct as-is: infra-controllers applies
   with targetNamespace=multus but cluster-scoped resources (CRD, ClusterRole,

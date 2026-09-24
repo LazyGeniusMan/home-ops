@@ -81,14 +81,11 @@ login fails first). Rotate at most yearly; an early rotation is just steps
   — alert on `Ready=False`), and the PAT renewal runbook above still
   applies unchanged.
 
-## Telemetry-off evidence
+## Telemetry-off / monitoring / updates
 
-- ESO chart has no usage-reporting values (verified: no `telemetry` key in
-  chart values).
+- ESO chart has no usage-reporting values.
 - Webhook image forces `PROTON_PASS_DISABLE_TELEMETRY=1` in exec env,
   Dockerfile `ENV`, and unit test (`projects/eso-proton-pass/README.md`).
-
-## Monitoring / updates
 
 - Controller + webhook + cert-controller metrics `Service`s on; single
   `ServiceMonitor` with `renderMode: skipIfMissing`.

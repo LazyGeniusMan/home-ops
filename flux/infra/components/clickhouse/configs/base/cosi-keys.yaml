@@ -6,8 +6,7 @@
 # as the clickstack-k8s/coder-k8s stores: server.url omitted (defaults to
 # kubernetes.default), kube-root-ca.crt supplies the API CA. Consumers
 # (clickhouse-s3-backup here) use GJSON `property`
-# (BucketInfo.spec.secretS3.accessKeyID/accessSecretKey) — verified against
-# ESO v2.10.0 providers/v1/kubernetes/client.go getFromSecretData.
+# (BucketInfo.spec.secretS3.accessKeyID/accessSecretKey).
 ---
 apiVersion: v1
 kind: ServiceAccount

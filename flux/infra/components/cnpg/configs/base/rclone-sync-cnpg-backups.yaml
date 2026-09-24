@@ -1,58 +1,16 @@
-# S3 -> Proton Drive backup of the `cnpg-backups` COSI bucket (colocated with
-# the consuming component — lands in the `cnpg` tenant namespace via the Fleet
-# `infra-configs` Kustomization's `targetNamespace`). One HelmRelease for this
-# base/template bucket, per the colocated-backup rule (centralized backup is
-# out of scope).
-#
-# What it syncs: the SeaweedFS bucket provisioned for BucketClaim/cnpg-backups
-# (bucketclaims.yaml), which holds the postgres-base CNPG Cluster WAL + base
-# backups under the barmanObjectStore prefix `cnpg-backups/postgres/` (see
-# cluster-base.yaml `destinationPath: s3://cnpg-backups/postgres/`).
-# rclone mirrors `<live-bucket>/cnpg-backups/postgres/` to Proton Drive
-# `/home-ops/backups/<cluster>/cnpg/cnpg-backups` (operation `sync`, daily
-# 03:45 — staggered off the coder 03:15 / ferretdb 03:30 ticks so the syncs
-# never fight over Proton Drive rate limits, `concurrencyPolicy: Forbid`,
-# image pinned via chart defaults rclone 1.75.0).
-#
-# Note: per-instance clusters (zitadel-db, coder-db, ferretdb) hold their own
-# dedicated claims and ship their own colocated syncs — this file covers only
-# the base/template `cnpg-backups` bucket claimed here.
-#
-# Live bucket name (NEVER hardcoded): the driver provisions the bucket under a
-# controller-generated `bc-<uuid>` name (`spec.existingBucketName` is unset;
-# the live name is only in `status.bucketName`). The BucketInfo JSON minted
-# into Secret `cnpg-backups-cosi-creds` carries that same live name at
-# `spec.bucketName` (COSI sidecar contract — same JSON the existing
-# `cnpg-s3-credentials` ExternalSecret already reads keys from), so the
-# `rclone-cnpg-backups-s3-path` ExternalSecret below templates
-# `<live-bucket>/cnpg-backups/postgres/` via GJSON `property`
-# `BucketInfo.spec.bucketName` into a synced Secret, and the chart consumes it
-# through `source.uri.esoRef` (`SRC_PATH` env + `$(VAR)` expansion in the
-# `SRC:` arg — the chart-supported dynamic ref).
-#
-# S3 credentials: dedicated `rclone-cnpg-backups-s3` ExternalSecret through the
-# in-namespace `cnpg-cosi` SecretStore (cosi-keys.yaml), same GJSON pattern as
-# `cnpg-s3-credentials`. Proton credentials: `rclone-proton-credentials`
-# ExternalSecret through the `proton-pass` ClusterSecretStore into a synced
-# Secret consumed via the chart's `esoRef` (consume, not create).
-#
-# MANUAL SEEDING (Proton Pass vault, rclone-obscured where noted — generate
-# with `rclone obscure`, see projects/helm-rclone-sync/README.md):
-# - pass://<cluster>/cnpg/rclone-proton-username (plain login, NOT obscured)
-# - pass://<cluster>/cnpg/rclone-proton-password (OBSCURED)
-# - optional, only if the Proton account needs them (also OBSCURED; extend the
-#   ExternalSecret data[] + destination.credentials mailboxPassword/
-#   otpSecretKey below): .../cnpg/rclone-proton-mailbox-password,
-#   .../cnpg/rclone-proton-otp-secret-key
-# Per-env overlay patches (dev/prd kustomization.yaml) repoint
-# `__PROTON_PASS_BASE__` below to the full `pass://acme-<env>-...` keys and
-# the destination uri to the full `/home-ops/backups/acme-<env>-...` path.
-#
-# Runtime note: provider AWS + the internal endpoint below mirror the chart's
-# s3->proton-drive fixture
-# (projects/helm-rclone-sync/ci/values-direction-05-s3-to-proton.yaml);
-# region us-east-1 is ignored by SeaweedFS but required by S3 clients (same
-# convention as the COSI README endpoint contract).
+# S3 to Proton Drive backup of the cnpg-backups COSI bucket (bucketclaims.yaml), which
+# holds the postgres-base CNPG WAL + base backups (destinationPath s3://cnpg-backups/
+# postgres/). rclone mirrors <live-bucket>/cnpg-backups/postgres/ to
+# /home-ops/backups/<cluster>/cnpg/cnpg-backups (operation sync, daily 03:45,
+# concurrencyPolicy Forbid; chart defaults rclone 1.75.0). Covers only this
+# base/template bucket; per-instance clusters ship their own colocated syncs.
+# Live bucket name is never hardcoded: ExternalSecret rclone-cnpg-backups-s3-path
+# templates it from BucketInfo.spec.bucketName through the in-namespace cnpg-cosi
+# SecretStore (cosi-keys.yaml). S3 keys via rclone-cnpg-backups-s3, Proton creds via
+# rclone-proton-credentials (ClusterSecretStore proton-pass, password rclone-obscured
+# via rclone obscure). Seed pass://<cluster>/cnpg/rclone-proton-username and
+# pass://<cluster>/cnpg/rclone-proton-password. Overlays patch __PROTON_PASS_BASE__
+# and the destination cluster segment.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -128,11 +86,8 @@ spec:
   layerSelector:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
-  # Version skew guard: this tag MUST equal Chart.yaml `version` in
-  # projects/helm-rclone-sync (single source of truth). Chart version bumps
-  # ship as one commit touching Chart.yaml + all six consumers — no floating
-  # alias, no $imagepolicy marker (Helm OCIRepositories cannot be tracked by
-  # image automation), no silent skew.
+  # Chart tag MUST equal Chart.yaml version in projects/helm-rclone-sync; bump
+  # Chart.yaml + all six consumers in one commit.
   ref:
     tag: "0.1.0"
 ---

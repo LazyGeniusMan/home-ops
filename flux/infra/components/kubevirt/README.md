@@ -5,8 +5,7 @@ KubeVirt v1.9.0: vendored pinned `kubevirt-operator.yaml` (controllers) +
 
 ## Talos prerequisites — verified (§13.2 gate)
 
-Bounded check against `talos-docs` v1.14 + this repo's schematics (host is a
-bare-metal MSI Cubi, so `/dev/kvm` is expected):
+Bounded check against `talos-docs` + this repo's schematics:
 
 - `advanced-guides/install-kubevirt.mdx`: requires virtualization enabled in
   BIOS (host is bare metal → KVM present; nested-virt only matters for VMs),
@@ -113,8 +112,8 @@ runbook step, not a manifest split — no CRD-only Kustomization is used
 
 ## Telemetry-off / monitoring / updates
 
-- No reporting knobs upstream (verified against the v1.9.0 CRD: no
-  `telemetry` key) — nothing to disable.
+- No reporting knobs upstream (no `telemetry` key in the v1.9.0 CRD) —
+  nothing to disable.
 - Component metrics via prometheus annotations; `ServiceMonitor: off`.
 - Version bumps via `update-policies/kubevirt.yaml` (`>=1.9.0`) → PR
   automation; the `$imagepolicy` marker lives in the headers of both vendored

@@ -1,6 +1,5 @@
-# cert-manager v1.21.2 (§9.3): ACME DNS-01 via Cloudflare for the
-# *.home-ops.yansyah.my.id wildcard. Chart: oci://quay.io/jetstack/charts/cert-manager
-# (verified tag v1.21.2; OCI is the upstream source of truth).
+# cert-manager v1.21.2 (§9.3): ACME DNS-01 via Cloudflare for the LAN
+# wildcard. Chart: oci://quay.io/jetstack/charts/cert-manager, tag v1.21.2.
 # Telemetry: no usage reporting in the chart (only prometheus annotations).
 # Monitoring: prometheus.io annotations on (safe without a stack);
 # ServiceMonitor stays disabled until monitoring.coreos.com CRDs land.

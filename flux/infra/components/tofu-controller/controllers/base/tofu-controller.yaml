@@ -1,21 +1,13 @@
 # Tofu Controller v0.16.5: Flux-native Terraform/OpenTofu reconciler. Installs
-# the cluster-scoped `terraforms.infra.contrib.fluxcd.io` CRD (v1alpha2)
-# reconciling the `kind: Terraform` objects (app SSO clients, zitadel
-# bootstrap, seaweedfs).
-# Chart: oci://ghcr.io/flux-iac/charts/tofu-controller (verified tag 0.16.5 ==
-# app v0.16.5; pulled digest
-# sha256:336e9a2690b868781422165bf20550dc7e7093abeb841c498d8bd1dd594fbd27 —
-# OCI on GHCR is the upstream source of truth, helm pull + helm template pass
-# locally, so no classic HelmRepository fallback is needed).
+# the cluster-scoped `terraforms.infra.contrib.fluxcd.io` CRD (v1alpha2).
+# Chart: oci://ghcr.io/flux-iac/charts/tofu-controller, tag 0.16.5 == app
+# v0.16.5 (digest
+# sha256:336e9a2690b868781422165bf20550dc7e7093abeb841c498d8bd1dd594fbd27).
 # Namespace: runs in its tenant namespace (tofu-controller), NOT flux-system.
-# The chart parameterises everything on .Release.Namespace (controller +
-# tf-runner ServiceAccounts/Secrets land there via the allowedNamespaces
-# helper) and reaches the Flux controllers over cluster DNS
-# (source-controller tar.gz downloads + notification-controller events on
-# port 80 via --events-addr), so no flux-system co-location is required.
-# Telemetry: chart values carry no phone-home/analytics/usage-reporting knobs
-# (verified: grep for telemetry|usageReport|phoneHome|analytics|tracking|
-# segment|sentry returns nothing); metrics + ServiceMonitor stay off, see below.
+# The chart parameterises everything on .Release.Namespace and reaches the
+# Flux controllers over cluster DNS, so no flux-system co-location is needed.
+# Telemetry: chart values carry no phone-home/analytics/usage-reporting
+# knobs; metrics + ServiceMonitor stay off, see below.
 # Monitoring: metrics.enabled stays false and no ServiceMonitor is shipped
 # until monitoring.coreos.com CRDs land (same §9 deviation as cert-manager —
 # an unconditional render would wedge the release). Flip: set
@@ -59,17 +51,11 @@ spec:
     crds: CreateReplace
   # https://github.com/flux-iac/tofu-controller (chart 0.16.5, app v0.16.5)
   values:
-    # Replica placeholder - overridden by dev/prd overlays. The controller is
-    # stateless + leader-elected (chart default 1; scale-safe above 1), but
-    # this repo pins the singleton 1 in both envs per scope. NO HPA: a
-    # CPU-based HPA is pointless for a leader-elected controller where only
-    # the leader reconciles (use fixed 2-3 if HA is ever wanted, not HPA).
-    # The branch planner (planner-deployment) is genuinely singleton
-    # (hardcoded replicas 1, "Planner can't be scaled yet").
+    # Replica placeholder - singleton, pinned to 1 in dev/prd overlays. NO HPA:
+    # only the leader reconciles (use fixed 2-3 if HA is ever wanted).
     replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
     concurrency: 24
-    # Resource envelope mirrors upstream docs/release.yaml (chart defaults are
-    # 1000m/1Gi limits, 200m/64Mi requests).
+    # Resource envelope mirrors upstream docs/release.yaml.
     resources:
       limits:
         cpu: 1000m
@@ -81,15 +67,13 @@ spec:
     certRotationCheckFrequency: 30m
     image:
       tag: v0.16.5
-    # Watch Terraform CRs in every namespace (default true, stated explicitly:
-    # Terraform objects will live in tenant namespaces, not beside the controller).
+    # Watch Terraform CRs in every namespace (default true, stated explicitly).
     watchAllNamespaces: true
-    # Allow Terraform CRs to reference Flux sources in another namespace
-    # (upstream default false since 0.16.0; opt in so tenant-namespace CRs can
-    # share the central OCI-sourced infra/zitadel artifact in ns zitadel).
+    # Allow cross-namespace sourceRefs (upstream default false since 0.16.0)
+    # so tenant-namespace CRs share the central OCI-sourced artifacts.
     allowCrossNamespaceRefs: true
-    # AWS primitive-modules package (Tofu-Jet) is irrelevant outside AWS; skip
-    # its OCIRepository rather than polling ghcr.io/flux-iac/aws-primitive-modules.
+    # AWS primitive-modules package is irrelevant outside AWS; skip its
+    # OCIRepository.
     awsPackage:
       install: false
     runner:
@@ -99,12 +83,8 @@ spec:
         maxMessageSize: 30
       serviceAccount:
         # Namespaces the chart creates tf-runner ServiceAccounts (+ token
-        # Secrets) in and the controller may spawn runner Pods in (the release
-        # namespace itself is appended automatically by the chart helper).
-        # flux-system: chart default (kept). zitadel + the SSO app namespaces
-        # + matrix (rooms/proxy/sso Terraform CRs) + netbird (cross-namespace
-        # sourceRef target for the element-proxy + zitadel-login-proxy
-        # consumers). Extend this list when Terraform CRs land anywhere new.
+        # Secrets) in (the release namespace is appended automatically).
+        # Extend this list when Terraform CRs land anywhere new.
         allowedNamespaces:
           - flux-system
           - zitadel

@@ -1,92 +1,17 @@
-# S3→ProtonDrive backups for the three colocated COSI buckets
-# (zitadel-db, zitadel-cache, zitadel-assets — see bucketclaims.yaml).
-# One helm-rclone-sync CronJob per bucket (direction 05, s3→proton-drive),
-# colocated here per the "every COSI bucket claim needs a colocated
-# helm-rclone-sync CronJob" rule.
-#
-# Chart: OCI ghcr.io/lazygeniusman/home-ops/projects/helm-rclone-sync
-# 0.1.0 (projects/helm-rclone-sync; fixture
-# ci/values-direction-05-s3-to-proton.yaml; README + _helpers.tpl).
-# Each HelmRelease pulls the chart by tag via its own OCIRepository
-# (chartRef), same HelmRelease shape as controllers/base/zitadel.yaml
-# (interval, serviceAccountName flux, RetryOnFailure install/upgrade).
-#
-# S3 source (all three): provider SeaweedFS (the driver's filer/S3 backend —
-# rclone SeaweedFS provider forces path-style, see backend/s3/provider/
-# SeaweedFS.yaml), region us-east-1 (driver REGION, ignored by SeaweedFS but
-# required by clients), endpoint = INTERNAL FQDN
-# http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333 (plain HTTP,
-# cluster-wide FQDN — same contract as CNPG/Dragonfly/asset storage, see the
-# cosi README "Endpoint contract"; never the public Gateway route).
-# Keys via esoRef on the ESO-synced Secrets:
-# - zitadel-db → Secret zitadel-db-cosi-creds (keys accessKeyId/secretAccessKey,
-#   mirrored by ExternalSecret cnpg-s3-credentials in zitadel-db.yaml from
-#   BucketInfo.spec.secretS3.accessKeyID/accessSecretKey through the
-#   in-namespace zitadel-cosi SecretStore)
-# - zitadel-cache → Secret zitadel-cache-cosi-creds (keys
-#   accessKeyId/secretAccessKey, mirrored by dragonfly-s3-credentials in
-#   zitadel-cache.yaml the same way)
-# - zitadel-assets → Secret zitadel-assets-cosi-creds (keys
-#   accessKeyId/secretAccessKey, mirrored by zitadel-asset-storage in
-#   zitadel-bootstrap-handoff.yaml the same way).
-#
-# Dynamic bc-<uuid> handling: live buckets are controller-generated
-# (DriverCreateBucket = req.GetName(), see the cosi README "Bucket naming"),
-# so NO bucket name is hardcoded here. source.uri is ref-sourced via esoRef
-# on the ESO-synced Secret's bucketName key:
-# - db/cache: the CNPG barmanObjectStore destinationPath (s3://cnpg-backups/
-#   zitadel/) and the Dragonfly dir (s3://dragonfly-backups/zitadel-cache/)
-#   target the COSI-provisioned buckets. Each bucket's live name is the
-#   BucketInfo JSON's spec.bucketName inside its *-cosi-creds Secret, so the
-#   sync mirrors that Secret's bucketName key through SRC_PATH
-#   (chart renders SRC:$(SRC_PATH); same indirection as
-#   ci/values-sources-all-four.yaml). The COSI BucketAccess Secrets carry
-#   ONLY BucketInfo, so the per-bucket ExternalSecrets below (rclone sync
-#   secrets) template a bucketName key out of
-#   BucketInfo.spec.bucketName alongside the accessKeyId/secretAccessKey
-#   keys — the chart's esoRef then reads name=<release>-rclone-src,
-#   key=bucketName.
-#   NOTE: hardcoding "s3://cnpg-backups/zitadel/"-style paths would target
-#   only the path prefix, not the live bc-<uuid> bucket — the whole point of
-#   the BucketInfo/spec.bucketName indirection is that the claim/access names
-#   never equal the backing bucket names.
-# - assets: zitadel-assets has NO destinationPath — Zitadel's S3 backend
-#   (internal/static/s3/minio.go: PutObject → createBucket → MakeBucket
-#   <BucketPrefix>-<instanceID>) creates per-instance buckets itself
-#   (e.g. zitadel-assets-<instanceID>), all matching prefix "zitadel-assets*".
-#   So there is no single live bucket to read from BucketInfo.spec.bucketName;
-#   instead the access identity lists all buckets and the sync covers every
-#   bucket under the zitadel-assets* prefix: source.uri is a literal empty
-#   string (remote root "SRC:", i.e. the whole account the key can see) and
-#   rclone --include "zitadel-assets*/**" (extraArgs) restricts the transfer
-#   to the app-created buckets. Documented limitation: a literal root plus an
-#   include filter syncs every matching bucket but CANNOT scope to one bucket
-#   — new zitadel-assets-* buckets appear in the backup automatically, and any
-#   non-Zitadel bucket sharing the prefix would be included too (none exist;
-#   the "*"-suffixed filter is anchored on the locked BUCKETPREFIX
-#   "zitadel-assets" in controllers/base/zitadel.yaml).
-#
-# Proton destination: one ProtonDrive folder per bucket —
-# /home-ops/backups/<cluster>/zitadel/<bucket> (e.g.
-# /home-ops/backups/__CLUSTER_NAME__/zitadel/zitadel-db). The
-# <cluster> segment is the __CLUSTER_NAME__ placeholder below, replaced per
-# env by the dev/prd overlays (same base-carries-placeholder convention as
-# __PROTON_PASS_BASE__/__S3_ENDPOINT_URL__ in zitadel-db.yaml and friends). Credentials: username literal
-# (per-env patch) + password via esoRef on the ESO-synced Secret
-# zitadel-rclone-proton (keys username/password), which the ExternalSecret
-# below syncs from Proton Pass (ClusterSecretStore proton-pass) — password
-# MUST be stored rclone-obscured (rclone obscure, see the chart README
-# "Proton obscure step": the ProtonDrive backend rejects plain-text
-# secrets). Seed with pass-cli, e.g.:
-#   pass edit "pass://acme-dev-bdo1-talos-apps-01/zitadel/rclone-proton-username"
-#   rclone obscure 'my-proton-password'   # paste the output into:
-#   pass edit "pass://acme-dev-bdo1-talos-apps-01/zitadel/rclone-proton-password-obscured"
-#   (and the matching acme-prd-bdo1-talos-apps-01 entries).
-#
-# Schedules are staggered (db 01:15, cache 02:15, assets 03:15 UTC) so the
-# three syncs never fight the S3 gateway at once; operation sync (mirror,
-# deletes extras at the destination), concurrencyPolicy Forbid (chart
-# default — a new Job is skipped while the previous still runs).
+# S3 to ProtonDrive backups for the three colocated COSI buckets (zitadel-db,
+# zitadel-cache, zitadel-assets - see bucketclaims.yaml). One helm-rclone-sync
+# CronJob per bucket (direction 05, s3 to proton-drive; projects/helm-rclone-sync
+# chart 0.1.0, own OCIRepository/chartRef per release).
+# Source is the live bc-<uuid> bucket (never hardcoded) via BucketInfo.spec.bucketName,
+# read through SRC_PATH esoRef. Assets have no single live bucket (Zitadel creates
+# per-instance zitadel-assets-* buckets itself), so the assets sync reads the account
+# root with rclone --include "zitadel-assets*/**".
+# Destination /home-ops/backups/<cluster>/zitadel/<bucket> (__CLUSTER_NAME__ patched
+# per env). Proton password is rclone-obscured (rclone obscure); seed
+# pass://<cluster>/zitadel/rclone-proton-username and
+# pass://<cluster>/zitadel/rclone-proton-password-obscured via pass-cli.
+# Schedules staggered (db 01:15, cache 02:15, assets 03:15 UTC); operation sync,
+# concurrencyPolicy Forbid.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -111,12 +36,8 @@ spec:
       remoteRef:
         key: __PROTON_PASS_BASE__/zitadel/rclone-proton-password-obscured
 ---
-# Per-bucket S3 source secrets: mirror each BucketAccess's BucketInfo JSON
-# (accessKeyId/secretAccessKey via GJSON property, same as
-# cnpg-s3-credentials/dragonfly-s3-credentials/zitadel-asset-storage) PLUS a
-# bucketName key templated from BucketInfo.spec.bucketName — the live
-# bc-<uuid> name the chart reads through SRC_PATH (esoRef). Consumers are
-# the three HelmReleases below (esoRef name=<release>-rclone-src).
+# Per-bucket S3 source secrets: mirror BucketInfo JSON (keys plus bucketName
+# templated from BucketInfo.spec.bucketName for SRC_PATH esoRef).
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -203,13 +124,9 @@ spec:
         key: zitadel-assets-cosi-creds
         property: BucketInfo.spec.secretS3.accessSecretKey
 ---
-# Version skew guard: this tag MUST equal Chart.yaml `version` in
-# projects/helm-rclone-sync (single source of truth) and the tags in the
-# other five consumers (coder/clickstack/clickhouse/cnpg/dragonfly). Chart
-# version bumps ship as one commit touching Chart.yaml + all six consumers —
-# no floating alias, no $imagepolicy marker (Helm OCIRepositories cannot be
-# tracked by image automation), no silent skew: the Chart.yaml version,
-# the CI-published OCI artifact, and every consumer tag move together.
+# Chart tag MUST equal Chart.yaml version in projects/helm-rclone-sync; bump
+# Chart.yaml + all six consumers in one commit (no $imagepolicy marker on Helm
+# OCIRepositories).
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:

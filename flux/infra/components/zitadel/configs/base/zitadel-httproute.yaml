@@ -1,19 +1,11 @@
-# Zitadel HTTPRoutes (§11.1): the admin route attaches to the shared §8.1
-# Gateway (listeners accept routes from all namespaces — cross-namespace
-# parentRef, no targetNamespace override needed). Chart-native gateway
-# templating stays OFF (we own the §8.1 pattern explicitly rather than
-# through chart values).
-# - Admin route (hostname __ZITADEL_ADMIN_HOST__, path /) → the
-#   zitadel Service (port 8080, h2c — see the console HTTP/2 note in README).
-#   The backend serves the console UI, management/API endpoints, and the OIDC
-#   issuer; a single catch-all rule covers issuer + client redirects.
-# - End-user login UI (path /ui/v2/login, served by the zitadel-login
-#   Service port 3000) is NOT on this Gateway: it lives on the separate login
-#   host (__ZITADEL_LOGIN_HOST__) exposed via the NetBird reverse-proxy
-#   consumer (configs/base/zitadel-login-proxy.yaml). Zitadel redirects OIDC
-#   auth requests there via instance feature LoginV2.BaseURI / per-app
-#   login_base_uri (see the zitadel terraform root), and the login host is a
-#   registered instance trusted domain — so no Gateway login route ships here.
+# Zitadel admin HTTPRoute: attaches to the shared Gateway (listeners accept routes
+# from all namespaces). Chart-native gateway templating stays OFF. Admin route
+# (hostname __ZITADEL_ADMIN_HOST__, path /) points at the zitadel Service (port 8080,
+# h2c) and covers console UI, management/API endpoints, and the OIDC issuer in one
+# catch-all rule. End-user login UI (/ui/v2/login, zitadel-login Service port 3000)
+# is NOT on this Gateway: it lives on __ZITADEL_LOGIN_HOST__ via the NetBird
+# reverse-proxy consumer (zitadel-login-proxy.yaml), reached via instance
+# LoginV2.BaseURI / per-app login_base_uri.
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

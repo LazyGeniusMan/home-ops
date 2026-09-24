@@ -1,18 +1,11 @@
-# Narrow cross-namespace handoff grant for the seaweedfs ESO reader (§12).
-# ESO mirrors the FirstInstance handoff Secrets (`zitadel-bootstrap-credentials`
-# + `zitadel-bootstrap-outputs`, both in the `zitadel` namespace) into this
-# namespace's `seaweedfs-terraform-vars` Secret through the cross-namespace
-# `seaweedfs-zitadel` SecretStore (configs/base/terraform.yaml) — via this ESO mirror
-# (no `data.terraform_remote_state` reads; no seaweedfs-terraform-remote-state-reader grant is used).
-# The store authenticates as THIS namespace SA `eso-zitadel-handoff-reader`,
-# so the SA needs get/list/watch on the two handoff Secrets only
-# (resourceNames pins both) plus selfsubjectrulesreviews create (ESO
-# Kubernetes-provider validation) — and nothing else.
-# Ownership note: the Role + RoleBinding below carry explicit
-# `metadata.namespace: zitadel` but are OWNED BY the seaweedfs component — they
-# ship in the seaweedfs configs dir so they reconcile (and prune) with the component.
-# Same-namespace `varsFrom` CANNOT cross namespaces (no namespace field),
-# which is why the ESO mirror + this RBAC is the mechanism.
+# Narrow cross-namespace handoff grant for the seaweedfs ESO reader. ESO mirrors
+# the zitadel handoff Secrets into this namespace's seaweedfs-terraform-vars
+# Secret through the cross-namespace seaweedfs-zitadel SecretStore
+# (configs/base/terraform.yaml). The store authenticates as this namespace SA
+# eso-zitadel-handoff-reader, so the SA needs get/list/watch on the two handoff
+# Secrets only plus selfsubjectrulesreviews create (ESO validation).
+# The Role + RoleBinding carry metadata.namespace: zitadel but are OWNED BY the
+# seaweedfs component (reconcile and prune with it).
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

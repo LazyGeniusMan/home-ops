@@ -12,9 +12,7 @@ over `home-ops.yansyah.my.id` — the NetBird-only DNS path:
 TXT ownership: `txtOwnerId`/`txtPrefix` pin the single txt registry
 (`home-ops-prd-netbird`/`extdns-nb-`); `policy: sync`, `registry: txt`.
 
-Sources (verified against
-`/tmp/home-ops-docs/external-dns-docs/docs/sources/gateway-api.md`):
-`service`, `ingress`, `gateway-httproute`, `gateway-grpcroute`,
+Sources: `service`, `ingress`, `gateway-httproute`, `gateway-grpcroute`,
 `gateway-tlsroute`, `crd`.
 
 ## Ordering prerequisite runbook
@@ -23,7 +21,7 @@ The configs/ `ExternalSecret` resolves through
 `ClusterSecretStore/proton-pass` (external-secrets configs/), which needs
 the eso-proton-pass webhook Ready plus the out-of-band `proton-pass-pat`
 bootstrap (see the external-secrets README "PAT renewal" runbook).
-Cross-tenant ordering is owned by tenants/*.yaml (parallel task). On a fresh
+Cross-tenant ordering is owned by tenants/*.yaml. On a fresh
 cluster expect fail-then-heal: `Ready=False` on the secret, and the
 controllers/ `HelmRelease` CrashLooping on the missing synced `netbird-pat`
 Secret, until ESO syncs — heals via `refreshInterval` + Flux

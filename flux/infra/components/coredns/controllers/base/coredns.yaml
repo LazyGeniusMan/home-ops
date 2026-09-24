@@ -1,12 +1,8 @@
-# CoreDNS v1.14.7 (§8.3): in-cluster DNS for the home-ops Tailnet edge.
-# Deployed at bootstrap alongside Cilium (§8.2) so cluster DNS is live before
-# any workload that resolves *.home-ops.yansyah.my.id lands.
+# CoreDNS v1.14.7 (§8.3): in-cluster DNS, deployed at bootstrap alongside
+# Cilium (§8.2) so cluster DNS is live before LAN-name workloads land.
 # Chart: oci://ghcr.io/coredns/charts/coredns (chart 1.47.1 carries app
-# 1.14.6; app image pinned to 1.14.7 explicitly — see README for the
-# versioning split). App image verified live on Docker Hub.
-# Telemetry: no usage-reporting/telemetry keys in chart values (verified:
-# non-comment values lines matching telemetry|usageReporting|phoneHome|
-# analytics are empty), so there is nothing to switch off.
+# 1.14.6; app image pinned to 1.14.7 explicitly — see README).
+# Telemetry: no usage-reporting keys in chart values, nothing to switch off.
 # Monitoring: prometheus scrape annotations on (safe without a stack);
 # ServiceMonitor stays disabled until monitoring.coreos.com CRDs land.
 ---
@@ -49,8 +45,7 @@ spec:
     # disabled). Dev seeds 1, prd seeds 2.
     # (Chart already defaults CPU requests 100m, so targetCPU has a denominator.)
     replicaCount: 1 # placeholder - overridden by dev/prd overlays
-    # Resources: chart 1.47.1 defaults pinned explicit (verified via helm
-    # show values: limits 100m/128Mi, requests 100m/128Mi). CPU requests
+    # Resources: chart 1.47.1 defaults pinned explicit. CPU requests
     # REQUIRED for the targetCPU HPA denominator.
     resources:
       requests:
@@ -62,11 +57,9 @@ spec:
     image:
       repository: coredns/coredns
       tag: 1.14.7
-    # Cluster DNS fronted by the standalone kube-dns Service (kube-dns.yaml):
     # isClusterService adds the k8s-app labels, the CriticalAddonsOnly
-    # toleration, and (critically) dnsPolicy Default, so
-    # `forward . /etc/resolv.conf` reaches the node upstream instead of
-    # looping back into the 10.96.0.10 cluster DNS IP.
+    # toleration, and dnsPolicy Default, so `forward . /etc/resolv.conf`
+    # reaches the node upstream instead of looping back into 10.96.0.10.
     isClusterService: true
     # Run as the standalone ServiceAccount (bound to ClusterRole coredns in
     # kube-dns.yaml); the chart must not render its own RBAC, which would
