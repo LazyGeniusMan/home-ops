@@ -3,7 +3,7 @@
 # the marker in components/coder (see README). Chart versions are pinned in the
 # HelmRelease (classic HelmRepository — no OCI index exists upstream), so only
 # the image tag automates here. Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
-# Changelog (app+chart): https://github.com/coder/coder/releases.
+# Changelog: app+chart — https://github.com/coder/coder/releases.
 # Mode: manual (chart `version:` hand-bump — no OCI upstream) + auto (app image).
 # Coupled files: [components/coder/base/coder.yaml (chart `version:` + image tag), base/coder-db.yaml (CNPG — snapshot before major bumps)].
 ---

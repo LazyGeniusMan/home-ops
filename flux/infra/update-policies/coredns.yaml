@@ -2,8 +2,8 @@
 # plus the node-local-dns cache image, and the ImageUpdateAutomation (update
 # cluster) opens PRs via markers in components/coredns (see README). Follows
 # the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
-# Changelog (app): https://github.com/coredns/coredns/releases.
-# Changelog (chart): https://github.com/coredns/helm/releases.
+# Changelog: app — https://github.com/coredns/coredns/releases.
+# Changelog: chart — https://github.com/coredns/helm/releases.
 # Mode: manual (classic-repo chart `version:` hand-bump) + auto (node-cache image).
 # Coupled files: [controllers/base/coredns.yaml (chart `version:` + `values.image.tag`), configs/base/node-local-dns.yaml, configs/base/corefile.yaml].
 ---

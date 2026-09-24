@@ -6,9 +6,9 @@
 # ImagePolicy + $imagepolicy markers). Note the proxy marker namespace
 # (apps:oauth2-proxy) is shared with hubble-ui by design — the locked
 # contract pins every per-instance proxy to the same version line.
-# Changelog (HyperDX): https://github.com/hyperdxio/hyperdx/releases.
-# Changelog (FerretDB): https://github.com/FerretDB/FerretDB/releases.
-# Changelog (oauth2-proxy, shared marker): https://github.com/oauth2-proxy/oauth2-proxy/releases.
+# Changelog: HyperDX — https://github.com/hyperdxio/hyperdx/releases.
+# Changelog: FerretDB — https://github.com/FerretDB/FerretDB/releases.
+# Changelog: oauth2-proxy, shared marker — https://github.com/oauth2-proxy/oauth2-proxy/releases.
 # Mode: auto (HyperDX app+collector track the hdx-oss-v2 appVersion line; proxy marker apps:oauth2-proxy shared with hubble-ui — bump both apps together).
 # Coupled files: [components/clickstack/base/clickstack.yaml, base/ferretdb.yaml, base/oauth2-proxy.yaml, base/clickstack-clickhouse.yaml (CHI instantiates §10.2 installation-base), ../../infra/update-policies/clickhouse.yaml (server 26.8 LTS line)].
 ---

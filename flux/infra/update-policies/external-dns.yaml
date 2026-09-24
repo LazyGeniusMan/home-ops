@@ -6,8 +6,8 @@
 # controllers/base pins (intentional single-stream — see the decision note in
 # controllers/base/external-dns.yaml: prd-on-dev risk accepted, promotion to
 # :stable triggered by the first external-dns-netbird-v* tagged release).
-# Changelog (chart): https://github.com/kubernetes-sigs/external-dns/releases.
-# Changelog (sidecar, in-repo): projects/external-dns-netbird.
+# Changelog: chart — https://github.com/kubernetes-sigs/external-dns/releases.
+# Changelog: sidecar, in-repo — projects/external-dns-netbird.
 # Mode: auto (chart) + auto single-stream :dev (sidecar — prd-on-dev risk accepted, see note above).
 # Coupled files: [controllers/base/external-dns.yaml (chart `version:` + `image.tag` + sidecar image)].
 ---
