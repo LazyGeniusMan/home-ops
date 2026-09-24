@@ -1,11 +1,10 @@
-# Update policy for the coder component (§13.6): tracks the Coder app
-# container image, and the ImageUpdateAutomation (update cluster) opens PRs via
-# the marker in components/coder (see README). Chart versions are pinned in the
-# HelmRelease (classic HelmRepository — no OCI index exists upstream), so only
-# the image tag automates here. Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+# Update policy for the coder component (§13.6): tracks the OCI Helm chart plus
+# the Coder app container image (chart<->app lockstep — chart 2.37.3 embeds
+# app v2.37.3), and the ImageUpdateAutomation (update cluster) opens PRs via
+# the markers in components/coder (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
 # Changelog: app+chart — https://github.com/coder/coder/releases.
-# Mode: manual (chart `version:` hand-bump — no OCI upstream) + auto (app image).
-# Coupled files: [components/coder/base/coder.yaml (chart `version:` + image tag), base/coder-db.yaml (CNPG — snapshot before major bumps)].
+# Mode: auto (chart tag + app image tag move together — bump both, never one side alone).
+# Coupled files: [components/coder/base/coder.yaml (chart tag + image tag), base/coder-db.yaml (CNPG — snapshot before major bumps)].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
@@ -23,6 +22,26 @@ metadata:
 spec:
   imageRepositoryRef:
     name: coder
+  policy:
+    semver:
+      range: ">=2.37.3"
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: coder-chart
+spec:
+  image: "ghcr.io/coder/chart/coder"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: coder-chart
+spec:
+  imageRepositoryRef:
+    name: coder-chart
   policy:
     semver:
       range: ">=2.37.3"

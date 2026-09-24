@@ -2,17 +2,19 @@
 
 Self-hosted remote dev environments at
 `https://coder.home-ops.yansyah.my.id`, app `v2.37.3` via chart
-`coder-v2/coder` **2.37.3** (classic `https://helm.coder.com/v2` repo —
-OCI pulls 403/404 on every upstream path, verified at authoring time, so
-the chart pin is bumped manually while `ghcr.io/coder/coder` auto-tracks
-through `update-policies/coder.yaml`; same split as the seaweedfs
-component). Default upstream templates first — no custom workspace
-template is authored here (`coder-templates`/`coder-modules` skills apply
-only when a custom template is required; none is).
+`oci://ghcr.io/coder/chart/coder` **2.37.3** (OCI on GHCR is the upstream
+source of truth — digest
+`sha256:922fa45fae4cb2e2cb92d73fb0327878cc84177c3c701affa5cfb866706b4d50`,
+appVersion 2.37.3, verified by pull; chart<->app lockstep, so the chart
+tag and `ghcr.io/coder/coder` image tag auto-track together through
+`update-policies/coder.yaml`). Default upstream templates first — no
+custom workspace template is authored here
+(`coder-templates`/`coder-modules` skills apply only when a custom
+template is required; none is).
 
 ## Layout (environment-direct, apps area)
 
-`base/` holds every manifest (`coder.yaml` HelmRepository + HelmRelease,
+`base/` holds every manifest (`coder.yaml` OCIRepository + HelmRelease,
 secrets, CNPG Cluster, wildcard certificates, HTTPRoutes); env overlays
 `{dev,prd}/` patch hostnames, vault refs, and chart values
 via `resources: [../base]`. Tenant is `apps/coder` (wired in
@@ -220,19 +222,22 @@ Upstream reference (read-only): `/tmp/home-ops-docs/coder-docs`.
   none are added here, and `CODER_PROMETHEUS_ENABLE` stays unset
   (default off) until `monitoring.coreos.com` CRDs land (same §9
   deviation). Coderd health via `kube-state-metrics` meanwhile.
-- App image auto-tracks via `update-policies/coder.yaml`
-  (`ghcr.io/coder/coder:v2.37.3` marker); chart bumps are manual.
+- Chart tag + app image auto-track together via `update-policies/coder.yaml`
+  (chart marker `apps:coder-chart:tag` on the OCIRepository,
+  `ghcr.io/coder/coder:v2.37.3` app marker `apps:coder:tag` — chart<->app
+  lockstep, bump both together).
 
 ## Upgrade runbook
 
-- Version source: app image tag in `base/coder.yaml`
-  (`ghcr.io/coder/coder:v2.37.3`, auto) + chart `version:` in the same
-  file (2.37.3, classic `https://helm.coder.com/v2` repo — hand-bumped,
-  no OCI upstream, same split as the seaweedfs component).
+- Version source: OCI chart tag in `base/coder.yaml`
+  (`oci://ghcr.io/coder/chart/coder:2.37.3`, marker `apps:coder-chart:tag`,
+  auto) + app image tag in the same file
+  (`ghcr.io/coder/coder:v2.37.3`, marker `apps:coder:tag`, auto) —
+  chart<->app lockstep (chart 2.37.3 embeds app v2.37.3).
 - Changelog (app+chart): https://github.com/coder/coder/releases.
-- Bump: let the image ImagePolicy PR land (marker `apps:coder:tag`,
-  `update-policies/coder.yaml`); move the chart `version:` by hand in
-  the same PR when the release notes call for it.
+- Bump: let the two ImagePolicy PRs land (markers `apps:coder-chart:tag` +
+  `apps:coder:tag`, `update-policies/coder.yaml`); take both together in
+  the same PR when the release notes call for it — never one side alone.
 - Migrate: snapshot `coder-db` BEFORE major bumps (fresh CNPG base
   backup — see the infra cnpg README restore runbook). Verify:
   dashboard OIDC login succeeds and a workspace agent connects via the

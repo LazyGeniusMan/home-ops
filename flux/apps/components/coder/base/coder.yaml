@@ -1,13 +1,13 @@
 # Coder v2.37.3 remote dev environments (§13.6): self-hosted workspaces on the
 # Talos cluster (coderd + in-cluster provisioner via the chart service account).
-# Chart: classic HelmRepository https://helm.coder.com/v2, chart coder 2.37.3
-# (NO OCI index exists upstream — `helm show chart` 403s on every ghcr.io/coder
-# path and registry.coder.com carries no chart; verified at authoring time. So
-# the chart version below is bumped manually while the APP image auto-tracks
-# flux/apps/update-policies/coder.yaml via the $imagepolicy marker — same
-# split as the seaweedfs component).
-# Telemetry: CODER_TELEMETRY_ENABLE=false below (evidence: the pulled chart
-# values.yaml documents `telemetry.enable` defaulting true; we override it).
+# Chart: oci://ghcr.io/coder/chart/coder, tag 2.37.3 (digest
+# sha256:922fa45fae4cb2e2cb92d73fb0327878cc84177c3c701affa5cfb866706b4d50,
+# verified by pull; appVersion 2.37.3. OCI on GHCR is the upstream source of
+# truth). The chart tag auto-tracks flux/apps/update-policies/coder.yaml via
+# the $imagepolicy marker (chart<->app lockstep at 2.37.3 — bump both
+# together; see README).
+# Telemetry: CODER_TELEMETRY_ENABLE=false below (the OCI chart templates emit
+# no usage-reporting knobs; the env override keeps telemetry off regardless).
 # Monitoring: the chart exposes no ServiceMonitor objects and we ship none —
 # unguarded monitors OFF until monitoring.coreos.com CRDs land (same §9
 # deviation). CODER_PROMETHEUS_ENABLE stays unset (default off); coderd health
@@ -17,12 +17,17 @@
 # and Flux retries (RetryOnFailure below).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
+kind: OCIRepository
 metadata:
-  name: coder
+  name: coder-chart
 spec:
   interval: 1h
-  url: https://helm.coder.com/v2
+  url: oci://ghcr.io/coder/chart/coder
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: 2.37.3 # {"$imagepolicy": "apps:coder-chart:tag"}
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -32,13 +37,9 @@ spec:
   interval: 1h
   releaseName: coder
   serviceAccountName: flux
-  chart:
-    spec:
-      chart: coder
-      version: 2.37.3
-      sourceRef:
-        kind: HelmRepository
-        name: coder
+  chartRef:
+    kind: OCIRepository
+    name: coder-chart
   install:
     strategy:
       name: RetryOnFailure
