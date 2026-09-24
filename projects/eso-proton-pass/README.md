@@ -143,7 +143,7 @@ Published to `ghcr.io/lazygeniusman/home-ops/projects/eso-proton-pass` by
 the self-contained `.github/workflows/eso-proton-pass.yml` (no local
 actions):
 
-- any branch push → `:dev` (+ `:dev-<sha>`)
+- `main` branch push → `:dev` (+ `:dev-<sha>`)
 - tag `eso-proton-pass-v*` → `:stable` plus the stripped version
   (e.g. `eso-proton-pass-v1.2.3` → `:1.2.3`); neither leg publishes
   `:latest`

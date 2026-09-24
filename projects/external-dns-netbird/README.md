@@ -103,5 +103,5 @@ The Docker `ARG VERSION` is wired into
 `GET /version` and `external_dns_netbird_build_info{version="..."}`.
 
 Image: `ghcr.io/lazygeniusman/home-ops/projects/external-dns-netbird` (`:dev`
-+ `:dev-<sha>` on any branch push, `:stable` + version on
++ `:dev-<sha>` on `main` branch push, `:stable` + version on
 `external-dns-netbird-v*` tags; neither leg publishes `:latest`).
