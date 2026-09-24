@@ -72,8 +72,7 @@
 - name: Assert the bootstrap node is a control-plane node
   # Etcd bootstrap must target a control-plane node. nodes[0] (see RUNBOOK
   # §4.5) is the bootstrap node by list-order convention; fail fast here if
-  # a future multi-node map ever puts a worker first instead of bootstrapping
-  # the wrong node.
+  # nodes[0] is not a control-plane node.
   ansible.builtin.assert:
     that:
       - talos_clusters[talos_cluster].nodes[0].role == 'controlplane'
@@ -131,8 +130,9 @@
   changed_when: false
 
 - name: Fetch admin kubeconfig
-  # Single-node clusters (see RUNBOOK §4.5): nodes[0] is the only
-  # control-plane, so the kubeconfig source is pinned to it by convention.
+  # Each cluster is a single control-plane node (see RUNBOOK §4.5):
+  # nodes[0] is the only control-plane, so the kubeconfig source is
+  # pinned to it by convention.
   # Stale kubeconfig after a re-bootstrap or cert rotation: the `creates:`
   # guard skips this task while kubeconfig exists, so delete it and re-run
   # day-1 (`rm build/<cluster>/kubeconfig`), or refresh in place on day-2

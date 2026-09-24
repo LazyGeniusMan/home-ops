@@ -159,10 +159,11 @@ across runs — never backed up, never committed, never deleted between runs
 
 Each node also runs an NFS server stack: the node schematic layer adds
 `siderolabs/nfsd` + `nfs-utils` + `nfs-server`, configured by
-`EtcFileConfig` `exports` (existing `nvme-data` volumes plus `sata-data`
-on dev — prd has no `sata-data`, LAN-only `192.168.1.0/24`, `root_squash`,
-`fsid=0` pseudo-root on `nvme-data`) + `netconfig` — no dedicated volume
-(see `RUNBOOK.md` §1.6).
+`EtcFileConfig` `exports` (three LAN-only `192.168.1.0/24` lines:
+`/var` with the `fsid=0` pseudo-root, `/var/mnt/nvme-data` with
+`fsid=1`, `/var/mnt/sata-data` with `fsid=2`; all `all_squash`) +
+`EtcFileConfig` `netconfig` + `ExtensionServiceConfig` `nfs-server`
+(`RPCNFSDCOUNT=32`) — no dedicated volume (see `RUNBOOK.md` §1.6).
 
 ## Inventory (local-only — no node inventory)
 

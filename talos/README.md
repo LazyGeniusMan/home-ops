@@ -33,8 +33,9 @@ may contain multiple YAML documents, separated by `---`"). Document 1 is a
 `v1alpha1` strategic-merge fragment; subsequent documents are split-doc kinds
 (`Layer2VIPConfig`, `UserVolumeConfig`, `RegistryAuthConfig`, `HostnameConfig`,
 `LinkConfig`, `TimeSyncConfig`, `ResolverConfig`, `KubeNodeConfig`,
-`UnattendedInstallConfig`) validated against
-`/tmp/home-ops-docs/talos-docs/public/talos/v1.14/schemas/config.schema.json`.
+`UnattendedInstallConfig`) validated against the v1.14 published schema
+(`/tmp/home-ops-docs/talos-docs/public/talos/v1.14/schemas/config.schema.json`,
+the newest version published in the fetched reference docs).
 There are intentionally no `KubeInlineManifestConfig` / `KubeExternalManifestConfig`
 documents — the base ships zero manifests.
 

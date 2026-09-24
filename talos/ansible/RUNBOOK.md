@@ -227,8 +227,7 @@ Rotation: replace the `netbird_setup_key.talos` resource (plan first —
 `prevent_destroy` fails closed rather than silently revoking membership),
 then re-run day-0 (`rm build/<c>/patches.yml` first so the inject guard
 re-renders) or day-2 `-e reapply_configs=true` (forced re-render +
-placeholder rewrite + `apply-config`). Decommissioned vault paths
-(`talos`/`netbird-setup-key`) are deleted; no rollback entries are kept.
+placeholder rewrite + `apply-config`).
 
 ### 1.1 Dry run (recommended first)
 
@@ -325,19 +324,14 @@ Each node runs NFS server daemons for LAN clients (ports `2049`, `20048`,
   `nfs-server` (daemons) — all three together, per the nfs-server README
   requirements. Merged bytes change the schematic hash → new factory ID on
   the next day-0.
-- **Config** (node `patches.yml`): `EtcFileConfig` `exports` serves the
-  existing data volumes (LAN-only, default `root_squash` kept) — dev two
-  lines (`/var/mnt/nvme-data 192.168.1.0/24(rw,sync,no_subtree_check,
-  fsid=0,crossmnt)` + `/var/mnt/sata-data 192.168.1.0/24(rw,sync,
-  no_subtree_check)`); prd a single `/var/mnt/nvme-data ...(fsid=0,
-  crossmnt)` line (no `sata-data` volume — the host has no SATA disk;
-  re-add the volume + its line only when that disk appears). `fsid=0`
-  marks the NFSv4 pseudo-root on `nvme-data`; `crossmnt` lets clients
-  traverse into the second export. Plus `EtcFileConfig` `netconfig`
-  (libtirpc IPv4 server table). No `ExtensionServiceConfig`: the service
-  takes no env, so it needs no service config document.
+- **Config** (node `patches.yml`): `EtcFileConfig` `exports` carries three
+  LAN-only lines (`192.168.1.0/24`, `all_squash`): `/var ...(fsid=0)`
+  (the NFSv4 pseudo-root), `/var/mnt/nvme-data ...(fsid=1)`,
+  `/var/mnt/sata-data ...(fsid=2)`. Plus `EtcFileConfig` `netconfig`
+  (libtirpc IPv4 server table) and `ExtensionServiceConfig` `nfs-server`
+  (`RPCNFSDCOUNT=32`).
 - **Backing store**: none dedicated — no `nfs` volume. The export paths
-  resolve against the existing `nvme-data` (+ `sata-data` on dev)
+  resolve against the existing `nvme-data` + `sata-data`
   `UserVolumeConfig` volumes (`<name>` mounts at `/var/mnt/<name>`);
   exports consume no extra disk.
 
@@ -509,9 +503,8 @@ cluster, re-apply with an authenticated `talosctl apply-config`
 > ⚠️ **Warning — `nodes[0]` pinning:** bootstrap, kubeconfig fetch, and the
 > day-2 health `--init-node` / etcd queries all target
 > `talos_clusters[talos_cluster].nodes[0]`, not "any healthy control-plane".
-> With today's single-node clusters that is the only control-plane; on a
-> future multi-node cluster, node order in `group_vars/all.yml` decides who
-> bootstraps. Day-1 asserts `nodes[0]` is a control-plane node before
+> Each cluster is a single control-plane node, so `nodes[0]` is the
+> bootstrap node. Day-1 asserts `nodes[0]` is a control-plane node before
 > bootstrapping, and the L2 `talosctl version` poll covers **every** node
 > (a non-zero node still installing fails the play instead of bootstrapping
 > around it).
@@ -615,7 +608,7 @@ kubectl --kubeconfig build/$C/kubeconfig get nodes -o wide
 Compares `-e kubernetes_version=<ver>` (no leading `v`) against the kubelet
 image recorded in the rendered machine config; skips when they match.
 Always prints the `--dry-run` plan before the real `upgrade-k8s --to`.
-Targets `nodes[0]` (today's clusters are single control-plane). When the
+Targets `nodes[0]` (each cluster is a single control-plane node). When the
 rendered machine config is missing or unparseable, drift detection warns
 loudly (no kubelet version found — re-run day-0) instead of silently
 skipping the upgrade.
@@ -782,7 +775,7 @@ rendered file(s) first (next table).
 ### 4.3 `creates:`-skip staleness — when to delete what
 
 Every `creates:` guard trades idempotency for staleness: the task never
-re-runs while its file exists, even if the **source** changed. Day-0 now
+re-runs while its file exists, even if the **source** changed. Day-0
 fails fast with an mtime preflight when a source `patches.yml` /
 `pat.yml.template` is newer than its render, naming the exact `rm` below —
 but vault value rotations stay invisible to it (still delete + re-run after
@@ -793,7 +786,7 @@ a rotation).
 | `patches.yml` | cluster `pass-cli inject` (+ NetBird placeholder rewrite) | source cluster `patches.yml`, vault values, or the Terraform setup key rotates | `rm build/<c>/patches.yml`, re-run day-0 (or day-2 `-e reapply_configs=true`, which re-renders + rewrites without deleting). Freshness note: the NetBird plane itself has NO `creates:` guard — it re-applies the dedicated root via the module on EVERY day-0/day-2 run (needs the `netbird-pat` vault value + `api.netbird.io` each time, even when every inject skips). The staged `netbird-tf/` dir keeps its local state across runs so those re-applies upsert; never `rm -rf build/<c>/netbird-tf` alone — recovery is `tofu import` per resource (see `roles/talos_render/files/netbird/README.md`). |
 | `nodes-<node>-patches.yml` | per-node `pass-cli inject` (+ ID-rewrite target) | source node `patches.yml`, vault values, or schematic changes | `rm build/<c>/nodes-*-patches.yml`, re-run day-0 |
 | `proton-pass-pat` | PAT `pass-cli inject` (day-0 `creates:`; day-2 re-apply is forced) | vault `eso-proton-pass`/`pat` rotated | `rm build/<c>/proton-pass-pat`, re-run day-0 (or day-2 `-e reapply_configs=true`, which re-renders without deleting) |
-| `schematic-<node>.id` / `.sha256` | factory upload (hash-guarded, not `creates:`) | re-uploads automatically on content change | none needed; honest hash comparison. A hash-match with a missing/empty `.id` (or an upload that yields no parseable ID) now fails fast naming the `rm` + re-run day-0 recovery instead of silently falling back to `pending-schematic-upload` |
+| `schematic-<node>.id` / `.sha256` | factory upload (hash-guarded, not `creates:`) | re-uploads automatically on content change | none needed; honest hash comparison. A hash-match with a missing/empty `.id` (or an upload that yields no parseable ID) fails fast naming the `rm` + re-run day-0 recovery; no `pending-schematic-upload` fallback |
 | `secrets.bundle.yml` | `gen secrets` | **never** refreshes while present | `rm` + re-run day-0 only pre-install (rotation breaks live clusters) |
 | `talosconfig`, `nodes/<n>/*.yaml` | `gen config` (no guard — always regenerates) | n/a (fresh every run) | n/a |
 | `.installed-<node>` | insecure apply for that node | config re-rendered but node never re-applied | `rm build/<c>/.installed-<node>` + re-run day-1 (maintenance only) / manual secure apply if installed |
@@ -865,7 +858,7 @@ nfsd stack (node). VIP advertises from the control-plane node
 | `secrets.bundle.yml` (`0600`) | day-0 `gen secrets` (once) | Cluster PKI bundle — never commit |
 | `talosconfig` | day-0 `gen config -t talosconfig` | Cluster admin Talos API config |
 | `nodes/<node>/controlplane.yaml` | day-0 `gen config -t controlplane` | Machine config (control-plane nodes) |
-| `nodes/<node>/worker.yaml` | day-0 `gen config -t worker` | Machine config (worker nodes; none today) |
+| `nodes/<node>/worker.yaml` | day-0 `gen config -t worker` | Machine config (worker nodes; no worker nodes defined) |
 | `kubeconfig` | day-1 `talosctl kubeconfig -f` | Admin kubeconfig |
 | `proton-pass-pat` (`0600`) | day-0 `pass-cli inject` from `pat.yml.template` (`creates:`); day-2 re-render is forced on `reapply_configs` | Rendered PAT for the day-2 ESO Secret apply — never committed (see §6 for backup) |
 | `.installed-<node>` (`0600`) | day-1 marker | Insecure apply done for that node |

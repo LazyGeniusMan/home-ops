@@ -30,7 +30,7 @@ installer:
   image: factory.talos.dev/metal-installer/PLACEHOLDER_SCHEMATIC_ID:v1.15.0-alpha.0 # set from schematic upload
 provisioning:
   diskSelector:
-    match: disk.dev_path == "/dev/nvme0"
+    match: disk.dev_path == "/dev/nvme0n1"
   wipe: true
 ---
 apiVersion: v1alpha1

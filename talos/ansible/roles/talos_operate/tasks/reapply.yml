@@ -15,9 +15,9 @@
   when: talos_operate_reapply_configs | bool
 
 - name: Force re-render cluster patches.yml via pass-cli inject
-  # NOTE: intentionally WITHOUT no_log and WITHOUT creates: — same rationale
-  # as day-0 (inject prints no secret values; failures name the missing
-  # pass:// ref), but the guard is dropped so edited sources re-render.
+  # NOTE: intentionally WITHOUT no_log and WITHOUT creates: — inject prints
+  # no secret values and failures name the missing pass:// ref; the dropped
+  # guard lets edited sources re-render.
   ansible.builtin.command:
     cmd: >-
       pass-cli inject
@@ -51,9 +51,9 @@
   changed_when: true
 
 - name: Force re-render PAT file via pass-cli inject
-  # Vault rotations flow on regeneration: same rationale as the forced patch
-  # re-renders above (no creates:, no no_log — inject names the unresolved
-  # ref on failure). Source: clusters/<cluster>/pat.yml.template.
+  # No creates:, no no_log — regenerated output picks up vault rotations and
+  # inject names the unresolved ref on failure.
+  # Source: clusters/<cluster>/pat.yml.template.
   ansible.builtin.command:
     cmd: >-
       pass-cli inject
@@ -106,7 +106,7 @@
   when: talos_operate_reapply_configs | bool
 
 - name: Read per-node schematic IDs for installer image rewrite
-  # IDs now land in the shared talos_render_schematic_ids fact via the
+  # IDs land in the shared talos_render_schematic_ids fact via the
   # schematic plane above; this slurp is the offline fallback when no
   # upload ran (build/<cluster> restored without a factory round-trip).
   # When both disagree the upload-fresh IDs win (next task), matching the
