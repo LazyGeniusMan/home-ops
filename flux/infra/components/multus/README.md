@@ -22,6 +22,60 @@ release manifest + flux-pushed OCI artifact:
   ClusterRoleBinding) are untouched by it, and the multus namespace is created
   by the tenant entry.
 
+## Thick vs thin (why thick)
+
+Upstream (Multus 4.0+): thick = per-node `multus-daemon` server plus a
+lightweight `multus-shim` CNI binary the kubelet calls, which then talks
+to the daemon — adds metrics and lifecycle handling upstream recommends
+for most environments at the cost of more resources. Thin = the legacy
+single CNI binary invoked per pod — lighter, no daemon, fewer features.
+
+Thick is the pick here because KubeVirt secondary-net (§13.2
+`NetworkBindingPlugins`) rides the daemon. Thin
+(`multus-daemonset.yml` at the same tag) is the documented fallback only
+for resource-constrained nodes — adopting it means losing daemon metrics
+and re-verifying the KubeVirt secondary-net path.
+
+## Node-file residue + CRD-on-uninstall
+
+The thick install writes node files OUTSIDE the DaemonSet lifecycle (via
+the `install-multus-binary` initContainer + daemon mounts). Deleting the
+DaemonSet does NOT clean them; a manual sweep is required on full
+uninstall or re-install, or stale CNI files break pod networking:
+
+- `/opt/cni/bin` — installed `multus-shim` binary (hostPath `cnibin`).
+- `/etc/cni/net.d` — generated configs incl. `00-multus.conf` (hostPath
+  `cni`).
+- `/run` — sockets incl. `/run/k8s.cni.cncf.io`, `/run/netns`,
+  `/run/multus` (hostPaths `host-run`, `host-run-k8s-cni-cncf-io`,
+  `host-run-netns`).
+- `/var/lib/cni/multus` — daemon state (hostPath
+  `host-var-lib-cni-multus`).
+
+The `NetworkAttachmentDefinition` CRD
+(`network-attachment-definitions.k8s.cni.cncf.io`) ships in this same
+bundle and is NOT removed by deleting the DaemonSet. Full uninstall =
+delete NADs first, then the DaemonSet, then the CRD explicitly — leftover
+NADs/CRD linger otherwise. No CRD-only Kustomization split is used
+(community charts and CRD splits fail the repo bar).
+
+## Re-download runbook
+
+1. Re-download the upstream URL at the new tag
+   (`.../multus-cni/v<tag>/deployments/multus-daemonset-thick.yml`), diff
+   against `controllers/base/multus-daemonset.yaml`.
+2. Re-apply both pins together (dual image-pin discipline): DaemonSet
+   container `kube-multus` AND initContainer `install-multus-binary` to
+   `ghcr.io/k8snetworkplumbingwg/multus-cni:<tag>-thick` — never
+   `snapshot-thick`, never a half-pinned pair.
+3. Re-verify the §13.1 surface: `kube-system` ServiceAccount /
+   ClusterRole(Binding) / ConfigMap namespaces, DaemonSet mounts above,
+   `initContainer` `-t thick` arg.
+4. Bump the `$imagepolicy` marker (`infra:multus:tag`,
+   `update-policies/multus.yaml >=4.3.0`); ImageUpdateAutomation opens the
+   PR, human merges. `infra-configs` `dependsOn` `infra-controllers` is
+   untouched — the NAD in configs applies after the DaemonSet/CRD land.
+
 ## The `lan-dhcp` contract (single-writer)
 
 This component OWNS `NetworkAttachmentDefinition/lan-dhcp`; `win11-vm` and
@@ -66,6 +120,4 @@ Upstream reference (read-only): `/tmp/home-ops-docs/multus-docs`.
   ServiceMonitors wait for the monitoring stack (same discipline as §9).
 - Version bumps via `update-policies/multus.yaml` (`>=4.3.0`) → PR automation;
   the `$imagepolicy` marker lives in the header of
-  `controllers/base/multus-daemonset.yaml`. Update procedure: re-download the
-  upstream URL at the new tag, diff against the vendored file (re-apply the
-  image pin + header), then bump the marker.
+  `controllers/base/multus-daemonset.yaml` (re-download runbook above).

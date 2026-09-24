@@ -1,7 +1,17 @@
-# KubeVirt v1.9.0 operator (§13.2): vendored pinned upstream release manifest.
+# KubeVirt v1.9.0 operator (§13.2): vendored pinned upstream release manifest
+# (8768 lines: 1 CRD kubevirts.kubevirt.io + RBAC + virt-operator Deployment).
 # Source: https://github.com/kubevirt/kubevirt/releases/download/v1.9.0/kubevirt-operator.yaml
 # Update procedure: re-download both operator + CR URLs at the new tag, diff,
 # then bump the $imagepolicy marker in update-policies/kubevirt.yaml (>=1.9.0).
+# The marker (infra:kubevirt:tag) resolves against
+# quay.io/kubevirt/virt-operator (see update-policies/kubevirt.yaml).
+# Version lock: the KubeVirt CR in configs/base/kubevirt-cr.yaml sets NO
+# spec.imageTag, so operand version is locked to this operator's version
+# (upstream rule) — the operator roll IS the KubeVirt upgrade.
+# Operator-first: if the diff shows new/expanded RBAC, the new operator MUST
+# apply before anything reads the CR (infra-configs already dependsOn
+# infra-controllers; never reorder) — an old virt-operator without the new
+# RBAC cannot reconcile a newer CR.
 # Deploys virt-operator (Deployment, image quay.io/kubevirt/virt-operator:v1.9.0)
 # which reconciles the KubeVirt CR in configs/base/kubevirt-cr.yaml.
 # No telemetry knobs are set (upstream ships no phone-home flags — nothing to

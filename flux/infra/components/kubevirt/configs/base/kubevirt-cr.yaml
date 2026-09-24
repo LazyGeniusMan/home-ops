@@ -22,7 +22,16 @@
 #   - unguarded monitors: monitorNamespace/monitorAccount/
 #     serviceMonitorNamespace stay UNSET (defaults point at openshift-monitor/
 #     prometheus-k8s, which do not exist here); flip note in README.
+# Version lock: NO spec.imageTag is set here — deliberately. Per upstream
+# (kubevirt.io updating_and_deletion), an absent imageTag locks the operand
+# to the operator version, so this CR always runs the v1.9.0 pinned in
+# controllers/base/kubevirt-operator.yaml (quay.io/kubevirt/virt-operator).
+# Do NOT add imageTag to decouple them: decoupled operands require an
+# operator-first RBAC check per upgrade (see README) and break the
+# single-version vendored contract.
 # No `metadata.namespace`: infra-configs applies with targetNamespace=kubevirt.
+# DependsOn order matters: infra-configs waits on infra-controllers, so the
+# operator (with fresh RBAC) exists before this CR reconciles — keep it.
 # {"$imagepolicy": "infra:kubevirt:tag"}
 ---
 apiVersion: kubevirt.io/v1

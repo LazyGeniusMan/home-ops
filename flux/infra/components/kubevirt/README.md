@@ -83,6 +83,41 @@ during KubeVirt upgrades — with node-local `local-ssd-nvme` volumes (no
 shared storage) there is nowhere to migrate TO, so expect upgrade-time
 VMIs to restart rather than live-migrate on this single node.
 
+## Upgrade runbook (vendored re-download)
+
+Upstream rule (`kubevirt.io` updating_and_deletion): upgrades are supported
+only N-1 → N — never skip a minor version. Our CR sets no `spec.imageTag`,
+so the operand is locked to the operator version: the operator roll IS the
+upgrade.
+
+1. Re-download both URLs at the new tag (operator + CR skeleton), diff
+   against the vendored files.
+2. RBAC check (mandatory, operator-first): if the new operator adds or
+   expands RBAC rules, the new operator MUST apply before anything reads
+   the CR — an old virt-operator without the new rules cannot reconcile a
+   newer CR. `infra-configs` already `dependsOn` `infra-controllers`; never
+   reorder or split them.
+3. Re-apply the §13.2 locks onto the fresh CR skeleton (featureGates,
+   smbios, workloadUpdateStrategy, no imageTag, monitors unset).
+4. Bump the `$imagepolicy` marker (`infra:kubevirt:tag`, resolving against
+   `quay.io/kubevirt/virt-operator`, `>=1.9.0`) in the headers of both
+   vendored files; ImageUpdateAutomation opens the PR, human merges.
+
+Single-node restart contract: LiveMigrate has nowhere to migrate to on one
+node (node-local `local-ssd-nvme`, no shared storage), so expect
+upgrade-time VMIs to restart rather than live-migrate — even though
+`workloadUpdateStrategy: [LiveMigrate]` stays as the guide default (see
+runStrategy ownership above).
+
+## Deletion order (CRs-first)
+
+Upstream deletion order is CRs-first, operator-last: delete the `KubeVirt`
+CR first and wait for operands to drain, then delete the operator bundle.
+Deleting the operator first strands the CR `Terminating` behind its
+finalizer (recovery: strip the finalizer manually). Ordering is a manual
+runbook step, not a manifest split — no CRD-only Kustomization is used
+(community charts and CRD splits fail the repo bar).
+
 ## Telemetry-off / monitoring / updates
 
 - No reporting knobs upstream (verified against the v1.9.0 CRD: no
@@ -91,5 +126,4 @@ VMIs to restart rather than live-migrate on this single node.
   the monitoring stack (flip note above).
 - Version bumps via `update-policies/kubevirt.yaml` (`>=1.9.0`) → PR
   automation; the `$imagepolicy` marker lives in the headers of both vendored
-  files. Update procedure: re-download both URLs at the new tag, diff, then
-  bump the marker.
+  files (upgrade runbook above).
