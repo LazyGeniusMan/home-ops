@@ -85,9 +85,10 @@ already plumbed to every tenant namespace: each ResourceSet copies
 `copyFrom`, and every tenant Kustomization declares
 `postBuild.substituteFrom` on that ConfigMap. Any component manifest can
 therefore consume `${CLUSTER_NAME}` / `${CLUSTER_DOMAIN}` today (e.g.
-Ingress hosts, external-dns hostnames, per-cluster labels) with **zero
+HTTPRoute hostnames, per-cluster labels) with **zero
 fleet changes** — add the variable reference in the component's
 `base/` or `{dev,prd}/` overlay and the substitution happens at
-reconcile time. No component currently does so, which is intentional:
-`CLUSTER_NAME` has zero consumers by default so behavior is identical on
-both clusters until an operator opts a component in.
+reconcile time. No manifest consumes the literal `${CLUSTER_NAME}` form
+today; the `__CLUSTER_NAME__` placeholder IS consumed (rclone backup
+destinations, element-proxy `network_name`), replaced by per-env overlay
+patches.

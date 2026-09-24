@@ -60,7 +60,7 @@ Role matrix:
 | Zitadel SSO identity | Coder role mapping | Groups claim |
 |---|---|---|
 | `admin@home-ops.yansyah.my.id` (super-admin) | instance owner (first login claims ownership) | `coder-admin` |
-| `user@home-ops.yansyah.my.id` (normal) | regular user | `coder-user` |
+| `git@yansyah.my.id`, `git@lazygeniusman.my.id` (normal users, `user_emails`) | regular users | `coder-user` |
 
 Both groups sign in; Coder-side ownership/RBAC distinguishes them (first
 OIDC login claims instance ownership — perform it as admin@ before
@@ -145,11 +145,13 @@ single-label wildcard cannot cover the nested workspace shape, hence two
 certs. No manual DNS: issuance uses DNS-01 TXT, and A records ride on the
 §9.4 external-dns automation.
 
-Gateway note: the shared Gateway's `https` listener terminates with the
+Gateway requirement (unimplemented): the shared Gateway `main` has only
+`http:80` (redirect) + `https:443` listeners terminating with the
 top-level `*.home-ops.yansyah.my.id` cert, which does not cover
-`*.coder.…`. Attach `coder-wildcard-tls` (e.g. an additional `https`
-listener with that certificateRef, or an SNI-based listener addition) so
-workspace hostnames terminate correctly.
+`*.coder.…`. Coder ships `coder-tls` + `coder-wildcard-tls` Secrets, but
+no Gateway listener references `coder-wildcard-tls` yet — workspace
+hostnames need an additional `https` listener with that certificateRef
+(or an SNI-based listener addition) before they terminate correctly.
 
 ## Database
 

@@ -53,7 +53,7 @@ only per-cluster bootstrap difference is the Talos API VIP passed as
 ## Artifacts
 
 `oci://ghcr.io/lazygeniusman/home-ops/fleet`, tagged `dev` (+ `dev-<sha>`,
-main commits) and `stable` (+ `stable-<version>`, `flux-fleet-v*` release
+main commits) and `stable` (+ bare `<version>`, `flux-fleet-v*` release
 tags). The `acme-prd-bdo1-talos-apps-01` cluster pins `stable` with cosign
 verification against the release workflow and tag; the `update` automation
 cluster tracks `dev` mirrored from main.
@@ -80,10 +80,11 @@ Fleet content promotes dev → prd through `ARTIFACT_TAG`, never by forking file
 3. **Bake on dev.** Every `main` commit publishes `dev` (+ `dev-<sha>`); the
    dev and `update` clusters sync `dev`, so validate there first.
 4. **Promote to prd.** Tag `flux-fleet-vX.Y.Z` to publish `stable`
-   (+ `stable-<version>`) with cosign signatures; prd pins `stable` with
+   (+ bare `<version>`) with cosign signatures; prd pins `stable` with
    cosign verification against the release workflow and tag.
 
-Cadences: tenants `OCIRepository` 5m, tenant Kustomizations 30m, charts 1h,
+Cadences: FluxInstance OCIRepository 10m (semver `*`), tenant
+`OCIRepository` 5m, tenant Kustomizations 30m, charts 1h,
 `ImageUpdateAutomation` 30m, ResourceSets 5m, per-cluster `tenants`
 Kustomization 12h. Per-cluster differences stay in
 `tenants/overlays/` (selection patches only — overlays carry no version

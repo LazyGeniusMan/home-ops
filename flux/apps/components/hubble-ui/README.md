@@ -47,7 +47,7 @@ upstreams to `http://hubble-ui.hubble-ui.svc:80`:
 | Redirect | `https://hubble.home-ops.yansyah.my.id/oauth2/callback` (covered by the registered wildcard `https://*/oauth2/callback`) |
 | Cookie domain | `.home-ops.yansyah.my.id` (secure, samesite=lax) |
 | Scopes | `openid profile email groups` (groups claim `groups`) |
-| Gate | `allowed-group=admin` |
+| Gate | `allowed-group=hubble-ui-admin` |
 | Flags | `reverse-proxy=true`, `skip-provider-button=true` |
 
 Secrets: `ExternalSecret/oauth2-proxy` syncs `client-id` + `client-secret`

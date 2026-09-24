@@ -92,7 +92,7 @@ from never-bootstrapped fleet content is a blind bet. Resolve it dev-first:
    (Cilium adoption via `flux_adoption_check`, CoreDNS `kube-dns` answering
    at `10.96.0.10`).
 2. **Publish stable.** Tag `flux-fleet-vX.Y.Z` once dev is green — the release
-   workflow pushes `stable` + `stable-<version>` and cosigns them, which is
+   workflow pushes `stable` + bare `<version>` and cosigns them, which is
    exactly what the prd verify pin
    (`flux-instance.yaml` → `flux-fleet-release.yaml@refs/tags/...`) expects.
 3. **Bootstrap prd pinned to stable.** `tofu apply` with

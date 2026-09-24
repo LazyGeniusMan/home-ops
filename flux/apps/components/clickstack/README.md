@@ -83,7 +83,7 @@ upstreams to `http://clickstack.clickstack.svc:3000`:
 | Redirect | `https://clickstack.home-ops.yansyah.my.id/oauth2/callback` (covered by the registered wildcard `https://*/oauth2/callback`) |
 | Cookie domain | `.home-ops.yansyah.my.id` (secure, samesite=lax) |
 | Scopes | `openid profile email groups` (groups claim `groups`) |
-| Gate | `allowed-group=admin` |
+| Gate | `allowed-group=clickstack-admin` |
 | Flags | `reverse-proxy=true`, `skip-provider-button=true` |
 
 Secrets: `ExternalSecret/oauth2-proxy-oidc` syncs `client-id` +
@@ -136,8 +136,10 @@ Secrets are namespace-local).
 - Bump: let the ImagePolicy PRs land
   (`update-policies/clickstack.yaml`); move the proxy pins together with
   hubble-ui + flux-operator-ui in the same round. The namespace-local CHI instantiates the
-  §10.2 `installation-base` template — check the infra clickhouse
-  26.8 LTS line before taking a server-coupled bump.
+  §10.2 `installation-base` template but currently pins server 25.9.7.56
+  (via the `infra:clickhouse-server:tag` marker), behind the infra
+  26.8.10.6 LTS line — check the infra clickhouse LTS line before taking
+  a server-coupled bump.
 - Migrate: snapshot the `ferretdb` CNPG cluster + confirm a ClickHouse
   `BACKUP ALL` completed BEFORE major bumps. Verify: the logs/traces UI
   loads through the proxy and the collector still receives OTLP.

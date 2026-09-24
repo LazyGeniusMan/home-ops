@@ -15,7 +15,7 @@ push path all assume it).
 
 | Workload | Role | Image | Scaling |
 |---|---|---|---|
-| `apprise-go-api` (consumer only) | NO workload ships here — the sink lives in the infra `apprise-go-api` tenant (namespace `apprise-go-api`, `flux/infra/components/apprise-go-api`). This tenant keeps the consumer-owned `apprise-stateless-urls` fallback ExternalSecret + Provider/Alert wiring, posting to `http://apprise-go-api.apprise-go-api.svc:80/notify` | n/a (policy `infra:apprise-go-api:tag` owns the image) | n/a (infra HPA 1–2 dev / 2–4 prd, VPA) |
+| `apprise-go-api` (consumer only) | NO workload ships here — the sink lives in the infra `apprise-go-api` tenant (namespace `apprise-go-api`, `flux/infra/components/apprise-go-api`). This tenant keeps the consumer-owned `apprise-stateless-urls` fallback ExternalSecret + Provider/Alert wiring, posting to `http://apprise-go-api.apprise-go-api.svc:80/notify` | n/a (policy `infra:apprise-go-api:tag` owns the image) | n/a (infra HPA 1–2 dev / 2–4 prd, VPA Off) |
 | `tuwunel` | Matrix homeserver (`server_name == tuwunel.matrix.<env>`, Zitadel SSO, federation off, RocksDB on S3-backed media) | `ghcr.io/matrix-construct/tuwunel` (`$imagepolicy` → `apps:tuwunel:tag`) | Singleton (no HPA), VPA Auto |
 | `mautrix-discord` | Discord puppeting bridge (`@discordbot:<server>`) + colocated `mautrix-discord-db` CNPG Cluster | `dock.mau.dev/mautrix/discord:v0.7.7` (pinned, no policy) | Both singleton (bridge 1, DB 1 dev / 3 prd), VPA Initial |
 | `element-web` | Public stateless SPA speaking to tuwunel (Gateway + NetBird) | `vectorim/element-web` (`$imagepolicy` → `apps:element-web:tag`) | HPA 1–2 dev / 2–4 prd, VPA Off |
