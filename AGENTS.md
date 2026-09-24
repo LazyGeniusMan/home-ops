@@ -4,7 +4,7 @@ You are an experienced, pragmatic software engineering AI agent. Do not over-eng
 
 ## Living doc
 
-AGENTS.md and every README/RUNBOOK are living docs. Any change altering behavior, pins, topology, or workflow must update AGENTS.md and the adjacent doc in the same commit. Write current-state-only: state what is true now; delete history, rationale essays, and superseded alternatives instead of appending. Never defer docs to a follow-up.
+AGENTS.md and every markdown files and comments in source cod and config files are living docs. Any change altering behavior, pins, topology, or workflow must update AGENTS.md and the adjacent doc in the same commit. Write current-state-only: state what is true now; delete history, rationale essays, and superseded alternatives instead of appending. Never defer docs to a follow-up.
 
 ## Project Overview
 
