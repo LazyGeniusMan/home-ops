@@ -1,7 +1,6 @@
 ---
-# Regen plane: rebuild client configs from the EXISTING secrets bundle
-# (--with-secrets reuses build/<cluster>/secrets.bundle.yml).
-# Never mints a new bundle: fresh PKI would orphan a live cluster.
+# Regen plane: rebuild client configs from the EXISTING secrets bundle.
+# Never mints a new bundle (fresh PKI would orphan a live cluster).
 - name: Regenerate cluster talosconfig from existing secrets bundle
   ansible.builtin.command:
     cmd: >-

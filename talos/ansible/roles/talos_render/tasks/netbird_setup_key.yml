@@ -1,50 +1,23 @@
 ---
 # NetBird setup-key plane (shared by day-0 render + day-2 re-apply).
 # The rendered cluster patch carries NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__
-# (never a pass:// vault value); this plane resolves the PAT from Proton
-# Pass, applies the dedicated Talos NetBird root
-# (roles/talos_render/files/netbird/ — full access fabric, Ansible-managed,
-# never Flux) via the `community.general.terraform` module, and rewrites the
-# placeholder with the sensitive `talos_setup_key` output.
+# (never a vault value); this plane resolves the PAT from the vault, applies
+# the dedicated Talos NetBird root (roles/talos_render/files/netbird/,
+# Ansible-managed, never Flux) via `community.general.terraform`
+# (requirements.yml pins community.general >= 9.0.0), and rewrites the
+# placeholder with the sensitive `talos_setup_key` output. No raw apply shell
+# exists here — only the vault render command and the module call.
+# Key: reusable, expiry 0 = never, usage 0 = unlimited,
+# auto_groups [<cluster>-nodes]. no_log throughout; 0600 kept.
 #
-# Module FQCN: `community.general.terraform` (requirements.yml pins
-# community.general >= 9.0.0, which ships this module; verified via
-# `ansible-doc community.general.terraform` against the installed 13.3.0).
-# The module shells out to a Terraform-compatible binary itself, so NO raw
-# `tofu ... apply` shell exists anywhere on this plane — the only helpers
-# are `pass-cli` (command module, never shell) and this module call.
-#
-# - The PAT (magnet pass://<cluster-vault>/talos/netbird-pat) reaches
-#   Terraform ONLY as the NB_PAT env var (provider schema: config value wins
-#   over env, so NO -var netbird_token is passed — the token never lands in
-#   TFVARS/state/diffs; task-level `environment:` + `no_log: true` keeps it
-#   out of logs too). Never written to disk.
-# - The module needs an ABSOLUTE binary path (its preflight stats the path),
-#   while the `talos_netbird_tofu` knob stays a bare name — so the apply task
-#   resolves it via `command -v` (pipe lookup, trimmed). `force_init: true`
-#   drives init every run (provider auto-install on first run); no
-#   backend_config is set, so state is the local `terraform.tfstate` inside
-#   the staged dir.
-# - The plane first copies the committed root into
-#   build/<cluster>/netbird-tf/ (gitignored via ansible/build/) and applies
-#   THERE. The staged dir PERSISTS across runs so re-applies are true upserts
-#   (variables: cluster_name = talos_cluster); do NOT delete it between runs
-#   (a fresh dir = empty state = duplicate-CREATE attempts failing closed
-#   under prevent_destroy; recovery is `tofu import` per resource — see
-#   files/netbird/README.md).
-# - The key plaintext leaves ONLY via the module's
-#   outputs.talos_setup_key.value (sensitive output) into the placeholder
-#   rewrite (0600 kept). Every key-handling task carries no_log: true; no
-#   debug ever prints the key.
-# - Key properties: type reusable, expiry_seconds 0 = never expires,
-#   usage_limit 0 = unlimited, auto_groups [<cluster>-nodes].
-# - Rotation: replace the netbird_setup_key.talos resource (plan first —
-#   prevent_destroy fails closed) then re-run day-0
-#   (rm build/<c>/patches.yml first so the inject guard re-renders) or
-#   day-2 -e reapply_configs=true (forced re-render + rewrite + apply).
-# - The setup key never lives in vault. There is NO outputs_secret fallback:
-#   the Flux consumer root is proxy-only and exposes no talos_setup_key, so
-#   this module-driven plane is the only source.
+# - PAT (pass://<cluster-vault>/talos/netbird-pat) reaches Terraform ONLY as
+#   the NB_PAT env (never -var, never on disk).
+# - The module needs an ABSOLUTE binary path, so the apply task resolves the
+#   `talos_netbird_tofu` name via command lookup. `force_init: true`; no
+#   backend_config, so state is the local `terraform.tfstate` in the staged dir.
+# - The root is staged at build/<cluster>/netbird-tf/ (gitignored) and applied
+#   THERE; the dir persists across runs so re-applies upsert (do NOT delete —
+#   recovery is `tofu import` per resource, see files/netbird/README.md).
 - name: Resolve NetBird PAT from Proton Pass
   ansible.builtin.command:
     cmd: >-
@@ -72,28 +45,23 @@
   no_log: true
 
 - name: Ensure staged Terraform dir exists
-  # Persistent (NOT throwaway): the module's local terraform.tfstate lives
-  # here across runs so re-applies upsert instead of re-creating.
+  # Persistent: local terraform.tfstate lives here across runs so re-applies upsert.
   ansible.builtin.file:
     path: "{{ talos_netbird_terraform_dir }}"
     state: directory
     mode: "0700"
 
 - name: Stage dedicated NetBird root copy
-  # Working copy of roles/talos_render/files/netbird/ so the module never
-  # writes lock files / .terraform/ / state into the committed tree (all
-  # stay inside the gitignored staged dir). Re-runs sync changed sources
-  # over the persisted state by checksum.
+  # Working copy so the module never writes state into the committed tree.
+  # Re-runs sync changed sources over the persisted state by checksum.
   ansible.builtin.copy:
     src: "{{ role_path }}/files/netbird/"
     dest: "{{ talos_netbird_terraform_dir }}/"
     mode: preserve
 
-# The PAT authenticates via the NB_PAT env (provider schema: config value
-# wins over env, so NO variables entry for netbird_token exists — the token
-# never lands in a TFVARS file, state diff, or process table). Only
-# cluster_name is passed as a variable (per-cluster fabric); lan_cidr rides
-# the root default (192.168.1.0/24).
+# The PAT authenticates via the NB_PAT env only (no netbird_token variable,
+# so it never lands in TFVARS/state). Only cluster_name is passed as a
+# variable; lan_cidr rides the root default (192.168.1.0/24).
 - name: Apply Talos NetBird fabric via Terraform
   community.general.terraform:
     project_path: "{{ talos_netbird_terraform_dir }}"
@@ -119,9 +87,8 @@
   no_log: true
 
 - name: Stage resolved setup key for the shape check
-  # Indirection keeps the key out of the assert args (assert is intentionally
-  # WITHOUT no_log so failures stay actionable; the value itself must never
-  # reach the log, so only a boolean fact is asserted below).
+  # Indirection keeps the key out of the assert args (assert stays WITHOUT
+  # no_log so failures name the PAT source; only a boolean is asserted).
   ansible.builtin.set_fact:
     talos_render_netbird_setup_key_ok: >-
       {{ talos_render_netbird_tf.outputs.talos_setup_key.value | default('', true) | trim
@@ -129,9 +96,8 @@
   no_log: true
 
 - name: Assert the resolved setup key matches the expected shape
-  # Shape gate only (UUID form per /api/setup-keys): proves the value is a
-  # real minted key and not an empty/HTML/error blob before it is baked into
-  # the machine configs. The assertion message never echoes the value.
+  # UUID gate: proves the value is a real minted key before baking it into
+  # the machine configs. Never echoes the value.
   ansible.builtin.assert:
     that:
       - talos_render_netbird_setup_key_ok | bool
@@ -143,9 +109,8 @@
     success_msg: "NetBird setup key resolved for {{ talos_cluster }}."
 
 - name: Rewrite setup-key placeholder in the rendered cluster patch
-  # The rendered build/<cluster>/patches.yml already exists (pass-cli inject
-  # ran first) and still carries NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__.
-  # Replace the placeholder with the resolved key; file-mode stays 0600.
+  # pass-cli inject ran first, so the render still carries the placeholder;
+  # file-mode stays 0600.
   ansible.builtin.replace:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}/patches.yml"
     regexp: "{{ talos_netbird_placeholder }}"

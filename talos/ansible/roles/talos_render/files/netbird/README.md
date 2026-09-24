@@ -1,12 +1,11 @@
 # talos netbird root — dedicated Talos access fabric (Ansible-managed)
 
 Dedicated Terraform root for the Talos NetBird access fabric. Managed ONLY
-by Ansible (`roles/talos_render/tasks/netbird_setup_key.yml` via the
-`community.general.terraform` module, PAT from Proton Pass as `NB_PAT` env);
-never touched by Flux. The Flux netbird infra root is proxy-only and MUST
-NOT be referenced or imported here — no `service_lb_ip` var, no Service-LB
-resource, no custom-domain / Cloudflare / reverse-proxy service in this
-root (the LB VIP is a proxy-only concern owned by the Flux consumer).
+by Ansible (`roles/talos_render/tasks/netbird_setup_key.yml` via
+`community.general.terraform`, PAT as `NB_PAT` env); never touched by Flux.
+The Flux netbird root is proxy-only — no `service_lb_ip` var, no
+Service-LB / custom-domain / reverse-proxy resources here (LB VIP is owned
+by the Flux consumer).
 
 Per cluster, the role stages a working copy of this dir at
 `build/<cluster>/netbird-tf/` (gitignored via `ansible/build/`) and keeps
@@ -30,15 +29,12 @@ Managed fabric (upsert only, never delete):
   `0600`, `no_log` throughout)
 - `network_resource` `LAN CIDR` (`192.168.1.0/24`) →
   `admin-users-resources`
-- policies: `admin-users-access` (admin-users → all groups, all protocols)
-  split into TWO policies because the provider schema allows exactly ONE
-  rule per policy AND forbids `destinations` + `destination_resource` in
-  one rule (both mutually exclusive): `admin-users-access` (peer chain) +
-  `admin-users-lan-access` (forward chain to the LAN resource); plus
+- policies: `admin-users-access` (admin-users → all groups, peer chain) +
+  `admin-users-lan-access` (forward chain to the LAN resource) — split in
+  two because the provider allows one rule per policy and forbids
+  `destinations` + `destination_resource` in one rule; plus
   `guest-users-access` (guest-users → `guest-users-resources`, TCP 80+443,
-  peer chain only — no guest `network_resource` exists in this root, so a
-  guest-facing resource's forward chain rides a separate
-  `destination_resource` rule, never merged into this rule)
+  peer chain only — a guest resource's forward chain rides a separate rule)
 
 Every resource carries `lifecycle { prevent_destroy = true }`: any plan that
 would delete or replace a resource fails closed instead of destroying it.
@@ -67,8 +63,6 @@ tofu -chdir=build/$C/netbird-tf import 'netbird_policy.admin_users_lan_access' <
 tofu -chdir=build/$C/netbird-tf import 'netbird_policy.guest_users_access' <id>
 ```
 
-Provider schema entrypoints (fetch via `scripts/fetch-references.sh` into
-`/tmp/home-ops-docs/netbird-terraform-provider-docs/`): `index.md` (auth
-`NB_PAT`), `group.md`, `network.md`, `setup_key.md`,
-`network_router.md` (+ `route.md` for the unused resource),
-`network_resource.md`, `policy.md`.
+Provider schema entrypoints (`index.md` auth `NB_PAT`, `group.md`,
+`network.md`, `setup_key.md`, `network_router.md`, `network_resource.md`,
+`policy.md`; `route.md` documents the unused legacy resource).

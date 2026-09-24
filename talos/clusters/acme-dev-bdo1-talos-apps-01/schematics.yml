@@ -1,10 +1,7 @@
-# Cluster Image Factory schematic layer (Talos v1.15.0-alpha.0): additive env-wide
-# entries merged over the _base layer; node layers add node-specific entries.
-# Bare `siderolabs/<name>` entries only — the factory pins extension versions
-# to the Talos release. This layer's entries apply to all nodes in
-# acme-dev-bdo1-talos-apps-01.
-# Upload: curl -X POST --data-binary @schematics.yml https://factory.talos.dev/schematics
+# Cluster Image Factory schematic layer (Talos v1.15.0-alpha.0): additive
+# env-wide entries merged over _base; node layers add node-specific entries.
+# Bare `siderolabs/<name>` entries only — the factory pins versions to the release.
 customization:
   systemExtensions:
     officialExtensions:
-      - siderolabs/netbird # overlay mgmt plane (contrib; verified in the extensions repo (network/netbird))
+      - siderolabs/netbird # overlay mgmt plane for all nodes in this cluster

@@ -43,33 +43,18 @@ ansible/
   checks unconditionally (even read-only runs); day-1 checks before
   `apply-config --insecure`.
 - NetBird PAT + Terraform-minted setup key (see `RUNBOOK.md` §1.0b).
-  Proton Pass supplies the NetBird PAT only — the `talos` item's
-  `netbird-pat` field in the OWN cluster vault
-  (`pass://<cluster-vault>/talos/netbird-pat`), resolved via
-  `pass-cli item view` (`no_log: true`, never written to disk) and passed
-  to the `community.general.terraform` module ONLY as the provider
-  `NB_PAT` env (never a `-var`). The module applies the dedicated Talos
-  root (`roles/talos_render/files/netbird/` — full access fabric,
-  Ansible-managed, never Flux; staged per cluster at
-  `build/<cluster>/netbird-tf/`, gitignored, with persistent local state
-  so re-applies upsert). It mints the reusable setup key
-  (`netbird_setup_key.talos`: reusable, `expiry_seconds = 0`,
-  `usage_limit = 0`, `auto_groups = [<cluster>-nodes]`) and Ansible reads
-  the sensitive `talos_setup_key` output
-  (`outputs.talos_setup_key.value`), rewrites the
-  `__TALOS_NETBIRD_SETUP_KEY__` placeholder in the rendered cluster patch
-  (`0600`, `no_log: true` throughout, UUID shape-gated). The module-driven
-  plane is the only setup-key source (the Flux consumer is proxy-only).
-  The setup key never lives in the vault.
-  (manual commands can also
-  `export PROTON_PASS_AGENT_REASON=talos-render-manual-exec-<16 hex>` for
-  audit attribution). Ansible auto-generates a fresh unique
-  `PROTON_PASS_AGENT_REASON` per `pass-cli` exec
-  (`<prefix>-<cluster>[-<node>]-exec-<16 random lowercase hex>`,
-  `no_log: true` keeps it out of logs).
-  (`community.general.terraform`, requirements.yml pins
-  community.general `>=9.0.0`; module FQCN documented in the
-  `roles/talos_render/tasks/netbird_setup_key.yml` header.)
+  Proton Pass supplies only the NetBird PAT (`talos` item, `netbird-pat`
+  field, own cluster vault), resolved via `pass-cli item view` (`no_log`,
+  never on disk) and passed to `community.general.terraform` only as the
+  `NB_PAT` env. The module applies the dedicated Talos root
+  (`roles/talos_render/files/netbird/`, staged at
+  `build/<cluster>/netbird-tf/`, persistent state so re-applies upsert) and
+  mints `netbird_setup_key.talos` (reusable, no expiry, unlimited uses,
+  `auto_groups = [<cluster>-nodes]`); Ansible rewrites
+  `__TALOS_NETBIRD_SETUP_KEY__` from the sensitive output (`0600`,
+  `no_log`, UUID shape-gated). The setup key never lives in the vault.
+  Ansible auto-generates a fresh `PROTON_PASS_AGENT_REASON` per
+  `pass-cli` exec (`<prefix>-<cluster>[-<node>]-exec-<16 hex>`).
 - `talos_cluster` — active cluster name (default `acme-dev-bdo1-talos-apps-01`; override with `-e talos_cluster=...`).
 - `talos_clusters.<name>` — per-cluster map: `vault` (Proton Pass vault),
   `endpoint` (VIP URL), `nodes: [{name, ip, role}]`. This map is the single
@@ -103,19 +88,14 @@ copies of inherited ones):
    e.g. qemu-guest-agent / intel-ucode + kernel args / nfsd stack)
 
 For each node the role (`roles/talos_render/tasks/schematic.yml`) slurps
-all three levels, merges them, then stages a reference copy at
+all three levels, merges them, stages a reference copy at
 `build/<cluster>/schematics-<node>.yml`, uploads it via
-`POST https://factory.talos.dev/schematics` (JSON `.id`),
-and persists `schematic-<node>.id` + `schematic-<node>.sha256`. Merged
-bytes change → new factory ID on the next day-0 (hash-gated). Upload is
-idempotent: skipped when the schematic hash is unchanged (re-upload only on
-content change). A hash-match with a missing/empty `.id`, or an upload that
-yields no parseable ID, fails fast naming the `rm` + re-run day-0 recovery
-instead of silently rendering `pending-schematic-upload`. The rendered node
-patch copies under
-`build/<cluster>/nodes-<node>-patches.yml` get their
-`PLACEHOLDER_SCHEMATIC_ID` rewritten to the resolved per-node ID, so each
-node's `UnattendedInstallConfig.installer.image` is correct.
+`POST https://factory.talos.dev/schematics`, and persists
+`schematic-<node>.id` + `schematic-<node>.sha256` (hash-gated: upload runs
+only on content change). A hash-match with a missing/empty `.id`, or an
+upload with no parseable ID, fails fast naming the `rm` + re-run day-0
+recovery. The rendered `nodes-<node>-patches.yml` copies get
+`PLACEHOLDER_SCHEMATIC_ID` rewritten to the resolved per-node ID.
 
 Each node's `talosctl gen config` receives
 `--install-image factory.talos.dev/metal-installer/<that-node-ID>:<talos_version>`
@@ -158,11 +138,10 @@ across runs — never backed up, never committed, never deleted between runs
 
 Each node also runs an NFS server stack: the node schematic layer adds
 `siderolabs/nfsd` + `nfs-utils` + `nfs-server`, configured by
-`EtcFileConfig` `exports` (three LAN-only `192.168.1.0/24` lines:
-`/var` with the `fsid=0` pseudo-root, `/var/mnt/nvme-data` with
-`fsid=1`, `/var/mnt/sata-data` with `fsid=2`; all `all_squash`) +
-`EtcFileConfig` `netconfig` + `ExtensionServiceConfig` `nfs-server`
-(`RPCNFSDCOUNT=32`) — no dedicated volume (see `RUNBOOK.md` §1.6).
+`EtcFileConfig` `exports` (three LAN-only `192.168.1.0/24` lines with
+`fsid=0/1/2`, all `all_squash`) + `EtcFileConfig` `netconfig` +
+`ExtensionServiceConfig` `nfs-server` (`RPCNFSDCOUNT=32`) — no dedicated
+volume (see `RUNBOOK.md` §1.6).
 
 ## Inventory (local-only — no node inventory)
 

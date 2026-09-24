@@ -2,9 +2,8 @@
 
 Declarative machine configuration for all Talos clusters. No CNI, no CoreDNS,
 and no bootstrap manifests ship from this tree — Cilium, DNS, and workloads
-arrive later via GitOps. Telemetry: the Talos machine config has no telemetry field (zero
-hits in `config.schema.json`); cluster discovery is explicitly disabled in
-`_base/patches.yml` so nodes never auto-join anything.
+arrive later via GitOps. Telemetry is off and cluster discovery is disabled in `_base/patches.yml`,
+so nodes never auto-join anything.
 
 ## Layout convention
 
@@ -27,17 +26,12 @@ talos/
   ansible/                           # day-0/1/2 automation (see ansible/README.md)
 ```
 
-`patches.yml` files are multi-document YAML (supported per
-`reference/configuration/overview.mdx`: "a multi-document configuration that
-may contain multiple YAML documents, separated by `---`"). Document 1 is a
-`v1alpha1` strategic-merge fragment; subsequent documents are split-doc kinds
+`patches.yml` files are multi-document YAML: document 1 is a `v1alpha1`
+strategic-merge fragment; subsequent documents are split-doc kinds
 (`Layer2VIPConfig`, `UserVolumeConfig`, `RegistryAuthConfig`, `HostnameConfig`,
 `LinkConfig`, `TimeSyncConfig`, `ResolverConfig`, `KubeNodeConfig`,
-`UnattendedInstallConfig`) validated against the v1.14 published schema
-(`/tmp/home-ops-docs/talos-docs/public/talos/v1.14/schemas/config.schema.json`,
-the newest version published in the fetched reference docs).
-There are intentionally no `KubeInlineManifestConfig` / `KubeExternalManifestConfig`
-documents — the base ships zero manifests.
+`UnattendedInstallConfig`). The base ships zero manifests (no
+`KubeInlineManifestConfig` / `KubeExternalManifestConfig`).
 
 ## Secrets (no plaintext, ever)
 
@@ -46,7 +40,7 @@ documents — the base ships zero manifests.
   Only `pass-cli inject` / `pass-cli item view` resolve them — bare `pass://`
   URIs are never dereferenced by Talos or Ansible directly.
 - Render: `pass-cli inject --in-file clusters/<cluster>/patches.yml --out-file ansible/build/<cluster>/patches.yml` (per-node: `clusters/<cluster>/nodes/<node>/patches.yml` → `ansible/build/<cluster>/nodes-<node>-patches.yml`), then the NetBird plane rewrites `NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__` from the Terraform `talos_setup_key` output (see `ansible/RUNBOOK.md` §1.0b).
-- NetBird PAT comes from Proton Pass (`pass://<cluster-vault>/talos/netbird-pat`, resolved via `pass-cli item view` and passed to the `community.general.terraform` module as `NB_PAT` env to apply the dedicated root `ansible/roles/talos_render/files/netbird/` — full access fabric, Ansible-managed, never Flux); the reusable setup key itself is Terraform-minted (sensitive `talos_setup_key` output, `no_log` throughout) and never lives in the vault. The module-driven plane is the only setup-key source (the Flux consumer is proxy-only).
+- NetBird PAT comes from Proton Pass (`pass://<cluster-vault>/talos/netbird-pat`, via `pass-cli item view` as `NB_PAT` env to the `community.general.terraform` module applying `ansible/roles/talos_render/files/netbird/` — Ansible-managed, never Flux); the reusable setup key is Terraform-minted (sensitive `talos_setup_key` output, `no_log`) and never lives in the vault.
 - Authenticate: `export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_...` (`pass-cli login`).
 - `secrets.bundle.yml`, `talosconfig`, `kubeconfig`, rendered `ansible/build/` output are gitignored.
 - Binary is `pass-cli` (not `proton-pass-cli`).
@@ -80,5 +74,4 @@ talosctl validate -c ansible/build/<cluster>/nodes/<node>/controlplane.yaml -m m
 Per-node `schematics.yml` is authoritative for that node's installer image;
 cluster `schematics.yml` holds extensions shared by all nodes in the cluster.
 Schematics list bare `siderolabs/<name>` entries — the factory pins versions
-to the Talos release. Extension catalog: `/tmp/home-ops-docs/talos-system-extension-docs`. Kernel args live in schematics (`extraKernelArgs`);
-`machine.kernel.args` does not exist in v1alpha1.
+to the Talos release. Kernel args live in schematics (`extraKernelArgs`).

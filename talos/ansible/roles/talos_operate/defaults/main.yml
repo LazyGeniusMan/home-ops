@@ -1,22 +1,20 @@
 ---
 talos_operate_talosctl: talosctl
 talos_operate_upgrade_image: ""
-# Target Talos version for the auto-constructed installer ref
-# (e.g. v1.15.0, adjacent minors only). Empty = no version upgrade.
-# An explicit upgrade_image wins when both are set.
+# Auto-constructed installer ref target (e.g. v1.15.0, adjacent minors only).
+# Empty = no version upgrade; explicit upgrade_image wins when both are set.
 talos_operate_upgrade_talos_version: ""
 # Desired Kubernetes version (e.g. 1.38.0, no leading v to match
-# `talosctl upgrade-k8s --to`). Compared against the kubelet image recorded
-# in the rendered machine config; the upgrade runs only on mismatch.
+# `upgrade-k8s --to`); runs only on drift vs the rendered kubelet image.
 talos_operate_kubernetes_version: ""
 talos_operate_regen_talosconfig: false
 talos_operate_regen_kubeconfig: false
 talos_operate_reapply_configs: false
-# apply-config mode for config re-apply: staged (default, no-reboot safe).
+# apply-config mode for config re-apply (staged = no-reboot safe default).
 talos_operate_reapply_mode: staged
 # Audit prefix for PROTON_PASS_AGENT_REASON on re-apply inject execs.
 talos_operate_pass_agent_reason_prefix: talos-operate
-# kubectl for post-Flux ESO PAT Secret management (flox provides kubectl).
+# kubectl for post-Flux ESO PAT Secret management.
 talos_operate_kubectl: kubectl
 # ESO PAT Secret wiring: Secret ns/name/key + webhook Deployment that reads
 # PROTON_PASS_PAT_FILE=/secrets/pat at startup (restart picks up rotation).
@@ -24,19 +22,17 @@ talos_operate_pat_namespace: external-secrets
 talos_operate_pat_secret: proton-pass-pat
 talos_operate_pat_key: pat
 talos_operate_pat_deployment: eso-proton-pass
-# Local PAT store filename under build/<cluster>/ (0600, gitignored; see
-# {{ talos_pat_filename }} shared var). Day-0 renders it; renew refreshes it.
+# Local PAT store filename under build/<cluster>/ (see talos_pat_filename).
 talos_operate_pat_filename: "{{ talos_pat_filename }}"
 # Agent identity for the optional renew attempt (needs an interactive user
-# session — pass-cli cannot manage agent tokens inside a PAT/agent session).
+# session). Expiration enum: 1h,1d,1w,1m,3m,6m,1y.
 talos_operate_pat_name: home-ops-eso
-# Agent token expiration enum for create/renew examples (1h,1d,1w,1m,3m,6m,1y).
 talos_operate_pat_expiration: 1y
 # Apply the stored PAT to the cluster Secret (post-Flux only). Default false
 # keeps day-2 read-only; renew additionally needs talos_operate_pat_renew.
 talos_operate_pat_apply: false
 talos_operate_pat_renew: false
-# Image Factory endpoint for the re-apply schematic refresh (passed into the
-# render schematic plane — the render role defaults are not loaded on day-2).
-# Must stay in sync with talos_render_schematic_factory_url.
+# Image Factory endpoint for the re-apply schematic refresh (render role
+# defaults do not load on day-2, so this must stay in sync with
+# talos_render_schematic_factory_url).
 talos_operate_schematic_factory_url: https://factory.talos.dev/schematics

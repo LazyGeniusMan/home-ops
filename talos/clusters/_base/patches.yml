@@ -1,20 +1,11 @@
 # Shared barebone base patch for all clusters (Talos v1.15.0-alpha.0).
-# Multi-document: consumed via `talosctl gen config --config-patch @file`
-# (see reference/configuration/overview.mdx: machine config is multi-doc;
-# split-doc kinds merge after it).
-#
-# Replacements per reference/configuration/document-map.mdx:
-#   No managed CNI -> delete the default KubeFlannelCNIConfig doc (patching.mdx:
-#     "disable the default CNI (Flannel)" via `$patch: delete`). Talos then
-#     manages no CNI; Cilium arrives via GitOps.
-#   CoreDNS off -> KubeCoreDNSConfig{enabled: false}.
-#   kube-proxy neutral -> KubeProxyConfig{mode: iptables} (deployed with
-#     iptables mode; clusters running Cilium kube-proxy replacement set
-#     enabled: false in their cluster patches.yml).
-#   discovery off -> delete the generated DiscoveryServiceConfig named
-#     `default` (discovery.mdx: "To disable the discovery service, remove
-#     all DiscoveryServiceConfig documents").
-# No inlineManifests / extraManifests: base ships zero bootstrap manifests.
+# Multi-document file consumed via `talosctl gen config --config-patch @file`;
+# split-doc kinds merge after the v1alpha1 fragment. Base ships zero bootstrap
+# manifests (no inlineManifests / extraManifests): CNI none (delete
+# KubeFlannelCNIConfig; Cilium arrives via GitOps), CoreDNS off, kube-proxy
+# iptables mode (clusters on Cilium kube-proxy replacement set enabled: false
+# in their cluster patches.yml), discovery off (delete DiscoveryServiceConfig
+# `default`).
 ---
 apiVersion: v1alpha1
 kind: KubeFlannelCNIConfig

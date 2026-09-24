@@ -1,11 +1,9 @@
 ---
 # Kubernetes upgrade on version drift only. Desired version is
-# talos_operate_kubernetes_version (group default 1.37.0 = what day-0 last
-# rendered; no leading v, matching `upgrade-k8s --to`). The installed version
-# is read from the kubelet image recorded in the rendered machine config.
-# Runs AFTER any Talos upgrade (see tasks/main.yml order). Clusters are
-# single control-plane: upgrade-k8s targets nodes[0]. --dry-run always prints
-# the plan first; the real upgrade runs only on mismatch.
+# talos_operate_kubernetes_version (no leading v, matches `upgrade-k8s --to`);
+# the rendered version is read from the kubelet image in the machine config.
+# Runs after any Talos upgrade, targets nodes[0] (single control-plane).
+# --dry-run prints the plan first; the real upgrade runs only on mismatch.
 - name: Resolve rendered machine config path for drift detection
   ansible.builtin.set_fact:
     talos_operate_k8s_node: "{{ talos_clusters[talos_cluster].nodes[0] }}"
@@ -33,9 +31,7 @@
   when: talos_operate_kubernetes_version | length > 0
 
 - name: Warn when drift detection cannot read the rendered config
-  # The kubelet-image regex found nothing ('unknown'): the rendered machine
-  # config is missing (fresh clone without a day-0 render?) or unparseable.
-  # Warn loudly so the operator re-renders day-0.
+  # 'unknown' = rendered config missing or unparseable; re-run day-0.
   ansible.builtin.debug:
     msg: >-
       WARNING: Kubernetes drift detection read no kubelet version from {{

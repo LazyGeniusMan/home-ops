@@ -1,24 +1,14 @@
 # Cluster patch: acme-prd-bdo1-talos-apps-01 (Talos v1.15.0-alpha.0, single control-plane).
-# Applied after ../_base/patches.yml:
-#   talosctl gen config acme-prd-bdo1-talos-apps-01 https://192.168.1.198:6443 \
-#     --config-patch @../_base/patches.yml \
-#     --config-patch @patches.yml \
-#     --config-patch @nodes/<node>/patches.yml
-#
-# Secrets: registry credentials are double-brace Proton Pass references; the
-# NetBird setup key placeholder (NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__)
-# is rewritten at render time from the Terraform-minted reusable key
-# (dedicated root ansible/roles/talos_render/files/netbird/ applied by the
-# community.general.terraform module, talos_setup_key output; see the
-# talos_netbird_* contract in ansible/group_vars/all.yml).
-# Render before generating configs (gitignored build/ holds the result):
-#   pass-cli inject --in-file patches.yml --out-file ../../ansible/build/acme-prd-bdo1-talos-apps-01/patches.yml
-# Split-doc kinds per reference/configuration/document-map.mdx:
-#   endpoint -> KubeClusterConfig{endpoint}; proxy off -> KubeProxyConfig{enabled};
-#   scheduling on the control-plane -> KubeNodeConfig with the default
-#   control-plane NoSchedule taint removed (workloads-on-controlplane.mdx).
-#   Layer2VIPConfig{name, link}, RegistryAuthConfig{name, username, password},
-#   ResolverConfig{nameservers[]:{address}}.
+# Applied after ../_base/patches.yml (base -> cluster -> node via --config-patch).
+# Secrets are double-brace Proton Pass references; the NetBird placeholder
+# (NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__) is rewritten at render time from
+# the Terraform-minted key (see talos_netbird_* in ansible/group_vars/all.yml).
+# Render: pass-cli inject --in-file patches.yml
+#   --out-file ../../ansible/build/acme-prd-bdo1-talos-apps-01/patches.yml
+# Split-doc kinds: KubeClusterConfig{endpoint}; KubeProxyConfig{enabled: false}
+# (Cilium replaces kube-proxy); KubeNodeConfig with the default control-plane
+# taint removed (single-node runs workloads on the control-plane);
+# Layer2VIPConfig, RegistryAuthConfig, ResolverConfig.
 ---
 apiVersion: v1alpha1
 kind: KubeClusterConfig

@@ -1,10 +1,8 @@
 # Node patch: bdo-r01-cp-002 — acme-dev-bdo1-talos-apps-01 (Talos v1.15.0-alpha.0).
 # QEMU/KVM VM: virtio NIC (ens18), install disk /dev/sda (20 GiB OS),
-# data disk /dev/sdb (960 GB passthrough). Install selector pins /dev/sda;
-# EPHEMERAL capped via maxSize -30GiB (30GiB reserved) on the system disk;
-# nvme-data (system disk, maxSize 30GiB, grow) +
-# sata-data (/dev/sdb) XFS volumes. Manual pre-flight:
-# `talosctl get links/disks --insecure -n 192.168.1.201`.
+# data disk /dev/sdb (960 GB passthrough); EPHEMERAL capped (30GiB reserved),
+# nvme-data + sata-data XFS volumes.
+# Pre-flight: `talosctl get links/disks --insecure -n 192.168.1.201`.
 ---
 apiVersion: v1alpha1
 kind: HostnameConfig
@@ -94,12 +92,6 @@ mode: 0o644
 contents: |
   [nfsd]
   threads = 32
-  # vers2 = n
-  # vers3 = n
-  # vers4 = y
-  # vers4.0 = n
-  # vers4.1 = y
-  # vers4.2 = y
 
   [mountd]
   manage-gids = y
@@ -110,10 +102,8 @@ name: nfs-server
 environment:
   - RPCNFSDCOUNT=32
 ---
-# NFS server stack (nfs-server README Requirements + Configuration).
-# Exports the nvme-data + sata-data user volumes above (UserVolumeConfig
-# <name> mounts at /var/mnt/<name>); no dedicated nfs volume.
-# Clients mount nfsvers=4.2 with noresvport.
+# NFS stack: exports the nvme-data + sata-data volumes above
+# (UserVolumeConfig <name> mounts at /var/mnt/<name>); no dedicated volume.
 apiVersion: v1alpha1
 kind: EtcFileConfig
 name: exports
@@ -121,7 +111,7 @@ mode: 0o644
 contents: |
   /var 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=0)
   /var/mnt/nvme-data 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=1)
-  /var/mnt/sata-data 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=2) 
+  /var/mnt/sata-data 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=2)
 # LAN-only 192.168.1.0/24; default root_squash kept (no no_root_squash).
 # fsid values mark the NFSv4 exports (pseudo-root fsid=0).
 ---

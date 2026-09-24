@@ -1,24 +1,20 @@
 ---
-# Shared vars: pass-cli session (via `pass-cli login`) gates auth; the PAT
-# value is rendered from the vault via `pass-cli inject`, never the shell.
+# Shared vars: `pass-cli login` gates auth; the PAT value renders from the
+# vault via `pass-cli inject`, never the shell.
 #
-# Local-only execution: playbooks run on localhost (connection: local) and
-# reach nodes via `talosctl` over the Talos API — there is no SSH inventory.
-# `talos_clusters` is the single source of truth for node IPs; they are data
-# for `talosctl -n/-e` flags only, never Ansible connection targets.
-# Shared PAT filename for build/<cluster>/ (0600, gitignored via
-# ansible/build/): day-0 renders it via pass-cli inject, day-2 reads/renews it.
+# Local-only: playbooks run on localhost and reach nodes via `talosctl` over
+# the Talos API (no SSH inventory). `talos_clusters` is the single source of
+# truth for node IPs (data for `talosctl -n/-e` flags only).
+# Shared PAT filename for build/<cluster>/ (0600, gitignored): day-0
+# renders it, day-2 reads/renews it.
 talos_pat_filename: proton-pass-pat
 talos_version: v1.15.0-alpha.0
 # Pinned Kubernetes version: day-0 passes no --kubernetes-version flag, so
-# gen config uses the talosctl default; this pin records the kubelet image
-# version day-0 renders. Day-2 compares this desired version against the
-# kubelet image recorded in the rendered machine configs and runs
-# upgrade-k8s only on mismatch. Keep in sync with what day-0 renders.
+# this records the kubelet image version day-0 renders. Day-2 runs
+# upgrade-k8s only on drift vs the rendered machine configs.
 kubernetes_version: 1.37.0
 talos_build_dir: "{{ playbook_dir }}/../build"
-# Inventory node role -> Talos machine type. Inventory says `controlplane`;
-# `talosctl gen config -t` and per-node output files say `controlplane`.
+# Inventory role -> Talos machine type for `gen config -t` and output files.
 talos_machine_roles:
   controlplane: controlplane
   worker: worker
@@ -26,39 +22,25 @@ talos_machine_roles:
 # instead of relying on an ambient TALOSCONFIG or ~/.talos/config.
 talos_talosconfig: "{{ talos_build_dir }}/{{ talos_cluster }}/talosconfig"
 # NetBird wiring (PAT-driven, Terraform-minted setup key — see RUNBOOK §1.0b):
-# - NetBird PAT comes from Proton Pass (magnet
-#   pass://<cluster-vault>/talos/netbird-pat) and is resolved locally via
-#   `pass-cli item view` in the talos_netbird plane — it only ever reaches
-#   Terraform as the NB_PAT env var on the `community.general.terraform`
-#   module call (never -var, never written to disk).
-# - The reusable setup key is minted by the dedicated Talos root
-#   (roles/talos_render/files/netbird/, staged per cluster at
-#   build/<cluster>/netbird-tf/ with persistent local state — NOT deleted
-#   between runs, so re-applies upsert): `netbird_setup_key.talos`
-#   (type reusable, expiry_seconds 0 = never expires, usage_limit 0 =
-#   unlimited, auto_groups [<cluster>-nodes]). The plaintext leaves ONLY via
-#   the module's sensitive `talos_setup_key` output
-#   (outputs.talos_setup_key.value) and is rewritten into the rendered
-#   cluster patch placeholder __TALOS_NETBIRD_SETUP_KEY__ (0600, gitignored
-#   build/<cluster>/), never logged (no_log: true everywhere on the plane)
-#   and never committed. Rotate by replacing the TF key resource (plan first;
-#   prevent_destroy fails closed) then re-running day-0 (rm
-#   build/<c>/patches.yml first so the inject guard re-renders) or day-2
-#   -e reapply_configs=true.
-# - The setup key never lives in vault. There is NO outputs_secret fallback:
-#   the Flux consumer root is proxy-only and exposes no talos_setup_key, so
-#   the module-driven plane is the only source.
-# - Per-cluster values come from the talos_clusters map below (cluster_name
-#   = talos_cluster, vault = per-cluster vault); LB IP is NOT needed here
-#   (proxy-only concern owned by the Flux consumer).
+# PAT from the vault (pass://<cluster-vault>/talos/netbird-pat, resolved via
+# the info-view command) reaches Terraform only as the NB_PAT env on the
+# `community.general.terraform` call (never -var, never on disk). The reusable
+# setup key is minted by the dedicated Talos root
+# (roles/talos_render/files/netbird/, staged at build/<cluster>/netbird-tf/
+# with persistent local state so re-applies upsert):
+# `netbird_setup_key.talos` (reusable, expiry 0 = never, usage 0 = unlimited,
+# auto_groups [<cluster>-nodes]). Plaintext leaves only via the sensitive
+# `talos_setup_key` output into placeholder __TALOS_NETBIRD_SETUP_KEY__
+# (0600, no_log, never committed). Rotate by replacing the TF key resource
+# then re-running day-0 (rm build/<c>/patches.yml first) or day-2
+# -e reapply_configs=true. No outputs_secret fallback: this plane is the only
+# source (Flux consumer is proxy-only); LB IP is not needed here.
 talos_netbird_terraform_dir: "{{ playbook_dir }}/../build/{{ talos_cluster }}/netbird-tf"
 talos_netbird_placeholder: __TALOS_NETBIRD_SETUP_KEY__
 talos_netbird_setup_key_pattern: "^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}$"
-# Binaries + audit prefix for the NetBird plane (shared by the day-0 render
-# include and the day-2 re-apply include_role — render-role defaults are NOT
-# loaded on day-2, so the plane only reads talos_netbird_* / talos_* shared
-# vars). PAT vault field: `netbird-pat` on the `talos` item in the OWN
-# cluster vault (pass://<cluster-vault>/talos/netbird-pat).
+# NetBird plane knobs (render-role defaults do NOT load on day-2, so the
+# plane only reads talos_netbird_* / talos_* shared vars). PAT vault field:
+# `netbird-pat` on the `talos` item in the OWN cluster vault.
 talos_netbird_tofu: tofu
 talos_netbird_pat_item: talos
 talos_netbird_pat_field: netbird-pat

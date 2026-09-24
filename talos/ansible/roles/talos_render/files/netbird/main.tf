@@ -1,52 +1,26 @@
 # Dedicated Talos NetBird access-fabric root — managed ONLY by Ansible
-# (roles/talos_render/tasks/netbird_setup_key.yml via the
-# `community.general.terraform` module), never by Flux. The Flux netbird
-# infra root is proxy-only and MUST NOT be referenced or imported here.
+# (roles/talos_render/tasks/netbird_setup_key.yml via
+# `community.general.terraform`), never by Flux (Flux root is proxy-only).
 #
-# Upsert-only: every managed resource below carries
-# `lifecycle { prevent_destroy = true }`, so any plan that would delete or
-# replace a resource fails instead of destroying it. There is no
-# `tofu destroy` path for this root; drift detection stays on.
+# Upsert-only: every resource carries `lifecycle { prevent_destroy = true }`,
+# so a delete/replace plan fails closed. No `tofu destroy` path.
 #
-# State: the module stages a working copy of this root at
-# build/<cluster>/netbird-tf/ (gitignored via ansible/build/) and keeps its
-# local `terraform.tfstate` there ACROSS runs, so re-applies are true
-# upserts. Do NOT delete that dir between runs: a fresh dir means empty
-# state, and the next apply would try to CREATE duplicates of the groups /
-# network / key below and fail closed under `prevent_destroy`. Recovery
-# after a `rm -rf build/<cluster>` is `tofu import` per resource (see
-# README.md in this dir), never a blind re-apply.
+# State: staged at build/<cluster>/netbird-tf/ (gitignored) with local
+# `terraform.tfstate` kept ACROSS runs so re-applies upsert. Do NOT delete
+# that dir between runs (fresh dir = empty state = duplicate-CREATE attempts
+# failing closed; recovery is `tofu import` per resource — see README.md).
 #
-# Provider schema reference (entrypoints; fetch via
-# scripts/fetch-references.sh into /tmp/home-ops-docs/):
-# - index.md ................ provider auth: `token` may ride the NB_PAT env
-#   var (config value wins over env, so Ansible passes the PAT ONLY as
-#   NB_PAT env, never as -var netbird_token).
-# - group.md ................ netbird_group (name identifier; resource-group
-#   membership mirrors back as computed state — see the comment on the
-#   resource groups below).
-# - network.md .............. netbird_network (per-cluster fabric).
-# - setup_key.md ............ netbird_setup_key (reusable, expiry_seconds 0
-#   = never expires, usage_limit 0 = unlimited; plaintext ONLY via the
-#   sensitive talos_setup_key output).
-# - network_router.md ....... netbird_network_router (Networks-model routing
-#   peers via peer_groups). route.md documents the LEGACY per-network route
-#   resource (netbird_route), which is intentionally UNUSED here.
-# - network_resource.md ..... netbird_network_resource (address = subnet
-#   CIDR; groups edge managed here only).
-# - policy.md ............... netbird_policy: `destinations` and
-#   `destination_resource` are mutually exclusive per rule, and the provider
-#   accepts exactly ONE rule per policy — so the admin peer chain and the
-#   admin LAN-resource chain ride TWO policies.
+# Provider schema: PAT rides the NB_PAT env only (never -var netbird_token);
+# setup key is reusable, expiry 0 = never, usage 0 = unlimited, plaintext
+# only via the sensitive talos_setup_key output; routing uses
+# netbird_network_router peer_groups (the legacy netbird_route resource is
+# unused); admin peer + LAN-resource chains ride TWO policies (one rule per
+# policy; `destinations` and `destination_resource` are mutually exclusive).
 #
-# PAT-driven access fabric (admin/guest segmentation + per-cluster Network).
-# Talos nodes join via the reusable setup key below (no per-node Proton Pass
-# seeding); the per-cluster Network carries the LAN CIDR resource
-# (admin-only). No Service-LB resource lives here — the LB VIP is a
-# proxy-only concern owned by the Flux consumer, so this root takes no
-# service_lb_ip var. Groups/policies follow the Networks product model: a
-# resource is reachable only when an access policy allows a source group to
-# reach it.
+# Talos nodes join via the reusable setup key (no per-node vault seeding);
+# the per-cluster Network carries the admin-only LAN CIDR resource. No
+# Service-LB resource here (LB VIP is owned by the Flux consumer, so no
+# service_lb_ip var).
 provider "netbird" {
   token          = var.netbird_token
   management_url = var.management_url
@@ -76,12 +50,10 @@ resource "netbird_group" "cluster_nodes" {
   }
 }
 
-# Resource groups associate by NAME with the resources below: the resource's
-# `groups` field references the group ID (network_resource -> group edge),
-# and the API mirrors the membership back onto the group's `resources`
-# (group -> resource edge). Managing both edges in TF would cycle
-# (group <-> resource), so only the network_resource.groups edge is managed
-# here; the group reads the mirrored membership back as computed state.
+# Resource groups associate by NAME with the resources below. Only the
+# network_resource.groups edge is managed here — the API mirrors membership
+# back onto the group's `resources` as computed state (managing both edges
+# would cycle).
 resource "netbird_group" "admin_users_resources" {
   name = "admin-users-resources"
 
@@ -112,11 +84,9 @@ resource "netbird_network" "cluster" {
   }
 }
 
-# Unlimited reusable setup key for Talos nodes: expiry_seconds = 0 (never
-# expires) + usage_limit = 0 (unlimited uses) + type reusable. Peers minted
-# through this key land in the per-cluster nodes group automatically. The
-# plaintext key is exposed ONLY via the sensitive talos_setup_key output
-# (never echoed, never logged — no local-exec anywhere in this root).
+# Reusable setup key for Talos nodes: peers minted through it land in the
+# per-cluster nodes group. Plaintext leaves ONLY via the sensitive
+# talos_setup_key output (no local-exec anywhere in this root).
 resource "netbird_setup_key" "talos" {
   name           = var.cluster_name
   type           = "reusable"
@@ -130,10 +100,8 @@ resource "netbird_setup_key" "talos" {
 }
 
 # Routing: the per-cluster nodes group serves as routing peers for the
-# per-cluster Network (new Networks model — netbird_network_router with
-# peer_groups; the legacy netbird_route resource is intentionally unused).
-# Masquerade stays on (LAN needs no awareness of the overlay); metric is the
-# provider default (single routing group — no primary/failover split).
+# per-cluster Network (netbird_network_router with peer_groups; the legacy
+# netbird_route resource is unused). Single routing group, masquerade on.
 resource "netbird_network_router" "cluster" {
   network_id  = netbird_network.cluster.id
   peer_groups = [netbird_group.cluster_nodes.id]
@@ -158,15 +126,9 @@ resource "netbird_network_resource" "lan" {
   }
 }
 
-# Admin peer policy: admin-users may reach every group (node input-chain +
-# peer-to-peer reachability across the mesh), on all protocols. This covers
-# the peer chain only — resources behind the routing peer need the
-# destination_resource chain in admin_users_lan_access below (peer-to-peer
-# destinations alone do NOT cover resources behind the peer). The provider
-# schema allows exactly ONE rule per policy AND forbids destinations +
-# destination_resource in one rule (both mutually exclusive), so the peer
-# chain and the LAN-resource chain ride TWO policies — admin-users-access
-# here plus admin-users-lan-access below.
+# Admin peer policy: admin-users reach every group on all protocols (peer
+# chain only — resources behind the routing peer need the
+# destination_resource chain in admin_users_lan_access below).
 resource "netbird_policy" "admin_users_access" {
   name        = "admin-users-access"
   description = "Admin users reach all mesh groups (peer-to-peer / input chain)"
@@ -209,14 +171,10 @@ resource "netbird_policy" "admin_users_lan_access" {
   }
 }
 
-# Guest policy: guest-users reach ONLY the guest-users-resources group, on
-# TCP 80/443. This is the peer/input chain; no guest network_resource exists
-# in this root (the Service-LB resource stays owned by the proxy-only Flux
-# consumer), so there is no destination_resource to point at here. When a
-# guest-facing network_resource attaches to guest-users-resources, its
-# forward-chain access rides a separate destination_resource rule (same
-# one-rule-per-policy split as the admin pair above) — do NOT merge it into
-# this rule (destinations ⊕ destination_resource are mutually exclusive).
+# Guest policy: guest-users reach ONLY guest-users-resources on TCP 80/443
+# (peer chain; no guest network_resource exists here, so no
+# destination_resource — a future guest resource's forward chain rides a
+# separate rule, never merged into this one).
 resource "netbird_policy" "guest_users_access" {
   name        = "guest-users-access"
   description = "Guest users reach the guest-users-resources group on HTTP/HTTPS only"

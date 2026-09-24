@@ -1,8 +1,7 @@
 ---
 # Day-0 render: inject secrets, generate machine configs, validate.
-# Auth comes FIRST: every pass-cli exec below needs a live session, so the
-# `pass-cli info` probe runs before any render. Ansible NEVER logs in —
-# run `pass-cli login` in your shell before the play.
+# Auth first: every render exec needs a live session (Ansible never logs
+# in — run the login command in your shell before the play).
 - name: Ensure build directory exists
   ansible.builtin.file:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}"
@@ -10,10 +9,9 @@
     mode: "0700"
 
 - name: Stat cluster patch source for render freshness preflight
-  # The inject tasks below carry `creates:` guards: they never re-run while
-  # the rendered file exists, even when the SOURCE changed (RUNBOOK §4.3).
-  # Compare mtimes and fail fast naming the exact rm from §1.7 instead of
-  # rendering + validating stale configs as if fresh.
+  # Inject tasks carry `creates:` guards (never re-run while the render
+  # exists); compare mtimes and fail fast naming the §1.7 rm instead of
+  # validating stale configs as fresh.
   ansible.builtin.stat:
     path: "{{ playbook_dir }}/../../clusters/{{ talos_cluster }}/patches.yml"
   check_mode: false
@@ -53,9 +51,8 @@
   register: talos_render_preflight_pat_out
 
 - name: Fail when the PAT template is newer than its render
-  # Vault rotations are undetectable here (values live outside the repo);
-  # this covers template edits only. A rotation still needs an explicit
-  # rm build/<cluster>/proton-pass-pat + re-run day-0 (RUNBOOK §4.3).
+  # Covers template edits only; vault rotations still need an explicit
+  # rm build/<cluster>/proton-pass-pat + re-run day-0 (§4.3).
   ansible.builtin.assert:
     that:
       - not (talos_render_preflight_pat_src.stat.exists | default(false))
@@ -109,11 +106,8 @@
     index_var: idx
 
 - name: Check pass-cli session is authenticated
-  # Ansible NEVER logs in: this probes the existing session via
-  # `pass-cli info -o json` (rc==0 + JSON mapping stdout = logged in;
-  # logged-out gives rc=1 + a non-JSON error). check_mode:false so
-  # --check still validates auth. On failure, run `pass-cli login`,
-  # then re-run the play.
+  # Probes the existing session via the info command (rc==0 + JSON mapping
+  # = logged in). check_mode:false so --check still validates auth.
   ansible.builtin.command:
     cmd: pass-cli info -o json
   environment:
@@ -138,11 +132,8 @@
     success_msg: "pass-cli session authenticated."
 
 - name: Render cluster patches.yml via pass-cli inject
-  # NOTE: intentionally WITHOUT no_log — pass-cli inject with --out-file
-  # prints no secret values (success: "Secrets injected successfully to:
-  # <path>"; failure: only the unresolved pass://<vault>/<item>/<field>
-  # ref). A failure therefore names the missing vault field instead of
-  # showing "censored".
+  # Intentionally WITHOUT no_log: --out-file mode prints no secret values,
+  # so failures name the unresolved vault ref instead of "censored".
   ansible.builtin.command:
     cmd: >-
       pass-cli inject
@@ -158,9 +149,7 @@
   changed_when: true
 
 - name: Render node patches via pass-cli inject
-  # NOTE: intentionally WITHOUT no_log — see the cluster inject task above:
-  # pass-cli prints no secret values in this mode; failures name the
-  # unresolved pass://<vault>/<item>/<field> ref for this node.
+  # Intentionally WITHOUT no_log (see cluster inject above).
   ansible.builtin.command:
     cmd: >-
       pass-cli inject
@@ -179,11 +168,8 @@
   changed_when: true
 
 - name: Render PAT file via pass-cli inject
-  # ESO webhook PAT: single-line source at clusters/<cluster>/pat.yml.template
-  # (double-brace ref to `eso-proton-pass`/`pat` in the OWN cluster vault).
-  # NOTE: intentionally WITHOUT no_log — see the cluster inject task above:
-  # pass-cli prints no secret values in this mode; failures name the
-  # unresolved pass://<vault>/<item>/<field> ref.
+  # Source: clusters/<cluster>/pat.yml.template. Intentionally WITHOUT no_log
+  # (see cluster inject above).
   ansible.builtin.command:
     cmd: >-
       pass-cli inject
@@ -198,13 +184,8 @@
         override_all='0123456789abcdef') }}
   changed_when: true
 
-# NetBird setup key (Terraform-minted, PAT-driven): resolves the NetBird PAT
-# from Proton Pass, applies the dedicated Talos root via the
-# `community.general.terraform` module against the staged persistent
-# build/<cluster>/netbird-tf/ dir (upsert re-applies; NO outputs_secret
-# fallback — the module plane is the only source), and rewrites the
-# __TALOS_NETBIRD_SETUP_KEY__ placeholder in the rendered cluster patch.
-# no_log throughout; 0600 on the rewrite.
+# NetBird setup key: resolves the PAT, applies the dedicated Talos root, and
+# rewrites __TALOS_NETBIRD_SETUP_KEY__ in the rendered cluster patch.
 - name: Resolve NetBird setup key from Terraform and rewrite cluster patch
   ansible.builtin.include_tasks: netbird_setup_key.yml
 
@@ -216,9 +197,8 @@
     label: "{{ node.name }}"
 
 - name: Generate Talos secrets bundle when missing
-  # NOTE: intentionally WITHOUT no_log — `talosctl gen secrets -o` writes
-  # the bundle to a file and prints nothing secret-bearing, so failures
-  # (bad flags, unwritable out-file) stay visible instead of "censored".
+  # Intentionally WITHOUT no_log: -o writes to a file and prints nothing
+  # secret-bearing, so failures stay visible instead of "censored".
   ansible.builtin.command:
     cmd: >-
       {{ talos_render_talosctl }} gen secrets

@@ -1,11 +1,9 @@
 ---
 # Config re-apply: force re-render of edited patches (bypassing day-0
 # creates: guards), regenerate node machine configs, push via authenticated
-# apply-config --mode <reapply_mode> (default staged: applies without reboot
-# when the change allows it). Day-1's insecure apply is maintenance-only; this
-# is the installed-cluster path. Auth was already probed unconditionally at
-# the top of the operate role (roles/talos_operate/tasks/main.yml), so this
-# file assumes a live pass-cli session (probed at the top of main.yml).
+# apply-config --mode <reapply_mode> (default staged). Day-1's insecure apply
+# is maintenance-only; this is the installed-cluster path. Pass-cli session
+# was already probed at the top of main.yml.
 - name: Assert re-apply mode is valid
   ansible.builtin.assert:
     that:
@@ -15,9 +13,8 @@
   when: talos_operate_reapply_configs | bool
 
 - name: Force re-render cluster patches.yml via pass-cli inject
-  # NOTE: intentionally WITHOUT no_log and WITHOUT creates: — inject prints
-  # no secret values and failures name the missing pass:// ref; the dropped
-  # guard lets edited sources re-render.
+  # Intentionally WITHOUT no_log and WITHOUT creates: (dropped guard lets
+  # edited sources re-render).
   ansible.builtin.command:
     cmd: >-
       pass-cli inject
@@ -51,9 +48,8 @@
   changed_when: true
 
 - name: Force re-render PAT file via pass-cli inject
-  # No creates:, no no_log — regenerated output picks up vault rotations and
-  # inject names the unresolved ref on failure.
-  # Source: clusters/<cluster>/pat.yml.template.
+  # No creates:, no no_log — picks up vault rotations; inject names the
+  # unresolved ref on failure. Source: clusters/<cluster>/pat.yml.template.
   ansible.builtin.command:
     cmd: >-
       pass-cli inject
@@ -68,16 +64,11 @@
   when: talos_operate_reapply_configs | bool
   changed_when: true
 
-# NetBird setup key rewrite (Terraform-minted, PAT-driven): the forced
-# cluster re-render above restores NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__,
-# so re-apply the dedicated root via the module plane day-0 uses (staged
-# copy at build/<cluster>/netbird-tf/, persistent local state) and rewrite
-# the placeholder. Reuses the render-plane file via include_role (cross-role
-# include_tasks paths do not resolve; include_role does via roles_path).
-# no_log throughout; 0600 kept. WATCH: the module apply NEEDS the vault PAT
-# + api.netbird.io reachability on EVERY re-apply — a prior staged
-# netbird-tf/ dir does not make this offline-safe (the module still plans
-# against the API; a missing PAT/network fails here, not silently).
+# NetBird rewrite: the forced re-render restores
+# NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__, so re-apply the module plane day-0
+# uses (via include_role; cross-role include_tasks paths do not resolve) and
+# rewrite the placeholder. Needs the vault PAT + api.netbird.io on EVERY
+# re-apply (the staged dir does not make this offline-safe).
 - name: Rewrite NetBird setup-key placeholder in the re-rendered cluster patch
   ansible.builtin.include_role:
     name: talos_render
@@ -85,14 +76,9 @@
   when: talos_operate_reapply_configs | bool
 
 - name: Refresh per-node schematic IDs from the Image Factory
-  # Day-2 re-apply never touches schematics.yml sources, so a schematic edit
-  # would otherwise render installable configs with a STALE installer image
-  # (the .id embeds the old extension set). Reuse the day-0 schematic plane
-  # (tasks_from — cross-role include_tasks paths do not resolve; include_role
-  # does via roles_path) with the day-2 factory URL so hash changes re-upload
-  # and persist fresh .id/.sha256. IDs accumulate in the shared
-  # talos_render_schematic_ids host fact. Same check-mode behavior as day-0:
-  # upload skipped, placeholder expected.
+  # Reuses the day-0 schematic plane with the day-2 factory URL so hash
+  # changes re-upload (.id/.sha256 persist; IDs accumulate in
+  # talos_render_schematic_ids). Same check-mode behavior as day-0.
   ansible.builtin.include_role:
     name: talos_render
     tasks_from: schematic
@@ -106,11 +92,7 @@
   when: talos_operate_reapply_configs | bool
 
 - name: Read per-node schematic IDs for installer image rewrite
-  # IDs land in the shared talos_render_schematic_ids fact via the
-  # schematic plane above; this slurp is the offline fallback when no
-  # upload ran (build/<cluster> restored without a factory round-trip).
-  # When both disagree the upload-fresh IDs win (next task), matching the
-  # render-plane precedence.
+  # Offline fallback when no upload ran; upload-fresh IDs win on disagreement.
   ansible.builtin.slurp:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}/schematic-{{ item.name }}.id"
   loop: "{{ talos_clusters[talos_cluster].nodes }}"
@@ -134,17 +116,12 @@
     - item.content is defined
 
 - name: Prefer schematic-plane IDs refreshed this run over file reads
-  # The schematic plane above persists fresh .id files when it uploads, so
-  # these wins apply to hash-changed nodes even mid-loop.
   ansible.builtin.set_fact:
     talos_operate_reapply_ids: "{{ (talos_operate_reapply_ids | default({})) | combine(talos_render_schematic_ids | default({})) }}"
   when: talos_operate_reapply_configs | bool
 
 - name: Assert schematic IDs resolve for re-apply
-  # Explicit schematic-layer failure (not a silent stale reuse): the IDs
-  # above already passed through the render-plane freshness guards, so a
-  # miss here means build/<cluster> lost its .id files offline — re-run
-  # day-0 to re-upload from the factory.
+  # A miss here means build/<cluster> lost its .id files offline — re-run day-0.
   ansible.builtin.assert:
     that:
       - (talos_operate_reapply_ids | default({})).get(item.name, '') | length > 0
