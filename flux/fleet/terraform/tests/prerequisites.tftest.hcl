@@ -24,7 +24,7 @@ run "cilium_prerequisite_matches_gitops_prd" {
   }
 
   assert {
-    condition     = output.test_cilium_chart_tag == "1.20.1"
+    condition     = output.test_cilium_chart_tag == "1.20.2"
     error_message = "Cilium prerequisite tag must equal the OCIRepository ref.tag in base/cilium.yaml."
   }
 
@@ -102,7 +102,7 @@ run "cilium_prerequisite_matches_gitops_dev" {
   }
 
   assert {
-    condition     = output.test_cilium_chart_tag == "1.20.1"
+    condition     = output.test_cilium_chart_tag == "1.20.2"
     error_message = "Cilium prerequisite tag is cluster-independent (dev reuses the same chart tag)."
   }
 
