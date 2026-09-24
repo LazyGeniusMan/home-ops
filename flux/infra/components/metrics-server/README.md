@@ -15,6 +15,17 @@ Upstream chart exposes no reporting knobs; values set only `apiService`,
   `serviceMonitor.enabled` then (same values file).
 - Chart bumps: `update-policies/metrics-server.yaml` → PR automation.
 
+## Upgrade runbook
+
+- Version source: the `OCIRepository` tag in
+  `controllers/base/metrics-server.yaml` (chart 3.14.0, app v0.9.0).
+- Changelog: https://github.com/kubernetes-sigs/metrics-server/releases.
+- Bump: let the ImagePolicy PR land (marker `infra:metrics-server:tag`,
+  `update-policies/metrics-server.yaml`). Risk is low (stateless
+  scraper, no stored state).
+- Verify: Deployment `Ready`, then `kubectl top nodes` and
+  `kubectl top pods -A` return values within a minute.
+
 ## Environments
 
 | Env | Replicas | Patches |

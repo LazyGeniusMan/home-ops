@@ -58,6 +58,22 @@ provider pins live in `terraform/versions.tf`
 there. No tofu-controller change either: consumer CRs land in app namespaces
 already on the runner `allowedNamespaces` list.
 
+## Upgrade runbook
+
+- Version source: the provider constraints in `terraform/versions.tf`
+  (`netbirdio/netbird ~> 0.0.10`, `cloudflare/cloudflare ~> 5.0`) —
+  this shared root is versioned only through its consumers.
+- Changelog (netbird provider):
+  https://github.com/netbirdio/terraform-provider-netbird/releases.
+  Changelog (cloudflare provider):
+  https://github.com/cloudflare/terraform-provider-cloudflare/releases.
+- Bump: raise the constraints in `versions.tf`, run
+  `tofu -chdir=flux/infra/components/netbird/terraform init -backend=false`
+  + `validate`, then let one consumer `Terraform` CR re-plan (e.g.
+  matrix `element-proxy`) before merging.
+- Verify: the consumer CR reconciles `Ready=True` and the reverse-proxy
+  route still resolves.
+
 ## Environments
 
 | Env | Patches |

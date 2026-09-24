@@ -65,6 +65,24 @@ revoked PAT surfaces there) and on a `401` from the webhook (the pass-cli
 login fails first). Rotate at most yearly; an early rotation is just steps
 2–5 again.
 
+## Upgrade runbook
+
+- Version source: chart `version:` in
+  `controllers/base/externalsecrets.yaml` (v2.10.0) plus the webhook
+  image in `configs/base/eso-proton-pass-webhook.yaml` (`:dev`
+  single-stream by decision — promotion to `:stable` on the first
+  `eso-proton-pass-v*` tagged release).
+- Changelog (chart):
+  https://github.com/external-secrets/external-secrets/releases.
+  Webhook changelog is in-repo (`projects/eso-proton-pass`).
+- Bump: let the ImagePolicy PRs land (markers in both files above,
+  `update-policies/external-secrets.yaml`); keep chart and webhook in
+  the same PR.
+- Verify: `ClusterSecretStore/proton-pass` reports `Ready=True`, every
+  `ExternalSecret` re-syncs (`kubectl get externalsecrets -A -o wide`
+  — alert on `Ready=False`), and the PAT renewal runbook above still
+  applies unchanged.
+
 ## Telemetry-off evidence
 
 - ESO chart has no usage-reporting values (verified: no `telemetry` key in

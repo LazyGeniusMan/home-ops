@@ -5,6 +5,9 @@
 # components/apprise-go-api/controllers/base/apprise-go-api.yaml. Follows the
 # §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy
 # markers).
+# Changelog: in-repo (projects/apprise-go-api — no external changelog; tags apprise-go-api-v*).
+# Mode: auto.
+# Coupled files: [components/apprise-go-api/controllers/base/apprise-go-api.yaml].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

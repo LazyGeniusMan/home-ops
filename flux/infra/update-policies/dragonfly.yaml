@@ -5,6 +5,9 @@
 # (appVersion: v1.6.1 in the pulled Chart.yaml), so the semver floor below
 # tracks both lines at once (unlike §10.1 cnpg, where chart and operator
 # versions diverge).
+# Changelog: https://github.com/dragonflydb/dragonfly-operator/releases.
+# Mode: auto (chart v1.6.x == operator v1.6.x, no mapping to re-verify).
+# Coupled files: [controllers/base/dragonfly.yaml].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

@@ -77,3 +77,18 @@ the coupling.
   telemetry/usageReporting/phoneHome/analytics keys); `prometheus.service`
   only adds scrape annotations. `ServiceMonitor` disabled until CRDs land.
 - Chart bumps via `update-policies/coredns.yaml` → PR automation.
+
+## Upgrade runbook
+
+- Version source: the `version:` pin in `controllers/base/coredns.yaml`
+  (classic-repo chart 1.47.0, app image pinned separately in
+  `values.image.tag` to 1.14.7) plus the node-local-dns cache image in
+  `configs/base/node-local-dns.yaml`.
+- Changelog (app): https://github.com/coredns/coredns/releases.
+  Changelog (chart): https://github.com/coredns/helm/releases.
+- Bump: set the chart `version:` by hand (classic repo — no OCI
+  automation), move the `$imagepolicy` marker for the app image in the
+  same file, and keep the node-cache marker on the supported line
+  (`update-policies/coredns.yaml`).
+- Verify: re-run the three `dig` checks in Validation above (apex +
+  both wildcards → LB VIP, everything else forwards upstream).

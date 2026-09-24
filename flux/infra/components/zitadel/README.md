@@ -262,6 +262,23 @@ live in each app's per-app `terraform/` state — read them into Proton Pass
   (remember the chart↔app divergence above: bump the chart tag AND both image
   tags together).
 
+## Upgrade runbook
+
+- Version source: the `OCIRepository` tag in
+  `controllers/base/zitadel.yaml` (chart 10.0.4) plus `image.tag` +
+  `login.image.tag` in values (app v4.17.1 — chart↔app DIVERGE, see
+  above).
+- Changelog (chart): https://github.com/zitadel/zitadel-charts/releases.
+  Changelog (app): https://github.com/zitadel/zitadel/releases.
+- Bump: let the ImagePolicy PR land (marker `infra:zitadel:tag`,
+  `update-policies/zitadel.yaml`), then set the chart tag AND both
+  image tags to the new chart's appVersion together in the same PR.
+- Migrate: snapshot the DB + cache BEFORE major bumps (fresh CNPG base
+  backup + Dragonfly snapshot — see the cnpg/dragonfly runbooks;
+  `masterkey` is immutable, never rotate it as part of an upgrade).
+  Verify: login UI renders, an admin OIDC login succeeds, and one
+  per-app client callback still exchanges tokens.
+
 ## AssetStorage (S3-backed, not db-default)
 
 Upstream default is `AssetStorage.Type: db` (avatars/org logos in Postgres —

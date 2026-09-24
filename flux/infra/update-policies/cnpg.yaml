@@ -4,6 +4,10 @@
 # Chart-to-operator mapping: chart 0.29.x embeds operator 1.30.x, so the
 # semver floor below is the CHART version; the operator stays >=1.30 while the
 # chart stays on its 0.29 line.
+# Changelog (chart): https://github.com/cloudnative-pg/charts/releases.
+# Changelog (operator): https://github.com/cloudnative-pg/cloudnative-pg/releases.
+# Mode: auto (re-verify the chart->operator mapping on every PR before merge).
+# Coupled files: [controllers/base/cnpg.yaml].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

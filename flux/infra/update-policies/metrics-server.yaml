@@ -1,6 +1,9 @@
 # Update policy for the metrics-server component (§9): tracks the OCI Helm chart, and the
 # ImageUpdateAutomation (update cluster) opens PRs via markers in
 # components/metrics-server (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+# Changelog: https://github.com/kubernetes-sigs/metrics-server/releases.
+# Mode: auto.
+# Coupled files: [controllers/base/metrics-server.yaml].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

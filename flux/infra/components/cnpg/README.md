@@ -25,6 +25,23 @@ OCI is the upstream source of truth, verified by pull:
   would never match chart tags and would deaden automation. Chart bumps stay
   on PR review, where the chart→operator mapping is re-verified before merge.
 
+## Upgrade runbook
+
+- Version source: the `OCIRepository` tag in
+  `controllers/base/cnpg.yaml` (chart 0.29.0, operator 1.30.0 — see the
+  chart→operator mapping above).
+- Changelog (chart): https://github.com/cloudnative-pg/charts/releases.
+  Changelog (operator):
+  https://github.com/cloudnative-pg/cloudnative-pg/releases.
+- Bump: let the ImagePolicy PR land (marker `infra:cnpg:tag`,
+  `update-policies/cnpg.yaml`), then re-verify the chart→operator
+  mapping in the pulled `Chart.yaml` before merge (the floor tracks the
+  CHART line).
+- Migrate: take a fresh base backup BEFORE the operator bump (see the
+  Backup / PITR runbook above — never upgrade without a restorable
+  backup). Verify: `kubectl cnpg status <cluster>` shows all instances
+  streaming, then spot-check row counts.
+
 ## HA / replication
 
 - `spec.instances: 3`, one primary + two streaming standbys.

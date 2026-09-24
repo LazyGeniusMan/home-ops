@@ -111,6 +111,18 @@ leave the cluster.
   both image tags together). Branch Planner stays off (`branchPlanner.enabled:
   false`, the chart default).
 
+## Upgrade runbook
+
+- Version source: the `OCIRepository` tag in
+  `controllers/base/tofu-controller.yaml` (chart == app v0.16.5) plus
+  `image.tag` + `runner.image.tag` in values (same lockstep).
+- Changelog: https://github.com/flux-iac/tofu-controller/releases.
+- Bump: let the ImagePolicy PR land (marker
+  `infra:tofu-controller:tag`, `update-policies/tofu-controller.yaml`),
+  then set the chart tag AND both image tags together in the same PR.
+- Verify: controller + runner pods `Ready`, then force a re-plan on one
+  `Terraform` CR and check it reconciles `Ready=True`.
+
 ## Environments
 
 | Env | Replicas | Patches |

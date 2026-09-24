@@ -56,3 +56,16 @@ Base `replicas: 1` is the create-time seed; the HPA owns the runtime count
   CPU/memory metrics).
 - Image bumps: `update-policies/apprise-go-api.yaml` → PR automation
   (`$imagepolicy` marker `infra:apprise-go-api:tag`).
+
+## Upgrade runbook
+
+- Version source: the image tag in
+  `controllers/base/apprise-go-api.yaml` (first-party, tags
+  `apprise-go-api-v*` published by
+  `.github/workflows/apprise-go-api.yml`).
+- Changelog: in-repo (`projects/apprise-go-api` — no external feed).
+- Bump: let the ImagePolicy PR land (marker
+  `infra:apprise-go-api:tag`, `update-policies/apprise-go-api.yaml`).
+  Risk is low (stateless, credential-free sink).
+- Verify: Deployment `Ready`, then `POST /notify` with a test apprise
+  URL returns 2xx and the matrix consumer wiring still posts.

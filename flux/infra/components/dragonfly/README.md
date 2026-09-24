@@ -80,6 +80,20 @@ consumer needs (also stated in `dragonfly-base.yaml`):
   - Disaster (bucket empty): the instance boots empty; repopulate from the
     source of truth (Zitadel rebuilds cache from Postgres).
 
+## Upgrade runbook
+
+- Version source: the `OCIRepository` tag in
+  `controllers/base/dragonfly.yaml` (chart v1.6.1 == operator v1.6.1 —
+  no chart→operator mapping to re-verify, unlike cnpg).
+- Changelog: https://github.com/dragonflydb/dragonfly-operator/releases.
+- Bump: let the ImagePolicy PR land (marker `infra:dragonfly:tag`,
+  `update-policies/dragonfly.yaml`). Take a fresh snapshot BEFORE the
+  bump (see the Backup / restore runbook above — hourly snapshots to
+  `s3://dragonfly-backups/dragonfly/`; confirm one completed).
+- Verify: `kubectl describe dragonfly <name>` shows `status.phase:
+  ready`, the primary Service selects the current primary, and key
+  counts match the pre-bump snapshot.
+
 ## S3 contract
 
 - Endpoint `seaweed-main-s3.seaweedfs.svc.cluster.local:8333`

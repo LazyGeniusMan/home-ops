@@ -4,6 +4,9 @@
 # Chart-to-app lockstep: chart 0.16.5 == app v0.16.5, but the app images are
 # pinned separately (image.tag + runner.image.tag) — the semver floor below is
 # the CHART version; on bumps set the chart tag AND both image tags together.
+# Changelog: https://github.com/flux-iac/tofu-controller/releases.
+# Mode: auto (chart == app lockstep — bump chart tag + both image tags together).
+# Coupled files: [controllers/base/tofu-controller.yaml (chart tag + image.tag + runner.image.tag)].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

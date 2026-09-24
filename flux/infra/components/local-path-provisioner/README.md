@@ -22,6 +22,20 @@ storage); the StorageClasses alone are not a backup story.
   volumes via kubelet/kube-state-metrics once monitoring lands.
 - Chart bumps: `update-policies/local-path-provisioner.yaml` → PR automation.
 
+## Upgrade runbook
+
+- Version source: the `OCIRepository` tag in
+  `controllers/base/local-path-provisioner.yaml` (chart == app v0.0.37).
+- Changelog: https://github.com/rancher/local-path-provisioner/releases.
+- Bump: let the ImagePolicy PR land (marker
+  `infra:local-path-provisioner:tag`,
+  `update-policies/local-path-provisioner.yaml`). Blast radius is high
+  (default `StorageClass`) but the change surface is small — still merge
+  off-peak.
+- Verify: both Deployments `Ready`, the two `StorageClass`es still list
+  (`kubectl get sc`), a test PVC provisions, and existing volumes
+  re-mount on pod restart.
+
 ## Environments
 
 | Env | Replicas | Patches |

@@ -92,6 +92,26 @@ Disk('backups_s3', 'nightly/<name>')`. After restore, run
 `SYSTEM SYNC REPLICA ON CLUSTER 'main' db.tbl` and verify row counts per
 shard before re-enabling writers.
 
+## Upgrade runbook
+
+- Version source: the `OCIRepository` tag in
+  `controllers/base/clickhouse-operator.yaml` (operator 0.27.3) plus the
+  server + keeper image pins on the ClickHouseInstallation pod templates
+  (26.8 LTS lockstep — see the header in
+  `configs/base/installation-base.yaml`).
+- Changelog (operator):
+  https://github.com/Altinity/clickhouse-operator/releases. Changelog
+  (server/keeper): https://github.com/ClickHouse/ClickHouse/releases.
+- Bump: let the ImagePolicy PRs land (markers `infra:clickhouse:tag`
+  plus the server/keeper markers, `update-policies/clickhouse.yaml`).
+  Read the server changelog before taking a new LTS (25.9 went EOL
+  2025-12; the 26.x jump crosses breaking changes) and keep server +
+  keeper on the same line.
+- Migrate: confirm the nightly `BACKUP ALL` completed BEFORE the bump
+  (see the Backup / restore runbook above). Verify: keeper quorum
+  `Ready`, CHI `status` shows all replicas, and row counts match per
+  shard before re-enabling writers.
+
 ## DNS
 
 No `DNSEndpoint` file (bounded decision, same as the CNPG approach):

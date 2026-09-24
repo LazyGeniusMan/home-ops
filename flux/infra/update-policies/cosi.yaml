@@ -13,6 +13,9 @@
 # main-line v1alpha2 (breaking, incompatible with the SeaweedFS driver)
 # versions above v0.2.x, so automation must never PR past the v0.2 line.
 # Bump pins + all three caps (here + seaweedfs.yaml sidecar/driver) together.
+# Changelog: https://github.com/kubernetes-sigs/container-object-storage-interface/releases.
+# Mode: auto (capped <0.3.0 — main-line v1alpha2 is breaking for the SeaweedFS driver).
+# Coupled files: [controllers/base/deployment.yaml, crds/base/objectstorage.k8s.io_*.yaml (5 files, re-vendor together), ../seaweedfs.yaml (sidecar/driver caps move together)].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

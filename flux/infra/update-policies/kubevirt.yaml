@@ -2,6 +2,9 @@
 # release, and the ImageUpdateAutomation (update cluster) opens PRs via markers
 # in components/kubevirt (see README). Follows the §7 update-policy contract
 # (ImageRepository + ImagePolicy + $imagepolicy markers).
+# Changelog: https://github.com/kubevirt/kubevirt/releases.
+# Mode: auto (N-1 -> N only — never skip a minor; operator roll IS the upgrade, CR sets no imageTag).
+# Coupled files: [controllers/base/kubevirt-operator.yaml, configs/base/kubevirt-cr.yaml (re-apply §13.2 locks on re-vendor)].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

@@ -8,6 +8,9 @@
 # chart bumps stay manual via the $imagepolicy marker (same stance as the
 # retired fairwinds-stable/vpa feed). Follows the §7 update-policy contract
 # (ImageRepository + ImagePolicy + $imagepolicy markers).
+# Changelog: https://github.com/kubernetes/autoscaler/releases (vertical-pod-autoscaler chart).
+# Mode: nominal (chart bumps manual via the $imagepolicy marker — the feed never matches).
+# Coupled files: [controllers/base/vpa.yaml].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

@@ -34,6 +34,21 @@ Upstream chart exposes no reporting knobs; values set only `recommender`,
 - Chart bumps: `update-policies/vpa.yaml` → PR automation (nominal feed —
   chart bumps stay manual via the `$imagepolicy` marker).
 
+## Upgrade runbook
+
+- Version source: the `version:` pin in `controllers/base/vpa.yaml`
+  (chart 0.12.0, app v1.7.1). The update policy is a nominal feed (it
+  polls the recommender app image while the range pins the chart line),
+  so no automation PR ever arrives.
+- Changelog: https://github.com/kubernetes/autoscaler/releases
+  (`vertical-pod-autoscaler` chart).
+- Bump: check the chart release notes, set `version:` by hand, move the
+  `$imagepolicy` marker in the same file, and keep the policy range on
+  the new chart line.
+- Verify: recommender + updater + admission-controller Deployments
+  `Ready`, then `kubectl describe vpa <any>` renders a fresh
+  recommendation.
+
 ## Environments
 
 | Env | Replicas | Patches |

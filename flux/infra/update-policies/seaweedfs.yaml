@@ -3,6 +3,9 @@
 # markers in components/seaweedfs (see README). Chart versions are pinned in the
 # HelmReleases (classic HelmRepository — no OCI index exists upstream), so only
 # image tags automate here. Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+# Changelog (server/driver/CSI): https://github.com/seaweedfs/seaweedfs/releases.
+# Mode: manual (operator chart 0.1.40 + CSI chart 0.2.36 `version:` hand-bumps — no OCI upstream) + auto (images; sidecar/driver caps <0.3.0 move together with cosi.yaml).
+# Coupled files: [controllers/base/seaweedfs.yaml (both chart `version:` pins), configs/base/cluster.yaml, configs/base/driver.yaml (sidecar/driver pins + markers), ../cosi.yaml (controller cap moves together)].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

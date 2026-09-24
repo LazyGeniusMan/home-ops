@@ -172,3 +172,19 @@ Upstream reference (read-only): `/tmp/home-ops-docs/seaweedfs-docs` (+
   `seaweedfs-s3-tls` route then.
 - Operator chart 0.1.40 + CSI chart 0.2.36 are hand-bumped (see chart
   source note); images auto-track via `update-policies/seaweedfs.yaml`.
+
+## Upgrade runbook
+
+- Version source: chart `version:` pins in
+  `controllers/base/seaweedfs.yaml` (operator 0.1.40 + CSI 0.2.36,
+  classic repo — hand-bumped, see the chart source note) plus the
+  Enterprise / CSI / COSI sidecar+driver image markers in
+  `configs/base/cluster.yaml` + `configs/base/driver.yaml`.
+- Changelog (server/driver/CSI):
+  https://github.com/seaweedfs/seaweedfs/releases.
+- Bump: set both chart `version:` pins by hand, let the image
+  ImagePolicy PRs land (`update-policies/seaweedfs.yaml`), and move the
+  sidecar/driver caps (`<0.3.0`) together with `cosi.yaml` (see the cosi
+  README — never PR past the v0.2 line alone).
+- Verify: filer UI loads, the S3 endpoint answers (`aws s3 ls` against
+  the internal endpoint), and a test PVC provisions + mounts.

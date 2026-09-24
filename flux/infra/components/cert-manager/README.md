@@ -38,3 +38,14 @@ this namespace's `wildcard-home-ops-tls` Secret cross-namespace.
   annotations. `ServiceMonitor` disabled until CRDs land.
 - Renewal is automatic (2/3 lifetime). Chart bumps via
   `update-policies/cert-manager.yaml` → PR automation.
+
+## Upgrade runbook
+
+- Version source: the `OCIRepository` tag in
+  `controllers/base/cert-manager.yaml` (chart v1.21.1).
+- Changelog: https://github.com/cert-manager/cert-manager/releases.
+- Bump: let the ImagePolicy PR land (marker `infra:cert-manager:tag`,
+  `update-policies/cert-manager.yaml`).
+- Verify: controller + webhook + cainjector Deployments `Ready`, then
+  force-renew a test `Certificate` (`cmctl renew`) and check the
+  wildcard Secrets re-issue.

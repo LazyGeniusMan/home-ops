@@ -1,6 +1,9 @@
 # Update policy for the cilium component (§8): tracks the OCI Helm chart, and the
 # ImageUpdateAutomation (update cluster) opens PRs via markers in
 # components/cilium (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+# Changelog: https://github.com/cilium/cilium/releases.
+# Mode: auto (minor upgrades need the manual preflight runbook first — see README).
+# Coupled files: [controllers/base/cilium.yaml, ../gateway-api/crds/base/standard-install.yaml (minor pairing), ../../apps/update-policies/hubble-ui.yaml (UI pins follow Cilium chart defaults)].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
