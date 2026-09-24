@@ -45,9 +45,8 @@ talos_talosconfig: "{{ talos_build_dir }}/{{ talos_cluster }}/talosconfig"
 #   prevent_destroy fails closed) then re-running day-0 (rm
 #   build/<c>/patches.yml first so the inject guard re-renders) or day-2
 #   -e reapply_configs=true.
-# - The old vault `talos`/`netbird-setup-key` fields stay retired — the setup
-#   key never lives in the vault. There is NO outputs_secret fallback: the
-#   Flux consumer no longer exposes talos_setup_key (proxy-only root), so
+# - The setup key never lives in vault. There is NO outputs_secret fallback:
+#   the Flux consumer root is proxy-only and exposes no talos_setup_key, so
 #   the module-driven plane is the only source.
 # - Per-cluster values come from the talos_clusters map below (cluster_name
 #   = talos_cluster, vault = per-cluster vault); LB IP is NOT needed here

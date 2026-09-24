@@ -2,8 +2,7 @@
 # workloads, applying (Recreate/Initial) for singletons; see VPA CRs next to
 # each target Deployment. Chart: official upstream vertical-pod-autoscaler
 # 0.12.0 (app 1.7.1 — the current default per
-# vpa-docs/vertical-pod-autoscaler/docs/installation.md; same app version as
-# the retired Fairwinds vpa 5.0.1, chart-only migration) via OCI
+# vpa-docs/vertical-pod-autoscaler/docs/installation.md) via OCI
 # oci://chartproxy.container-registry.com/kubernetes.github.io/autoscaler/vertical-pod-autoscaler
 # (chartproxy proxy of the official classic repo
 # https://kubernetes.github.io/autoscaler; chart install per
@@ -12,15 +11,8 @@
 # signature applies.
 # CRD handling: the chart ships verticalpodautoscalers +
 # verticalpodautoscalercheckpoints CRDs as regular templates
-# (crds.enabled/keep true). CRDs move note: chart ≥0.12.0 moved CRDs from
-# crds/ to templates/, so a Helm-managed in-place upgrade from a pre-0.12
-# chart errors with "invalid ownership metadata" unless --take-ownership
-# (Helm ≥3.17) or the manual label/annotate fix in the chart README is run
-# first. Not our case: the retired Fairwinds 5.0.1 CRDs were never
-# Helm-owned by this release either, and Flux replaces CRDs declaratively
-# via install/upgrade crds.CreateReplace below — first sync may still log
-# the ownership error if a cluster-admin applied Fairwinds CRDs out of band;
-# then `kubectl apply` the pinned release CRDs once and let Flux reconcile.
+# (crds.enabled/keep true); Flux applies them declaratively via
+# install/upgrade crds.CreateReplace below.
 # Telemetry: no usage-reporting/telemetry keys in chart values (verified:
 # non-comment values lines matching telemetry|usageReporting|phoneHome|
 # analytics are empty), so there is nothing to switch off.
@@ -64,11 +56,7 @@ spec:
     strategy:
       name: RetryOnFailure
       retryInterval: 5m
-    # CRD adoption (chart ≥0.12.0 templates/ move): Flux applies CRDs
-    # declaratively — CreateReplace keeps the Fairwinds-era CRDs replaced by
-    # the pinned release. If the first sync errors with "invalid ownership
-    # metadata", run the chart README label/annotate fix (or a one-off
-    # kubectl apply of the release CRDs) once, then let Flux reconcile.
+    # Flux applies the chart's templates/ CRDs declaratively.
     crds: CreateReplace
   upgrade:
     strategy:

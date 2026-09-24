@@ -35,8 +35,7 @@
 - name: Warn when drift detection cannot read the rendered config
   # The kubelet-image regex found nothing ('unknown'): the rendered machine
   # config is missing (fresh clone without a day-0 render?) or unparseable.
-  # The old logic coerced this to drift=false — a silent skip that hid a
-  # broken build/. Warn loudly instead so the operator re-renders day-0.
+  # Warn loudly so the operator re-renders day-0.
   ansible.builtin.debug:
     msg: >-
       WARNING: Kubernetes drift detection read no kubelet version from {{

@@ -42,9 +42,8 @@
 #   prevent_destroy fails closed) then re-run day-0
 #   (rm build/<c>/patches.yml first so the inject guard re-renders) or
 #   day-2 -e reapply_configs=true (forced re-render + rewrite + apply).
-# - The old vault `talos`/`netbird-setup-key` fields stay retired — the setup
-#   key never lives in the vault. There is NO outputs_secret fallback: the
-#   Flux consumer no longer exposes talos_setup_key (proxy-only root), so
+# - The setup key never lives in vault. There is NO outputs_secret fallback:
+#   the Flux consumer root is proxy-only and exposes no talos_setup_key, so
 #   this module-driven plane is the only source.
 - name: Resolve NetBird PAT from Proton Pass
   ansible.builtin.command:
