@@ -13,24 +13,17 @@ secrets, RBAC, wildcard certificate, HTTPRoute); env overlays
 
 ## Chart source
 
-OCI `oci://ghcr.io/home-operations/charts-mirror/headlamp`, tag **0.45.0**
-(same chart version as the classic `https://kubernetes-sigs.github.io/headlamp/`
-upstream — delivery-mechanism-only switch; `helm template` + `helm lint`
-pass locally, cosign `verify` with the home-operations OIDC identity per
-the [charts-mirror README](/tmp/home-ops-docs/home-operations-oci-helm-chart-mirror-docs/README.md)).
+OCI `oci://chartproxy.container-registry.com/kubernetes-sigs.github.io/headlamp/headlamp`,
+tag **0.45.0** (classic `https://kubernetes-sigs.github.io/headlamp/`
+upstream, chart `headlamp`, proxied to OCI via chartproxy —
+delivery-mechanism-only switch; `helm template` + `helm lint` pass
+locally). No cosign `verify` block: proxied tarballs are live-translated
+by chartproxy, so no upstream signature applies.
 
 - Chart↔app lockstep (NOT the §11.1 Zitadel divergence): chart **0.45.0**
   carries app **0.45.0**. `image.tag` is pinned explicitly to `v0.45.0` with
   the `$imagepolicy` marker (`apps:headlamp:tag`); on automation PRs bump the
   OCIRepository `ref.tag` to match.
-- Mirror stop-gap: the official upstream OCI
-  (`oci://ghcr.io/kubernetes-sigs/headlamp/charts/headlamp`) is private
-  (upstream issue [kubernetes-sigs/headlamp#5684](https://github.com/kubernetes-sigs/headlamp/issues/5684)
-  open — 401/403 at authoring time), so delivery flows through the
-  home-operations charts-mirror republish (byte-identical, cosign-signed).
-  Subscribe to #5684 and switch to the official OCI chart once it goes
-  public — mirrored charts are deprecated 6 months after upstream support
-  lands.
 - App image verified live on GHCR (`ghcr.io/headlamp-k8s/headlamp:v0.45.0`
   tag listed at authoring time).
 

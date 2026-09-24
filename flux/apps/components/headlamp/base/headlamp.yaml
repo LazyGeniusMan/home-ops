@@ -1,16 +1,12 @@
 # Headlamp v0.45.0 (§13.3): Kubernetes web UI with native OIDC login via
 # Zitadel (§11.1) plus the locked plugin set (ai-assistant, flux, kubevirt).
-# Chart: OCI oci://ghcr.io/home-operations/charts-mirror/headlamp tag 0.45.0
-# (chart 0.45.0 carries app 0.45.0 — NO chart↔app divergence, unlike §11.1
-# Zitadel; on bumps set the OCIRepository ref.tag AND image.tag to the new
-# version together). Mirror stop-gap: the official upstream OCI
-# (oci://ghcr.io/kubernetes-sigs/headlamp/charts/headlamp) is private
-# (upstream issue kubernetes-sigs/headlamp#5684 open — 401/403 at authoring
-# time), so delivery flows through the home-operations charts-mirror
-# republish (same chart version, byte-identical, cosign-signed, verified
-# per the mirror README). Subscribe to #5684 and switch to the official OCI
-# chart once it goes public — mirrored charts are deprecated 6 months after
-# upstream support lands. App image verified live on GHCR
+# Chart: OCI oci://chartproxy.container-registry.com/kubernetes-sigs.github.io/headlamp/headlamp
+# tag 0.45.0 (classic https://kubernetes-sigs.github.io/headlamp/ chart
+# headlamp, proxied to OCI; chart 0.45.0 carries app 0.45.0 — NO
+# chart↔app divergence, unlike §11.1 Zitadel; on bumps set the
+# OCIRepository ref.tag AND image.tag to the new version together). No
+# cosign verify block: proxied tarballs are live-translated by chartproxy,
+# so no upstream signature applies. App image verified live on GHCR
 # (ghcr.io/headlamp-k8s/headlamp:v0.45.0 tag listed at authoring time).
 # Telemetry: chart values carry no phone-home/analytics/usage-reporting knobs
 # (checked at authoring time); bundled static plugins stay on (pure UI, no
@@ -26,17 +22,12 @@ metadata:
   name: headlamp
 spec:
   interval: 1h
-  url: oci://ghcr.io/home-operations/charts-mirror/headlamp
+  url: oci://chartproxy.container-registry.com/kubernetes-sigs.github.io/headlamp/headlamp
   layerSelector:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
   ref:
     tag: 0.45.0
-  verify:
-    provider: cosign
-    matchOIDCIdentity:
-      - issuer: ^https://token.actions.githubusercontent.com$
-        subject: ^https://github.com/home-operations/charts-mirror.*$
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
