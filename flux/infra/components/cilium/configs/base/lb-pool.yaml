@@ -15,6 +15,9 @@ spec:
     - start: __LB_VIP__
       stop: __LB_VIP__
 ---
+# CiliumL2AnnouncementPolicy stays cilium.io/v2alpha1: chart 1.20.2 still
+# serves it as v2alpha1 (verified in the chart Chart.yaml CRD annotations) —
+# no v2 graduation to promote yet.
 apiVersion: cilium.io/v2alpha1
 kind: CiliumL2AnnouncementPolicy
 metadata:

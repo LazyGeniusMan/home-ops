@@ -1,7 +1,40 @@
 # Cilium (§8.2)
 
-Cilium v1.20.1: eBPF dataplane, kube-proxy replacement, Gateway API support,
+Cilium v1.20.2: eBPF dataplane, kube-proxy replacement, Gateway API support,
 Hubble observability, and a single-IP `LoadBalancer` pool.
+
+## Minor-upgrade pairing invariant
+
+Cilium minor => check the Gateway required version first: every Cilium
+minor pins a minimum Gateway API bundle (1.20 requires v1.6.1 — see
+`gateway-api/controllers/base/standard-install.yaml`, currently v1.6.1).
+Upgrade the Gateway API CRDs **before** the Cilium chart, then bump
+`upgradeCompatibility` only deliberately per the Cilium upgrade guide
+(it pins datapath behaviour to the initial install minor; currently
+`"1.20"`).
+
+## Preflight runbook (manual, per minor upgrade)
+
+Preflight is a one-off imperative check — never leave
+`preflight.enabled` in the release values. Render, create, verify, delete:
+
+```bash
+helm template cilium oci://quay.io/cilium/charts/cilium --version <target> \
+  --namespace kube-system \
+  --set preflight.enabled=true \
+  --set agent=false \
+  --set operator.enabled=false \
+  --set k8sServiceHost=<api-vip> --set k8sServicePort=6443 \
+  > cilium-preflight.yaml
+kubectl create -f cilium-preflight.yaml
+# wait: pre-flight DaemonSet READY == cilium DaemonSet READY,
+# and Deployment cilium-pre-flight-check 1/1
+kubectl delete -f cilium-preflight.yaml
+```
+
+(kube-proxy-less clusters must pass `k8sServiceHost`/`k8sServicePort`;
+replace `<api-vip>` with the per-env Talos API VIP: dev `.248`, prd
+`.198`. Only then let the ImagePolicy PR land.)
 
 ## Values rationale
 
@@ -36,7 +69,7 @@ CRDs. Flip them on once the monitoring stack lands.
 
 ## Telemetry-off evidence
 
-`helm show values oci://quay.io/cilium/charts/cilium --version 1.20.1 |
+`helm show values oci://quay.io/cilium/charts/cilium --version 1.20.2 |
 grep -viE '^\s*#' | grep -iE 'telemetry|usageReporting|phoneHome|analytics'`
 returns empty — the chart has no usage-reporting *keys* (only comment
 mentions such as "Disable the usage of CiliumEndpoint CRD"), so there is
@@ -45,7 +78,7 @@ nothing to switch off.
 ## Update automation
 
 `flux/infra/update-policies/cilium.yaml` (`ImageRepository` +
-`ImagePolicy`, semver `>=1.20.1`) tracks `quay.io/cilium/charts/cilium`;
+`ImagePolicy`, semver `>=1.20.2`) tracks `quay.io/cilium/charts/cilium`;
 ImageUpdateAutomation opens PRs via the `$imagepolicy` marker on the
 `OCIRepository` tag.
 

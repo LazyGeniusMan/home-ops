@@ -57,15 +57,25 @@ spec:
     # kube-system pre-exists on Talos — never create it (mirrors the Job's
     # create_namespace = false).
     createNamespace: false
+    # CRD adoption (Flux helm-controller, chart 1.20.2): CreateReplace keeps
+    # the Cilium CRDs advanced with the chart on every ImagePolicy bump.
+    # Without it CRDs freeze at bootstrap (install default Create, upgrade
+    # default Skip) while the dataplane auto-advances — schema drift.
+    crds: CreateReplace
     strategy:
       name: RetryOnFailure
       retryInterval: 5m
   upgrade:
+    crds: CreateReplace
     strategy:
       name: RetryOnFailure
       retryInterval: 5m
   # https://docs.cilium.io/en/v1.20/helm-reference/
   values:
+    # upgradeCompatibility: the initial Cilium minor installed in this
+    # cluster (1.20). Bump only deliberately per the 1.20 upgrade guide —
+    # it pins datapath behaviour so minor bumps never disrupt connections.
+    upgradeCompatibility: "1.20"
     # Strict kube-proxy replacement: Talos runs with kube-proxy disabled.
     kubeProxyReplacement: true
     # LRP for the node-local DNS cache (§8.3): CiliumLocalRedirectPolicy
