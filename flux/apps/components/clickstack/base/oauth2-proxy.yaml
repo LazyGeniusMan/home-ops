@@ -1,117 +1,138 @@
 # Per-instance oauth2-proxy (§11.2, locked proxy contract): fronts clickstack,
 # authenticates against Zitadel (issuer __ZITADEL_ISSUER_URL__, own
 # `clickstack` client managed by this app's `clickstack-sso` Terraform CR),
-# gates on the `clickstack-admin` group. Image
-# quay.io/oauth2-proxy/oauth2-proxy:v7.15.4. ESO secret below holds refs only.
+# gates on the `clickstack-admin` group. Delivered by the official OCI chart
+# (oci://ghcr.io/oauth2-proxy/charts/oauth2-proxy, tag 10.7.0, digest
+# sha256:47193ebe7052f414c8c05ac2277b5b2b8fd62faf6f4f8ea6c7263a741e62acd,
+# cosign-signed by the upstream release workflow — verified by the
+# OCIRepository verify block below; app v7.15.4 set explicitly, chart 10.7.0
+# pins 7.15.3, delta is CVE/Go only).
 # The generated client ID comes from the vault (ESO-synced, never Git, never
-# a literal flag — see OAUTH2_PROXY_CLIENT_ID below). Callback
+# a literal flag — see extraEnv below). Callback
 # https://__SERVICE_HOST__/oauth2/callback is covered by the registered
 # redirect https://__SERVICE_HOST__/*. HTTPRoute backend
-# (base/clickstack-httproute.yaml) points at this proxy Service (:4180); the
-# proxy upstreams to http://clickstack.<ns>.svc:3000 (namespace patched per
-# env via the clickstack namespace default).
+# (base/clickstack-httproute.yaml) points at the chart Service (:4180); the
+# proxy upstreams to http://clickstack.<ns>.svc:3000.
+# Chart contract: fullnameOverride keeps the Deployment + Service names at
+# oauth2-proxy (HTTPRoute backend, HPA/VPA targets, and ESO target untouched);
+# existingSecret + proxyVarsAsSecrets: false keep credential ownership in ESO
+# (chart renders no Secret); no-config mode (forceLegacyConfig: false, no
+# configFile) keeps every flag in extraArgs flag-for-flag with the previous
+# args list (the chart always injects --http-address/--https-address itself);
+# metrics/ServiceMonitor off (no telemetry); ServiceAccount, autoscaling, and
+# PDB off (no SA token, create-time seed replica, external HPA/VPA own
+# scaling — same as before).
+# Probes: liveness stays /ping; readiness is the chart default /ready (deep
+# check on the same port) — the one intended delta, same binary.
+# The chart tag auto-tracks flux/apps/update-policies/clickstack.yaml via the
+# $imagepolicy marker (chart marker shared with hubble-ui + flux-operator-ui;
+# image marker apps:oauth2-proxy shared with hubble-ui + flux-operator-ui —
+# bump together).
+# Ordering: the ESO ExternalSecrets live alongside the release in this same
+# Kustomization, so the first install attempt pends until ESO syncs them and
+# Flux retries (RetryOnFailure below).
 ---
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: oauth2-proxy-chart
+spec:
+  interval: 1h
+  url: oci://ghcr.io/oauth2-proxy/charts/oauth2-proxy
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: 10.7.0 # {"$imagepolicy": "apps:oauth2-proxy-chart:tag"}
+  verify:
+    provider: cosign
+    matchOIDCIdentity:
+      - issuer: ^https://token.actions.githubusercontent.com$
+        subject: ^https://github.com/oauth2-proxy/manifests/.github/workflows/release.yaml@refs/heads/main$
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
 metadata:
   name: oauth2-proxy
-  labels:
-    app.kubernetes.io/name: oauth2-proxy
-    app.kubernetes.io/part-of: clickstack
 spec:
-  replicas: 1 # create-time seed, HPA owns runtime count
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: oauth2-proxy
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: oauth2-proxy
-        app.kubernetes.io/part-of: clickstack
-    spec:
-      containers:
-        - name: oauth2-proxy
-          image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.4 # {"$imagepolicy": "apps:oauth2-proxy:tag"}
-          imagePullPolicy: IfNotPresent
-          args:
-            - --http-address=0.0.0.0:4180
-            - --upstream=http://clickstack.clickstack.svc:3000
-            - --provider=oidc
-            - --oidc-issuer-url=__ZITADEL_ISSUER_URL__
-            - --client-secret-file=/etc/oauth2-proxy/client-secret
-            - --cookie-secret-file=/etc/oauth2-proxy/cookie-secret
-            - --cookie-domain=.__BASE_DOMAIN__
-            - --cookie-secure=true
-            - --cookie-samesite=lax
-            - --email-domain=*
-            - --scope=openid profile email groups
-            - --oidc-groups-claim=groups
-            - --allowed-group=clickstack-admin
-            - --reverse-proxy=true
-            - --skip-provider-button=true
-            - --redirect-url=https://__SERVICE_HOST__/oauth2/callback
-          env:
-            # Client ID is generated server-side by the `clickstack-sso`
-            # Terraform CR — synced from the vault (never a literal flag).
-            - name: OAUTH2_PROXY_CLIENT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: oauth2-proxy
-                  key: client-id
-            - name: OAUTH2_PROXY_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: oauth2-proxy
-                  key: client-secret
-            - name: OAUTH2_PROXY_COOKIE_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: oauth2-proxy
-                  key: cookie-secret
-          ports:
-            - name: http
-              containerPort: 4180
-          livenessProbe:
-            httpGet:
-              path: /ping
-              port: http
-          readinessProbe:
-            httpGet:
-              path: /ping
-              port: http
-          resources:
-            requests:
-              cpu: 25m
-              memory: 64Mi
-            limits:
-              cpu: 200m
-              memory: 128Mi
-          volumeMounts:
-            - name: oauth2-proxy
-              mountPath: /etc/oauth2-proxy
-              readOnly: true
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-      volumes:
-        - name: oauth2-proxy
-          secret:
-            secretName: oauth2-proxy
-            defaultMode: 420
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: oauth2-proxy
-  labels:
-    app.kubernetes.io/name: oauth2-proxy
-    app.kubernetes.io/part-of: clickstack
-spec:
-  selector:
-    app.kubernetes.io/name: oauth2-proxy
-  ports:
-    - name: http
-      port: 4180
+  interval: 1h
+  releaseName: oauth2-proxy
+  serviceAccountName: flux
+  chartRef:
+    kind: OCIRepository
+    name: oauth2-proxy-chart
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  # https://github.com/oauth2-proxy/manifests/tree/main/helm/oauth2-proxy
+  values:
+    fullnameOverride: oauth2-proxy
+    config:
+      existingSecret: oauth2-proxy
+      forceLegacyConfig: false
+    image:
+      repository: oauth2-proxy/oauth2-proxy
+      tag: v7.15.4 # {"$imagepolicy": "apps:oauth2-proxy:tag"}
+      pullPolicy: IfNotPresent
+    # ESO owns the oauth2-proxy Secret — the chart renders none.
+    proxyVarsAsSecrets: false
+    extraArgs:
+      upstream: http://clickstack.clickstack.svc:3000
+      provider: oidc
+      oidc-issuer-url: __ZITADEL_ISSUER_URL__
+      oidc-groups-claim: groups
+      allowed-group: clickstack-admin
+      email-domain: "*"
+      scope: openid profile email groups
+      cookie-domain: .__BASE_DOMAIN__
+      cookie-secure: "true"
+      cookie-samesite: lax
+      reverse-proxy: "true"
+      skip-provider-button: "true"
+      redirect-url: https://__SERVICE_HOST__/oauth2/callback
+    extraEnv:
+      # Client ID is generated server-side by the `clickstack-sso`
+      # Terraform CR — synced from the vault (never a literal flag).
+      - name: OAUTH2_PROXY_CLIENT_ID
+        valueFrom:
+          secretKeyRef:
+            name: oauth2-proxy
+            key: client-id
+      - name: OAUTH2_PROXY_CLIENT_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: oauth2-proxy
+            key: client-secret
+      - name: OAUTH2_PROXY_COOKIE_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: oauth2-proxy
+            key: cookie-secret
+    service:
+      portNumber: 4180
       targetPort: 4180
+    # No telemetry: metrics endpoint + ServiceMonitor stay off.
+    metrics:
+      enabled: false
+    serviceAccount:
+      enabled: false
+      automountServiceAccountToken: false
+    redis-ha:
+      enabled: false
+    # External HPA/VPA own scaling — chart autoscaling + PDB stay off.
+    autoscaling:
+      enabled: false
+    podDisruptionBudget:
+      enabled: false
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi

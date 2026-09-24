@@ -7,11 +7,13 @@ Cluster (Mongo-wire, no embedded DBs in Git).
 ## Layout (environment-direct, apps area)
 
 `base/` holds every manifest (`clickstack.yaml` (HyperDX app + OTel
-Collector) + `ferretdb.yaml` + `oauth2-proxy.yaml` workload, plus secrets,
+Collector) + `ferretdb.yaml` + `oauth2-proxy.yaml` OCIRepository +
+HelmRelease, plus secrets,
 ClickHouseInstallation, FerretDB CNPG Cluster, wildcard certificate,
 HTTPRoute); env overlays `{dev,prd}/` patch hostnames, vault
 refs, and endpoints via `resources: [../base]`. Tenant is `apps/clickstack`
-via `flux/apps/update-policies/clickstack.yaml`.
+via `flux/apps/update-policies/clickstack.yaml` (proxy chart marker
+`apps:oauth2-proxy-chart` shared with hubble-ui + flux-operator-ui).
 
 ## Images (locked at authoring)
 
@@ -79,7 +81,8 @@ Connection contract:
 
 ## Auth (locked proxy contract)
 
-Per-instance `oauth2-proxy` (`quay.io/oauth2-proxy/oauth2-proxy:v7.15.4`)
+Per-instance `oauth2-proxy` (official OCI chart
+`oci://ghcr.io/oauth2-proxy/charts/oauth2-proxy:10.7.0`, app `v7.15.4`)
 fronts the UI; the HTTPRoute backend points at the proxy (`:4180`), which
 upstreams to `http://clickstack.clickstack.svc:3000`:
 
@@ -136,14 +139,16 @@ Secrets are namespace-local).
 - Version source: image tags in `base/clickstack.yaml` (HyperDX app +
   collector v2.7.1, tracking the hdx-oss-v2 appVersion line),
   `base/ferretdb.yaml` (FerretDB 2.7.0), and
-  `base/oauth2-proxy.yaml` (v7.15.4, marker `apps:oauth2-proxy`
-  SHARED with hubble-ui by design).
+  `base/oauth2-proxy.yaml` (chart 10.7.0 marker `apps:oauth2-proxy-chart`
+  SHARED with hubble-ui + flux-operator-ui by design, app v7.15.4 marker
+  `apps:oauth2-proxy` SHARED with hubble-ui + flux-operator-ui by design).
 - Changelog (HyperDX): https://github.com/hyperdxio/hyperdx/releases.
   Changelog (FerretDB): https://github.com/FerretDB/FerretDB/releases.
-  Changelog (proxy): https://github.com/oauth2-proxy/oauth2-proxy/releases.
+  Changelog (proxy chart): https://github.com/oauth2-proxy/manifests/releases.
+  Changelog (proxy image): https://github.com/oauth2-proxy/oauth2-proxy/releases.
 - Bump: let the ImagePolicy PRs land
-  (`update-policies/clickstack.yaml`); move the proxy pin together with
-  hubble-ui in the same round. The namespace-local CHI instantiates the
+  (`update-policies/clickstack.yaml`); move the proxy pins together with
+  hubble-ui + flux-operator-ui in the same round. The namespace-local CHI instantiates the
   §10.2 `installation-base` template — check the infra clickhouse
   26.8 LTS line before taking a server-coupled bump.
 - Migrate: snapshot the `ferretdb` CNPG cluster + confirm a ClickHouse

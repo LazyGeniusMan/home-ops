@@ -6,8 +6,9 @@ Relay itself ships in the cilium component, NOT here (no duplication).
 ## Layout (environment-direct, apps area)
 
 `base/` holds every manifest (`hubble-ui.yaml` + `oauth2-proxy.yaml`
-workload, plus secrets, wildcard certificate, HTTPRoute); env overlays
-`{dev,prd}/` patch hostnames, vault refs, and proxy args via
+OCIRepository + HelmRelease, plus secrets, wildcard certificate,
+HTTPRoute); env overlays `{dev,prd}/` patch hostnames, vault refs, and
+proxy values via
 `resources: [../base]`. Tenant is `apps/hubble-ui` via
 `flux/apps/update-policies/hubble-ui.yaml`.
 
@@ -34,7 +35,8 @@ default shape, cross-namespace):
 
 ## Auth (locked proxy contract)
 
-Per-instance `oauth2-proxy` (`quay.io/oauth2-proxy/oauth2-proxy:v7.15.4`)
+Per-instance `oauth2-proxy` (official OCI chart
+`oci://ghcr.io/oauth2-proxy/charts/oauth2-proxy:10.7.0`, app `v7.15.4`)
 fronts the UI; the HTTPRoute backend points at the proxy (`:4180`), which
 upstreams to `http://hubble-ui.hubble-ui.svc:80`:
 
@@ -93,9 +95,10 @@ Secrets are namespace-local).
 - Bump: on every Cilium minor, check the new chart's hubble-ui defaults
   first, then move frontend + backend together via the ImagePolicy PRs
   (markers `apps:hubble-ui:tag` + `apps:hubble-ui-backend:tag`,
-  `update-policies/hubble-ui.yaml`). The oauth2-proxy marker
-  (`apps:oauth2-proxy`) is shared with clickstack — bump both apps'
-  proxy pins together.
+  `update-policies/hubble-ui.yaml`). The oauth2-proxy markers
+  (`apps:oauth2-proxy` + `apps:oauth2-proxy-chart`) are shared with
+  clickstack + flux-operator-ui — bump all three apps' proxy pins
+  together.
 - Verify: the service map renders live flows via
   `hubble-relay.cilium.svc:80` and OIDC login still gates the UI.
 
@@ -103,8 +106,8 @@ Secrets are namespace-local).
 
 | Env | Replicas | Patches |
 | --- | --- | --- |
-| `dev` | hubble-ui 1, oauth2-proxy 1 (single-instance) | hostnames, vault refs, proxy args + `replicas` → 1 each |
-| `prd` | hubble-ui 2, oauth2-proxy 1 (recommended production) | hostnames, vault refs, proxy args + hubble-ui `replicas` → 2, oauth2-proxy stays 1 |
+| `dev` | hubble-ui 1, oauth2-proxy 1 (single-instance) | hostnames, vault refs, proxy values + `replicas` → 1 each |
+| `prd` | hubble-ui 2, oauth2-proxy 1 (recommended production) | hostnames, vault refs, proxy values + hubble-ui `replicas` → 2, oauth2-proxy stays 1 |
 
 oauth2-proxy stays a singleton (1) in every env — never scale it.
 

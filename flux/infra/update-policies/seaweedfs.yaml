@@ -4,8 +4,9 @@
 # HelmReleases (classic HelmRepository — no OCI index exists upstream), so only
 # image tags automate here. Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
 # Changelog: server/driver/CSI — https://github.com/seaweedfs/seaweedfs/releases.
-# Mode: manual (operator chart 0.1.40 + CSI chart 0.2.36 `version:` hand-bumps — no OCI upstream) + auto (images; sidecar/driver caps <0.3.0 move together with cosi.yaml).
-# Coupled files: [controllers/base/seaweedfs.yaml (both chart `version:` pins), configs/base/cluster.yaml, configs/base/driver.yaml (sidecar/driver pins + markers), ../cosi.yaml (controller cap moves together)].
+# Changelog: oauth2-proxy chart + image (ui-auth) — https://github.com/oauth2-proxy/manifests/releases (chart) + https://github.com/oauth2-proxy/oauth2-proxy/releases (image).
+# Mode: manual (operator chart 0.1.40 + CSI chart 0.2.36 `version:` hand-bumps — no OCI upstream) + auto (images; sidecar/driver caps <0.3.0 move together with cosi.yaml; ui-auth chart + image track their own infra: markers — per-copy own policy, unlike the shared apps: markers).
+# Coupled files: [controllers/base/seaweedfs.yaml (both chart `version:` pins), configs/base/cluster.yaml, configs/base/driver.yaml (sidecar/driver pins + markers), configs/base/ui-auth.yaml (ui-auth chart + image markers), ../cosi.yaml (controller cap moves together)].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
@@ -94,3 +95,46 @@ spec:
   policy:
     semver:
       range: ">=0.3.1 <0.4.0"
+# Filer-UI auth proxy (configs/base/ui-auth.yaml HelmRelease): official OCI
+# chart + pinned app image, own infra: markers (per-copy own policy — the
+# apps: markers cover the three apps-area proxies, not this one).
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: seaweedfs-ui-auth
+spec:
+  image: "quay.io/oauth2-proxy/oauth2-proxy"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: seaweedfs-ui-auth
+spec:
+  imageRepositoryRef:
+    name: seaweedfs-ui-auth
+  policy:
+    semver:
+      range: ">=7.15.4"
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: seaweedfs-ui-auth-chart
+spec:
+  image: "ghcr.io/oauth2-proxy/charts/oauth2-proxy"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: seaweedfs-ui-auth-chart
+spec:
+  imageRepositoryRef:
+    name: seaweedfs-ui-auth-chart
+  policy:
+    semver:
+      range: ">=10.7.0"

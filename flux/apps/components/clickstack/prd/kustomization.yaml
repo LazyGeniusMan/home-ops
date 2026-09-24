@@ -132,22 +132,20 @@ patches:
     target:
       kind: Deployment
       name: clickstack
-  # Prd proxy: Zitadel issuer, cookie domain, callback.
-  # (args shifted by one after the --client-id flag moved to
-  # OAUTH2_PROXY_CLIENT_ID env: cookie-domain args/7 -> args/6,
-  # redirect args/16 -> args/15.)
+  # Prd proxy: Zitadel issuer, cookie domain, callback (values keys, not
+  # arg indices — the chart takes every flag from extraArgs).
   - patch: |
       - op: replace
-        path: /spec/template/spec/containers/0/args/3
-        value: --oidc-issuer-url=https://admin.zitadel.home-ops.yansyah.my.id
+        path: /spec/values/extraArgs/oidc-issuer-url
+        value: https://admin.zitadel.home-ops.yansyah.my.id
       - op: replace
-        path: /spec/template/spec/containers/0/args/6
-        value: --cookie-domain=.home-ops.yansyah.my.id
+        path: /spec/values/extraArgs/cookie-domain
+        value: .home-ops.yansyah.my.id
       - op: replace
-        path: /spec/template/spec/containers/0/args/15
-        value: --redirect-url=https://clickstack.home-ops.yansyah.my.id/oauth2/callback
+        path: /spec/values/extraArgs/redirect-url
+        value: https://clickstack.home-ops.yansyah.my.id/oauth2/callback
     target:
-      kind: Deployment
+      kind: HelmRelease
       name: oauth2-proxy
   # Prd Clickstack SSO Terraform identity: CR vars (issuer host, rendered
   # redirect + post-logout URIs against the shared zitadel root).

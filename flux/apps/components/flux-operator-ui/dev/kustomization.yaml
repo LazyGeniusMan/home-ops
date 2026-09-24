@@ -57,16 +57,17 @@ patches:
     target:
       kind: Certificate
       name: wildcard-home-ops-dev
-  # Dev proxy issuer + callback.
+  # Dev proxy issuer + callback (values keys, not arg indices — the chart
+  # takes every flag from extraArgs).
   - patch: |
       - op: replace
-        path: /spec/template/spec/containers/0/args/2
-        value: --oidc-issuer-url=https://admin.zitadel.home-ops-dev.yansyah.my.id
+        path: /spec/values/extraArgs/oidc-issuer-url
+        value: https://admin.zitadel.home-ops-dev.yansyah.my.id
       - op: replace
-        path: /spec/template/spec/containers/0/args/3
-        value: --redirect-url=https://flux-operator.home-ops-dev.yansyah.my.id/oauth2/callback
+        path: /spec/values/extraArgs/redirect-url
+        value: https://flux-operator.home-ops-dev.yansyah.my.id/oauth2/callback
     target:
-      kind: Deployment
+      kind: HelmRelease
       name: oauth2-proxy
   # Dev Flux Operator UI SSO Terraform identity: CR vars (issuer host,
   # rendered redirect + post-logout URIs against the shared zitadel root).

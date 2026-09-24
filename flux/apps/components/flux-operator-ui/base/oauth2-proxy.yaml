@@ -2,93 +2,143 @@
 # OWN `flux-operator-ui` client (declared in terraform/, applied by the
 # `flux-operator-ui-sso` Terraform CR — decoupled from the central zitadel
 # module), ESO secret from base/oauth2-proxy-credentials.yaml, upstream the
-# UI Service, admin-only via the `flux-operator-ui-admin` group. The Gateway
-# HTTPRoute backends to THIS proxy (port 4180), never to the UI directly.
-# Callback https://__SERVICE_HOST__/oauth2/callback is covered by the own
-# client's redirect (https://__SERVICE_HOST__/*). Image pinned (no
-# $imagepolicy marker: update-policies/flux-operator-ui.yaml tracks the UI
-# chart line only).
+# UI Service, admin-only via the `flux-operator-ui-admin` group. Delivered by
+# the official OCI chart (oci://ghcr.io/oauth2-proxy/charts/oauth2-proxy, tag
+# 10.7.0, digest
+# sha256:47193ebe7052f414c8c05ac2277b5b2b8fd62faf6f4f8ea6c7263a741e62acd,
+# cosign-signed by the upstream release workflow — verified by the
+# OCIRepository verify block below; app v7.15.4 set explicitly, chart 10.7.0
+# pins 7.15.3, delta is CVE/Go only).
+# The Gateway HTTPRoute backends to the chart proxy Service (port 4180),
+# never to the UI directly. Callback
+# https://__SERVICE_HOST__/oauth2/callback is covered by the own client's
+# redirect (https://__SERVICE_HOST__/*).
+# Chart contract: fullnameOverride keeps the Deployment + Service names at
+# oauth2-proxy (HTTPRoute backends, HPA/VPA targets, and ESO target
+# oauth2-proxy-credentials untouched); existingSecret +
+# proxyVarsAsSecrets: false keep credential ownership in ESO (chart renders
+# no Secret); no-config mode (forceLegacyConfig: false, no configFile) keeps
+# every flag in extraArgs flag-for-flag with the previous args list — note
+# the previous Deployment carried no --cookie-domain flag, so none is set
+# here either (the chart always injects --http-address/--https-address
+# itself); metrics/ServiceMonitor off (no telemetry); ServiceAccount,
+# autoscaling, and PDB off (no SA token, create-time seed replica, external
+# HPA/VPA own scaling — same as before).
+# Probes: liveness stays /ping; readiness is the chart default /ready (deep
+# check on the same port) — the one intended delta, same binary.
+# Security: hardened container defaults (chart securityContext) replace the
+# previous bare container which set no securityContext.
+# The chart tag auto-tracks flux/apps/update-policies/flux-operator-ui.yaml
+# via the $imagepolicy marker (chart marker shared with clickstack +
+# hubble-ui; image marker apps:oauth2-proxy shared with clickstack +
+# hubble-ui — bump together). The previous pin carried no marker; this closes
+# the automation gap.
+# Ordering: the ESO ExternalSecrets live alongside the release in this same
+# Kustomization, so the first install attempt pends until ESO syncs them and
+# Flux retries (RetryOnFailure below).
 ---
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: oauth2-proxy-chart
+spec:
+  interval: 1h
+  url: oci://ghcr.io/oauth2-proxy/charts/oauth2-proxy
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: 10.7.0 # {"$imagepolicy": "apps:oauth2-proxy-chart:tag"}
+  verify:
+    provider: cosign
+    matchOIDCIdentity:
+      - issuer: ^https://token.actions.githubusercontent.com$
+        subject: ^https://github.com/oauth2-proxy/manifests/.github/workflows/release.yaml@refs/heads/main$
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
 metadata:
   name: oauth2-proxy
 spec:
-  replicas: 1 # create-time seed, HPA owns runtime count
-  selector:
-    matchLabels:
-      app: oauth2-proxy
-  template:
-    metadata:
-      labels:
-        app: oauth2-proxy
-    spec:
-      containers:
-        - name: oauth2-proxy
-          image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.4
-          ports:
-            - name: http
-              containerPort: 4180
-          # Probes mirror the sibling proxies (clickstack/hubble-ui
-          # oauth2-proxy.yaml): /ping on the http port.
-          livenessProbe:
-            httpGet:
-              path: /ping
-              port: http
-          readinessProbe:
-            httpGet:
-              path: /ping
-              port: http
-          env:
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: OAUTH2_PROXY_CLIENT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: oauth2-proxy-credentials
-                  key: client-id
-            - name: OAUTH2_PROXY_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: oauth2-proxy-credentials
-                  key: client-secret
-            - name: OAUTH2_PROXY_COOKIE_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: oauth2-proxy-credentials
-                  key: cookie-secret
-          args:
-            - --http-address=0.0.0.0:4180
-            - --provider=oidc
-            - --oidc-issuer-url=__ZITADEL_ISSUER_URL__
-            - --redirect-url=https://__SERVICE_HOST__/oauth2/callback
-            - --upstream=http://flux-operator-ui.$(POD_NAMESPACE):9080
-            - --scope=openid profile email groups
-            - --oidc-groups-claim=groups
-            - --allowed-group=flux-operator-ui-admin
-            - --email-domain=*
-            - --cookie-secure=true
-            - --cookie-samesite=lax
-            - --reverse-proxy=true
-            - --session-store-type=cookie
-          resources:
-            requests:
-              cpu: 25m
-              memory: 64Mi
-            limits:
-              cpu: 250m
-              memory: 256Mi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: oauth2-proxy
-spec:
-  selector:
-    app: oauth2-proxy
-  ports:
-    - name: http
-      port: 4180
+  interval: 1h
+  releaseName: oauth2-proxy
+  serviceAccountName: flux
+  chartRef:
+    kind: OCIRepository
+    name: oauth2-proxy-chart
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  # https://github.com/oauth2-proxy/manifests/tree/main/helm/oauth2-proxy
+  values:
+    fullnameOverride: oauth2-proxy
+    config:
+      existingSecret: oauth2-proxy-credentials
+      forceLegacyConfig: false
+    image:
+      repository: oauth2-proxy/oauth2-proxy
+      tag: v7.15.4 # {"$imagepolicy": "apps:oauth2-proxy:tag"}
+      pullPolicy: IfNotPresent
+    # ESO owns the oauth2-proxy-credentials Secret — the chart renders none.
+    proxyVarsAsSecrets: false
+    extraArgs:
+      provider: oidc
+      oidc-issuer-url: __ZITADEL_ISSUER_URL__
+      redirect-url: https://__SERVICE_HOST__/oauth2/callback
+      upstream: http://flux-operator-ui.$(POD_NAMESPACE):9080
+      scope: openid profile email groups
+      oidc-groups-claim: groups
+      allowed-group: flux-operator-ui-admin
+      email-domain: "*"
+      cookie-secure: "true"
+      cookie-samesite: lax
+      reverse-proxy: "true"
+      session-store-type: cookie
+    extraEnv:
+      - name: POD_NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
+      - name: OAUTH2_PROXY_CLIENT_ID
+        valueFrom:
+          secretKeyRef:
+            name: oauth2-proxy-credentials
+            key: client-id
+      - name: OAUTH2_PROXY_CLIENT_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: oauth2-proxy-credentials
+            key: client-secret
+      - name: OAUTH2_PROXY_COOKIE_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: oauth2-proxy-credentials
+            key: cookie-secret
+    service:
+      portNumber: 4180
       targetPort: http
+    # No telemetry: metrics endpoint + ServiceMonitor stay off.
+    metrics:
+      enabled: false
+    serviceAccount:
+      enabled: false
+      automountServiceAccountToken: false
+    redis-ha:
+      enabled: false
+    # External HPA/VPA own scaling — chart autoscaling + PDB stay off.
+    autoscaling:
+      enabled: false
+    podDisruptionBudget:
+      enabled: false
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi

@@ -8,8 +8,9 @@
 # touched by this policy — the UI is serverOnly with installCRDs: false, so it
 # cannot own CRDs or the fleet sync path.
 # Changelog: https://github.com/controlplaneio-fluxcd/flux-operator/releases.
-# Mode: auto (UI tag in lockstep with operator_chart_version in flux/fleet/terraform/versions.yaml — bump together; tests/versions.tftest.hcl asserts the mapping).
-# Coupled files: [components/flux-operator-ui/base/flux-operator-ui.yaml, ../../../fleet/terraform/versions.yaml (operator_chart_version)].
+# Changelog: oauth2-proxy chart + image — https://github.com/oauth2-proxy/manifests/releases (chart) + https://github.com/oauth2-proxy/oauth2-proxy/releases (image, shared marker).
+# Mode: auto (UI tag in lockstep with operator_chart_version in flux/fleet/terraform/versions.yaml — bump together; tests/versions.tftest.hcl asserts the mapping; proxy chart marker apps:oauth2-proxy-chart shared with clickstack + hubble-ui, image marker apps:oauth2-proxy shared with clickstack + hubble-ui — bump all apps together).
+# Coupled files: [components/flux-operator-ui/base/flux-operator-ui.yaml, base/oauth2-proxy.yaml (shared apps:oauth2-proxy + apps:oauth2-proxy-chart markers with clickstack + hubble-ui), ../../../fleet/terraform/versions.yaml (operator_chart_version)].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
@@ -30,3 +31,43 @@ spec:
   policy:
     semver:
       range: ">=0.60.0"
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: oauth2-proxy
+spec:
+  image: "quay.io/oauth2-proxy/oauth2-proxy"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: oauth2-proxy
+spec:
+  imageRepositoryRef:
+    name: oauth2-proxy
+  policy:
+    semver:
+      range: ">=7.15.4"
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: oauth2-proxy-chart
+spec:
+  image: "ghcr.io/oauth2-proxy/charts/oauth2-proxy"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: oauth2-proxy-chart
+spec:
+  imageRepositoryRef:
+    name: oauth2-proxy-chart
+  policy:
+    semver:
+      range: ">=10.7.0"

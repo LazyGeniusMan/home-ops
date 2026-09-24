@@ -71,21 +71,20 @@ patches:
     target:
       kind: Certificate
       name: wildcard-home-ops-dev
-  # Dev proxy: Zitadel issuer, cookie domain, callback (args/4 --client-id
-  # flag dropped for the OAUTH2_PROXY_CLIENT_ID env — indices above it shift
-  # down one: cookie-domain 7→6, redirect-url 16→15).
+  # Dev proxy: Zitadel issuer, cookie domain, callback (values keys, not
+  # arg indices — the chart takes every flag from extraArgs).
   - patch: |
       - op: replace
-        path: /spec/template/spec/containers/0/args/3
-        value: --oidc-issuer-url=https://admin.zitadel.home-ops-dev.yansyah.my.id
+        path: /spec/values/extraArgs/oidc-issuer-url
+        value: https://admin.zitadel.home-ops-dev.yansyah.my.id
       - op: replace
-        path: /spec/template/spec/containers/0/args/6
-        value: --cookie-domain=.home-ops-dev.yansyah.my.id
+        path: /spec/values/extraArgs/cookie-domain
+        value: .home-ops-dev.yansyah.my.id
       - op: replace
-        path: /spec/template/spec/containers/0/args/15
-        value: --redirect-url=https://hubble.home-ops-dev.yansyah.my.id/oauth2/callback
+        path: /spec/values/extraArgs/redirect-url
+        value: https://hubble.home-ops-dev.yansyah.my.id/oauth2/callback
     target:
-      kind: Deployment
+      kind: HelmRelease
       name: oauth2-proxy
   # Dev replica counts: minimal single-replica footprint. No Deployment
   # /spec/replicas patch: base replicas: 1 is the create-time seed, HPA

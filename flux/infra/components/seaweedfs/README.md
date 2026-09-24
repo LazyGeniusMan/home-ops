@@ -70,10 +70,10 @@ Path-style buckets only; every bucket consumer needs an IAM identity:
 
 ## Auth (Zitadel OIDC, admin-only UI)
 
-- `ui-auth.yaml`: namespace-local oauth2-proxy
-  (`quay.io/oauth2-proxy/oauth2-proxy:v7.6.0`, Deployment 2 replicas +
-  ClusterIP Service `ui-auth:4180`) in reverse-proxy mode in front of
-  the filer. Locked contract per
+- `ui-auth.yaml`: namespace-local oauth2-proxy (official OCI chart
+  `oci://ghcr.io/oauth2-proxy/charts/oauth2-proxy:10.7.0`, app `v7.15.4`,
+  release `ui-auth` + ClusterIP Service `ui-auth:4180`) in reverse-proxy
+  mode in front of the filer. Locked contract per
   `flux/infra/components/zitadel/README.md`: issuer
   `https://admin.zitadel.home-ops.yansyah.my.id`, own `seaweedfs` client
   (redirect `https://<ui_host>/oauth2/callback`, per-app `ui_host`
@@ -88,8 +88,10 @@ Path-style buckets only; every bucket consumer needs an IAM identity:
   consumes them from that Secret through the in-cluster `seaweedfs-k8s`
   SecretStore (ESO Kubernetes provider, `eso-k8s-reader` SA + Role) —
   no Proton Pass seeding, never Git. The cookie secret is generated
-  in-Tofu (`random_bytes`, 32 bytes base64). Image is hand-bumped (no
-  ImageRepository/ImagePolicy tracks it yet).
+  in-Tofu (`random_bytes`, 32 bytes base64). Chart + image auto-track
+  `flux/infra/update-policies/seaweedfs.yaml` (markers
+  `infra:seaweedfs-ui-auth-chart` + `infra:seaweedfs-ui-auth` — per-copy own
+  policy, not the shared apps: markers).
 - `terraform.yaml` + `terraform/`: the `seaweedfs-sso` CR owns this
   component's Zitadel slice (project + project-scoped roles
   `seaweedfs-admin`/`seaweedfs-user` + the admin grant + the `seaweedfs` OIDC

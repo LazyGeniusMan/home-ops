@@ -7,9 +7,9 @@ resources are never touched here (see "Update automation" below).
 ## Layout (environment-direct, apps area)
 
 `base/` holds every manifest (`flux-operator-ui.yaml` OCIRepository +
-HelmRelease, `oauth2-proxy.yaml` Deployment + Service, proxy credentials,
-wildcard certificate, HTTPRoutes); env overlays `{dev,prd}/`
-patch hostnames, vault refs, and proxy args via `resources: [../base]`.
+HelmRelease, `oauth2-proxy.yaml` OCIRepository + HelmRelease, proxy
+credentials, wildcard certificate, HTTPRoutes); env overlays `{dev,prd}/`
+patch hostnames, vault refs, and proxy values via `resources: [../base]`.
 Tenant is `apps/flux-operator-ui` via
 `flux/apps/update-policies/flux-operator-ui.yaml`.
 
@@ -90,8 +90,11 @@ cert-manager Secrets cannot cross namespaces).
   lands; alert on consecutive failures then. No ServiceMonitor here — nothing
   serves metrics yet (monitors guarded, same discipline as cert-manager §9).
 - The UI tracks the operator release line via
-  `update-policies/flux-operator-ui.yaml` (chart marker
-  `apps:flux-operator-ui:tag`, floor `>=0.60.0`). It NEVER touches fleet sync:
+  `update-policies/flux-operator-ui.yaml` (UI chart marker
+  `apps:flux-operator-ui:tag`, floor `>=0.60.0`; proxy chart marker
+  `apps:oauth2-proxy-chart` shared with clickstack + hubble-ui, image
+  marker `apps:oauth2-proxy` shared with clickstack + hubble-ui — this
+  closes the previous automation gap where the proxy pin had no marker). It NEVER touches fleet sync:
   this release is `serverOnly` with `installCRDs: false`, so it owns no CRDs,
   no bootstrap values, and no Managed sync resources — bumps move the UI tag
   and `operator_chart_version` together, nothing else.
