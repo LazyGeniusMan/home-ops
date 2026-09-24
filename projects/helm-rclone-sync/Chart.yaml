@@ -8,8 +8,8 @@ type: application
 # `version` here, publish the matching OCI artifact via
 # .github/workflows/helm-rclone-sync.yml (tag helm-rclone-sync-v<version>),
 # and update the pinned `ref.tag` in ALL SIX consumers in the SAME commit:
-# flux/apps/components/{coder/base/rclone-sync-coder-db.yaml,clickstack/base/rclone-sync-buckets.yaml},
-# flux/infra/components/{zitadel/configs,clickhouse/configs,cnpg/configs,dragonfly/configs}/base/rclone-sync*.yaml
+# flux/apps/components/{coder,clickstack}/base/rclone-sync-*.yaml,
+# flux/infra/components/{zitadel,clickhouse,cnpg,dragonfly}/configs/base/rclone-sync*.yaml
 # (each carries a "Version skew guard" comment pointing back here). Consumers
 # pin the exact chart version — no floating `dev`/`stable` alias, no
 # $imagepolicy marker (Helm OCIRepositories cannot be tracked by image

@@ -24,8 +24,7 @@ const InternalToken = "internal"
 const resolveTimeout = 5 * time.Second
 
 // resolveHost resolves host to IP addresses. It is a variable so tests can
-// stub DNS without network access (mirroring the socket.getaddrinfo mocks
-// in test_urlfilter.py).
+// stub DNS without network access.
 var resolveHost = func(host string) ([]netip.Addr, error) {
 	if addr, err := parseIPLiteral(host); err == nil {
 		return []netip.Addr{addr}, nil

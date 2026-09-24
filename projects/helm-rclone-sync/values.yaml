@@ -23,7 +23,7 @@ rclone:
 # -- Cron schedule for the CronJob (also used for `spec.schedule` verbatim).
 schedule: "0 2 * * *"
 # -- IANA timezone for the schedule, e.g. "America/New_York". Empty = cluster default.
-# Out of scope only in the sense that the controller must support spec.timeZone (>= K8s 1.27).
+# Requires controller support for spec.timeZone (>= K8s 1.27).
 timeZone: ""
 # -- When true, the CronJob is suspended (no new Jobs are started).
 suspend: false

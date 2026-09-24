@@ -358,7 +358,7 @@ accepted as a fallback.
 | `APPRISE_MAX_ATTACHMENTS` | `6` | Per-request cap; `0` = unlimited |
 | `APPRISE_UPLOAD_MAX_MEMORY_SIZE` | `3` | JSON/form body budget in MiB (negative values use their magnitude); oversize → `431` |
 | `APPRISE_ATTACH_ALLOW_URL` | `*` | SSRF allowlist (empty = `*`) |
-| `APPRISE_ATTACH_REJECT_URL` | — | SSRF denylist (empty disables denials; Python default `127.0.* localhost*` applies when unset) |
+| `APPRISE_ATTACH_REJECT_URL` | — (empty disables denials) | Python out-of-box `127.0.* localhost*` is available as `DefaultAttachRejectURL` but is not applied at load |
 | `APPRISE_WEBHOOK_MAPPING_MAX_DEPTH` | `5` | `:` remap depth cap (must be positive) |
 | `APPRISE_WEBHOOK_URL` | — | Outbound result callback (empty = disabled) |
 | `APPRISE_PLUGIN_PATHS` | — | **Documented no-op**: accepted but unsupported — Go has no dynamic plugin loading |
