@@ -1,10 +1,6 @@
-# Fleet OCI delivery (main branch -> tags dev + dev-<sha>).
-# Owner: flux/fleet
-# Self-contained: all steps are inline in this file; no local composite
-# actions are referenced (only pinned external owner/repo@sha actions).
+# Ships flux/fleet to GHCR OCI (dev + dev-<sha>) on main pushes.
+# Paths: flux/fleet/**. Runs alongside flux-fleet-validate.
 name: flux-fleet-push
-
-# OCI: oci://ghcr.io/<owner>/home-ops/fleet:dev + dev-<sha> (main commits).
 
 permissions: {} # deny-all default; publish/sign scopes granted per job below.
 

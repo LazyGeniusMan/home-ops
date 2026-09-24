@@ -10,15 +10,11 @@
 #   zip   download the branch ZIP over HTTPS and extract it (no git needed)
 #
 # The script wipes and recreates /tmp/home-ops-docs on every run, then
-# re-fetches each entry below. One failure never aborts the rest
-# (continue-on-error with a non-zero exit + failed-dest summary at the end).
+# re-fetches each entry below (continue-on-error; see record_fail).
 set -uo pipefail
 
 FETCH_MODE="${FETCH_MODE:-http}"
 
-# Continue-on-error bookkeeping: every fetch_repo/fetch_pdf call site records
-# its own outcome, so one failure never aborts the remaining fetches. The
-# script exits non-zero iff any fetch failed (see summary at the end).
 _TMP_PATHS=()
 SUCCESS_COUNT=0
 FAIL_COUNT=0
@@ -32,10 +28,7 @@ log_error() {
   printf '%s [fetch-references][%s] ERROR: %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$FETCH_MODE" "$*" >&2
 }
 
-# Continue-on-error accounting. fetch_repo/fetch_pdf bump SUCCESS_COUNT
-# themselves on success; every call site appends `|| record_fail <dest>` so a
-# failure is counted (and logged with repo identity inside the function)
-# without aborting the remaining fetches.
+# Continue-on-error accounting: call sites append `|| record_fail <dest>`.
 record_fail() {
   FAIL_COUNT=$((FAIL_COUNT + 1))
   FAILED_LIST+=" $1"
@@ -100,13 +93,9 @@ case "$FETCH_MODE" in
 esac
 
 # fetch_repo <dest-dir> <https-url> [branch]
-# Fetches one repo into <dest-dir> (relative to /tmp/home-ops-docs) using the
-# method selected by FETCH_MODE. The SSH URL is derived by rewriting the
-# https://github.com/ prefix to git@github.com:, and the ZIP URL follows the
-# https://github.com/<org>/<repo>/archive/refs/heads/<branch>.zip pattern
-# (stripping any trailing slash or .git suffix). An empty branch means the
-# repo's default branch: plain `git clone --depth 1` for http/ssh, and the
-# GitHub HEAD archive for zip.
+# Fetches one repo into <dest-dir> (relative to /tmp/home-ops-docs).
+# SSH rewrites the https://github.com/ prefix; zip uses the branch archive
+# (HEAD archive for empty branch). Empty branch = default branch.
 fetch_repo() {
   local dest="$1"
   local http_url="$2"
@@ -222,9 +211,7 @@ fetch_repo() {
   SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
 }
 
-# fetch_pdf <dest-file> <url>
-# Downloads a single file (used for the two PDF guides) with the same
-# start/ok/FAILED logging as fetch_repo.
+# fetch_pdf <dest-file> <url>: downloads one file (the D2 PDF guide).
 fetch_pdf() {
   local dest="$1"
   local url="$2"

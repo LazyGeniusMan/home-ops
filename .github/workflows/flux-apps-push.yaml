@@ -1,13 +1,6 @@
-# Per-component apps OCI delivery (main -> tags dev + dev-<sha>).
-# Owner: flux/apps
-# Self-contained: all steps are inline in this file; no local composite
-# actions are referenced (only pinned external owner/repo@sha actions).
-# To onboard an app: add its directory name to the components matrix
-# here AND add a matching tenant input in flux/fleet/tenants/apps.yaml.
-# Unchanged components are no-ops (push action only pushes on diff).
+# Ships flux/apps to GHCR OCI (dev + dev-<sha>) on main pushes.
+# Paths: flux/apps/**. New app: matrix + tenants/apps.yaml.
 name: flux-apps-push
-
-# OCI: oci://ghcr.io/<owner>/home-ops/apps/<component>:dev + dev-<sha>.
 
 permissions: {} # deny-all default; publish/sign scopes granted per job below.
 

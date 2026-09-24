@@ -56,9 +56,8 @@ gnutar.pkg-path = "gnutar"
 gnutar.version = "1.35"
 yamllint.pkg-path = "yamllint"
 yamllint.version = "1.37.1"
-# EXCEPTION: ControlPlane flux distribution CLI (controlplaneio-fluxcd/distribution/actions/*)
-# has no Flox catalog package. CI push legs using the ControlPlane distribution
-# remain the only tool invocation without a local Flox-provided equivalent.
+# EXCEPTION: ControlPlane flux distribution CLI has no Flox catalog package;
+# CI push legs are the only invocations without a local Flox equivalent.
 
 [vars]
 PROTON_PASS_KEY_PROVIDER = "fs"

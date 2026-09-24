@@ -1,7 +1,5 @@
-# apprise-go-api publish.
-# Owner: projects/apprise-go-api
-# Self-contained: all steps are inline in this file; no local composite
-# actions are referenced (only pinned external owner/repo@sha actions).
+# Publishes apprise-go-api to GHCR (test, then build/push/sign).
+# Paths: projects/apprise-go-api/**, apprise-go-api-v* tags.
 name: apprise-go-api
 
 on:
@@ -58,9 +56,6 @@ jobs:
           working-directory: projects/apprise-go-api
 
       - name: Vulnerability check
-        # Pinned govulncheck release. `go run <pkg>@<version>` verifies the
-        # module against the Go checksum database, so the version pin is
-        # integrity-checked; bump the pin explicitly when x/vuln releases.
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
 
   publish:

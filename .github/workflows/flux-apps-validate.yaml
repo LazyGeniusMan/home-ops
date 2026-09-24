@@ -1,18 +1,5 @@
-# Apps validation.
-# Owner: flux/apps
-# Self-contained: all steps are inline in this file; no local composite
-# actions are referenced (only pinned external owner/repo@sha actions).
-#
-# Hardening: pull_request + push(main) + dispatch only, no
-# pull_request_target; top-level permissions contents:read; every uses: is
-# SHA-pinned; no ${{ }} interpolation into run: scripts (fixed validate.sh
-# args); no secrets consumed.
-# Efficiency: concurrency cancels superseded runs; path-gating limits runs to
-# flux/apps/** + the apps tenant file; no dependency cache -- the steps
-# shell out to prebuilt yq/kubeconform/kustomize binaries with nothing worth
-# caching.
-# Overlap note: push(main) runs here AND in flux-apps-push.yaml by design --
-# validate gates the manifests, push ships them.
+# Validates flux/apps manifests (validate.sh).
+# Paths: flux/apps/**, tenants/apps.yaml. Runs alongside flux-apps-push.
 name: flux-apps-validate
 
 on:

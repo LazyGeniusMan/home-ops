@@ -1,34 +1,22 @@
 # GitHub Actions
 
-All executable CI lives in `.github/workflows/` (14 self-contained
-workflows). Each workflow inlines every step it runs — only pinned
-external `owner/repo@sha` actions are referenced.
+14 self-contained workflows in `.github/workflows/` (only pinned external
+`owner/repo@sha` actions). Each header states its purpose + path filters.
 
-## Ownership
+- Validate: `flux-{infra,apps,fleet}-validate.yaml` (PR + main + dispatch,
+  path-gated) — `flux/scripts/validate.sh`; fleet also runs `tofu`
+  init/validate/test on `flux/fleet/terraform`.
+- Push: `flux-{infra,apps,fleet}-push.yaml` (main pushes, path-gated) —
+  OCI `dev` + `dev-<sha>` artifacts, cosign-signed.
+- Release: `flux-{infra,apps,fleet}-release.yaml`
+  (`flux-{infra,apps,fleet}-v*` tags) — OCI `stable` + version,
+  cosign-signed.
+- Image updates: `flux-image-updates.yaml` (branch creation + dispatch) —
+  opens a PR to main per `image-updates-infra/apps` branch.
+- Projects: `apprise-go-api.yml`, `eso-proton-pass.yml`,
+  `external-dns-netbird.yml` (test + GHCR publish/sign),
+  `helm-rclone-sync.yml` (verify + chart OCI publish/sign).
 
-Each workflow header states its `Owner:` (the subfolder the pipeline
-belongs to). Summary:
-
-| Workflow | Owner subfolder |
-|---|---|
-| `workflows/flux-fleet-push.yaml` | `flux/fleet` |
-| `workflows/flux-fleet-release.yaml` | `flux/fleet` |
-| `workflows/flux-fleet-validate.yaml` | `flux/fleet` |
-| `workflows/flux-image-updates.yaml` | `flux/fleet` |
-| `workflows/flux-infra-push.yaml` | `flux/infra` |
-| `workflows/flux-infra-release.yaml` | `flux/infra` |
-| `workflows/flux-infra-validate.yaml` | `flux/infra` |
-| `workflows/flux-apps-push.yaml` | `flux/apps` |
-| `workflows/flux-apps-release.yaml` | `flux/apps` |
-| `workflows/flux-apps-validate.yaml` | `flux/apps` |
-| `workflows/apprise-go-api.yml` | `projects/apprise-go-api` |
-| `workflows/eso-proton-pass.yml` | `projects/eso-proton-pass` |
-| `workflows/external-dns-netbird.yml` | `projects/external-dns-netbird` |
-| `workflows/helm-rclone-sync.yml` | `projects/helm-rclone-sync` |
-
-## Ignored `.github` paths
-
-`find flux projects -type d -name .github` may still report vendored
-third-party copies that are NOT owned by this repo and must be left alone,
-e.g. `flux/fleet/terraform/.terraform/modules/*/.github/` (downloaded
-Terraform modules) and skill fixtures.
+All `uses:` are SHA-pinned, least-privilege `permissions:`, concurrency
+groups, path-gated triggers. Vendored `.github` copies (e.g. under
+`flux/**/.terraform/`) are third-party, not owned.

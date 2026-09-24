@@ -1,25 +1,5 @@
-# helm-rclone-sync publish.
-# Owner: projects/helm-rclone-sync
-# Self-contained: all steps are inline in this file; no local composite
-# actions are referenced (only pinned external owner/repo@sha actions).
-#
-# Publishes the helm-rclone-sync chart as an OCI artifact with
-# `helm package` + `helm push` to the chart OCI repository.
-#
-# Tag mapping:
-#   branch pushes -> chart version 0.0.0-dev.<sha> + `dev`, `dev-<sha>` aliases
-#   helm-rclone-sync-v<X.Y.Z> tags -> chart version <X.Y.Z> + `stable` alias
-# Floating `dev` / `dev-<sha>` / `stable` aliases are applied after the
-# push with `oras tag` (the registry alias carries the floating name).
-# Neither leg publishes `latest`.
-#
-# Signing: cosign signs the digest-pinned ref
-# (`cosign sign --yes <repo>@<digest>`), covering every alias on that
-# manifest. Helm provenance (.prov) sidecars are not uploaded.
-#
-# Efficiency: no dependency cache -- helm lint/template downloads nothing
-# beyond the pinned setup-helm tool; runs stay cheap via path-gating and
-# superseded runs cancel through the concurrency group below.
+# Publishes helm-rclone-sync chart to GHCR OCI (verify, then package/push/sign).
+# Paths: projects/helm-rclone-sync/**, helm-rclone-sync-v* tags. Branch: 0.0.0-dev.<sha> + dev aliases; tag: <semver> + stable.
 name: helm-rclone-sync
 
 on:
@@ -52,12 +32,6 @@ jobs:
           version: v4.3.0 # match .flox kubernetes-helm pin
 
       - name: Verify (lint + fixtures + assertions)
-        # Directions are expressed via source.type/destination.type, not a
-        # `direction` value (see ci/values-direction-*.yaml). ci/verify.sh
-        # runs lint, all fixture renders, env-only contract checks, shape
-        # assertions, and fail-fast proofs (plus yamllint/kubeconform extras
-        # where installed); it runs from the repo root, matching its
-        # hand-run form.
         run: bash projects/helm-rclone-sync/ci/verify.sh
 
   publish:
@@ -80,8 +54,7 @@ jobs:
       - name: Set up ORAS
         uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d # v2.0.1
         with:
-          # Pinned below the .flox oras pin (1.3.4): setup-oras v2.0.1 only
-          # bundles up to 1.3.3 (releases.json); version takes no `v` prefix.
+          # setup-oras v2.0.1 bundles oras up to 1.3.3; version takes no `v` prefix.
           version: 1.3.3
 
       - name: Install cosign
@@ -100,13 +73,9 @@ jobs:
           REF_TYPE: ${{ github.ref_type }}
         run: |
           if [ "${REF_TYPE}" = "tag" ]; then
-            # helm-rclone-sync-v<X.Y.Z> -> <X.Y.Z>
-            VERSION="${GITHUB_REF_NAME#helm-rclone-sync-v}"
+            VERSION="${GITHUB_REF_NAME#helm-rclone-sync-v}" # helm-rclone-sync-v<X.Y.Z> -> <X.Y.Z>
           else
-            # Branch pushes and manual dispatches publish a dev snapshot.
-            # Helm chart versions must be semver, so the dev floating name
-            # cannot be the version itself: package 0.0.0-dev.<sha> and
-            # retag `dev` + `dev-<sha>` aliases with oras below.
+            # Dev leg must stay semver: package 0.0.0-dev.<sha>; dev/dev-<sha> aliases applied below.
             SHORT_SHA="$(echo "${GITHUB_SHA}" | cut -c1-7)"
             VERSION="0.0.0-dev.${SHORT_SHA}"
           fi
@@ -123,9 +92,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           helm package projects/helm-rclone-sync --version "${VERSION}"
-          # `helm push` appends the chart name to the OCI base, so push to
-          # the parent: the manifest then lands exactly at OCI_REPO, which
-          # is what the sign and floating-tag steps address.
+          # `helm push` appends the chart name, so push to the parent to land exactly at OCI_REPO.
           PUSH_OUT="$(helm push "helm-rclone-sync-${VERSION}.tgz" "oci://${OCI_REPO%/*}" 2>&1)"
           echo "${PUSH_OUT}"
           PUSHED_REF="$(echo "${PUSH_OUT}" | grep -Eo 'Pushed: [^[:space:]]+' | awk '{print $2}' | head -n 1)"
@@ -148,7 +115,6 @@ jobs:
 
       - name: Apply floating tags
         # Branch leg retags dev + dev-<sha>; tag leg retags stable.
-        # Reuses the docker/login-action credentials via the Docker config.
         env:
           REF_TYPE: ${{ github.ref_type }}
           VERSION: ${{ steps.version.outputs.version }}

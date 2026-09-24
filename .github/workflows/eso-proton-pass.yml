@@ -1,7 +1,5 @@
-# eso-proton-pass publish.
-# Owner: projects/eso-proton-pass
-# Self-contained: all steps are inline in this file; no local composite
-# actions are referenced (only pinned external owner/repo@sha actions).
+# Publishes eso-proton-pass to GHCR (test, then build/push/sign).
+# Paths: projects/eso-proton-pass/**, eso-proton-pass-v* tags.
 name: eso-proton-pass
 
 on:
@@ -58,9 +56,6 @@ jobs:
           working-directory: projects/eso-proton-pass
 
       - name: Vulnerability check
-        # Pinned govulncheck release. `go run <pkg>@<version>` verifies the
-        # module against the Go checksum database, so the version pin is
-        # integrity-checked; bump the pin explicitly when x/vuln releases.
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
 
   publish:
