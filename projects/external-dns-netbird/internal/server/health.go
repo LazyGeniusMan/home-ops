@@ -52,13 +52,8 @@ func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {
 	writeOpsJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// withOpsLogging emits one JSON line per ops request (method, route,
-// status, duration). It mirrors the Batch-A withLogging shape for the ops
-// listener without touching the webhook middleware. The route is the matched
-// ServeMux pattern (r.Pattern, e.g. "GET /healthz" — the method prefix from
-// the "METHOD /path" pattern form is kept; it is fine for logs), falling
-// back to the bounded literal "notfound" when no pattern matched, never the
-// raw path.
+// withOpsLogging logs one line per ops request with the matched pattern as
+// route.
 func (s *Server) withOpsLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()

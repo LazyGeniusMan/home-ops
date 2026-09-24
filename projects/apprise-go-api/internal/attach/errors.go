@@ -31,8 +31,8 @@ const (
 	StatusFieldsTooLarge = 431
 )
 
-// StatusError is a staging failure carrying the HTTP status G2 maps it to.
-// All staging failures are 400 except the body-cap overflow (431).
+// StatusError is a staging failure carrying its HTTP status. All staging
+// failures are 400 except the body-cap overflow (431).
 type StatusError struct {
 	// Code is the HTTP status for this failure.
 	Code int
@@ -144,8 +144,7 @@ func IsUnsupportedAttachments(err error) bool {
 }
 
 // SendFailure is a delivery failure for staged attachments, carrying the
-// target URL and filename so failures are never silent. G2 maps this to
-// HTTP 424 (Python: "One or more notification could not be sent").
+// target URL and filename so failures are never silent. It maps to HTTP 424.
 type SendFailure struct {
 	// Target is the notification URL that failed.
 	Target string

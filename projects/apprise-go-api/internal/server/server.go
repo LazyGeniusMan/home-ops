@@ -40,7 +40,7 @@ func New(cfg config.Config, sender *notify.Sender, log *slog.Logger) *Server {
 	return s
 }
 
-// Sender exposes the notify sender (used by handlers in G2).
+// Sender exposes the notify sender used by the handlers.
 func (s *Server) Sender() senderIface { return s.sender }
 
 func (s *Server) routes() {

@@ -1,11 +1,8 @@
 // Error contract for the webhook API.
 //
-// Interop: provider.NewSoftError (sigs.k8s.io/external-dns/provider) marks
-// transient NetBird failures. Soft errors keep their %w chain so
-// errors.Is(err, provider.SoftError) holds through any wrapping; callers
-// must wrap with %w (never %v) and keep messages lowercase.
+// Soft errors are transient NetBird failures; callers must wrap with %w.
 //
-// Mapping (mirrors the apprise StatusError + StatusCodeOf shape):
+// Mapping:
 //
 //	soft (transient NetBird/API failure) -> 502 Bad Gateway, ExternalDNS retries
 //	hard (permanent: no matching zone, bad input) -> 422 Unprocessable Entity

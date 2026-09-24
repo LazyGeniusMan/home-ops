@@ -68,11 +68,7 @@ func init() {
 	registerCollector(buildInfo)
 }
 
-// registerDefaultCollectorsOnce ensures the standard Go runtime and process
-// collectors are registered on the default registry exactly once, regardless
-// of how many Server instances are constructed (e.g. one per test).
-// Duplicate registration is tolerated because tests may share the process
-// default registry with collectors registered elsewhere.
+// registerDefaultCollectorsOnce registers Go/process collectors exactly once.
 var registerDefaultCollectorsOnce sync.Once
 
 // registerCollector tolerates AlreadyRegisteredError so New() stays safe when
@@ -100,10 +96,7 @@ func registerOrReuse(c prometheus.Counter) prometheus.Counter {
 	return c
 }
 
-// New builds a Server. Domain error counters and the standard Go/process
-// collectors are registered on prometheus.DefaultRegisterer so GET /metrics
-// exposes go_* / process_* runtime series alongside the domain counters.
-// The ops listener pattern (:8080 via metricsAddr) is unchanged.
+// New builds a Server and registers domain and Go/process collectors.
 func New(p *nbprovider.Provider, log *slog.Logger, webhookAddr, metricsAddr string) *Server {
 	registerDefaultCollectorsOnce.Do(func() {
 		registerCollector(collectors.NewGoCollector())
@@ -286,11 +279,8 @@ func (s *Server) handleAdjustEndpoints(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, adjusted)
 }
 
-// writeError maps provider failures via statusCodeOf and sanitizes the
-// envelope via publicError: soft (transient) errors become 502 so
-// ExternalDNS retries; hard (permanent) errors become 422. The full chain
-// is logged by the caller (single-handling rule); the caller-facing
-// {"error"} string carries no traces, tokens, or paths.
+// writeError maps failures to status codes with a sanitized {"error"}
+// envelope.
 func (s *Server) writeError(w http.ResponseWriter, err error) {
 	s.writeJSON(w, statusCodeOf(err), map[string]string{"error": publicError(err)})
 }
@@ -306,11 +296,8 @@ func (s *Server) writeJSON(w http.ResponseWriter, status int, v any) {
 	}
 }
 
-// withLogging emits one JSON line per webhook request with the method,
-// route, status, and duration. The route is the matched ServeMux pattern
-// (r.Pattern, e.g. "GET /records"), falling back to the bounded literal
-// "notfound" for unmatched requests — never the raw path, so request logs
-// cannot carry unbounded attacker-controlled values.
+// withLogging logs one line per webhook request with the matched pattern
+// as route.
 func (s *Server) withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -325,12 +312,7 @@ func (s *Server) withLogging(next http.Handler) http.Handler {
 	})
 }
 
-// requestRoute returns the matched ServeMux pattern for request logging.
-// r.Pattern is set by the mux during dispatch (read after next.ServeHTTP
-// for outer middleware) and may carry a "METHOD /path" prefix on Go 1.22+
-// ServeMux patterns; that prefix is fine for logs. When no pattern matched
-// (r.Pattern == ""), it returns the bounded literal "notfound" instead of
-// the raw request path.
+// requestRoute returns the matched ServeMux pattern or "notfound".
 func requestRoute(r *http.Request) string {
 	if r.Pattern != "" {
 		return r.Pattern

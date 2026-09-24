@@ -65,9 +65,8 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Apply ':' remap rules (G4 engine). Rules come from query keys with
-	// a ':' prefix (?:src=dst); they remap the decoded payload map before
-	// validation, and mapped values flow back into the request struct below.
+	// Apply ':' remap rules from query keys with a ':' prefix (?:src=dst);
+	// they remap the decoded payload map before validation.
 	rules, err := parseRemapRules(r)
 	if err != nil {
 		s.log.Warn("notify: remap rules invalid", "remote", remoteAddr(r), "err", redactCredentials(err.Error()))
@@ -163,11 +162,8 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Attach staging (G3): the winning attach alias value plus any multipart
-	// file parts are staged to request-scoped temp files under
-	// APPRISE_ATTACH_DIR. Staged paths feed the sender; temp files are
-	// removed when the request ends. Any staging failure (malformed entry,
-	// SSRF denial, fetch failure, over-limit file) is a 400 "Bad
+	// Stage the winning attach alias value plus multipart file parts to
+	// request-scoped temp files; any staging failure is a 400 "Bad
 	// Attachment" via attach.StatusCodeOf.
 	var attachPaths []string
 	var stagedNames []string
@@ -241,16 +237,14 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 		recursion = v
 	}
 
-	// X-Apprise-ID is accepted and passed through (uid wiring point: the
-	// engine exposes no per-send identity knob, so it is logged only).
+	// X-Apprise-ID is accepted and logged only; the delivery engine carries
+	// no per-send identity.
 	if uid := strings.TrimSpace(r.Header.Get("X-Apprise-ID")); uid != "" {
 		s.log.Debug("notify: request id", "uid", uid)
 	}
 
-	// X-Apprise-Log-Level is validated against the allowlist; unknown
-	// values fall back to the service default (Python resets to the
-	// configured apprise level). G2 synthesizes its own log records, so
-	// the level only gates debug output here.
+	// X-Apprise-Log-Level is validated against the allowlist; unknown values
+	// fall back to the service default. The level only gates debug output here.
 	_ = validatedLogLevel(r.Header.Get("X-Apprise-Log-Level"), s.cfg.LogLevel)
 
 	// Send via the engine. Zero surviving targets → 204; any delivery

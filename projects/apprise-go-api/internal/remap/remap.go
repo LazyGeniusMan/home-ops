@@ -29,7 +29,7 @@ var mappableTargets = map[string]struct{}{
 
 // Rule is a single parsed ':src=dst' mapping.
 type Rule struct {
-	// Source is the payload lookup path (dot-walk with [N] indexes, G4).
+	// Source is the payload lookup path (dot-walk with [N] indexes).
 	Source string
 	// Target is the destination form field, or empty for a delete rule.
 	Target string

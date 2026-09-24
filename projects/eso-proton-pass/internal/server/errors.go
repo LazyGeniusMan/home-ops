@@ -1,6 +1,6 @@
 // Error contract for the webhook API.
 //
-// Mapping (mirrors the apprise attach.StatusError + StatusCodeOf shape):
+// Mapping:
 //
 //	invalid key / malformed request body        -> 400 Bad Request
 //	secret not found (backend miss, empty value)-> 404 Not Found (lets ESO
@@ -56,9 +56,8 @@ var (
 	errMethodNotAllowedPush = errors.New("method not allowed: use post")
 )
 
-// statusCodeOf maps webhook errors to HTTP statuses. It mirrors the apprise
-// attach.StatusCodeOf shape: typed match first (errors.Is/As over the %w
-// chain), 500 fallback.
+// statusCodeOf maps webhook errors to HTTP statuses; unmapped errors are
+// 500.
 func statusCodeOf(err error) int {
 	if err == nil {
 		return http.StatusOK

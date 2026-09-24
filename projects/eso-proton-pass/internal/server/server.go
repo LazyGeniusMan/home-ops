@@ -76,11 +76,7 @@ var buildInfo = prometheus.NewGaugeVec(
 	[]string{"version"},
 )
 
-// registerDefaultCollectorsOnce ensures the standard Go runtime and process
-// collectors land on the default registry exactly once, however many Server
-// instances are constructed (e.g. one per test). Duplicate registration is
-// tolerated because tests share the process default registry with
-// collectors registered elsewhere.
+// registerDefaultCollectorsOnce registers Go/process collectors exactly once.
 var registerDefaultCollectorsOnce sync.Once
 
 // registerCollector tolerates AlreadyRegisteredError so construction stays
@@ -163,12 +159,8 @@ type Provider interface {
 	Ready(ctx context.Context) error
 }
 
-// New builds a Server. The provider dependency is the concrete
-// provider.Provider; it is adapted so tests can substitute fakes via
-// NewWithProvider. Domain request/latency metrics and the standard
-// Go/process collectors are registered on prometheus.DefaultRegisterer so
-// GET /metrics exposes go_*/process_* runtime series alongside the domain
-// metrics.
+// New builds a Server and registers domain and Go/process collectors for
+// /metrics. Tests substitute fakes via NewWithProvider.
 func New(p *provider.Provider, logger *slog.Logger) *Server {
 	registerDefaultCollectorsOnce.Do(func() {
 		registerCollector(collectors.NewGoCollector())
@@ -225,10 +217,8 @@ func NewWithProvider(p Provider, logger *slog.Logger) *Server {
 // Handler returns the mux with all routes.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
-	// NB: method-specific patterns like "HEAD /" conflict with subtrees such
-	// as "GET /get" in Go 1.22+ ServeMux, so routes are registered without
-	// methods and dispatch on r.Method inside each handler. Metrics labels
-	// use these literal patterns (never raw paths) to bound cardinality.
+	// Routes omit methods and dispatch on r.Method; metrics use literal
+	// patterns (never raw paths) to bound cardinality.
 	mux.HandleFunc("/get", s.withMetrics("/get", s.handleGetDispatch))
 	mux.HandleFunc("/", s.withMetrics("/", s.handleValidate))
 	mux.HandleFunc("/healthz", s.withMetrics("/healthz", s.handleHealthz))
@@ -369,11 +359,8 @@ func (s *Server) withMetrics(route string, next http.HandlerFunc) http.HandlerFu
 	}
 }
 
-// withLogging logs one line per request. Route is the matched mux pattern
-// (r.Pattern, set by ServeMux during routing — the same bounded literal the
-// metrics middleware is registered with), never the raw path, so log values
-// stay bounded. Unmatched requests fall through to the "/" handler; an empty
-// pattern (never expected through Handler) logs as "unknown".
+// withLogging logs one line per request with the matched mux pattern as
+// route.
 func (s *Server) withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()

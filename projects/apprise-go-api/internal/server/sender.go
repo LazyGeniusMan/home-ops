@@ -48,13 +48,13 @@ type notifyRequest struct {
 	// Attach holds attachment payloads by alias for the staging gate.
 	Attach []string
 	// AttachRaw is the winning attach alias value in decoded shape
-	// (string, list, or dict) handed to the G3 stager.
+	// (string, list, or dict) handed to attachment staging.
 	AttachRaw any
 	// Files holds multipart file parts in arrival order for the stager.
 	Files []attach.Incoming
 	// HasAttach reports any attach/attachment/attachments alias or file part.
 	HasAttach bool
-	// FileCount counts uploaded file parts (G3 stages them).
+	// FileCount counts uploaded file parts for staging.
 	FileCount int
 }
 
@@ -110,9 +110,8 @@ func decodeJSONPayload(r *http.Request, maxBytes int64) (*notifyRequest, bool, m
 	out.Tag = doc["tag"]
 	out.Tags = doc["tags"]
 	// Attach aliases: attach > attachment > attachments; canonicalize the
-	// winner into Attach and keep its decoded shape in AttachRaw for the
-	// G3 stager. FORM beats JSON — handled in decodeFormPayload (JSON path
-	// has no FORM keys by construction).
+	// winner into Attach and keep its decoded shape in AttachRaw for
+	// staging.
 	for _, alias := range []string{"attach", "attachment", "attachments"} {
 		v, ok := doc[alias]
 		if !ok || v == nil {
@@ -213,9 +212,9 @@ func decodeFormPayload(r *http.Request) (*notifyRequest, bool, map[string]any, e
 	if v := first("tags"); v != "" {
 		out.Tags = v
 	}
-	// Attach aliases: FORM keys win; first present alias (attach >
-	// attachment > attachments) collects its non-blank values and keeps
-	// its winning value in AttachRaw for the G3 stager.
+	// Attach aliases: FORM keys win; the first present alias (attach >
+	// attachment > attachments) collects its non-blank values into
+	// AttachRaw.
 	for _, alias := range []string{"attach", "attachment", "attachments"} {
 		var vals []string
 		if r.PostForm != nil {
@@ -346,11 +345,9 @@ func syncRemappedFields(payload *notifyRequest, fields map[string]any, isJSON bo
 	}
 }
 
-// stageAttachments stages a request's attachments through the G3 stager:
-// the winning attach alias value plus multipart file parts, bounded by the
-// per-file APPRISE_ATTACH_SIZE cap with the SSRF allow/reject policy
-// applied to remote URLs. Staged temp files live under APPRISE_ATTACH_DIR
-// and the caller removes them via attach.CleanupAll.
+// stageAttachments stages the winning attach alias value plus multipart
+// file parts under the per-file APPRISE_ATTACH_SIZE cap with the SSRF
+// policy applied. The caller removes staged files via attach.CleanupAll.
 func (s *Server) stageAttachments(payload *notifyRequest) ([]attach.Staged, error) {
 	stager := attach.NewStager(attach.Limits{
 		Dir:       s.cfg.AttachDir,

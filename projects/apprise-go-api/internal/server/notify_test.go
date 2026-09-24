@@ -331,8 +331,8 @@ func TestNotifyValidationTable(t *testing.T) {
 			wantCalls:   0,
 		},
 		{
-			// Mappable stub rule passes through untouched (full engine G4).
-			name:        "remap stub passthrough 200",
+			// Unmapped-field rule is a no-op: the payload passes through.
+			name:        "remap noop passthrough 200",
 			contentType: "application/x-www-form-urlencoded",
 			body:        url.Values{"urls": {"json://localhost"}, "body": {"hi"}}.Encode(),
 			target:      "/notify/?:payload=body",

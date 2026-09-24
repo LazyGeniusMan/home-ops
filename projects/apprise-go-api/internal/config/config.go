@@ -186,7 +186,7 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
-// MaxHeaderBytes caps HTTP request header size (server hardening, G5).
+// MaxHeaderBytes caps HTTP request header size at 1 MiB.
 func MaxHeaderBytes() int { return maxHeaderBytes }
 
 // MaxUploadMemoryBytes caps in-memory multipart buffering before spilling to disk.

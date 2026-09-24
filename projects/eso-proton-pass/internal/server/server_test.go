@@ -101,9 +101,7 @@ func TestGetBackendErrorMaps502(t *testing.T) {
 	}
 }
 
-// TestStatusCodeOfTable checks sentinel/wrapped errors map to HTTP codes
-// (400/404/422/502 + 500 fallback), mirroring the apprise StatusCodeOf
-// table shape.
+// TestStatusCodeOfTable checks errors map to HTTP codes.
 func TestStatusCodeOfTable(t *testing.T) {
 	wrapped := func(err error) error { return fmt.Errorf("layer: %w", err) }
 	cases := []struct {
@@ -126,9 +124,7 @@ func TestStatusCodeOfTable(t *testing.T) {
 		{"push", provider.ErrPushUnimplemented, http.StatusNotImplemented},
 		{"method", errMethodNotAllowed, http.StatusMethodNotAllowed},
 		{"status coder", &statusErr{code: http.StatusTooManyRequests, msg: "m", err: errors.New("x")}, http.StatusTooManyRequests},
-		// Out-of-range StatusCode carrier (no sentinel, no backend origin):
-		// internal bug → 500 fallback. The probe lives here in _test.go so
-		// production code carries no test-only identifiers.
+		// Out-of-range StatusCode carrier maps to 500.
 		{"plain unknown", &statusErr{code: 99, msg: "m", err: errors.New("x")}, http.StatusInternalServerError},
 	}
 	for _, tc := range cases {
@@ -140,8 +136,7 @@ func TestStatusCodeOfTable(t *testing.T) {
 	}
 }
 
-// statusErr is a StatusCode()-carrying error mirroring the apprise
-// StatusError shape (typed status, %w-unwrappable cause).
+// statusErr is a StatusCode()-carrying test error.
 type statusErr struct {
 	code int
 	msg  string

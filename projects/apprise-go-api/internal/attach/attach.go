@@ -1,12 +1,8 @@
 // Package attach stages stateless notification attachments into
 // request-scoped temp files.
 //
-// G3 implements the full mechanisms (multipart parts, remote http(s) URLs,
-// JSON {base64,filename}/{url,filename} dicts), limits (APPRISE_ATTACH_SIZE,
-// APPRISE_MAX_ATTACHMENTS, APPRISE_UPLOAD_MAX_MEMORY_SIZE), the SSRF
-// allow/reject policy, and cleanup. Attachments never persist: staged files
-// live under APPRISE_ATTACH_DIR (or os.TempDir) and are removed when the
-// request ends.
+// Attachments never persist: staged files live under APPRISE_ATTACH_DIR (or
+// os.TempDir) and are removed when the request ends.
 package attach
 
 import (
@@ -16,9 +12,8 @@ import (
 	"time"
 )
 
-// Limits carries the G3 attachment knobs: APPRISE_ATTACH_DIR,
-// APPRISE_ATTACH_SIZE, APPRISE_MAX_ATTACHMENTS, the SSRF allow/reject
-// lists, and the remote-fetch timeout. See config.AttachLimits.
+// Limits carries the attachment knobs: stage dir, per-file size, max count,
+// SSRF allow/reject lists, and the remote-fetch timeout.
 type Limits struct {
 	// Dir stages temp files; empty means os.TempDir().
 	Dir string
@@ -46,13 +41,8 @@ type Attachment struct {
 	Cleanup func()
 }
 
-// Stage validates count/disabled policy via the full Stager, treating each
-// name as a remote-URL-or-inline payload entry. Kept compatible for the G2
-// seam (server.checkAttachmentsStub): count/disabled errors surface as
-// StatusError values, and any non-empty name proceeds to real staging, so
-// callers see either a policy error or staged (possibly remote-fetched)
-// files. maxMemoryBytes must be positive (the multipart/memory budget the
-// caller enforces via MaxBytesReader before staging).
+// Stage validates count/disabled policy and stages each name as a
+// remote-URL-or-inline payload entry. maxMemoryBytes must be positive.
 func Stage(names []string, lim Limits, maxMemoryBytes int64) ([]Attachment, error) {
 	if maxMemoryBytes <= 0 {
 		return nil, BadAttachment("max memory bytes must be positive, got %d", maxMemoryBytes)
@@ -103,8 +93,8 @@ func Names(staged []Staged) []string {
 	return out
 }
 
-// HasAttachment reports whether a request carries attachment content:
-// staged files or a non-blank payload. G2 uses this for the
+// HasAttachment reports whether a request carries attachment content
+// (staged files or a non-blank payload) for the
 // body-not-required-when-attachment rule.
 func HasAttachment(staged []Staged, payload any) bool {
 	if len(staged) > 0 {

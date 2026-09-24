@@ -41,7 +41,7 @@ func TestIsMappableTarget(t *testing.T) {
 	}
 }
 
-func TestApplyStub(t *testing.T) {
+func TestApplyBasic(t *testing.T) {
 	fields := map[string]any{"subject": "hi"}
 	r, _ := Parse("subject=title")
 	if err := Apply(fields, []Rule{r}, 5); err != nil {

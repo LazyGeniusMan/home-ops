@@ -146,11 +146,8 @@ func TestWithOpsLoggingFallbackDirect(t *testing.T) {
 	var buf bytes.Buffer
 	s := capturingServer(&buf)
 
-	// Exercise withOpsLogging directly with an undispatched request
-	// (r.Pattern == "", as for an unmatched path): it must log the bounded
-	// fallback, never the raw path. Through the real ops mux this branch is
-	// unreachable (unmatched paths are answered 404 before the inner
-	// middleware runs); the assertion pins the defensive fallback.
+	// Exercise withOpsLogging with an undispatched request; it must log
+	// "notfound".
 	raw := "/ops-direct-evil-path-13579"
 	h := s.withOpsLogging(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {}))
 	rec := httptest.NewRecorder()

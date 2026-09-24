@@ -100,7 +100,7 @@ func splitURLs(v any) []string {
 }
 
 // attachStrings flattens a JSON attach value (string, list, or dict) into
-// raw strings for the stub presence check.
+// raw strings for the attachment presence check.
 func attachStrings(v any) []string {
 	switch t := v.(type) {
 	case string:
@@ -122,7 +122,7 @@ func attachStrings(v any) []string {
 		}
 		return out
 	case map[string]any:
-		// G3 dict form ({base64,filename}/{url,filename}); presence only.
+		// Dict form ({base64,filename}/{url,filename}); presence only.
 		return []string{"dict"}
 	}
 	return nil
@@ -156,10 +156,9 @@ func validInputFormat(f string) bool {
 	}
 }
 
-// validatedLogLevel keeps the X-Apprise-Log-Level allowlist visible: the
-// header is accepted case-insensitively and unknown values fall back to the
-// service default (Python resets to the configured apprise level). G2
-// synthesizes its own log records, so the level only gates debug output.
+// validatedLogLevel applies the X-Apprise-Log-Level allowlist: the header is
+// accepted case-insensitively and unknown values fall back to the service
+// default.
 func validatedLogLevel(raw, def string) string {
 	level := strings.ToUpper(strings.TrimSpace(raw))
 	if level == "" {

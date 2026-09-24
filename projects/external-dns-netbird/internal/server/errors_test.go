@@ -14,8 +14,7 @@ import (
 	nbprovider "github.com/LazyGeniusMan/home-ops/projects/external-dns-netbird/internal/provider"
 )
 
-// statusErr is a StatusCode()-carrying error mirroring the apprise
-// StatusError shape (typed status, %w-unwrappable cause).
+// statusErr is a StatusCode()-carrying test error.
 type statusErr struct {
 	code int
 	msg  string

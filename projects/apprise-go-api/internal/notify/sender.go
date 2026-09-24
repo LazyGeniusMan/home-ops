@@ -1,10 +1,9 @@
 // Package notify wraps the apprise-go notification engine with a
 // request-scoped, timeout-bounded sender.
 //
-// The sender keeps the engine wiring thin: per-target delivery with
-// allow/deny service policy applied up front (G2). Tag routing, attachment
-// staging, and recursion accounting live in internal/server; full G3/G4
-// mechanisms build on these hooks without changing this file's contract.
+// The sender delivers per-target with the allow/deny service policy applied
+// up front. Tag routing, attachment staging, and recursion accounting live
+// in internal/server.
 package notify
 
 import (
@@ -35,7 +34,7 @@ type Request struct {
 	// Tag is the pre-parsed stateless tag filter (OR groups of AND tokens).
 	// Nil means no filter: every surviving target is notified.
 	Tag []TagGroup
-	// Attachments are staged local paths or trusted URLs (G3 stages them).
+	// Attachments are staged local paths or trusted URLs.
 	Attachments []string
 	// AttachmentMaxBytes pre-enforces per-attachment size on the API side.
 	AttachmentMaxBytes int64
@@ -227,10 +226,7 @@ func urlScheme(raw string) string {
 }
 
 // IsSelfRecursionTarget reports whether rawURL addresses this API itself
-// via the apprise:// scheme. Callers use it to forward the incremented
-// recursion count header on self-recursion (wiring point for the G4
-// outbound hook: apprise-go exposes no per-send header option, so ingress
-// enforcement is authoritative in G2).
+// via the apprise:// scheme. Ingress recursion enforcement is authoritative.
 func IsSelfRecursionTarget(raw string) bool {
 	switch urlScheme(raw) {
 	case "apprise", "apprises":

@@ -62,9 +62,8 @@ func MapBodyError(err error, maxBytes int64) error {
 // *http.MaxBytesError from an over-cap body maps to the 431 StatusError.
 //
 // Returned Incomings preserve arrival order across all field names,
-// mirroring Python's request.FILES iteration. The caller must close the
-// returned cleanup func... there is none: multipart temp spill files are
-// removed by r.MultipartForm.RemoveAll, which the caller defers.
+// mirroring Python's request.FILES iteration. Spill files are removed by
+// r.MultipartForm.RemoveAll, which the caller defers.
 func ParseMultipart(r *http.Request, maxMemoryBytes int64) ([]Incoming, error) {
 	if maxMemoryBytes <= 0 {
 		return nil, BadAttachment("max memory bytes must be positive, got %d", maxMemoryBytes)
@@ -116,8 +115,7 @@ func contentTypeOf(h map[string][]string) string {
 }
 
 // FilePart wraps a *multipart.FileHeader as an Incoming for direct staging
-// without going through ParseMultipart (e.g. when G2 already parsed the
-// form). Any field name is accepted.
+// without going through ParseMultipart. Any field name is accepted.
 func FilePart(field string, fh *multipart.FileHeader) Incoming {
 	if fh == nil {
 		return Incoming{Field: field}
@@ -134,9 +132,8 @@ func FilePart(field string, fh *multipart.FileHeader) Incoming {
 }
 
 // FormURLs collects non-blank attachment URL strings for one alias key,
-// mirroring Python's [a for a in request.POST.getlist(key) if
-// isinstance(a, str) and a.strip()]. The alias priority (attach >
-// attachment > attachments) is resolved by the caller (G2).
+// mirroring Python's getlist filter. The alias priority is resolved by the
+// caller.
 func FormURLs(values []string) []string {
 	var out []string
 	for _, v := range values {

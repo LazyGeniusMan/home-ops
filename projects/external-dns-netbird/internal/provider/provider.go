@@ -205,17 +205,9 @@ func (p *Provider) buildIndex(ctx context.Context) (index, error) {
 	return idx, nil
 }
 
-// zoneForName resolves the longest-suffix zone matching dnsName. When no
-// zone matches, it derives the candidate zone domain from the configured
-// DOMAIN_FILTER (longest filter entry that is a suffix of dnsName, falling
-// back to the parent of the left-most label) and auto-creates the NetBird
-// zone via POST /api/dns/zones so the record can be created. The lookup is
-// re-checked before creation so concurrent applies stay idempotent.
-//
-// Candidate domains that do not match DOMAIN_FILTER are rejected with a
-// permanent (non-retryable) error; NetBird API failures surface as soft
-// errors (5xx/transport via the client, other failures wrapped here) so
-// ExternalDNS retries the apply.
+// zoneForName resolves the longest-suffix zone, auto-creating the
+// DOMAIN_FILTER candidate. Misses outside the filter are permanent; API
+// failures are soft.
 func (p *Provider) zoneForName(ctx context.Context, dnsName string) (string, error) {
 	name := strings.ToLower(strings.TrimSuffix(dnsName, "."))
 	zones, err := p.api.ListZones(ctx)
@@ -243,9 +235,7 @@ func (p *Provider) zoneForName(ctx context.Context, dnsName string) (string, err
 	if candidate == "" {
 		return "", fmt.Errorf("%w for %q", ErrNoMatchingZone, dnsName)
 	}
-	// Re-check: an exact zone for the candidate may exist but be shadowed
-	// above only in theory (no match implies absence); ListZones was just
-	// read, so only create when no exact-domain zone exists.
+	// Re-check the just-read zone list before creating.
 	for _, z := range zones {
 		if strings.EqualFold(strings.TrimSuffix(z.Domain, "."), candidate) {
 			// Zone exists but is outside DOMAIN_FILTER: do not reuse it,

@@ -62,9 +62,8 @@ func New(resolver Resolver, logger *slog.Logger) *Provider {
 //
 //	pass://{vault}/{item}/{field}
 //
-// The key itself never enters error strings: the field segment can be a
-// sensitive label, so failures report only the expected shape (see the eso
-// redactURI/vaultItem secret-safety pattern).
+// Failures report only the expected shape; the key never enters error
+// strings.
 func ValidateKey(key string) (vault, item, field string, err error) {
 	const prefix = "pass://"
 	if !strings.HasPrefix(key, prefix) {

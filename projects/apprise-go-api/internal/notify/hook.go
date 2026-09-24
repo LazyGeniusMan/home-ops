@@ -48,7 +48,7 @@ type HookPayload struct {
 	Source string `json:"source"`
 	// Status is 0 on success, 1 on any delivery failure.
 	Status int `json:"status"`
-	// Output is the notify response body (logs/details) just sent.
+	// Output is the result detail sent with the notification outcome.
 	Output any `json:"output"`
 }
 
