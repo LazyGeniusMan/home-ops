@@ -14,10 +14,16 @@ Patches against `configs/base`: ESO remoteRefs (dev vault),
 namespace-local CNPG Cluster + ScheduledBackup (dev S3 endpoint),
 namespace-local Dragonfly + snapshot credentials (dev S3 host),
 in-namespace `wildcard-home-ops-dev-tls`, admin HTTPRoute (`/` → zitadel:8080 on the shared §14 DEV Gateway),
-`org-users.yaml` intent (human-readable mirror) + `zitadel-bootstrap-handoff.yaml`
-(ESO credential/asset mirrors, machine-applied).
+rclone Proton credentials + destinations (dev cluster segment),
+login-proxy vars + domain + mesh attach (domain → dev login host,
+`network_name` → dev cluster, `service_lb_ip` → `.249`,
+`cloudflare_zone_id` stays null), `org-users.yaml` intent (human-readable
+mirror, dev users + per-app clients) + `zitadel-bootstrap-handoff.yaml`
+(ESO credential/asset mirrors, machine-applied), plus dev single-instance
+scaling (DB `instances` → 1, cache `replicas` → 1).
 Controllers live in `controllers/dev` (`../base` + patch setting
-`ExternalDomain: admin.zitadel.home-ops-dev.yansyah.my.id` (+ `DefaultInstance.Features.LoginV2.BaseURI: https://login.zitadel.home-ops-dev.yansyah.my.id/ui/v2/login`)).
+`ExternalDomain: admin.zitadel.home-ops-dev.yansyah.my.id` (+ `DefaultInstance.Features.LoginV2.BaseURI: https://login.zitadel.home-ops-dev.yansyah.my.id/ui/v2/login`)
++ API/login seeds → 1 with chart-native HPAs 1 / 2).
 
 ## OIDC contract (LOCKED for §14 app writers)
 

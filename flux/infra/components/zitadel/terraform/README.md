@@ -29,9 +29,13 @@ kind: Terraform
 metadata:
   name: <app>-sso
 spec:
+  # Shared reusable SSO root: the infra/zitadel OCI artifact (per-tenant
+  # OCIRepository `infra` in ns `zitadel`) packs
+  # flux/infra/components/zitadel/terraform/ at ./terraform.
   sourceRef:
     kind: OCIRepository
-    name: infra-zitadel # cross-namespace reference to the infra artifact
+    name: infra
+    namespace: zitadel
   path: ./terraform # this reusable root
   vars:
     - name: domain

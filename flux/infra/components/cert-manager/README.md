@@ -21,7 +21,8 @@ production server (patch on `ClusterIssuer/letsencrypt`, with per-env
 vault ref, ACME email, and wildcard `Certificate`). Controllers inherit
 `../base` replica placeholders — `controllers/dev` pins
 controller/webhook/cainjector `replicaCount` to 1, `controllers/prd` pins
-all three to 2.
+all three to 2. Out-of-band HPAs own the runtime counts (base min 2 /
+max 4; `controllers/dev` patches all three HPAs to 1 / 2).
 
 Upstream reference (read-only): `/tmp/home-ops-docs/cert-manager-docs`.
 

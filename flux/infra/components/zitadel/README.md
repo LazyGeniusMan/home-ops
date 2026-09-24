@@ -230,12 +230,8 @@ CNPG/Dragonfly backup buckets — dedicated `zitadel-assets` claim on purpose.
 
 | Env | Replicas | Patches |
 | --- | --- | --- |
-| `dev` | API 2 (base value, single-node scale), login 1, DB 1, cache 1 (stateful legs single-instance, no quorum) | external domain, DB/cache/asset S3 endpoints, vault refs, hostnames, intent mirror + DB `instances` → 1, cache `replicas` → 1 |
-| `prd` | API 2, login 1, DB 3, cache 3 (recommended production) | external domain, DB/cache/asset S3 endpoints, vault refs, hostnames, intent mirror + DB `instances` → 3, cache `replicas` → 3 |
-
-Controllers add only the external-domain patch each (base chart values
-already pin `replicaCount: 2` API / `1` login — the production shape;
-`dev` runs them as-is at single-node scale).
+| `dev` | API HPA 1–2 (seed 1), login HPA 1–2 (seed 1), DB 1, cache 1 (stateful legs single-instance, no quorum) | external domain + LoginV2 BaseURI, DB/cache/asset S3 endpoints, vault refs, hostnames, intent mirror + API/login seeds → 1 + chart-native HPAs → 1 / 2 + DB `instances` → 1, cache `replicas` → 1 |
+| `prd` | API HPA 2–4 (seed 2), login HPA 2–4 (seed 2), DB 3, cache 3 (recommended production) | external domain + LoginV2 BaseURI, DB/cache/asset S3 endpoints, vault refs, hostnames, intent mirror + API/login seeds → 2 + chart-native HPAs → 2 / 4 + DB `instances` → 3, cache `replicas` → 3 |
 Rclone sync (`zitadel-db` / `zitadel-cache` / `zitadel-assets` legs):
 1 per instance/schedule, `concurrencyPolicy: Forbid` — no scaling.
 

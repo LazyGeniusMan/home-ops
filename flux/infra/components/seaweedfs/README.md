@@ -154,12 +154,12 @@ from the same Proton Pass entry as cert-manager. S3 identities: see
 
 | Env | Replicas | Patches |
 | --- | --- | --- |
-| `dev` | all 1 (master 1, volume nvme 1, volume sata-bulk 1, filer 1, s3 1, ui-auth 1, driver 1 — single-instance, no quorum) | UI/S3 hostnames, proxy OIDC wiring, SSO vars, token vault, wildcard DNS + every `replicas` → 1 |
-| `prd` | master 3, volume nvme 3, volume sata-bulk 3, filer 2, s3 2, ui-auth 2, driver 1 (recommended production) | UI/S3 hostnames, proxy OIDC wiring, SSO vars, token vault, wildcard DNS + production counts pinned |
+| `dev` | all 1 (master 1, volume nvme 1, volume sata-bulk 1, filer 1, s3 1, ui-auth HPA 1–2, driver HPA 1–2 — single-instance, no quorum) | UI/S3 hostnames, proxy OIDC wiring, SSO vars, token vault, wildcard DNS + every `replicas` → 1 + HPAs → 1 / 2 |
+| `prd` | master 3, volume nvme 3, volume sata-bulk 3, filer 2, s3 2, ui-auth HPA 2–4, driver HPA 2–4 (recommended production) | UI/S3 hostnames, proxy OIDC wiring, SSO vars, token vault, wildcard DNS + production counts pinned |
 
-Base holds the full cluster shape; controllers track `../base` with no
-patches. The COSI driver stays a singleton (1) in every env — never
-scale it.
+Base holds the full cluster shape; the operator + CSI controller seeds ride
+`controllers/{dev,prd}` (1 dev, 2 prd) with out-of-band HPAs owning the
+counts. The COSI driver autoscale rides the HPA too — see the env rows.
 
 Upstream reference (read-only): `/tmp/home-ops-docs/seaweedfs-docs` (+
 `seaweedfs-operator-docs`, `seaweedfs-cosi-docs`, `seaweedfs-csi-docs`

@@ -63,9 +63,9 @@ yet). `dev`/`prd` controllers inherit base with no patches.
 `runner.serviceAccount.allowedNamespaces` (base values) currently covers:
 
 - `flux-system` (chart default, kept),
-- `zitadel` + `clickstack`, `hubble-ui`, `flux-operator-ui`, `headlamp`,
-  `coder` — the namespaces for the first `Terraform` CRs
-  (identity-as-code + SSO app clients).
+- `zitadel`, `clickstack`, `hubble-ui`, `flux-operator-ui`, `headlamp`,
+  `coder`, `seaweedfs`, `matrix`, `netbird` — the namespaces for the
+  `Terraform` CRs (identity-as-code + SSO + reverse-proxy consumers).
 
 `watchAllNamespaces: true` is stated explicitly so the controller watches
 Terraform CRs in every namespace (the default, but load-bearing here since

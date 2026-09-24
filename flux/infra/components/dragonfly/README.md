@@ -1,9 +1,11 @@
 # Dragonfly (§10.3)
 
-Dragonfly operator **1.6.1** plus a reusable HA `Dragonfly` base template: 3
-replicas (1 primary + 2 replicas) with automatic failover, tiered persistence
-on `local-ssd-nvme` (the §9 default class), hourly snapshots to SeaweedFS S3,
-and a `*.dragonfly.home-ops.yansyah.my.id` wildcard `Certificate`.
+Dragonfly operator **1.6.1** plus a reusable `Dragonfly` base template: 3
+replicas (dev pins 1, prd pins 3; 1 primary + 2 replicas) with automatic
+failover, tiered persistence on `local-ssd-nvme` (20Gi, the §9 default
+class), hourly snapshots to SeaweedFS S3 (`0 * * * *`, master-only, prefix
+`s3://dragonfly-backups/dragonfly/`), and a
+`*.dragonfly.home-ops.yansyah.my.id` wildcard `Certificate`.
 
 ## Chart source
 

@@ -99,11 +99,11 @@ login fails first). Rotate at most yearly; an early rotation is just steps
 
 | Env | Replicas | Patches |
 | --- | --- | --- |
-| `dev` | controller 1, webhook `eso-proton-pass` 1 (singleton) | `eso-proton-pass` `replicas` → 1 pinned in `configs/dev`; vault refs per env |
-| `prd` | controller 2 recommended, webhook `eso-proton-pass` 1 (stays singleton) | `eso-proton-pass` `replicas` → 1 pinned in `configs/prd`; vault refs per env |
+| `dev` | controller HPA 1–2, webhook `eso-proton-pass` 1 (singleton) | controller + cert-controller seeds → 1 in `controllers/dev`; `eso-proton-pass` HPA → 1 / 2 in `configs/dev`; vault refs per env |
+| `prd` | controller HPA 2–4, webhook `eso-proton-pass` 1 (stays singleton) | controller + cert-controller seeds → 2 in `controllers/prd`; `eso-proton-pass` HPA → 2 / 4 in `configs/prd`; vault refs per env |
 
-The Proton Pass webhook is a singleton in every env (pinned `replicas: 1`
-in both overlays — never scale it). Scale the ESO controller to 2 in
-`prd` once multi-node.
+The Proton Pass webhook is a singleton in every env (base `replicas: 1`
+is the create-time seed; HPAs own the controller counts). The ESO chart
+webhook stays singleton 1 in both env overlays — never scale it.
 
 Upstream reference (read-only): `/tmp/home-ops-docs/external-secret-operator-docs`.

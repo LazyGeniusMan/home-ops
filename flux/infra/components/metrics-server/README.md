@@ -28,7 +28,7 @@ Upstream chart exposes no reporting knobs; values set only `apiService`,
 
 | Env | Replicas | Patches |
 | --- | --- | --- |
-| `dev` | 1 (chart default; single-instance) | none — inherits `../base` unchanged |
-| `prd` | 2 recommended (survive a node loss once multi-node) | none — inherits `../base` unchanged |
+| `dev` | HPA 1–2; replica seed 1 | `controllers/dev` pins seed → 1 + HPA min 1 / max 2 |
+| `prd` | HPA 2–4 (base values); replica seed 2 | `controllers/prd` pins seed → 2 |
 
 Upstream reference (read-only): `/tmp/home-ops-docs/metrics-server-docs`.

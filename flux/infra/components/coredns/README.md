@@ -53,8 +53,9 @@ overlay (`dev`/`prd`) replaces the LAN zone block with its domain + VIP
 | `dev` | 1 (single-instance) | Corefile LAN zone `home-ops-dev.yansyah.my.id` → `.249` |
 | `prd` | 2 recommended (survive a node loss once multi-node) | Corefile LAN zone `home-ops.yansyah.my.id` → `.199` |
 
-No replica patches ship; each env pins its count in `controllers/{dev,prd}`
-(1 dev, 2 prd).
+Each env pins its replica seed in `controllers/{dev,prd}` (1 dev, 2 prd);
+the out-of-band HPA owns the runtime count (base min 2 / max 4,
+`controllers/dev` patches 1 / 2).
 
 Upstream reference (read-only): `/tmp/home-ops-docs/coredns-docs`.
 

@@ -1,7 +1,7 @@
 # gateway-api (§8.1)
 
 Gateway API v1.6.1 standard channel (`crds/base/standard-install.yaml`: 10
-CRDs + the safe-upgrades ValidatingAdmissionPolicy, vendored whole from
+CRDs + 2 ValidatingAdmissionPolicies, vendored whole from
 the upstream release asset — experimental NOT adopted), the shared
 `GatewayClass/cilium` (served by `io.cilium/gateway-controller` —
 §8.2 runs Cilium with Gateway API enabled), the shared `Gateway/main`

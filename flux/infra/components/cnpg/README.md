@@ -1,11 +1,13 @@
 # CNPG
 
 CloudNativePG operator **1.30.0** (via Helm chart **0.29.1**) plus a reusable
-HA `Cluster` base template: 3 instances, streaming replication with
-synchronous quorum, `local-ssd-nvme` storage (the default StorageClass —
-see `flux/infra/components/local-path-provisioner/`), Barman S3 backup to
-SeaweedFS, and a `*.postgres.home-ops.yansyah.my.id` wildcard
-`Certificate`.
+`Cluster` base template: 3 instances (dev pins 1, prd pins 3), streaming
+replication with synchronous quorum (`standbyNames: ["*"], number: 1`),
+`local-ssd-nvme` storage (20Gi, the default StorageClass — see
+`flux/infra/components/local-path-provisioner/`), Barman S3 backup to
+SeaweedFS (continuous WAL gzip + daily base backup `0 0 0 * * *`,
+retention `30d`, prefix `s3://cnpg-backups/postgres/`), and a
+`*.postgres.home-ops.yansyah.my.id` wildcard `Certificate`.
 
 ## Chart source
 

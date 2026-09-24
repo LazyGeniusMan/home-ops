@@ -34,11 +34,11 @@ README).
 
 | Env | Replicas | Patches |
 | --- | --- | --- |
-| `dev` | Keeper 1, CHI 1 shard x 1 replica (single-instance, no quorum) | S3 endpoint + wildcard DNS; `replicasCount` → 1 on keeper + CHI |
+| `dev` | Keeper 1, CHI 2 shards x 1 replica (single-instance, no quorum) | S3 endpoint + wildcard DNS; `replicasCount` → 1 on keeper + CHI |
 | `prd` | Keeper 3, CHI 2 shards x 2 replicas (recommended production) | S3 endpoint + wildcard DNS; `replicasCount` → 3 (keeper) / 2 (CHI); data volumes 100Gi per replica |
 
-- Base: 2 shards x 2 replicas, 50Gi data / 5Gi log per replica, nightly backup
-  CronJob enabled.
+- Base: 2 shards x 2 replicas, 50Gi data / 5Gi log per replica, keeper data
+  10Gi `Retain`, nightly backup CronJob (`0 3 * * *`) enabled.
 - `prd`: data volumes grow to 100Gi per replica (patch on
   `ClickHouseInstallation/clickhouse`).
 - `dev` carries its own S3 endpoint + wildcard DNS patches; controllers
