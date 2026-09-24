@@ -104,8 +104,7 @@ consumer needs (also stated in `dragonfly-base.yaml`):
   (Secret `dragonfly-backups-cosi-creds`) through the in-namespace
   `dragonfly-cosi` SecretStore — GJSON `property` extracts
   `spec.secretS3.accessKeyID/accessSecretKey`. Target literal keys are
-  unchanged. Decommissioned vault paths (`pass://…/dragonfly/s3-*`) are
-  deleted; no rollback entries are kept.
+  unchanged.
 - S3-compatible quirk: `--s3_endpoint` overrides the AWS endpoint and the
   `AWS_REGION` env satisfies the SDK credential chain for non-AWS backends
   (both set on the base object per upstream backup docs).

@@ -145,8 +145,6 @@ Kubernetes-provider stores with GJSON `property`
 
 Target literal keys are unchanged everywhere, so no consumer workload
 manifest changed — only the ExternalSecret `secretStoreRef`/`remoteRef`.
-Decommissioned vault paths (`s3-*`/`sw-*` per consumer namespace) are
-deleted; no rollback entries are kept.
 
 ## Environments
 

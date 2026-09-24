@@ -22,8 +22,7 @@ in-namespace `clickhouse-cosi` SecretStore — GJSON `property` extracts
 `spec.secretS3.accessKeyID/accessSecretKey` (keys need read/write on the
 `clickhouse/` bucket prefix). The CHI reads them via `storage.xml`
 `from_env` — no credential value is committed anywhere in this component.
-Decommissioned vault paths (`pass://…/clickhouse/s3-*`) are deleted; no
-rollback entries are kept. Create the bucket prefix once via the SeaweedFS
+Create the bucket prefix once via the SeaweedFS
 S3 API. In-cluster
 `storage.xml` endpoints use the FQDN
 `http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333`. Its COSI

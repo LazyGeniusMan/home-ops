@@ -90,8 +90,7 @@ OCI is the upstream source of truth, verified by pull:
   (Secret `cnpg-backups-cosi-creds`) through the in-namespace `cnpg-cosi`
   SecretStore — GJSON `property` extracts
   `spec.secretS3.accessKeyID/accessSecretKey`. Target literal keys are
-  unchanged. Decommissioned vault paths (`pass://…/cnpg/s3-*`) are
-  deleted; no rollback entries are kept.
+  unchanged.
 - S3-compatible quirk per upstream docs: if boto3 checksum errors appear
   (`x-amz-content-sha256`), set `spec.env` `AWS_REQUEST_CHECKSUM_CALCULATION`
   / `AWS_RESPONSE_CHECKSUM_VALIDATION` to `when_required` on the Cluster.
