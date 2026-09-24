@@ -29,8 +29,8 @@ cross-namespace `sourceRef` + their own vars.
   `service_lb_resource_id`. Names match what consumer
   `writeOutputsToSecret` expects.
 - `versions.tf` — `required_version >= 1.11`, `netbirdio/netbird ~> 0.0.10`,
-  `cloudflare/cloudflare ~> 5.0`. 0.0.10 is the latest registry release, so
-  no bump is available for CrowdSec (see below).
+  `cloudflare/cloudflare ~> 5.0`. CrowdSec has no provider field
+  (see below).
 
 ## What the root does
 
@@ -103,8 +103,8 @@ that task's outputs — never from here.
 
 ## CrowdSec (dashboard-only — no TF field)
 
-CrowdSec Enforce is NOT Terraform-representable: provider `0.0.10` (the
-latest registry release — verified, no bump available) exposes no CrowdSec
+CrowdSec Enforce is NOT Terraform-representable: provider `0.0.10`
+exposes no CrowdSec
 attribute on `netbird_reverse_proxy_service` (only `access_restrictions`
 for CIDR/country lists), and the management API surfaces CrowdSec mode
 dashboard-side only. Do NOT repurpose `access_restrictions` to fake it.
@@ -351,8 +351,7 @@ access_restrictions = {
   contains no `local-exec` and exposes no sensitive outputs (the Talos
   setup key lives in the Talos task's outputs, never here).
 - CrowdSec stays Off in TF (no provider field — see above); the manual
-  Enforce step per service is the compensating control until the provider
-  supports it.
+  Enforce step per service is the compensating control.
 - Backends must trust the proxy range `100.64.0.0/10` (the WireGuard source
   the proxy connects from) to read the real client IP from `X-Forwarded-For`;
   never hardcode a single NetBird IP. Proxy-stamped `X-NetBird-User` /

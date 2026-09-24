@@ -105,5 +105,3 @@ The Docker `ARG VERSION` is wired into
 Image: `ghcr.io/lazygeniusman/home-ops/projects/external-dns-netbird` (`:dev`
 + `:dev-<sha>` on any branch push, `:stable` + version on
 `external-dns-netbird-v*` tags; neither leg publishes `:latest`).
-<!-- ci-trigger: force external-dns-netbird workflow on push -->
-<!-- ci-trigger-2: verify branches:main fix -->

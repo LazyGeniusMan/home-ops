@@ -6,25 +6,28 @@ StorageClasses and S3 + filer-UI Gateway routes.
 
 ## Layout (mirrors cert-manager §9 pattern)
 
-`controllers/base/seaweedfs.yaml` (HelmRepository + HelmRelease pair for
-the operator chart 0.1.40 and the CSI chart 0.2.36) +
+`controllers/base/seaweedfs.yaml` (chartproxy OCIRepository + HelmRelease
+pair for the operator chart 0.1.40 and the CSI chart 0.2.36) +
 `controllers/{base,dev,prd}` and `configs/{base,dev,prd}`
 overlays; tenant is `infra/seaweedfs` via
 `flux/infra/update-policies/seaweedfs.yaml`.
 
 ## COSI driver sourcing
 
-Why not the upstream chart's `cosi.enabled`? The main `seaweedfs` chart (not the `seaweedfs-operator` chart this component runs) ships a COSI driver stanza, but it assumes a chart-managed cluster (chart-local filer gRPC endpoint, HTTPS ENDPOINT default, BucketAccessClass named `seaweedfs`). This component runs the operator model with filer `seaweed-main-filer.seaweedfs:8888`, plain-HTTP internal S3, and class `seaweedfs-key` - wiring the main chart would need a second HelmRelease with everything else disabled plus overrides. The three hand-vendored files (driver.yaml, driver-rbac.yaml, bucketclasses.yaml in this component's `configs/base/` — the driver is a SeaweedFS workload, hosted in this tenant namespace) mirror upstream `templates/cosi/` and are less drift surface.
+The main `seaweedfs` chart's `cosi.enabled` stanza assumes a chart-managed
+cluster; this component runs the operator model, so the three hand-vendored
+files (`driver.yaml`, `driver-rbac.yaml`, `bucketclasses.yaml` in
+`configs/base/`) mirror upstream `templates/cosi/` instead.
 
-## Chart source note (OCI unavailable — justified)
+## Chart source (chartproxy OCI — classic-only upstream)
 
-`helm pull oci://…` against both seaweedfs Helm hosts returns 403
-(verified 2026-09-08): upstream publishes only a classic `index.yaml`
-(no OCI artifacts). The component therefore uses `HelmRepository` +
-pinned `version:` fields. Consequence: `ImageUpdateAutomation` cannot
-bump charts automatically — bump `version:` by hand and keep the
-`ImagePolicy` ranges in the update policy aligned. Container images
-(Enterprise, CSI plugin/mount) still auto-track via `$imagepolicy`
+Upstream publishes only a classic `index.yaml` (no OCI artifacts), so the
+charts are consumed as OCI via chartproxy
+(`oci://chartproxy.container-registry.com/seaweedfs.github.io/seaweedfs-operator/`
++ `.../seaweedfs-csi-driver/helm`, proxying the official classic repo
+`https://seaweedfs.github.io/seaweedfs-operator/`). Chart `version:` pins
+are hand-bumped with the `ImagePolicy` ranges kept aligned; container
+images (Enterprise, CSI plugin/mount) still auto-track via `$imagepolicy`
 markers.
 
 ## Topology (§9.5 backing classes)
@@ -169,17 +172,15 @@ Upstream reference (read-only): `/tmp/home-ops-docs/seaweedfs-docs` (+
   Evidence: operator `values.yaml` exposes only `serviceMonitor.enabled`
   / `grafanaDashboard.enabled` (both false here); CSI chart 0.2.36 has no
   metrics/telemetry values at all.
-- Health is observed via kubelet + kube-state-metrics until the
-  monitoring stack lands; S3 availability can alert on the
-  `seaweedfs-s3-tls` route then.
-- Operator chart 0.1.40 + CSI chart 0.2.36 are hand-bumped (see chart
-  source note); images auto-track via `update-policies/seaweedfs.yaml`.
+- Health is observed via kubelet + kube-state-metrics.
+- Operator chart 0.1.40 + CSI chart 0.2.36 are hand-bumped (see Chart
+  source above); images auto-track via `update-policies/seaweedfs.yaml`.
 
 ## Upgrade runbook
 
 - Version source: chart `version:` pins in
   `controllers/base/seaweedfs.yaml` (operator 0.1.40 + CSI 0.2.36,
-  classic repo — hand-bumped, see the chart source note) plus the
+  classic repo — hand-bumped, see Chart source above) plus the
   Enterprise / CSI / COSI sidecar+driver image markers in
   `configs/base/cluster.yaml` + `configs/base/driver.yaml`.
 - Changelog (server/driver/CSI):

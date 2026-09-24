@@ -69,9 +69,7 @@ login fails first). Rotate at most yearly; an early rotation is just steps
 
 - Version source: chart `version:` in
   `controllers/base/externalsecrets.yaml` (v2.10.0) plus the webhook
-  image in `configs/base/eso-proton-pass-webhook.yaml` (`:dev`
-  single-stream by decision — promotion to `:stable` on the first
-  `eso-proton-pass-v*` tagged release).
+  image in `configs/base/eso-proton-pass-webhook.yaml` (`:dev`).
 - Changelog (chart):
   https://github.com/external-secrets/external-secrets/releases.
   Webhook changelog is in-repo (`projects/eso-proton-pass`).
@@ -93,7 +91,7 @@ login fails first). Rotate at most yearly; an early rotation is just steps
 ## Monitoring / updates
 
 - Controller + webhook + cert-controller metrics `Service`s on; single
-  `ServiceMonitor` with `renderMode: skipIfMissing` (safe pre-Prometheus).
+  `ServiceMonitor` with `renderMode: skipIfMissing`.
 - Chart bumps: `update-policies/external-secrets.yaml` (+ `:dev` webhook
   image via `infra:eso-proton-pass:tag` policy) → update-cluster PR automation.
 

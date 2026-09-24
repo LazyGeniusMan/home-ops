@@ -47,8 +47,7 @@ replace `<api-vip>` with the per-env Talos API VIP: dev `.248`, prd
   Hubble UI/CLI access with metrics; `ServiceMonitor` off (see below).
 - `hubble.metrics.enabled: [dns drop tcp flow icmp http]` — flow metrics on.
 - `operator.prometheus.enabled: true` — operator metrics endpoint on.
-- Agent `prometheus.enabled: false` — agent metrics off for now (plain
-  `if enabled` gates, cheap to flip later).
+- Agent `prometheus.enabled: false` — agent metrics off.
 
 ## VIP split
 
@@ -63,9 +62,8 @@ announces LB IPs on the Talos NIC `enp45s0`.
 ## ServiceMonitor deviation (§9)
 
 All `serviceMonitor.enabled: false` mirrors the cert-manager deviation:
-plain `prometheus.enabled` only adds scrape annotations (safe without a
-stack), while `ServiceMonitor` objects require the monitoring.coreos.com
-CRDs. Flip them on once the monitoring stack lands.
+plain `prometheus.enabled` only adds scrape annotations, while
+`ServiceMonitor` objects require the monitoring.coreos.com CRDs.
 
 ## Telemetry-off evidence
 

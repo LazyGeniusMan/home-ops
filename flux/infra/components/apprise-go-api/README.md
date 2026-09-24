@@ -51,7 +51,7 @@ Base `replicas: 1` is the create-time seed; the HPA owns the runtime count
 
 ## Monitoring / updates
 
-- `ServiceMonitor` disabled until `monitoring.coreos.com` CRDs land.
+- `ServiceMonitor: off`.
 - VPA is recommender-only (`updateMode: Off` — the HPA scales the same
   CPU/memory metrics).
 - Image bumps: `update-policies/apprise-go-api.yaml` → PR automation

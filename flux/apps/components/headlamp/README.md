@@ -24,8 +24,6 @@ by chartproxy, so no upstream signature applies.
   carries app **0.45.0**. `image.tag` is pinned explicitly to `v0.45.0` with
   the `$imagepolicy` marker (`apps:headlamp:tag`); on automation PRs bump the
   OCIRepository `ref.tag` to match.
-- App image verified live on GHCR (`ghcr.io/headlamp-k8s/headlamp:v0.45.0`
-  tag listed at authoring time).
 
 ## OIDC (direct — NO oauth2-proxy)
 
@@ -85,10 +83,10 @@ The plugin-manager sidecar resolves each `source` via ArtifactHub metadata
 | flux (`headlamp_flux`) | `0.7.0` | `https://artifacthub.io/packages/headlamp/headlamp-plugins/headlamp_flux` |
 | kubevirt (`headlamp_kubevirt`) | `0.3.1` | `https://artifacthub.io/packages/headlamp/headlamp-kubevirt/headlamp_kubevirt` |
 
-Versions verified against the ArtifactHub API at authoring time
-(`headlamp-plugins` repo for ai-assistant/flux; `headlamp-kubevirt` repo for
-kubevirt — the plugin's own README prescribes exactly this source + version
-pin; plugin contract: `/tmp/home-ops-docs/headlamp-kubevirt-plugin-docs`). Bumps flow through `update-policies/headlamp.yaml` + PR automation;
+Plugin sources: `headlamp-plugins` repo for ai-assistant/flux,
+`headlamp-kubevirt` repo for kubevirt (per the plugin's README; contract:
+`/tmp/home-ops-docs/headlamp-kubevirt-plugin-docs`). Bumps flow through
+`update-policies/headlamp.yaml` + PR automation;
 the automation tracks the app image — plugin pins are bumped by hand in the
 `configContent` block alongside (same file, same PR).
 
@@ -105,11 +103,9 @@ context, left at `cluster-admin`). So the mapping is explicit bindings in
 - `users` group → `view` (`headlamp-users-view`) + `headlamp-basic`
   (self-review + namespace list so the UI enumerates contexts).
 
-Group-subject form: future Zitadel group members inherit without manifest
-edits. PRE-GO-LIVE: reconcile the subject names with the API server's OIDC
-flags (structured auth userClaim/groupsClaim + prefixes — e.g. a `zitadel:`
-prefix); the claim the API server must assert is the same `groups` claim
-(see the RECONCILE note atop `headlamp-rbac.yaml`).
+Group-subject form: subject names must match the API server's OIDC
+userClaim/groupsClaim (same `groups` claim; see the RECONCILE note atop
+`headlamp-rbac.yaml`).
 
 ## Routing / TLS (§8.1 pattern)
 
@@ -143,11 +139,9 @@ Upstream reference (read-only): `/tmp/home-ops-docs/headlamp-docs/charts/headlam
 ## Telemetry-off / monitoring / updates
 
 - Telemetry evidence: the chart `values.yaml` contains no phone-home,
-  analytics, or usage-reporting knobs (checked at authoring time); bundled
-  static plugins are pure UI. Nothing to switch off.
-- Unguarded monitors OFF: no `ServiceMonitor` objects are shipped until
-  `monitoring.coreos.com` CRDs land (same §9 deviation). Pod health via
-  kube-state-metrics once the monitoring stack lands.
+  analytics, or usage-reporting knobs; bundled static plugins are pure UI.
+  Nothing to switch off.
+- `ServiceMonitor: off` (same §9 deviation).
 - App auto-tracks via `update-policies/headlamp.yaml`
   (`ghcr.io/headlamp-k8s/headlamp:v0.45.0` marker + chart version floor);
   plugin pins ride along in the same PR by hand.

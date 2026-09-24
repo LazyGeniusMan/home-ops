@@ -19,7 +19,7 @@ Managed fabric (greenfield root — upsert only, never delete):
 - groups `admin-users`, `guest-users`, `<cluster>-nodes`, plus resource
   groups `admin-users-resources` / `guest-users-resources`
 - network `<cluster-name>` + `netbird_network_router` routing peer for that
-  network to the `<cluster>-nodes` group (`peer_groups`; the legacy
+  network to the `<cluster>-nodes` group (`peer_groups`; the
   `netbird_route` resource is intentionally unused — see
   `network_router.md` vs `route.md`)
 - setup key: `netbird_setup_key.talos`, `type = reusable`,
@@ -37,7 +37,7 @@ Managed fabric (greenfield root — upsert only, never delete):
   `admin-users-lan-access` (forward chain to the LAN resource); plus
   `guest-users-access` (guest-users → `guest-users-resources`, TCP 80+443,
   peer chain only — no guest `network_resource` exists in this root, so a
-  future guest-facing resource's forward chain rides a separate
+  guest-facing resource's forward chain rides a separate
   `destination_resource` rule, never merged into this rule)
 
 Every resource carries `lifecycle { prevent_destroy = true }`: any plan that
@@ -70,5 +70,5 @@ tofu -chdir=build/$C/netbird-tf import 'netbird_policy.guest_users_access' <id>
 Provider schema entrypoints (fetch via `scripts/fetch-references.sh` into
 `/tmp/home-ops-docs/netbird-terraform-provider-docs/`): `index.md` (auth
 `NB_PAT`), `group.md`, `network.md`, `setup_key.md`,
-`network_router.md` (+ `route.md` for the unused legacy resource),
+`network_router.md` (+ `route.md` for the unused resource),
 `network_resource.md`, `policy.md`.

@@ -157,10 +157,7 @@ deleted; no rollback entries are kept.
 | Env | Replicas | Patches |
 | --- | --- | --- |
 | `dev` | 1 (central controller + SeaweedFS driver singletons) | none — inherits `../base` unchanged |
-| `prd` | 2 recommended (controller + driver HA once multi-node) | none yet — inherits `../base` unchanged |
-
-Per-env class tuning (e.g. replication per site) lands here when the
-second site exists.
+| `prd` | 2 recommended (controller + driver HA once multi-node) | none — inherits `../base` unchanged |
 
 Upstream reference (read-only): `/tmp/home-ops-docs/k8s-cosi-docs`.
 
@@ -168,8 +165,7 @@ Upstream reference (read-only): `/tmp/home-ops-docs/k8s-cosi-docs`.
 
 - No phone-home/usage-reporting knobs in the vendored manifests (controller
   takes only `--v`; driver takes only endpoint env); metrics endpoints, if
-  any, are unscraped until the monitoring stack lands (same as the
-  cert-manager component).
+  any, are unscraped.
 - Images auto-track via `update-policies/cosi.yaml` (controller) +
   `seaweedfs.yaml` (sidecar + driver) → PR automation. All three policy
   ranges are capped `<0.3.0`: v1alpha2 (breaking, main-line) lives above

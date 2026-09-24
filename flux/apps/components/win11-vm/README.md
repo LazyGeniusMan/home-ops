@@ -92,8 +92,7 @@ Upstream reference (read-only): `/tmp/home-ops-docs/kubevirt-docs` (guest shape;
 
 - No guest-agent reporting is configured; Windows telemetry is out of scope
   for Flux (harden in the image/Setup, not here).
-- No ServiceMonitors (KubeVirt VM metrics flow via kubevirt infra when the
-  monitoring stack lands).
+- No ServiceMonitors (`ServiceMonitor: off`).
 - This VM tracks its base image/ISO, not a chart: the `$imagepolicy` marker
   (`apps:win11-vm:tag`) anchors the ISO annotation. When the staged ISO is
   refreshed, update the source + marker so update-automation opens a PR.
@@ -101,8 +100,7 @@ Upstream reference (read-only): `/tmp/home-ops-docs/kubevirt-docs` (guest shape;
 ## Upgrade runbook
 
 - Version source: the staged ISO behind `spec.source` in
-  `base/win11-vm.yaml` (licensed Microsoft image, never committed) —
-  static until the ISO refresh cadence is set.
+  `base/win11-vm.yaml` (licensed Microsoft image, never committed).
 - Changelog: n/a (no public feed for the staged ISO; track the
   Windows 11 release notes for the build in use).
 - Bump: stage the new ISO on local infra, point `spec.source` at it,

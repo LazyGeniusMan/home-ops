@@ -428,16 +428,15 @@ endpoint).
 ## Divergence from upstream
 
 Intentional differences from Python `caronc/apprise-api`. New
-differences must be recorded here (copy the template row).
+differences must be recorded here.
 
-| Date | Area | Upstream behavior | This project behavior | Reason |
-|---|---|---|---|---|
-| 2026-09-21 | Scope | Stateful keyed routes (`/notify/{KEY}`, `/cfg/`, …) with persistent storage | Stateless-only; those paths are `404`, storage knobs rejected at startup | No persistent storage in this deployment model |
-| 2026-09-21 | Recursion limit | `406` on recursion over max (quirk: not `405`) | Same `406` preserved | Bug-for-bug parity |
-| 2026-09-21 | Oversize body message | `"JSON Payload provided is to large"` (typo) | Same message preserved verbatim | Bug-for-bug parity |
-| 2026-09-21 | Response logs | Django `LogCapture` records from apprise internals | Records synthesized server-side as `[level, date, message]` | apprise-go exposes no log-capture hook |
-| 2026-09-21 | Tag matching | Servers carry configured tags; full `is_exclusive_match` | Stateless servers carry no tags; `all` matches everything, other tokens match only URL `?tag=` values | Stateless URLs have no configured tags by construction |
-| 2026-09-21 | Form `urls` length | `URLS_MAX_LEN` (1024) form cap | Same 1024-char cap; JSON path bypasses it | Parity |
-| 2026-09-21 | `APPRISE_PLUGIN_PATHS` | Loads custom Python plugins at runtime | Accepted, documented no-op | Go has no dynamic plugin loading |
-| 2026-09-21 | Outbound webhook | `send_webhook` via requests with full template-arg handling | Best-effort POST of `{source, status, output}`; failures logged only | Keep notify path dependency-free (stdlib only) |
-| YYYY-MM-DD | Area | Upstream behavior | This project behavior | Reason |
+| Area | Upstream behavior | This project behavior | Reason |
+|---|---|---|---|
+| Scope | Stateful keyed routes (`/notify/{KEY}`, `/cfg/`, …) with persistent storage | Stateless-only; those paths are `404`, storage knobs rejected at startup | No persistent storage in this deployment model |
+| Recursion limit | `406` on recursion over max (quirk: not `405`) | Same `406` preserved | Bug-for-bug parity |
+| Oversize body message | `"JSON Payload provided is to large"` (typo) | Same message preserved verbatim | Bug-for-bug parity |
+| Response logs | Django `LogCapture` records from apprise internals | Records synthesized server-side as `[level, date, message]` | apprise-go exposes no log-capture hook |
+| Tag matching | Servers carry configured tags; full `is_exclusive_match` | Stateless servers carry no tags; `all` matches everything, other tokens match only URL `?tag=` values | Stateless URLs have no configured tags by construction |
+| Form `urls` length | `URLS_MAX_LEN` (1024) form cap | Same 1024-char cap; JSON path bypasses it | Parity |
+| `APPRISE_PLUGIN_PATHS` | Loads custom Python plugins at runtime | Accepted, documented no-op | Go has no dynamic plugin loading |
+| Outbound webhook | `send_webhook` via requests with full template-arg handling | Best-effort POST of `{source, status, output}`; failures logged only | Keep notify path dependency-free (stdlib only) |

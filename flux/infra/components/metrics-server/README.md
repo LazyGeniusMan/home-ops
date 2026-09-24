@@ -10,9 +10,7 @@ Upstream chart exposes no reporting knobs; values set only `apiService`,
 
 ## Monitoring / updates
 
-- `/metrics` exposed (`metrics.enabled`); `ServiceMonitor` stays disabled
-  until `monitoring.coreos.com` CRDs land — flip
-  `serviceMonitor.enabled` then (same values file).
+- `/metrics` exposed (`metrics.enabled`); `ServiceMonitor: off`.
 - Chart bumps: `update-policies/metrics-server.yaml` → PR automation.
 
 ## Upgrade runbook
@@ -31,6 +29,6 @@ Upstream chart exposes no reporting knobs; values set only `apiService`,
 | Env | Replicas | Patches |
 | --- | --- | --- |
 | `dev` | 1 (chart default; single-instance) | none — inherits `../base` unchanged |
-| `prd` | 2 recommended (survive a node loss once multi-node) | none yet — scale the Deployment to 2 when the second node lands |
+| `prd` | 2 recommended (survive a node loss once multi-node) | none — inherits `../base` unchanged |
 
 Upstream reference (read-only): `/tmp/home-ops-docs/metrics-server-docs`.

@@ -15,27 +15,20 @@ refs, and endpoints via `resources: [../base]`. Tenant is `apps/clickstack`
 via `flux/apps/update-policies/clickstack.yaml` (proxy chart marker
 `apps:oauth2-proxy-chart` shared with hubble-ui + flux-operator-ui).
 
-## Images (locked at authoring)
+## Images
 
 | Image | Pin | Source |
 |---|---|---|
 | HyperDX app `docker.hyperdx.io/hyperdx/hyperdx` | `v2.7.1` | hdx-oss-v2 chart 0.8.4 appVersion (classic repo `https://clickhouse.github.io/ClickStack-helm-charts`, `helm show chart clickstack/hdx-oss-v2`) |
 | Collector `docker.hyperdx.io/hyperdx/hyperdx-otel-collector` | `v2.7.1` | same chart appVersion line (`otel.image.tag` defaults to `Chart.AppVersion`) |
-| FerretDB `ghcr.io/ferretdb/ferretdb` | `2.7.0` | newest non-`latest` 2.x tag (Docker Hub tags API at authoring) |
+| FerretDB `ghcr.io/ferretdb/ferretdb` | `2.7.0` | newest non-`latest` 2.x tag (Docker Hub tags API) |
 
-## Why vendored, not the chart (bounded decision, 2 attempts)
+## Why vendored, not the chart
 
-`hdx-oss-v2` 0.8.4 DOES support external DBs (`mongodb.enabled=false`,
-`clickhouse.enabled=false` drops both Deployments; the app takes
-`hyperdx.mongoUri` and the collector takes `otel.clickhouseEndpoint`), so a
-HelmRelease (attempt 1) was template-feasible. It fails on secret posture, not
-templating: the chart's `hyperdx.apiKey` renders a Secret straight from values
-with NO `existingSecret` knob, so the real key would land in Git — violating
-the ESO-only contract every sibling follows. Attempt 2 confirmed there is no
-other credential escape hatch (`defaultConnections`/`useExistingConfigSecret`
-only cover connections JSON, not the API key). Hence plain Deployments
-mirroring the chart's env shape (ports, probes, OPAMP wiring) with every
-credential as a `secretKeyRef` to ESO-synced Secrets.
+The `hdx-oss-v2` 0.8.4 chart renders its API-key Secret straight from
+values with no `existingSecret` knob, which violates the ESO-only
+contract. Hence plain Deployments mirroring the chart's env shape with
+every credential as a `secretKeyRef` to ESO-synced Secrets.
 
 ## ClickHouse backend (namespace-local CHI)
 
@@ -75,8 +68,8 @@ Connection contract:
 |---|---|
 | HyperDX → FerretDB | `MONGO_URI=mongodb://ferretdb.clickstack.svc:27017/hyperdx` |
 | FerretDB → Postgres | `ferretdb-rw.clickstack.svc:5432/ferretdb` (user `ferretdb`, password from `ferretdb-app-secret`; username MUST equal `initdb.owner` per upstream) |
-| HyperDX → ClickHouse UI | `DEFAULT_CONNECTIONS` (`connections.json` from `clickstack-hyperdx-config`): `http://clickhouse-clickstack.clickstack.svc:8123`, user `default` (empty password; hardening follow-up adds a dedicated app user) |
-| Collector → ClickHouse | `CLICKHOUSE_ENDPOINT=tcp://clickhouse-clickstack.clickstack.svc:9000?dial_timeout=10s`, user `default` (empty password; same follow-up) |
+| HyperDX → ClickHouse UI | `DEFAULT_CONNECTIONS` (`connections.json` from `clickstack-hyperdx-config`): `http://clickhouse-clickstack.clickstack.svc:8123`, user `default` (empty password) |
+| Collector → ClickHouse | `CLICKHOUSE_ENDPOINT=tcp://clickhouse-clickstack.clickstack.svc:9000?dial_timeout=10s`, user `default` (empty password) |
 | Service naming | CHI `clickstack` → operator Service `clickhouse-clickstack` — every client above dials this host |
 
 ## Auth (locked proxy contract)
@@ -126,10 +119,7 @@ Secrets are namespace-local).
   Sentry/Segment/Mixpanel envs are set anywhere, and the app's
   `OTEL_EXPORTER_OTLP_ENDPOINT` points at the in-namespace collector
   (`clickstack-otel-collector:4318`) — nothing leaves the cluster.
-- Unguarded monitors OFF: no `ServiceMonitor` objects are shipped until
-  `monitoring.coreos.com` CRDs land (same §9 deviation). Flip: add
-  `ServiceMonitor`s for the collector metrics port (8888) and the app once the
-  monitoring stack exists.
+- `ServiceMonitor: off` (same §9 deviation).
 - Updates flow through `flux/apps/update-policies/clickstack.yaml`
   (ImageRepository + ImagePolicy, `$imagepolicy` markers on all four images;
   the HyperDX floors `>=2.7.1` track the appVersion line, FerretDB `>=2.7.0`).

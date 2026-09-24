@@ -11,11 +11,10 @@ release manifest + flux-pushed OCI artifact:
 
 - Upstream:
   `https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/v4.3.0/deployments/multus-daemonset-thick.yml`
-  (v4.3.0 verified: real GitHub release, not draft/prerelease).
+  (v4.3.0 GitHub release).
 - Image pin: upstream tags the DaemonSet `snapshot-thick` (floating); both
   image fields (daemon + install-multus-binary init container) are pinned to
-  `ghcr.io/k8snetworkplumbingwg/multus-cni:v4.3.0-thick` (verified the tag
-  exists on GHCR via the API, all 200s).
+  `ghcr.io/k8snetworkplumbingwg/multus-cni:v4.3.0-thick`.
 - The `kube-system` ServiceAccount/ClusterRole(Binding)/ConfigMap/DaemonSet
   namespaces are upstream's and are correct as-is: infra-controllers applies
   with targetNamespace=multus but cluster-scoped resources (CRD, ClusterRole,
@@ -27,8 +26,7 @@ release manifest + flux-pushed OCI artifact:
 Upstream (Multus 4.0+): thick = per-node `multus-daemon` server plus a
 lightweight `multus-shim` CNI binary the kubelet calls, which then talks
 to the daemon — adds metrics and lifecycle handling upstream recommends
-for most environments at the cost of more resources. Thin = the legacy
-single CNI binary invoked per pod — lighter, no daemon, fewer features.
+for most environments at the cost of more resources. Thin = the single CNI binary invoked per pod — lighter, no daemon, fewer features.
 
 Thick is the pick here because KubeVirt secondary-net (§13.2
 `NetworkBindingPlugins`) rides the daemon. Thin

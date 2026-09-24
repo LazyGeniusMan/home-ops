@@ -18,8 +18,7 @@ storage); the StorageClasses alone are not a backup story.
 
 ## Telemetry-off / monitoring / updates
 
-- No reporting knobs upstream. The chart exposes no metrics endpoint; watch
-  volumes via kubelet/kube-state-metrics once monitoring lands.
+- No reporting knobs upstream. The chart exposes no metrics endpoint.
 - Chart bumps: `update-policies/local-path-provisioner.yaml` → PR automation.
 
 ## Upgrade runbook

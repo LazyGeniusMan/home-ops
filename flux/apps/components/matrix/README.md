@@ -54,10 +54,9 @@ vault refs, identity values, and replica bounds via
 ## Image policies
 
 Markers reference policy NAMES (`apps:element-web:tag`,
-`apps:tuwunel:tag`), not paths — the two markers survive in the moved
-files and their `flux/apps/update-policies/*.yaml` policies track
-upstream (the apprise-go-api marker moved with the workload to
-`infra:apprise-go-api:tag`, owned by
+`apps:tuwunel:tag`), not paths — their `flux/apps/update-policies/*.yaml`
+policies track upstream (the apprise-go-api marker lives on the infra
+workload as `infra:apprise-go-api:tag`, owned by
 `flux/infra/update-policies/apprise-go-api.yaml`). mautrix-discord
 (v0.7.7) stays pinned, no policy:
 upstream is `dock.mau.dev` (manual bumps per the note in

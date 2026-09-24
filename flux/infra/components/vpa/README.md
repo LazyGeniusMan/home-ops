@@ -2,8 +2,7 @@
 
 Vertical Pod Autoscaler official upstream chart `vertical-pod-autoscaler`
 0.12.0 (app v1.7.1 — current default per
-`vpa-docs/vertical-pod-autoscaler/docs/installation.md`; same app as the
-retired Fairwinds `vpa` 5.0.1, chart-only migration) via OCI
+`vpa-docs/vertical-pod-autoscaler/docs/installation.md`) via OCI
 `oci://chartproxy.container-registry.com/kubernetes.github.io/autoscaler/vertical-pod-autoscaler`
 (chartproxy proxy of the official classic repo
 `https://kubernetes.github.io/autoscaler`). Serving resource
@@ -31,8 +30,7 @@ Upstream chart exposes no reporting knobs; values set only `recommender`,
 
 ## Monitoring / updates
 
-- No `ServiceMonitor` keys exist in the chart (verified: no matches in
-  `values.yaml`); flip per component when `monitoring.coreos.com` CRDs land.
+- No `ServiceMonitor` keys exist in the chart.
 - Chart bumps: `update-policies/vpa.yaml` → PR automation (app-image
   feed never matches the chart-line range, so chart bumps stay manual
   via the `$imagepolicy` marker on the OCIRepository `ref`).

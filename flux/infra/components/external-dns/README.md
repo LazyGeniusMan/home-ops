@@ -60,16 +60,14 @@ with no file overlap. Seed the vault entry with pass-cli
 
 - ExternalDNS reports nothing upstream. Webhook sidecar documents no
   telemetry (`projects/external-dns-netbird/README.md`).
-- `ServiceMonitor` disabled until `monitoring.coreos.com` CRDs land.
+- `ServiceMonitor: off`.
 - Chart + sidecar bumps: `update-policies/external-dns.yaml` → PR automation.
 
 ## Upgrade runbook
 
 - Version source: chart `version:` + `image.tag` in
   `controllers/base/external-dns.yaml` (chart 1.21.1, app v0.22.0) plus
-  the webhook sidecar image (`projects/external-dns-netbird`, `:dev`
-  single-stream by decision — promotion to `:stable` on the first
-  `external-dns-netbird-v*` tagged release).
+  the webhook sidecar image (`projects/external-dns-netbird`, `:dev`).
 - Changelog (chart): https://github.com/kubernetes-sigs/external-dns/releases.
   Sidecar changelog is in-repo (`projects/external-dns-netbird`).
 - Bump: let the ImagePolicy PRs land (markers in

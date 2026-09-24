@@ -2,11 +2,10 @@
 
 Tofu Controller **v0.16.5** (chart **0.16.5**): Flux-native
 Terraform/OpenTofu reconciler that machine-applies `kind: Terraform` objects
-(`terraforms.infra.contrib.fluxcd.io`). Unblocks identity-as-code: the
+(`terraforms.infra.contrib.fluxcd.io`). Unblocks identity-as-code for the
 provider-ready Zitadel modules under
-`flux/infra/components/zitadel/terraform/` are manually applied today; once
-this controller is live, later tasks can ship `Terraform` CRs that apply them
-(and future infra modules) in-cluster.
+`flux/infra/components/zitadel/terraform/` (manually applied; no
+`kind: Terraform` objects ship yet — see Layout).
 
 ## Chart source
 
@@ -19,32 +18,24 @@ OCI is the upstream source of truth, verified by pull:
   `ghcr.io/flux-iac/tf-runner`); on chart bumps set `image.tag` AND
   `runner.image.tag` to the new appVersion together (same divergence note
   pattern as Zitadel).
-- No classic `HelmRepository` fallback: unlike coredns (no OCI mirror, hence
-  the classic precedent), this chart publishes to GHCR on every release, so
-  the OCI-first convention (cert-manager/zitadel/dragonfly) applies directly.
+- No classic `HelmRepository` fallback: this chart publishes to GHCR on
+  every release.
 - Upstream reference: `/tmp/home-ops-docs/flux-tofu-controller-docs/docs/`
   (`index.md`, `getting_started.md`, `release.yaml`); the CRD install policy
   (`Create`/`CreateReplace`) mirrors upstream `release.yaml`.
 
 ## Compatibility
 
-Verified at authoring against the pulled chart (0.16.5): no Flux-version
-restriction in values/templates — the controller reaches
-source-controller and notification-controller over stable cluster-DNS
-endpoints. This repo runs Flux 2.x via the Flux Operator (`FluxInstance`
-`distribution.version: "2.x"`). If reconciliation misbehaves after
-install, check the Flux changelogs for source/notification API drift
-first.
+The controller reaches source-controller and notification-controller over
+stable cluster-DNS endpoints (this repo runs Flux 2.x via the Flux
+Operator, `FluxInstance` `distribution.version: "2.x"`).
 
 ## Layout
 
 Mirrors cert-manager/metrics-server: `controllers/{base,dev,prd}`
 (OCIRepository + HelmRelease, env overlays inherit base unchanged) and
-`configs/{base,dev,prd}` (empty base for now — **no `kind: Terraform`
-objects ship yet**; later tasks add them here once the controller is live).
-`dev`/`prd` controllers currently inherit base with no patches; per-env
-divergence (replica counts, runner namespaces) lands with the first real
-divergence, not here.
+`configs/{base,dev,prd}` (empty base — no `kind: Terraform` objects ship
+yet). `dev`/`prd` controllers inherit base with no patches.
 
 ## Namespace / RBAC
 
@@ -73,7 +64,7 @@ divergence, not here.
 
 - `flux-system` (chart default, kept),
 - `zitadel` + `clickstack`, `hubble-ui`, `flux-operator-ui`, `headlamp`,
-  `coder` — the namespaces where the first `Terraform` CRs will live
+  `coder` — the namespaces for the first `Terraform` CRs
   (identity-as-code + SSO app clients).
 
 `watchAllNamespaces: true` is stated explicitly so the controller watches
@@ -98,14 +89,11 @@ leave the cluster.
 
 ## Telemetry-off / monitoring / updates
 
-- Telemetry evidence: the pulled chart `values.yaml` contains no phone-home,
-  analytics, or usage-reporting knobs (checked at authoring time; a grep for
-  `telemetry|usageReport|phoneHome|analytics|tracking|segment|sentry` returns
-  nothing).
+- Telemetry evidence: the chart `values.yaml` contains no phone-home,
+  analytics, or usage-reporting knobs (`telemetry|usageReport|phoneHome|
+  analytics|tracking|segment|sentry` all return nothing).
 - Unguarded monitors OFF: `metrics.enabled` stays `false` and no
-  `ServiceMonitor` is shipped until `monitoring.coreos.com` CRDs land (same
-  §9 deviation — flip: set `metrics.enabled: true` plus
-  `metrics.serviceMonitor.enabled: true` once the monitoring stack exists).
+  `ServiceMonitor` is shipped (same §9 deviation).
 - Chart bumps flow through `update-policies/tofu-controller.yaml` + PR
   automation (remember the chart↔app lockstep above: bump the chart tag AND
   both image tags together). Branch Planner stays off (`branchPlanner.enabled:
@@ -128,7 +116,7 @@ leave the cluster.
 | Env | Replicas | Patches |
 | --- | --- | --- |
 | `dev` | `replicaCount: 1` (singleton; leader-elected, safe at 1) | none — inherits `../base` unchanged |
-| `prd` | `replicaCount: 1` (singleton; raise to 2–3 only once multi-node HA is wanted) | none yet — inherits `../base` unchanged |
+| `prd` | `replicaCount: 1` (singleton; raise to 2–3 only once multi-node HA is wanted) | none — inherits `../base` unchanged |
 
 Runner namespaces and the in-cluster Kubernetes backend are env-independent.
 

@@ -50,15 +50,11 @@ as gateway-api/multus:
   ServiceMonitor pinned); telemetry off — upstream exposes no phone-home
   flags, so there is nothing to switch off.
 
-## Unguarded monitors — flip note
+## Unguarded monitors
 
 `monitorNamespace` / `monitorAccount` / `serviceMonitorNamespace` are
 deliberately UNSET: their defaults (`openshift-monitor` / `prometheus-k8s`)
-do not exist here, and pinning them now would create dangling RBAC. WHEN the
-monitoring stack lands (§14): set `monitorNamespace` + `monitorAccount` to
-the Prometheus namespace/account and `serviceMonitorNamespace` to where the
-ServiceMonitors should live, then verify `virt-operator` logs show successful
-ServiceMonitor creation.
+do not exist here, and pinning them now would create dangling RBAC.
 
 ## Environments
 
@@ -103,11 +99,8 @@ upgrade.
    `quay.io/kubevirt/virt-operator`, `>=1.9.0`) in the headers of both
    vendored files; ImageUpdateAutomation opens the PR, human merges.
 
-Single-node restart contract: LiveMigrate has nowhere to migrate to on one
-node (node-local `local-ssd-nvme`, no shared storage), so expect
-upgrade-time VMIs to restart rather than live-migrate — even though
-`workloadUpdateStrategy: [LiveMigrate]` stays as the guide default (see
-runStrategy ownership above).
+Single-node restart contract: see runStrategy ownership above (nowhere to
+migrate to on one node, so upgrade-time VMIs restart).
 
 ## Deletion order (CRs-first)
 
@@ -122,8 +115,7 @@ runbook step, not a manifest split — no CRD-only Kustomization is used
 
 - No reporting knobs upstream (verified against the v1.9.0 CRD: no
   `telemetry` key) — nothing to disable.
-- Component metrics via prometheus annotations; ServiceMonitors deferred to
-  the monitoring stack (flip note above).
+- Component metrics via prometheus annotations; `ServiceMonitor: off`.
 - Version bumps via `update-policies/kubevirt.yaml` (`>=1.9.0`) → PR
   automation; the `$imagepolicy` marker lives in the headers of both vendored
   files (upgrade runbook above).
