@@ -16,7 +16,7 @@ so `infra-controllers` keeps prune:true; bumps re-vendor the whole file
 (marker + policy range move together, see `crds/base/standard-install.yaml`
 header and `flux/infra/update-policies/gateway-api.yaml`).
 
-## TLS: why a second wildcard Certificate
+## TLS: namespace-local wildcard Certificates
 
 cert-manager Secrets are namespace-local: a `Gateway` listener can only
 reference a Secret in its own namespace, so the §9 `Certificate` (which

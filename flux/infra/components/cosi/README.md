@@ -4,15 +4,15 @@ GitOps-managed object-storage provisioning on SeaweedFS: the central COSI
 controller (tag v0.2.2, `objectstorage.k8s.io/v1alpha1`) plus the SeaweedFS
 COSI driver, with default `BucketClass/seaweedfs` +
 `BucketAccessClass/seaweedfs-key`. `BucketClaim`/`BucketAccess` pairs are
-colocated with their consumers (one pair per live bucket — 8 claims: 3
-owner claims + 5 dedicated per-instance claims):
+colocated with their consumers (one pair per live bucket — 9 claims: 3
+owner claims + 6 dedicated per-instance claims):
 
 - Owner claims: `flux/infra/components/cnpg/configs/base/bucketclaims.yaml`
   (`cnpg-backups`), `flux/infra/components/dragonfly/configs/base/bucketclaims.yaml`
   (`dragonfly-backups`), `flux/infra/components/clickhouse/configs/base/bucketclaims.yaml`
   (`clickhouse`).
 - Dedicated per-instance claims: `flux/infra/components/zitadel/configs/base/bucketclaims.yaml`
-  (`zitadel-db`, `zitadel-cache`),
+  (`zitadel-db`, `zitadel-cache`, `zitadel-assets`),
   `flux/apps/components/coder/base/bucketclaims.yaml` (`coder-db`),
   `flux/apps/components/clickstack/base/bucketclaims.yaml` (`ferretdb`,
   `clickstack`).
@@ -86,7 +86,7 @@ tenant is `infra/cosi` via `flux/infra/update-policies/cosi.yaml`.
    `examples/consumer-pod.yaml`).
 
 Prereqs (verified, not managed here): `seaweedfs` operator chart 0.1.40 +
-`Seaweed/seaweed-main` v4.45 with filer (`seaweed-main-filer.seaweedfs:8888`)
+`Seaweed/seaweed-main` v4.47 with filer (`seaweed-main-filer.seaweedfs:8888`)
 and S3 (`seaweed-main-s3.seaweedfs.svc.cluster.local:8333`).
 
 ## Endpoint contract (internal vs external)
@@ -139,6 +139,7 @@ Kubernetes-provider stores with GJSON `property`
   | `clickhouse` | `clickhouse` | `clickhouse-cosi-creds` | `clickhouse-cosi` | `clickhouse-s3-backup` (CHI) |
   | `zitadel` | `zitadel-db` | `zitadel-db-cosi-creds` | `zitadel-cosi` | `cnpg-s3-credentials` (zitadel-db) |
   | `zitadel` | `zitadel-cache` | `zitadel-cache-cosi-creds` | `zitadel-cosi` | `dragonfly-s3-credentials` (zitadel-cache) |
+  | `zitadel` | `zitadel-assets` | `zitadel-assets-cosi-creds` | `zitadel-cosi` | `zitadel-asset-storage` (ZITADEL_ASSETSTORAGE_*) |
   | `coder` | `coder-db` | `coder-db-cosi-creds` | `coder-cosi` | `cnpg-s3-credentials` (coder-db) |
   | `clickstack` | `ferretdb` | `ferretdb-cosi-creds` | `clickstack-cosi` | `cnpg-s3-credentials` (ferretdb) |
   | `clickstack` | `clickstack` | `clickstack-cosi-creds` | `clickstack-cosi` | `clickhouse-s3-backup` (CHI) |

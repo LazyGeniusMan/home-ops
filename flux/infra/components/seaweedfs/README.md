@@ -1,7 +1,7 @@
 # SeaweedFS (§12.1)
 
-Operator-managed distributed storage: Enterprise v4.45 image + CSI driver
-v1.4.30 (pods mount filer paths via plain PVCs), with tiered
+Operator-managed distributed storage: Enterprise v4.47 image + CSI driver
+v1.4.32 (pods mount filer paths via plain PVCs), with tiered
 StorageClasses and S3 + filer-UI Gateway routes.
 
 ## Layout (mirrors cert-manager §9 pattern)
@@ -59,11 +59,11 @@ Path-style buckets only; every bucket consumer needs an IAM identity:
 
 - Buckets are COSI-managed (`BucketClaim`/`BucketAccess` colocated with
   each consumer — one pair per bucket: `cnpg-backups` (cnpg),
-  `dragonfly-backups` (dragonfly), `clickhouse` (clickhouse);
-  shared prefixes ride the owner's claim, e.g.
-  `zitadel`/`coder`/`ferretdb` on `cnpg-backups`, `clickstack` on
-  `clickhouse`). The convention is one bucket per consumer, e.g.
-  `appname-media` (see the cosi README for the claim-per-bucket rule).
+  `dragonfly-backups` (dragonfly), `clickhouse` (clickhouse) plus
+  dedicated per-instance claims `zitadel-db`/`zitadel-cache`/`zitadel-assets`
+  (zitadel), `coder-db` (coder), `ferretdb`/`clickstack` (clickstack).
+  No consumer shares an owner's claim — each writes to its own bucket
+  via its own claim (see the cosi README for the claim-per-bucket rule).
 - Credentials: create the S3 identity via the operator's S3 config and
   store it in Proton Pass under
   `pass://acme-prd-bdo1-talos-apps-01/seaweedfs/<consumer>/…`
