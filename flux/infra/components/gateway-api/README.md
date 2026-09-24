@@ -1,10 +1,20 @@
 # gateway-api (§8.1)
 
-Gateway API v1.6.1 standard channel (`standard-install.yaml` CRDs), the
-shared `GatewayClass/cilium` (served by `io.cilium/gateway-controller` —
+Gateway API v1.6.1 standard channel (`crds/base/standard-install.yaml`: 10
+CRDs + the safe-upgrades ValidatingAdmissionPolicy, vendored whole from
+the upstream release asset — experimental NOT adopted), the shared
+`GatewayClass/cilium` (served by `io.cilium/gateway-controller` —
 §8.2 runs Cilium with Gateway API enabled), the shared `Gateway/main`
 (HTTP 80 + HTTPS 443 for `home-ops.yansyah.my.id`), and base `HTTPRoute`
 redirects. Per-service routes attach later (§§11-13).
+
+CRD delivery: the bundle lives in `crds/` (not `controllers/`) and renders
+through the fleet's prune:false `infra-crds` Kustomization (see
+`flux/fleet/tenants/infra.yaml`) — a removed CRD file must never
+cascade-delete CRs. `controllers/base` is an empty Kustomization by design
+so `infra-controllers` keeps prune:true; bumps re-vendor the whole file
+(marker + policy range move together, see `crds/base/standard-install.yaml`
+header and `flux/infra/update-policies/gateway-api.yaml`).
 
 ## TLS: why a second wildcard Certificate
 
@@ -51,4 +61,4 @@ Upstream reference (read-only): `/tmp/home-ops-docs/k8s-gateway-api-docs`.
   come via Cilium (§8.2).
 - Version bumps via `update-policies/gateway-api.yaml` → PR automation (the
   `$imagepolicy` marker is the version comment in
-  `controllers/base/standard-install.yaml`).
+  `crds/base/standard-install.yaml`).

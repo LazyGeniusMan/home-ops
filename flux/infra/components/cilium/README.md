@@ -7,7 +7,7 @@ Hubble observability, and a single-IP `LoadBalancer` pool.
 
 Cilium minor => check the Gateway required version first: every Cilium
 minor pins a minimum Gateway API bundle (1.20 requires v1.6.1 — see
-`gateway-api/controllers/base/standard-install.yaml`, currently v1.6.1).
+`gateway-api/crds/base/standard-install.yaml`, currently v1.6.1).
 Upgrade the Gateway API CRDs **before** the Cilium chart, then bump
 `upgradeCompatibility` only deliberately per the Cilium upgrade guide
 (it pins datapath behaviour to the initial install minor; currently

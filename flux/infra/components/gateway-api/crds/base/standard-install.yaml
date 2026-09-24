@@ -13,7 +13,24 @@
 # limitations under the License.
 
 #
-# Gateway API Standard channel install, v1.6.1 # {"$imagepolicy": "infra:gateway-api:tag"}
+# Gateway API standard channel, v1.6.1 (vendored bundle — do NOT hand-edit
+# below this header; re-vendor the whole file from the upstream release
+# asset to bump).
+# Source: https://github.com/kubernetes-sigs/gateway-api/releases/tag/v1.6.1
+# (standard-install.yaml; verified byte-identical to upstream except this
+# header line, which carries the version marker below).
+# Contents: 10 Gateway CRDs (BackendTLSPolicy … UDPRoute, group
+# gateway.networking.k8s.io) + the safe-upgrades ValidatingAdmissionPolicy +
+# Binding (blocks experimental-channel and pre-v1.5.0 CRDs over this
+# install — keep it: experimental NOT adopted).
+# Version: v1.6.1 # {"$imagepolicy": "infra:gateway-api:tag"}
+# (hand-bump: vendor the new standard-install.yaml, re-add this header +
+# marker, and widen the update-policy range in
+# flux/infra/update-policies/gateway-api.yaml together).
+# Delivery: this file lives in crds/base (not controllers/) so the fleet
+# renders it through the prune:false infra-crds Kustomization — a removed
+# CRD file must never cascade-delete CRs cluster-wide (see
+# flux/fleet/tenants/infra.yaml).
 #
 ---
 #

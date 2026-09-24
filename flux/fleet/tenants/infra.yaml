@@ -2,6 +2,23 @@
 # To onboard a new platform component (§§8-14): add its directory as a new
 # input tenant here AND add it to the components matrix in
 # .github/workflows/flux-infra-push.yaml so its OCI artifact is published.
+#
+# CRD delivery (§8.1 gateway-api, §12 COSI): vendored CRDs render through a
+# dedicated prune:false infra-crds Kustomization per tenant below — a removed
+# CRD file must never cascade-delete CRs cluster-wide (CRDs are never
+# garbage-collected). The matching infra-controllers Kustomization keeps
+# prune:true and gains a conditional dependsOn on its sibling infra-crds so
+# the controller only reconciles once its CRDs are Ready.
+# Sanctioned pattern: upstream ResourceSet conditional-resource inclusion —
+# per-input resources gated by the fluxcd.controlplane.io/reconcile
+# annotation set from << if >> Go-template conditionals. The infra-crds
+# Kustomization carries reconcile: enabled only for the two tenants that ship
+# a crds/<env> dir (gateway-api, cosi) and disabled for every other tenant;
+# sibling components (cert-manager, cilium, kubevirt, multus) keep chart- or
+# daemonset-managed CRDs inside prune:true controllers and are untouched.
+# NOTE: infra.yaml is a Go template rendered by the Flux Operator, not plain
+# YAML — the `<< if ... >>` conditionals are comments until the operator
+# renders them, so plain-yaml tooling reads every block unconditionally.
 apiVersion: fluxcd.controlplane.io/v1
 kind: ResourceSet
 metadata:
@@ -177,12 +194,62 @@ spec:
           matchOIDCIdentity:
           - issuer: ^https://token\.actions\.githubusercontent\.com$
             subject: ^https://github\.com/LazyGeniusMan/home-ops/\.github/workflows/<< inputs.artifactSubjectWorkflow >>\.yaml@<< inputs.artifactSubjectGitRef >>$
+    # infra-crds: vendored-CRD delivery (gateway-api + cosi only — the
+    # reconcile annotation below disables this resource for every other
+    # tenant). prune:false so a removed CRD file never cascade-deletes CRs;
+    # wait:true + explicit CRD healthChecks so dependents gate on Established.
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      metadata:
+        name: infra-crds
+        namespace: << inputs.tenant >>
+        annotations:
+          fluxcd.controlplane.io/reconcile: << if or (eq inputs.tenant "gateway-api") (eq inputs.tenant "cosi") >>enabled<< else >>disabled<< end >>
+      spec:
+        targetNamespace: << inputs.tenant >>
+        serviceAccountName: flux
+        interval: 30m
+        retryInterval: 5m
+        wait: true
+        timeout: 5m
+        sourceRef:
+          kind: OCIRepository
+          name: infra
+        path: "./crds/<< inputs.environment >>"
+        prune: false
+        # Health gates: one branch renders per input (operator strips the other).
+        healthChecks:
+          # Gateway Established gates (<< if eq inputs.tenant "gateway-api" >>):
+          - apiVersion: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: gatewayclasses.gateway.networking.k8s.io
+          - apiVersion: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: gateways.gateway.networking.k8s.io
+          - apiVersion: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: httproutes.gateway.networking.k8s.io
+          # (<< else >> COSI Established gates):
+          - apiVersion: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: bucketclasses.objectstorage.k8s.io
+          - apiVersion: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: bucketclaims.objectstorage.k8s.io # << end >>
+        postBuild:
+          substituteFrom:
+            - kind: ConfigMap
+              name: flux-runtime-info
     - apiVersion: kustomize.toolkit.fluxcd.io/v1
       kind: Kustomization
       metadata:
         name: infra-controllers
         namespace: << inputs.tenant >>
       spec:
+        # << if or (eq inputs.tenant "gateway-api") (eq inputs.tenant "cosi") >>
+        dependsOn:
+          - name: infra-crds
+        # << end >>
         targetNamespace: << inputs.tenant >>
         serviceAccountName: flux
         interval: 30m
