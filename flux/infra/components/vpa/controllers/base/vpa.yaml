@@ -3,12 +3,13 @@
 # each target Deployment. Chart: official upstream vertical-pod-autoscaler
 # 0.12.0 (app 1.7.1 — the current default per
 # vpa-docs/vertical-pod-autoscaler/docs/installation.md; same app version as
-# the retired Fairwinds vpa 5.0.1, chart-only migration) via classic
-# HelmRepository https://kubernetes.github.io/autoscaler (chart install per
-# charts/vertical-pod-autoscaler/README.md: `helm repo add autoscalers
-# https://kubernetes.github.io/autoscaler`; no controlplaneio-fluxcd OCI
-# mirror exists for the upstream chart either — flux-allowlist
-# ValidatingAdmissionPolicy covers OCI/gh only, so no allowlist entry needed).
+# the retired Fairwinds vpa 5.0.1, chart-only migration) via OCI
+# oci://chartproxy.container-registry.com/kubernetes.github.io/autoscaler/vertical-pod-autoscaler
+# (chartproxy proxy of the official classic repo
+# https://kubernetes.github.io/autoscaler; chart install per
+# charts/vertical-pod-autoscaler/README.md). No cosign verify block:
+# proxied tarballs are live-translated by chartproxy, so no upstream
+# signature applies.
 # CRD handling: the chart ships verticalpodautoscalers +
 # verticalpodautoscalercheckpoints CRDs as regular templates
 # (crds.enabled/keep true). CRDs move note: chart ≥0.12.0 moved CRDs from
@@ -36,12 +37,17 @@
 # hook failures recur.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
+kind: OCIRepository
 metadata:
   name: vpa
 spec:
   interval: 1h
-  url: https://kubernetes.github.io/autoscaler
+  url: oci://chartproxy.container-registry.com/kubernetes.github.io/autoscaler/vertical-pod-autoscaler
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    semver: ">=0.12.0 <0.13.0" # {"$imagepolicy": "infra:vpa:tag"}
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -51,13 +57,9 @@ spec:
   interval: 1h
   releaseName: vpa
   serviceAccountName: flux
-  chart:
-    spec:
-      chart: vertical-pod-autoscaler
-      version: 0.12.0 # {"$imagepolicy": "infra:vpa:tag"}
-      sourceRef:
-        kind: HelmRepository
-        name: vpa
+  chartRef:
+    kind: OCIRepository
+    name: vpa
   install:
     strategy:
       name: RetryOnFailure
