@@ -1,15 +1,15 @@
-# Update policy for the vpa component (§9.x): tracks the official upstream
-# vertical-pod-autoscaler chart, and the ImageUpdateAutomation (update
-# cluster) opens PRs via markers in components/vpa (see README). No OCI
-# chart mirror exists upstream, so the HelmRelease pins the classic-repo
-# chart (https://kubernetes.github.io/autoscaler) and this feed is nominal:
-# it polls the recommender app image (tags are app versions like 1.7.1)
-# while the range pins the 0.12.x chart line, so no tag ever matches and
-# chart bumps stay manual via the $imagepolicy marker (same stance as the
-# retired fairwinds-stable/vpa feed). Follows the §7 update-policy contract
+# Update policy for the vpa component (§9.x): tracks the chartproxy OCI
+# mirror of the official upstream vertical-pod-autoscaler chart
+# (oci://chartproxy.container-registry.com/kubernetes.github.io/autoscaler/vertical-pod-autoscaler,
+# proxy of the classic repo https://kubernetes.github.io/autoscaler), and the
+# ImageUpdateAutomation (update cluster) opens PRs via markers in
+# components/vpa (see README). This feed polls the recommender app image
+# (tags are app versions like 1.7.1) while the range pins the 0.12.x chart
+# line, so no tag ever matches; chart bumps flow via the $imagepolicy marker
+# on the OCIRepository ref semver. Follows the §7 update-policy contract
 # (ImageRepository + ImagePolicy + $imagepolicy markers).
 # Changelog: https://github.com/kubernetes/autoscaler/releases (vertical-pod-autoscaler chart).
-# Mode: nominal (chart bumps manual via the $imagepolicy marker — the feed never matches).
+# Mode: manual (chart bumps by hand via the $imagepolicy marker on the OCIRepository ref — the app-image feed never matches the chart-line range).
 # Coupled files: [controllers/base/vpa.yaml].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1

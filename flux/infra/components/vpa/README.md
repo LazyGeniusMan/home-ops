@@ -3,8 +3,10 @@
 Vertical Pod Autoscaler official upstream chart `vertical-pod-autoscaler`
 0.12.0 (app v1.7.1 — current default per
 `vpa-docs/vertical-pod-autoscaler/docs/installation.md`; same app as the
-retired Fairwinds `vpa` 5.0.1, chart-only migration) via classic
-`HelmRepository` `https://kubernetes.github.io/autoscaler`. Serving resource
+retired Fairwinds `vpa` 5.0.1, chart-only migration) via OCI
+`oci://chartproxy.container-registry.com/kubernetes.github.io/autoscaler/vertical-pod-autoscaler`
+(chartproxy proxy of the official classic repo
+`https://kubernetes.github.io/autoscaler`). Serving resource
 recommendations (`kubectl describe vpa`) for every workload; applying
 (`Recreate`) only on singletons, recommender-only (`Off`) where HPA owns CPU.
 
@@ -31,20 +33,21 @@ Upstream chart exposes no reporting knobs; values set only `recommender`,
 
 - No `ServiceMonitor` keys exist in the chart (verified: no matches in
   `values.yaml`); flip per component when `monitoring.coreos.com` CRDs land.
-- Chart bumps: `update-policies/vpa.yaml` → PR automation (nominal feed —
-  chart bumps stay manual via the `$imagepolicy` marker).
+- Chart bumps: `update-policies/vpa.yaml` → PR automation (app-image
+  feed never matches the chart-line range, so chart bumps stay manual
+  via the `$imagepolicy` marker on the OCIRepository `ref`).
 
 ## Upgrade runbook
 
-- Version source: the `version:` pin in `controllers/base/vpa.yaml`
-  (chart 0.12.0, app v1.7.1). The update policy is a nominal feed (it
-  polls the recommender app image while the range pins the chart line),
-  so no automation PR ever arrives.
+- Version source: the `semver` ref in `controllers/base/vpa.yaml` (chart
+  0.12.x line on the chartproxy OCI mirror, app v1.7.1). The update
+  policy polls the recommender app image while the range pins the chart
+  line, so no automation PR ever arrives — bump by hand.
 - Changelog: https://github.com/kubernetes/autoscaler/releases
   (`vertical-pod-autoscaler` chart).
-- Bump: check the chart release notes, set `version:` by hand, move the
-  `$imagepolicy` marker in the same file, and keep the policy range on
-  the new chart line.
+- Bump: check the chart release notes, move the `semver` ref by hand
+  with the `$imagepolicy` marker in the same file, and keep the policy
+  range on the new chart line.
 - Verify: recommender + updater + admission-controller Deployments
   `Ready`, then `kubectl describe vpa <any>` renders a fresh
   recommendation.
