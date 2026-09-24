@@ -5,9 +5,8 @@ plus the `lan-dhcp` NetworkAttachmentDefinition (`configs/base/lan-dhcp.yaml`).
 
 ## Source: vendored, not charted
 
-No official upstream chart exists — the bounded OCI check found only
-third-party charts (Bitnami, TrueCharts) — so Gitless = vendored pinned
-release manifest + flux-pushed OCI artifact:
+No official upstream chart exists — vendored pinned release manifest +
+flux-pushed OCI artifact:
 
 - Upstream:
   `https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/v4.3.0/deployments/multus-daemonset-thick.yml`
@@ -21,18 +20,10 @@ release manifest + flux-pushed OCI artifact:
   ClusterRoleBinding) are untouched by it, and the multus namespace is created
   by the tenant entry.
 
-## Thick vs thin (why thick)
+## Plugin mode
 
-Upstream (Multus 4.0+): thick = per-node `multus-daemon` server plus a
-lightweight `multus-shim` CNI binary the kubelet calls, which then talks
-to the daemon — adds metrics and lifecycle handling upstream recommends
-for most environments at the cost of more resources. Thin = the single CNI binary invoked per pod — lighter, no daemon, fewer features.
-
-Thick is the pick here because KubeVirt secondary-net (§13.2
-`NetworkBindingPlugins`) rides the daemon. Thin
-(`multus-daemonset.yml` at the same tag) is the documented fallback only
-for resource-constrained nodes — adopting it means losing daemon metrics
-and re-verifying the KubeVirt secondary-net path.
+Thick plugin: KubeVirt secondary-net (§13.2 `NetworkBindingPlugins`)
+requires the per-node `multus-daemon`.
 
 ## Node-file residue + CRD-on-uninstall
 

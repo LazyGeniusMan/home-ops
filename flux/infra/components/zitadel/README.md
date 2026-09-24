@@ -1,13 +1,13 @@
 # Zitadel
 
-Zitadel **v4.17.1** identity provider: the OIDC issuer on `https://admin.zitadel.home-ops.yansyah.my.id` (login UI on `https://login.zitadel.home-ops.yansyah.my.id`, NetBird-exposed) plus the locked client contract app writers build against (table below — do not deviate).
+Zitadel **v4.18.0** identity provider: the OIDC issuer on `https://admin.zitadel.home-ops.yansyah.my.id` (login UI on `https://login.zitadel.home-ops.yansyah.my.id`, NetBird-exposed) plus the locked client contract app writers build against (table below — do not deviate).
 
 ## Chart source
 
 - `oci://ghcr.io/zitadel/zitadel-charts/zitadel`, tag **10.0.4** (digest
   `sha256:9afa657fad65079857339f7d7fd296c73e577f6c8ec4e4a103093be35964b50c`).
 - Chart **10.0.4** embeds app **v4.15.3**; the app image is pinned
-  separately in values (`image.tag` + `login.image.tag` = **v4.17.1**).
+  separately in values (`image.tag` + `login.image.tag` = **v4.18.0**).
   On chart bumps set both tags to the new chart's appVersion together.
 - The `update-policies/zitadel.yaml` floor `>=10.0.4` tracks the chart line
   (ImageRepository + ImagePolicy + `$imagepolicy` marker
@@ -201,7 +201,7 @@ live in each app's per-app `terraform/` state — read them into Proton Pass
 
 - Version source: the `OCIRepository` tag in
   `controllers/base/zitadel.yaml` (chart 10.0.4) plus `image.tag` +
-  `login.image.tag` in values (app v4.17.1 — chart↔app DIVERGE, see
+  `login.image.tag` in values (app v4.18.0 — chart↔app DIVERGE, see
   above).
 - Changelog (chart): https://github.com/zitadel/zitadel-charts/releases.
   Changelog (app): https://github.com/zitadel/zitadel/releases.

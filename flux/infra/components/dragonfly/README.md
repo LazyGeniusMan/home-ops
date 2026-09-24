@@ -19,13 +19,6 @@ OCI is the upstream source of truth, verified by pull:
   `update-policies/dragonfly.yaml` floor is still `>=1.6.1` per the §7
   contract (ImageRepository + ImagePolicy + `$imagepolicy` marker
   `infra:dragonfly:tag`).
-- No OCI fallback was needed: the operator's own release workflow (`ci.yml`
-  @ v1.6.1) pushes the chart to exactly this GHCR path on every release.
-- Local reference: the d2 docs carry no Dragonfly component, so the bounded
-  source was the operator docs (`dragonfly-operator-docs`, upstream
-  [documentation](https://github.com/dragonflydb/documentation) branch
-  `main`) plus the operator repo @ v1.6.1 (CRD schema, `resources.go`
-  snapshot/tiering logic, release assets).
 
 ## HA / replication
 

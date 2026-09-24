@@ -9,15 +9,10 @@ Altinity clickhouse-operator 0.27.3 plus a reusable HA base:
 
 ## Chart source
 
-OCI-first (`oci://registry-1.docker.io/altinity/clickhouse-operator`, tag
-`0.27.3` verified present on Docker Hub) so chart bumps flow through the §7
-update-policy contract (`update-policies/clickhouse.yaml` → PR automation via
-the `infra:clickhouse:tag` marker). Fallback, with justification: the official
-classic repo `https://helm.altinity.com` (chart 0.27.3 confirmed in its index)
-— switch the `OCIRepository` to a `HelmRepository` only if the OCI artifact
-fails to resolve. OCI probes during authoring: Docker Hub tag exists (image
-line shares the version, artifact type ambiguous), ghcr.io denied, no Altinity
-OCI registry resolves — hence OCI primary with a documented fallback.
+`oci://registry-1.docker.io/altinity/clickhouse-operator`, tag `0.27.3`,
+via `OCIRepository` so chart bumps flow through the §7 update-policy
+contract (`update-policies/clickhouse.yaml` → PR automation via the
+`infra:clickhouse:tag` marker).
 
 ## Credentials
 

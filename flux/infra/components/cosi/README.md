@@ -38,18 +38,14 @@ tenant is `infra/cosi` via `flux/infra/update-policies/cosi.yaml`.
   BucketClaim, Bucket, BucketAccessClass, BucketAccess, v1alpha1,
   controller-gen v0.17.3) + `controllers/base/deployment.yaml` / `sa.yaml` /
   `rbac.yaml` / `namespace.yaml`: from
-  `kubernetes-sigs/container-object-storage-interface` @ tag `v0.2.2`
-  (commit `f75d47509dae3e4ed0fd18ce0a60474b78e8d29b`, 2025-12-03 — the
-  release-0.2 branch tip, now tagged; CRDs byte-identical to the tag).
+  `kubernetes-sigs/container-object-storage-interface` @ tag `v0.2.2`.
   Do NOT track `main` (v1alpha2, incompatible with this driver).
   Re-vendor all 5 CRD files together from the tag to bump (never
   hand-edit); pins + caps move together (`update-policies/cosi.yaml` +
   `seaweedfs.yaml`, all `<0.3.0`).
 - Controller image
-  `gcr.io/k8s-staging-sig-storage/objectstorage-controller:v0.2.2`:
-  tag on the staging registry. No `registry.k8s.io` promotion
-  exists yet (`RELEASE.md` keeps template-project boilerplate; `cloudbuild`
-  publishes staging only). Adapted from upstream: namespace `system`→`cosi`
+  `gcr.io/k8s-staging-sig-storage/objectstorage-controller:v0.2.2`.
+  Adapted from upstream: namespace `system`→`cosi`
   (matches the Flux tenant namespace), leader-election Role/Binding +
   ClusterRoleBinding subjects `default`→`cosi`.
 - Driver + classes live in the seaweedfs component's `configs/base/`

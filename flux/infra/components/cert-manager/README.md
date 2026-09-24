@@ -1,6 +1,6 @@
 # cert-manager (§9.3)
 
-cert-manager v1.21.1, Cloudflare DNS-01 `ClusterIssuer/letsencrypt`, and the
+cert-manager v1.21.2, Cloudflare DNS-01 `ClusterIssuer/letsencrypt`, and the
 `*.home-ops.yansyah.my.id` wildcard `Certificate` (`wildcard-home-ops-tls`).
 
 ## Credentials
@@ -42,7 +42,7 @@ this namespace's `wildcard-home-ops-tls` Secret cross-namespace.
 ## Upgrade runbook
 
 - Version source: the `OCIRepository` tag in
-  `controllers/base/cert-manager.yaml` (chart v1.21.1).
+  `controllers/base/cert-manager.yaml` (chart v1.21.2).
 - Changelog: https://github.com/cert-manager/cert-manager/releases.
 - Bump: let the ImagePolicy PR land (marker `infra:cert-manager:tag`,
   `update-policies/cert-manager.yaml`).

@@ -1,6 +1,6 @@
 # external-dns (§9.4)
 
-Single ExternalDNS v0.22.0 instance (chart 1.21.1 + `image.tag` override)
+Single ExternalDNS v0.22.0 instance (chart 1.22.0 + `image.tag` override)
 over `home-ops.yansyah.my.id` — the NetBird-only DNS path:
 
 - `external-dns-netbird`: NetBird Custom Zones via the in-repo webhook
@@ -66,7 +66,7 @@ with no file overlap. Seed the vault entry with pass-cli
 ## Upgrade runbook
 
 - Version source: chart `version:` + `image.tag` in
-  `controllers/base/external-dns.yaml` (chart 1.21.1, app v0.22.0) plus
+  `controllers/base/external-dns.yaml` (chart 1.22.0, app v0.22.0) plus
   the webhook sidecar image (`projects/external-dns-netbird`, `:dev`).
 - Changelog (chart): https://github.com/kubernetes-sigs/external-dns/releases.
   Sidecar changelog is in-repo (`projects/external-dns-netbird`).

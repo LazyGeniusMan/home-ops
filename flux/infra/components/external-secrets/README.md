@@ -1,6 +1,6 @@
 # external-secrets (§9.1)
 
-External Secrets Operator v2.10.0 + in-cluster Proton Pass webhook
+External Secrets Operator v2.11.0 + in-cluster Proton Pass webhook
 (`projects/eso-proton-pass`, image
 `ghcr.io/lazygeniusman/home-ops/projects/eso-proton-pass:dev`).
 
@@ -68,7 +68,7 @@ login fails first). Rotate at most yearly; an early rotation is just steps
 ## Upgrade runbook
 
 - Version source: chart `version:` in
-  `controllers/base/externalsecrets.yaml` (v2.10.0) plus the webhook
+  `controllers/base/externalsecrets.yaml` (v2.11.0) plus the webhook
   image in `configs/base/eso-proton-pass-webhook.yaml` (`:dev`).
 - Changelog (chart):
   https://github.com/external-secrets/external-secrets/releases.

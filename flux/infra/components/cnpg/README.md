@@ -1,6 +1,6 @@
 # CNPG
 
-CloudNativePG operator **1.30.0** (via Helm chart **0.29.0**) plus a reusable
+CloudNativePG operator **1.30.0** (via Helm chart **0.29.1**) plus a reusable
 HA `Cluster` base template: 3 instances, streaming replication with
 synchronous quorum, `local-ssd-nvme` storage (the default StorageClass —
 see `flux/infra/components/local-path-provisioner/`), Barman S3 backup to
@@ -11,24 +11,23 @@ SeaweedFS, and a `*.postgres.home-ops.yansyah.my.id` wildcard
 
 OCI is the upstream source of truth, verified by pull:
 
-- `oci://ghcr.io/cloudnative-pg/charts/cloudnative-pg`, tag `0.29.0`
-  (digest `sha256:209c588b902982bf283a0073db83edd422d9710a2c8a670fe57c0329abe789a4`,
-  `helm template` + `helm lint` pass locally).
-- Chart version and operator version differ: chart **0.29.0** embeds operator
+- `oci://ghcr.io/cloudnative-pg/charts/cloudnative-pg`, tag `0.29.1`
+  (`helm template` + `helm lint` pass locally).
+- Chart version and operator version differ: chart **0.29.1** embeds operator
   **1.30.0** (`appVersion: 1.30.0` in the pulled `Chart.yaml`). The
   `OCIRepository` tag therefore pins the *chart* version; operator 1.30 is
   carried by that chart.
 - Update policy (`flux/infra/update-policies/cnpg.yaml`) follows the image
   update policy contract (ImageRepository + ImagePolicy + `$imagepolicy`
   marker `infra:cnpg:tag`),
-  but the semver floor is the **chart** line `>=0.29.0` — a `>=1.30` floor
+  but the semver floor is the **chart** line `>=0.29.1` — a `>=1.30` floor
   would never match chart tags and would deaden automation. Chart bumps stay
   on PR review, where the chart→operator mapping is re-verified before merge.
 
 ## Upgrade runbook
 
 - Version source: the `OCIRepository` tag in
-  `controllers/base/cnpg.yaml` (chart 0.29.0, operator 1.30.0 — see the
+  `controllers/base/cnpg.yaml` (chart 0.29.1, operator 1.30.0 — see the
   chart→operator mapping above).
 - Changelog (chart): https://github.com/cloudnative-pg/charts/releases.
   Changelog (operator):

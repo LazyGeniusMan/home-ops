@@ -9,14 +9,10 @@ and forwarding everything else upstream.
 The component consumes the official upstream OCI chart
 `oci://ghcr.io/coredns/charts/coredns` via `OCIRepository` (`coredns-chart`,
 interval 1h, same shape as cert-manager/cilium) with the `$imagepolicy`
-marker `infra:coredns:tag` on `ref.tag`. Chart
-1.47.1 carries app 1.14.6, so the app image is pinned explicitly to `1.14.7`
-(verified live on Docker Hub); the update policy tracks the chart at
-`>=1.47.1` while the app pin rides in `values.image.tag`. Chart 1.47.1 over
-1.47.0 is additive-only (coredns/helm `coredns-1.47.1`, 2026-09-09: separate
-labels/selector knobs for the cluster-proportional-autoscaler Deployment —
-inert here since the autoscaler stays disabled and the out-of-band HPA owns
-the count).
+marker `infra:coredns:tag` on `ref.tag`. Chart 1.47.1 carries app 1.14.6,
+so the app image is pinned explicitly to `1.14.7`; the update policy
+tracks the chart at `>=1.47.1` while the app pin rides in
+`values.image.tag`.
 
 ## Corefile chain (template → hosts → forward)
 
