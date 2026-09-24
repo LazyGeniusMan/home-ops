@@ -40,25 +40,16 @@
 # in-cluster store — never Git, never Proton Pass.
 # First-run prerequisite: the bootstrap Job ran once per env (it registers
 # the bot via the Synapse-compat admin API + mints the token server-side).
-# Without the kept Secret the CRs retry on interval. The old vault-direct
-# mirror (`matrix-rooms-terraform-vars` ExternalSecret, vault fields
-# matrix-rooms/{homeserver-url,bot-access-token,bot-user-id}) is REMOVED —
-# the manual path is dead on purpose (see VAULT-SEEDS.md: those fields are
-# retired; the registration secret matrix/tuwunel-registration-secret is
-# the ONLY first-seed left).
+# Without the kept Secret the CRs retry on interval. Room auth flows from
+# kept Secret matrix-bot-bootstrap-outputs; there is no vault-direct mirror.
 # POSITIONAL: the dev/prd overlays patch /spec/vars/8 (members) +
 # /spec/vars/9 (power_levels) by index in EACH CR (flux-notifications,
 # tofu-runs, coder-notifications), so this var order must
 # not change without updating the overlays (same convention as
 # element-proxy.yaml).
 ---
-# REMOVED (was: `matrix-rooms-terraform-vars` vault-direct ExternalSecret):
-# room provider auth now flows from the bootstrap Job's kept Secret
-# `matrix-bot-bootstrap-outputs` (same namespace — `varsFrom` reads it
-# directly, NO ESO hop). The manual vault path
-# (matrix-rooms/{homeserver-url,bot-access-token,bot-user-id}) is retired —
-# see VAULT-SEEDS.md. Kept intentionally absent: re-adding a vault-direct
-# mirror would resurrect the manual bootstrap the Job replaces.
+# Room auth flows from kept Secret matrix-bot-bootstrap-outputs via
+# same-namespace varsFrom; no ESO hop.
 ---
 apiVersion: infra.contrib.fluxcd.io/v1alpha2
 kind: Terraform

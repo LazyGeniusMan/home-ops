@@ -3,9 +3,7 @@
 # (`matrix-bot-bootstrap-outputs` in the `matrix` namespace, minted by the
 # `matrix-bot-bootstrap` Job — matrix/base/matrix-bot-bootstrap.yaml) into
 # this namespace's `matrix-notify` Secret through the cross-namespace
-# `coder-matrix` SecretStore (base/coder-secrets.yaml) — replacing the
-# retired `coder/matrix-bot-token` + `coder/matrix-host` vault fields
-# (proton-pass ClusterSecretStore, per-env dev/prd overlay patches).
+# `coder-matrix` SecretStore (base/coder-secrets.yaml).
 # The store authenticates as THIS namespace SA
 # `eso-matrix-handoff-reader`, so the SA needs get/list/watch on the kept
 # Secret only (resourceNames pins it) plus selfsubjectrulesreviews create

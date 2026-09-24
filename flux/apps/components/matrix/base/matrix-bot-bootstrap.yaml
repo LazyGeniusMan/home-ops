@@ -1,4 +1,4 @@
-# Matrix bot bootstrap (zitadel-style, Goal: kill the manual runbook).
+# Matrix bot bootstrap (zitadel-style setup-Job-keeps-Secret).
 #
 # Chain (mirrors zitadel/controllers/base/zitadel.yaml FirstInstance stanza
 # L116-130 -> zitadel/configs/base/zitadel-bootstrap-handoff.yaml ->
@@ -13,9 +13,8 @@
 #        SecretStore (keys notifier-token + homeserver-host -> composed
 #         matrixs:// fallback legs; flux/tofu/team only — coder is decoupled)
 #
-# What the Job does (ONE bot identity per env — aligns rooms.yaml's single
-# shared mirror + VAULT-SEEDS per-env mxids; the Job mints ONE bot, all 3
-# rooms share it, exactly like the retired manual path):
+# What the Job does (ONE bot identity per env; the Job mints ONE bot, all 3
+# rooms share it):
 #   1. Reads REGISTRATION_SHARED_SECRET from the ESO-synced
 #      `tuwunel-registration-secret` Secret (SAME Secret the tuwunel
 #      Deployment mounts server-side via
@@ -29,8 +28,8 @@
 #      exists — the Job proceeds to token minting instead of failing.
 #   3. Mints the long-lived access token via POST /_matrix/client/v3/login
 #      (bot user + per-run password; tuwunel tokens do not expire, so no
-#      rotation CronJob — same decision as the retired runbook's strategy
-#      (b)). The bot PASSWORD is per-run random and DISCARDED (never stored
+#      rotation CronJob). The bot PASSWORD is per-run random and DISCARDED
+#      (never stored
 #      in the kept Secret, never the vault — the token is the only
 #      long-lived credential).
 #   4. Writes the KEPT Secret `matrix-bot-bootstrap-outputs` (kubectl apply
@@ -233,8 +232,7 @@ spec:
                   sys.exit(1)
 
               # Mint the long-lived access token (tuwunel tokens do not
-              # expire — no rotation CronJob, same decision as the retired
-              # manual strategy (b)).
+              # expire — no rotation CronJob.
               status, doc = call("POST", "/_matrix/client/v3/login", {
                   "type": "m.login.password",
                   "identifier": {"type": "m.id.user", "user": mxid},

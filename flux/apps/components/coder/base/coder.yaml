@@ -122,7 +122,7 @@ spec:
         # http://apprise-go-api.apprise-go-api.svc:80/notify — workload lives
         # in the infra namespace). DECOUPLED: coder owns its matrix
         # credential end-to-end (NO matrix-tenant fallback leg, NO
-        # apprise-coder Provider — both removed; flux/tofu/team legs stay
+        # apprise-coder Provider; flux/tofu/team legs stay
         # matrix-owned). Coder posts its fixed payload (top-level
         # title/body) to ONE endpoint, so every event fans into
         # #coder-notifications (per-event routing is Premium-only). No remap

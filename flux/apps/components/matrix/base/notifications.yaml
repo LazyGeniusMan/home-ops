@@ -80,8 +80,8 @@ spec:
   address: "http://apprise-go-api.apprise-go-api.svc:80/notify/?:message=body&:reason=title&format=text&type=info&tag=team"
 ---
 # Coder -> apprise-go-api entrypoint (NOT Flux-driven — NO Provider ships
-# here; Alert eventSources cannot watch Coder, and a Provider referencing the
-# REMOVED `?tag=coder` fallback leg would 204 on every request). The Coder
+# here; Alert eventSources cannot watch Coder). Coder posts directly via
+# CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT; no Provider here. The Coder
 # Deployment posts DIRECTLY to the infra sink via
 # CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT (see
 # flux/apps/components/coder/base/coder.yaml + coder-secrets.yaml): the
@@ -91,8 +91,8 @@ spec:
 # from the kept Secret matrix-bot-bootstrap-outputs (keys
 # notifier-token/homeserver-host) via the coder-owned handoff (SecretStore
 # coder-matrix remoteNamespace matrix + Role/Binding
-# coder-matrix-handoff-reader in ns matrix, owned by the coder component;
-# vault coder/matrix-bot-token + coder/matrix-host retired). NO `tag=coder`
+# coder-matrix-handoff-reader in ns matrix, owned by the coder component).
+# NO `tag=coder`
 # anywhere: the body urls select the
 # target directly, no fallback, no server-tag filtering. Mapping choice:
 # BARE (no `?:src=dst` remap) — Coder's fixed webhook payload already
