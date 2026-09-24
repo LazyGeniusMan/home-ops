@@ -23,4 +23,4 @@ spec:
     name: cnpg
   policy:
     semver:
-      range: ">=0.29.0"
+      range: ">=0.29.1"

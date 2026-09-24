@@ -1,7 +1,7 @@
-# Cilium v1.20.1 (§8.2): eBPF dataplane with kube-proxy replacement (Talos
+# Cilium v1.20.2 (§8.2): eBPF dataplane with kube-proxy replacement (Talos
 # runs without kube-proxy), Gateway API support, Hubble observability, and a
 # single-IP LoadBalancer pool. Chart: oci://quay.io/cilium/charts/cilium
-# (verified tag 1.20.1; OCI is the upstream source of truth).
+# (verified tag 1.20.2; OCI is the upstream source of truth).
 # NAMESPACE / BOOTSTRAP HANDOFF: this HelmRelease and the Terraform bootstrap
 # Job (flux/fleet/terraform/main.tf, prerequisites.charts[0]) manage a SINGLE
 # Helm release identity — release `cilium` in namespace `kube-system` on both
@@ -35,7 +35,7 @@ spec:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
   ref:
-    tag: 1.20.1 # {"$imagepolicy": "infra:cilium:tag"}
+    tag: 1.20.2 # {"$imagepolicy": "infra:cilium:tag"}
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -106,7 +106,7 @@ spec:
           enabled: false
     operator:
       # Operator replica placeholder - overridden by dev/prd overlays.
-      # NO HPA: chart 1.20.1 has no operator autoscaling knob, and the operator
+      # NO HPA: chart 1.20.2 has no operator autoscaling knob, and the operator
       # Deployment renders in kube-system (release targetNamespace) while the
       # tenant Kustomization targets namespace `cilium` — a same-base HPA would
       # land cross-namespace from its scaleTargetRef and never bind. Static

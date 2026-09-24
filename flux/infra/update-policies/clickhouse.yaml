@@ -46,7 +46,7 @@ spec:
     name: clickhouse-server
   policy:
     semver:
-      range: ">=25.9.0"
+      range: ">=26.8.0"
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
@@ -66,4 +66,4 @@ spec:
     name: clickhouse-keeper
   policy:
     semver:
-      range: ">=25.9.0"
+      range: ">=26.8.0"

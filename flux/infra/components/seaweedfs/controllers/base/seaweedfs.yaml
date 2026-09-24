@@ -145,8 +145,8 @@ spec:
     storageClassName: ""
     seaweedfsCsiPlugin:
       image: chrislusf/seaweedfs-csi-driver
-      tag: "v1.4.30" # {"$imagepolicy": "infra:seaweedfs-csi:tag"}
+      tag: "v1.4.32" # {"$imagepolicy": "infra:seaweedfs-csi:tag"}
     mountService:
       enabled: true
       image: chrislusf/seaweedfs-mount
-      tag: "v1.4.30" # {"$imagepolicy": "infra:seaweedfs-csi:tag"}
+      tag: "v1.4.32" # {"$imagepolicy": "infra:seaweedfs-csi:tag"}

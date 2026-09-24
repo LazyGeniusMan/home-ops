@@ -4,7 +4,9 @@
 # local-ssd-nvme (default StorageClass); S3 backups go to SeaweedFS via the
 # `backups_s3` disk (credentials from the clickhouse-s3-backup Secret synced
 # by s3-credentials.yaml — never committed). Server/keeper images pinned to
-# the 25.9 line (tags verified live on Docker Hub).
+# the 26.8 LTS line in lockstep (tags verified live on Docker Hub; 25.9 went
+# EOL 2025-12 — the 26.x jump crosses breaking changes, so read the upstream
+# changelog before taking the next LTS).
 # Per-table replication: create tables with ReplicatedMergeTree +
 # ON CLUSTER DDL (see README); keeper path defaults to /clickhouse/backups.
 ---
@@ -48,7 +50,7 @@ spec:
                   topologyKey: "kubernetes.io/hostname"
           containers:
             - name: clickhouse-keeper
-              image: clickhouse/clickhouse-keeper:25.9.7.56 # {"$imagepolicy": "infra:clickhouse-keeper:tag"}
+              image: clickhouse/clickhouse-keeper:26.8.10.6 # {"$imagepolicy": "infra:clickhouse-keeper:tag"}
     volumeClaimTemplates:
       - name: keeper-data
         provisioner: Operator
@@ -102,7 +104,7 @@ spec:
         spec:
           containers:
             - name: clickhouse-pod
-              image: clickhouse/clickhouse-server:25.9.7.56 # {"$imagepolicy": "infra:clickhouse-server:tag"}
+              image: clickhouse/clickhouse-server:26.8.10.6 # {"$imagepolicy": "infra:clickhouse-server:tag"}
               env:
                 - name: CLICKHOUSE_S3_ACCESS_KEY_ID
                   valueFrom:

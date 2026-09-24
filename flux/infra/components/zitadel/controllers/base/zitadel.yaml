@@ -1,4 +1,4 @@
-# Zitadel v4.17.1 identity provider (§11.1): OIDC issuer on the admin host
+# Zitadel v4.18.0 identity provider (§11.1): OIDC issuer on the admin host
 # (__ZITADEL_HOST__ = admin.zitadel.<base>) plus the wave-3c app client
 # contract (see README). End-user logins run on the separate login host
 # (__ZITADEL_LOGIN_HOST__ = login.zitadel.<base>, NetBird-exposed) via
@@ -8,8 +8,8 @@
 # (digest sha256:9afa657fad65079857339f7d7fd296c73e577f6c8ec4e4a103093be35964b50c,
 # verified by pull; OCI on GHCR is the upstream source of truth).
 # Chart-to-app mapping (cnpg-style divergence, see README): chart 10.0.4 embeds
-# app v4.15.3, but the app image is pinned separately below to v4.17.1
-# (ghcr.io/zitadel/zitadel:v4.17.1 + ghcr.io/zitadel/zitadel-login:v4.17.1
+# app v4.15.3, but the app image is pinned separately below to v4.18.0
+# (ghcr.io/zitadel/zitadel:v4.18.0 + ghcr.io/zitadel/zitadel-login:v4.18.0
 # manifests verified on GHCR). On chart bumps set image.tag AND
 # login.image.tag to the new appVersion together.
 # Telemetry: pulled chart values.yaml carries no phone-home, analytics, or
@@ -69,7 +69,7 @@ spec:
         memory: 512Mi
     image:
       repository: ghcr.io/zitadel/zitadel
-      tag: v4.17.1
+      tag: v4.18.0
       pullPolicy: IfNotPresent
     login:
       replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
@@ -80,7 +80,7 @@ spec:
           memory: 128Mi
       image:
         repository: ghcr.io/zitadel/zitadel-login
-        tag: v4.17.1
+        tag: v4.18.0
         pullPolicy: IfNotPresent
       ingress:
         enabled: false

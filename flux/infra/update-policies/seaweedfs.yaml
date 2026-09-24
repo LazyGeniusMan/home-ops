@@ -22,7 +22,7 @@ spec:
     name: seaweedfs
   policy:
     semver:
-      range: ">=4.45"
+      range: ">=4.47"
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
@@ -42,11 +42,11 @@ spec:
     name: seaweedfs-csi
   policy:
     semver:
-      range: ">=1.4.30"
+      range: ">=1.4.32"
 # SeaweedFS COSI driver + sidecar (moved here from cosi.yaml with the driver
 # move — markers live in components/seaweedfs/configs/base/driver.yaml).
-# Sidecar tracks the k8s-staging repo (no registry.k8s.io promotion for
-# release-0.2 yet); driver tracks ghcr.io semver >=0.1.2.
+# Sidecar tracks the k8s-staging repo v0.2.x tags (no registry.k8s.io
+# promotion for release-0.2 yet); driver tracks ghcr.io semver >=0.3.1.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
@@ -66,7 +66,7 @@ spec:
     name: cosi-sidecar
   policy:
     semver:
-      range: ">=0.0.0"
+      range: ">=0.2.2"
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
@@ -86,4 +86,4 @@ spec:
     name: cosi-driver
   policy:
     semver:
-      range: ">=0.1.2"
+      range: ">=0.3.1"

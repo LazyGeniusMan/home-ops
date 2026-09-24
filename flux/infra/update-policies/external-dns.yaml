@@ -25,7 +25,7 @@ spec:
     name: external-dns
   policy:
     semver:
-      range: ">=1.21.1"
+      range: ">=1.22.0"
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

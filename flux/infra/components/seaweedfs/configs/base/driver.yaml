@@ -11,11 +11,11 @@
 #   internal ClusterIP FQDN http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333
 #   so credentials work in-cluster without hairpinning or search-expansion), REGION (us-east-1 — SeaweedFS
 #   ignores region; required non-empty by some S3 clients).
-# - seaweedfs-cosi-sidecar: release-0.2 objectstorage-sidecar (Bucket +
+# - seaweedfs-cosi-sidecar: release-0.2 objectstorage-sidecar v0.2.2 (Bucket +
 #   BucketAccess listeners, --driver-addr unix:///var/lib/cosi/cosi.sock),
-#   the release-0.2 counterpart of the chart's staging sidecar pin.
-# Images: driver ghcr.io/seaweedfs/seaweedfs-cosi-driver:v0.1.2 (matches the
-# chart default; quay.io/seaweedfs repo is disabled/unauthenticated).
+#   the release-0.2 counterpart of the COSI controller v0.2.2 pin.
+# Images: driver ghcr.io/seaweedfs/seaweedfs-cosi-driver:v0.3.1
+# (quay.io/seaweedfs repo is disabled/unauthenticated).
 # Driver binary runs as UID 65532 (distroless static); sidecar runs as
 # nonroot (distroless static:nonroot).
 ---
@@ -44,7 +44,7 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
         - name: seaweedfs-cosi-driver
-          image: ghcr.io/seaweedfs/seaweedfs-cosi-driver:v0.1.2 # {"$imagepolicy": "infra:cosi-driver:tag"}
+          image: ghcr.io/seaweedfs/seaweedfs-cosi-driver:v0.3.1 # {"$imagepolicy": "infra:cosi-driver:tag"}
           imagePullPolicy: IfNotPresent
           env:
             - name: DRIVERNAME
@@ -73,7 +73,7 @@ spec:
             limits:
               memory: 128Mi
         - name: seaweedfs-cosi-sidecar
-          image: gcr.io/k8s-staging-sig-storage/objectstorage-sidecar:v20250711-controllerv0.2.0-rc1-80-gc2f6e65 # {"$imagepolicy": "infra:cosi-sidecar:tag"}
+          image: gcr.io/k8s-staging-sig-storage/objectstorage-sidecar:v0.2.2 # {"$imagepolicy": "infra:cosi-sidecar:tag"}
           imagePullPolicy: IfNotPresent
           args:
             - --v=5

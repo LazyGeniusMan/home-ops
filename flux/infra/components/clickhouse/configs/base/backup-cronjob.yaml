@@ -19,7 +19,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: backup
-              image: clickhouse/clickhouse-server:25.9.7.56 # {"$imagepolicy": "infra:clickhouse-server:tag"}
+              image: clickhouse/clickhouse-server:26.8.10.6 # {"$imagepolicy": "infra:clickhouse-server:tag"}
               command: ["clickhouse-client"]
               args:
                 - --host=clickhouse
