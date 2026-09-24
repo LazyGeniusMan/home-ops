@@ -278,8 +278,8 @@ fetch_repo flux-operator-bootstrap-terraform-docs https://github.com/controlplan
 # /tmp/home-ops-docs/flux-tofu-controller-docs/docs (index.md, tfctl.md, branch-planner/)
 fetch_repo flux-tofu-controller-docs https://github.com/flux-iac/tofu-controller main || record_fail flux-tofu-controller-docs
 
-# /tmp/home-ops-docs/home-operations-oci-helm-chart-mirror-docs/README.md
-fetch_repo home-operations-oci-helm-chart-mirror-docs https://github.com/home-operations/charts-mirror main || record_fail home-operations-oci-helm-chart-mirror-docs
+# /tmp/home-ops-docs/helm-charts-oci-proxy-docs/README.md
+fetch_repo helm-charts-oci-proxy https://github.com/container-registry/helm-charts-oci-proxy main || record_fail helm-charts-oci-proxy
 
 # /tmp/home-ops-docs/k8s-gateway-api-docs/site/hugo.toml + /tmp/home-ops-docs/k8s-gateway-api-docs/site/content/en
 fetch_repo k8s-gateway-api-docs https://github.com/kubernetes-sigs/gateway-api main || record_fail k8s-gateway-api-docs
