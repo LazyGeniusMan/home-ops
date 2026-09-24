@@ -28,6 +28,23 @@ Key facts:
   `scripts/fetch-references.sh -m zip` (modes: `http` default, `ssh`, `zip`; wipes and re-clones into `/tmp/home-ops-docs`; one failure never aborts the rest).
 - When a task touches an unfamiliar tool, check whether a matching agent skill is available and use it instead of improvising.
 - Always resolve a Kubernetes question in two passes: search the Talos docs first for prerequisites, known issues, and workarounds, then read the component's own docs. Talos constraints (e.g. no kube-proxy sidecars, schematic-gated extensions) invalidate otherwise-correct upstream advice.
+- **Changelog-first on every bump.** Never bump a pin without reading its upstream changelog for breaking changes, deprecations, and CRD/value migrations first. Canonical release pages per component:
+  | Component | Changelog |
+  |---|---|
+  | Cilium | https://github.com/cilium/cilium/releases |
+  | Gateway API | https://github.com/kubernetes-sigs/gateway-api/releases |
+  | cert-manager | https://github.com/cert-manager/cert-manager/releases |
+  | CNPG | https://github.com/cloudnative-pg/cloudnative-pg/releases |
+  | External Secrets (ESO) | https://github.com/external-secrets/external-secrets/releases |
+  | SeaweedFS (+ operator/CSI) | https://github.com/seaweedfs/seaweedfs/releases |
+  | COSI | https://github.com/kubernetes-sigs/container-object-storage-interface/releases |
+  | KubeVirt | https://github.com/kubevirt/kubevirt/releases |
+  | Multus | https://github.com/k8snetworkplumbingwg/multus-cni/releases |
+  | Flux + Flux Operator | https://github.com/fluxcd/flux2/releases + https://github.com/controlplaneio-fluxcd/flux-operator/releases |
+  | tofu-controller | https://github.com/flux-iac/tofu-controller/releases |
+  | Dragonfly operator | https://github.com/dragonflydb/dragonfly-operator/releases |
+  | VPA | https://github.com/kubernetes/autoscaler/releases |
+  | ClickHouse (server + Altinity operator) | https://github.com/ClickHouse/ClickHouse/releases + https://github.com/Altinity/clickhouse-operator/releases |
 - Keep every doc current-state-only. After any code or config change, update the adjacent doc in the same commit; never leave a doc describing a past design.
 - Toolchain source of truth is `.flox/env/manifest.toml` (ansible 2.21.4, ansible-lint 25.8.2, go 1.26.7, gopls 0.23.0, golangci-lint 2.13.2, govulncheck 1.8.0, opentofu 1.12.6, kubectl 1.37.0, helm 4.3.0, kustomize 5.8.1, fluxcd 2.9.5, yq 4.53.3, kubeconform 0.8.0, yamllint 1.37.1, cosign 3.1.3, oras 1.3.4, proton-pass-cli 2.3.3; `terraform` is aliased to `tofu`). `talosctl` v1.15.0-alpha.0 is the one exception: it is fetched by the `on-activate` hook via curl into `.flox/cache/bin`, not from the catalog. On any tool upgrade, migrate every consumer together so pins keep parity across the Flox manifest, `talos/ansible/group_vars/all.yml`, Terraform/Ansible version constraints, GitHub workflows, Dockerfiles, and Flux manifests.
 - Secrets live in Proton Pass and are injected with the `pass-cli` binary (not `proton-pass-cli`). Gate on `pass-cli info` for login state, inject with double-brace templates plus `item view`, and always export the hardened env (`PROTON_PASS_DISABLE_TELEMETRY=1`, key provider `fs`, agent reason set, `*_FILE` file-backed pattern). Unencrypted secrets are gitignored at repo root and under `talos/.gitignore`; only double-brace `{{ }}` placeholders are ever committed. For every `pass://` reference you add, document its full path length, one redacted example, and the command that generates the value.
@@ -50,6 +67,17 @@ talosctl validate -c ansible/build/<cluster>/nodes/<node>/controlplane.yaml -m m
 flux/scripts/validate.sh -d flux/infra   # yq + kubeconform strict + kustomize build
 flux/scripts/validate.sh -d flux/apps
 flux/scripts/validate.sh -d flux/fleet
+```
+```bash
+# Upgrade loop: check versions -> check changelog -> bump -> migrate/verify
+helm show chart oci://<registry>/<chart> --version <tag>          # inspect chart before bumping
+helm show values oci://<registry>/<chart> --version <tag>         # diff values for breaking changes
+oras repo tags ghcr.io/<org>/<image> | sort -V | tail -5          # list candidate image tags
+yq '.spec.policy.semver.range' flux/{infra,apps}/update-policies/<name>.yaml  # confirm policy floors before/after (local, no cluster)
+curl -sSL -o /tmp/new.yaml <release-url>/kubevirt-operator.yaml && diff <(head -100 flux/infra/components/kubevirt/controllers/base/kubevirt-operator.yaml) <(head -100 /tmp/new.yaml)  # re-vendor then diff (KubeVirt/Multus)
+kustomize build flux/infra/components/<name>/controllers/dev      # overlay renders after bump
+helm template <release> oci://<registry>/<chart> --version <new> --values <values-file> | diff <(helm template <release> oci://<registry>/<chart> --version <old> --values <values-file>) - | head -80  # chart diff
+tofu -chdir=<module> init -backend=false && tofu -chdir=<module> validate && tofu -chdir=<module> test  # touched modules only
 ```
 
 ```bash
@@ -82,6 +110,7 @@ CI mirrors these gates per path (Go workflows, `flux-*-validate.yaml`, push/rele
 - **Base holds the shape, overlays hold the difference.** Whenever dev and prd diverge, put a placeholder in `base` (`__PROTON_PASS_BASE__`, `__WILDCARD_TLS_SECRET__`, `__SERVICE_HOST__`, `__BASE_DOMAIN__`, `__ACME_EMAIL__`) and an explicit replacement in each environment overlay. Never fork a whole file per environment.
 - **Pin parity on upgrade.** Flox manifest, `group_vars/all.yml`, Terraform/Ansible constraints, workflow `uses:` SHAs, Dockerfile `FROM` pins (Go `go.mod` 1.26.7 + `golang:1.26.7@sha` + distroless; `PASS_CLI` 2.3.3 with sha), and Flux image/chart refs all move together. A half-upgraded pin is a bug.
 - **Images and charts update themselves.** Every OCI image and Helm chart gets an image policy (`flux/{infra,apps}/update-policies/<name>.yaml`: `ImageRepository` 12h + semver `ImagePolicy`) plus the `# {"$imagepolicy":"area:name:tag"}` marker at each consumption site, driven by the `flux/fleet/clusters/update/` `ResourceSet` + `ImageUpdateAutomation` (30m, Setters push `image-updates-*` branches). Human merges the resulting PR after review — automation proposes, never merges.
+- **Upgrade lifecycle (check versions -> check changelog -> bump -> migrate/verify).** Every bump follows the same manual loop: check the available version (policy `range:` floor plus upstream tags), read the changelog first (canonical pages under Reference), bump the pin, then migrate values/CRDs and verify with the gates. Dev soaks first; promote dev->stable/prd only after dev is green. Automation proposes (ImageUpdateAutomation PR), human merges after review — never auto-merge. Per-type mechanics: OCI chart/image — let the `$imagepolicy` marker move via the automation PR, then hand-verify; classic `HelmRepository` (coder, seaweedfs, headlamp, coredns, VPA) — hand-bump `version:`/`tag:` plus the policy floor, never convert to OCI; vendored bundles (KubeVirt operator+CR, Multus) — re-download at the new tag, diff, then bump the marker; provider/ISO/schematic (Netbird `versions.tf` `~>`, Talos `talos_version`, `tofu-controller` digest) — bump version and digest together. Chart<->app divergence checklist: coder chart vs app image, zitadel chart vs app, coredns chart vs app, clickhouse-operator vs server/keeper, rclone-sync chart vs appVersion (all six wrappers atomically), `tofu-controller` chart vs `tofu-runner`. Coupled moves: Cilium<->Gateway API, Hubble UI<->Cilium, flux-operator-ui chart tag <-> `flux/fleet/terraform/versions.yaml` `operator_chart_version`, clickhouse-server<->keeper, oauth2-proxy single shared marker (`apps:oauth2-proxy:tag`) across clickstack/hubble-ui/seaweedfs.
 - **Prefer Helm OCI; document the exception.** New charts use `OCIRepository` + `chartRef` (interval 1h). Classic `HelmRepository` (coder 2.37.0, plus seaweedfs alongside it) is grandfathered — keep its header comment explaining why.
 - **Production-ready by default.** Follow upstream best practices and harden for security on every deployment: health checks, resource requests/limits, autoscaling, and secrets-via-ESO on everything you add (details below). Scalable, observable, private-by-default is the baseline, not a stretch goal.
 - **Workload standards:**
@@ -105,6 +134,8 @@ CI mirrors these gates per path (Go workflows, `flux-*-validate.yaml`, push/rele
 - Do NOT commit secrets, kubeconfigs, talosconfigs, `secrets.bundle.yml`, or `proton-pass-pat` files. They are gitignored build artifacts; only `*.template` files and double-brace placeholders are committed.
 - Do NOT leave telemetry enabled on any deployment (Talos machine config, controllers, apps). If a chart defaults it on, explicitly disable it.
 - Do NOT add a classic `HelmRepository` for a new chart, use `:latest` tags, or consume an image without an `$imagepolicy` marker and update policy.
+- Do NOT skip the changelog on a bump, half-bump a chart<->app pair (coder, zitadel, coredns, clickhouse-operator/server/keeper, rclone-sync chart/appVersion, `tofu-controller`/`tofu-runner`), or let one side of a coupled move drift (Cilium/Gateway, Hubble/Cilium, UI/`versions.yaml`, server/keeper, oauth2-proxy markers).
+- Do NOT let the flux-operator-ui policy touch the fleet sync path (UI stays `serverOnly`, `installCRDs: false`; bootstrap `flux-operator` owns CRDs and sync), and do NOT prune CRDs on upgrade — keep the explicit CRD policy (Cilium/cert-manager/COSI/Gateway keep, fleet `infra-crds` delivery).
 - Do NOT use Ingress, FQDNs for in-cluster traffic, or Gateway hostnames for internal-only endpoints.
 - Do NOT fork per-environment manifests instead of base-placeholder + overlay-override, and do NOT put a singleton behind HPA.
 - Do NOT use `TODO`/`FIXME` in first-party code, push unpinned `uses:` refs in workflows, or run `flux/scripts/validate.sh` against the wrong scope and call it coverage.
