@@ -1,7 +1,8 @@
-# SeaweedFS operator + CSI driver (§12.1). Charts are classic HelmRepository
-# sources: OCI pulls 403 on both seaweedfs repos (verified 2026-09-08; they
-# publish only a classic index.yaml), so chart versions below are bumped
-# manually (see README) while container images track
+# SeaweedFS operator + CSI driver (§12.1). Charts are OCI via
+# chartproxy.container-registry.com (classic
+# https://seaweedfs.github.io/seaweedfs-operator/ + .../seaweedfs-csi-driver/helm
+# proxied to OCI); chart versions below stay pinned (operator 0.1.40, driver
+# 0.2.36) while container images track
 # flux/infra/update-policies/seaweedfs.yaml via $imagepolicy markers.
 # CRD lifecycles in this repo (do not confuse them):
 # - Vendored COSI CRDs: cosi/crds/base (5 files, tag v0.2.2) render through
@@ -18,20 +19,30 @@
 # (unguarded monitors OFF); no usage-reporting knobs exist upstream.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
+kind: OCIRepository
 metadata:
   name: seaweedfs-operator
 spec:
   interval: 1h
-  url: https://seaweedfs.github.io/seaweedfs-operator/
+  url: oci://chartproxy.container-registry.com/seaweedfs.github.io/seaweedfs-operator/seaweedfs-operator
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: 0.1.40
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
+kind: OCIRepository
 metadata:
   name: seaweedfs-csi-driver
 spec:
   interval: 1h
-  url: https://seaweedfs.github.io/seaweedfs-csi-driver/helm
+  url: oci://chartproxy.container-registry.com/seaweedfs.github.io/seaweedfs-csi-driver/helm/seaweedfs-csi-driver
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: 0.2.36
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -41,13 +52,9 @@ spec:
   interval: 1h
   releaseName: seaweedfs-operator
   serviceAccountName: flux
-  chart:
-    spec:
-      chart: seaweedfs-operator
-      version: 0.1.40
-      sourceRef:
-        kind: HelmRepository
-        name: seaweedfs-operator
+  chartRef:
+    kind: OCIRepository
+    name: seaweedfs-operator
   install:
     strategy:
       name: RetryOnFailure
@@ -99,13 +106,9 @@ spec:
   serviceAccountName: flux
   dependsOn:
     - name: seaweedfs-operator
-  chart:
-    spec:
-      chart: seaweedfs-csi-driver
-      version: 0.2.36
-      sourceRef:
-        kind: HelmRepository
-        name: seaweedfs-csi-driver
+  chartRef:
+    kind: OCIRepository
+    name: seaweedfs-csi-driver
   install:
     strategy:
       name: RetryOnFailure
