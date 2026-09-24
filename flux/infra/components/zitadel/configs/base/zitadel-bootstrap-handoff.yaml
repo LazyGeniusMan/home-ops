@@ -9,8 +9,8 @@
 # need no cross-namespace grant):
 # - `zitadel-bootstrap-credentials` (keys `jwt_profile_json`, `pat`) — the
 #   JWT-profile + PAT handoff that per-app tofu-controller `varsFrom` /
-#   `fileMappings` consume instead of the old Proton Pass seeding step
-#   (`pass://<env-vault>/zitadel/terraform-jwt-profile-json`). No inline
+#   `fileMappings` consume (replaces vault seeding
+#   `pass://<env-vault>/zitadel/terraform-jwt-profile-json`). No inline
 #   credentials, no manual vault seeding: the setup Job mints the key and ESO
 #   copies it.
 # - `zitadel-bootstrap-outputs` is NOT ESO-managed (nothing to mirror — org
@@ -18,19 +18,17 @@
 #   once by the operator after first install (kubectl create secret generic
 #   zitadel-bootstrap-outputs --from-literal=org_id=<id> ...; see README
 #   runbook) carrying `org_id` + `admin_user_id` (plain IDs, non-sensitive) —
-#   same name/keys as the old Terraform `writeOutputsToSecret`. Per-app
+#   same name/keys as the Terraform `writeOutputsToSecret` contract. Per-app
 #   slices read the two IDs from this Secret into their CR `vars` (literal,
-#   non-sensitive) instead of looking users up by email. Until the follow-up
-#   consumer task lands, per-app remote-state reads keep working off the
-#   LAST tofu-controller state; after that state ages out they switch to this
-#   Secret via same-namespace `varsFrom` (zitadel ns) or narrow cross-ns
-#   Roles (app namespaces).
+#   non-sensitive) instead of email lookups. Consumers read the two IDs via
+#   same-namespace `varsFrom` (zitadel ns) or narrow cross-ns Roles
+#   (app namespaces).
 # AssetStorage S3 (`zitadel-asset-storage`, keys endpoint/accessKeyId/
 # secretAccessKey) is ESO-mirrored here too from the colocated
 # `zitadel-assets` claim (bucketclaims.yaml) through the in-namespace
 # `zitadel-cosi` SecretStore — consumed as ZITADEL_ASSETSTORAGE_* env vars
 # (see the HelmRelease). Endpoint is the INTERNAL S3
-# (http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333 — plain HTTP, same
+# (http://seaweed-main-s3.seaweedfs:8333 — plain HTTP, same
 # as CNPG/Dragonfly); per-env overlays patch only this file's endpoint literal.
 ---
 apiVersion: v1

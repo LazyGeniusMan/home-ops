@@ -21,7 +21,7 @@ patches:
   # (S3 keys are COSI-minted via the in-namespace clickstack-cosi
   # SecretStore — no per-env vault ref patch for clickhouse-s3-backup,
   # cnpg-s3-credentials, rclone-ferretdb-s3(+path), or rclone-clickstack-s3(+path).)
-  # Dev rclone-sync-buckets identity: Proton Pass vault keys + the Proton
+  # Dev rclone-sync-buckets identity (chart source: projects/helm-rclone-sync): Proton Pass vault keys + the Proton
   # Drive destination cluster segments (base holds __PROTON_PASS_BASE__ /
   # __CLUSTER_NAME__ placeholders; both HelmReleases share the one
   # rclone-proton-credentials ExternalSecret, so one patch covers both).

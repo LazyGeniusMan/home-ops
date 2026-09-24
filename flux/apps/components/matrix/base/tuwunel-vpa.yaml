@@ -1,7 +1,7 @@
 # VPA applier for the tuwunel Deployment (RocksDB singleton, NO HPA):
 # updateMode Auto (modern Recreate — evict-and-recreate; in-place needs
 # VPA 1.x which the pinned 0.12.0 chart does not ship). Safe here because
-# the Deployment strategy is already Recreate (brief contract) and no PDB
+# the Deployment strategy is already Recreate and no PDB
 # gates the eviction — a resize IS a restart, same as any rollout. minReplicas
 # 1: the updater default --min-replicas=2 (vpa.yaml flags note) never evicts
 # single-replica targets, and no PDB exists here — without this the CR would

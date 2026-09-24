@@ -17,8 +17,7 @@
 # below; keys land under the module var names so `varsFrom` needs no
 # varsKeys renames). Team namespaces mint their own bot via their own
 # bootstrap (same Job pattern as matrix base/matrix-bot-bootstrap.yaml) or
-# a vault-direct mirror like the retired matrix-rooms-terraform-vars shape —
-# either way, NEVER the matrix tenant's kept Secret (same-namespace
+# a vault-direct mirror — either way, NEVER the matrix tenant's kept Secret (same-namespace
 # `varsFrom` CANNOT cross namespaces). NO token literal in git, NO manual
 # per-env fill beyond the team's own first-seed.
 # Backend: in-cluster Kubernetes default (state Secrets in the consumer

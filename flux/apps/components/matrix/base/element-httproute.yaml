@@ -1,4 +1,4 @@
-# Element Web HTTPRoute (Goal 2d): attaches to the shared §8.1 Gateway
+# Element Web HTTPRoute: attaches to the shared §8.1 Gateway
 # (listeners accept routes from all namespaces — cross-namespace parentRef,
 # no targetNamespace override needed; same pattern as hubble-ui/clickstack).
 # Hostname __SERVICE_HOST__ (dev/prd overlays replace with the per-env

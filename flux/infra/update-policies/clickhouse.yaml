@@ -5,7 +5,7 @@
 # components/clickhouse (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
 # Changelog: operator — https://github.com/Altinity/clickhouse-operator/releases.
 # Changelog: server/keeper 26.8 LTS lockstep — https://github.com/ClickHouse/ClickHouse/releases.
-# Mode: auto (read the server changelog before taking a new LTS — 25.9 went EOL, 26.x crosses breaking changes).
+# Mode: auto (read the server changelog before taking a new LTS).
 # Coupled files: [configs/base/installation-base.yaml, configs/base/backup-cronjob.yaml, ../../../apps/components/clickstack/base/clickstack-clickhouse.yaml].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
@@ -27,8 +27,7 @@ spec:
   policy:
     semver:
       range: ">=0.27.3"
-# Server + keeper runtime images (G5: pinned 25.9 line, tags verified live on
-# Docker Hub). Markers live on the ClickHouseInstallation pod templates
+# Server + keeper runtime images (pinned 26.8 LTS line). Markers live on the ClickHouseInstallation pod templates
 # (installation-base.yaml + clickstack-clickhouse.yaml) and the nightly
 # backup CronJob (backup-cronjob.yaml).
 ---

@@ -1,8 +1,7 @@
 # Shared in-namespace ESO Kubernetes-provider reader for the `matrix`
 # tenant (ONE copy serves every in-namespace k8s store here: tuwunel-k8s,
-# tuwunel-cosi, mautrix-discord-cosi — the tuwunel and mautrix-discord copies
-# were identical apart from labels, so they merge here; same shape as
-# coder/hubble-ui): same-cluster read, so `server.url` is omitted (defaults
+# tuwunel-cosi, mautrix-discord-cosi; same shape as coder/hubble-ui):
+# same-cluster read, so `server.url` is omitted (defaults
 # to kubernetes.default) and the in-namespace `kube-root-ca.crt` ConfigMap
 # supplies the API CA.
 ---

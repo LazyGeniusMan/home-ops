@@ -1,4 +1,4 @@
-# Element Web stateless SPA (Goal 2d): Deployment + config.json ConfigMap +
+# Element Web stateless SPA: Deployment + config.json ConfigMap +
 # Service, vendored from the upstream Kubernetes example
 # (docs/kubernetes.md, `/tmp/home-ops-docs/element-web-docs`): vectorim/element-web image, config.json via ConfigMap
 # subPath mount at /app/config.json, Service :80, probes GET / (readiness
@@ -18,7 +18,7 @@
 # Stateless: pure nginx static file server (no session, no local state), so
 # horizontal scaling is safe. HPA owns runtime count (base replicas: 1 is the
 # create-time seed).
-# Image pinned explicitly; bumps via the update-policy contract (§7 style).
+# Image pinned explicitly; bumps via the update-policy contract.
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -34,9 +34,9 @@ data:
   # alongside it (docs: Element would try .well-known first and only fall
   # back to default_server_config — extra failure mode we skip).
   # default_server_name match: the tuwunel server_name is
-  # "matrix.home-ops.yansyah.my.id" (placeholder pending tuwunel Goal 2c —
-  # MUST match tuwunel server_name or login/user-ID routing breaks); base_url
-  # is the PUBLIC tuwunel client URL (placeholder, replaced per env).
+  # "tuwunel.matrix.<base>" (placeholder — MUST match tuwunel server_name or
+  # login/user-ID routing breaks); base_url is the PUBLIC tuwunel client URL
+  # (placeholder, replaced per env).
   # disable_custom_urls: true — locks the server picker to our homeserver
   # (public Matrix client speaking to tuwunel via Zitadel SSO; users must
   # not be offered arbitrary homeserver URLs).

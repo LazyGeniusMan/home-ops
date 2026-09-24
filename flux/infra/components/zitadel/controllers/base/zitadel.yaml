@@ -1,6 +1,6 @@
 # Zitadel v4.18.0 identity provider (§11.1): OIDC issuer on the admin host
-# (__ZITADEL_HOST__ = admin.zitadel.<base>) plus the wave-3c app client
-# contract (see README). End-user logins run on the separate login host
+# (__ZITADEL_HOST__ = admin.zitadel.<base>) plus the per-app client contract
+# (see README). End-user logins run on the separate login host
 # (__ZITADEL_LOGIN_HOST__ = login.zitadel.<base>, NetBird-exposed) via
 # LoginV2.BaseURI (DefaultInstance Features, per-env overlay) + per-app
 # login_base_uri (terraform root).

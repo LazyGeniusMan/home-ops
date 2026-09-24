@@ -5,13 +5,11 @@ resources:
   # tuwunel-k8s, tuwunel-cosi, mautrix-discord-cosi).
   - matrix-rbac.yaml
   # ONE wildcard Certificate covering both nested service hostnames
-  # (tuwunel.matrix.* + element.matrix.* — the tuwunel and element-web
-  # copies were spec-identical, so they merge here into one).
+  # (tuwunel.matrix.* + element.matrix.*).
   - wildcard-certificate.yaml
-  # apprise-go-api: consumer-owned wiring only — the workload now lives in
-  # the infra apprise-go-api tenant (namespace apprise-go-api); this tenant
-  # keeps the STATELESS_URLS fallback secret + Flux Provider/Alert wiring,
-  # posting to the infra Service DNS below.
+  # apprise-go-api consumer wiring (workload in namespace apprise-go-api;
+  # fallback secret + Provider/Alert wiring here, posting to the infra
+  # Service DNS below).
   - apprise-go-api-secrets.yaml
   - notifications.yaml
   # tuwunel: Matrix homeserver (Deployment+PVC+Service, secrets, COSI storage
@@ -35,10 +33,8 @@ resources:
   - mautrix-discord.yaml
   - mautrix-discord-vpa.yaml
   # element-web: stateless SPA (DNS-01 solver secret, workload + config +
-  # Service, HTTPRoute, HPA, VPA, NetBird consumer). Only ONE
-  # cloudflare-api-token mirror ships here — the tuwunel and element-web
-  # copies were identical, so the tuwunel copy (inside tuwunel-secrets.yaml)
-  # is the survivor and element-secrets.yaml is NOT carried over.
+  # Service, HTTPRoute, HPA, VPA, NetBird consumer). Single
+  # cloudflare-api-token mirror ships here (in tuwunel-secrets.yaml).
   - element-web.yaml
   - element-web-hpa.yaml
   - element-web-vpa.yaml

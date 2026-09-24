@@ -1,8 +1,6 @@
 # FerretDB (§11.2): Mongo-wire proxy over the namespace-local CNPG Cluster
 # (base/ferretdb-postgres.yaml, dbname ferretdb). Image pinned to the
-# v2.7.0 line (verified via Docker Hub tags at authoring: 2.7.0 is the newest
-# non-`latest` tag under the 2.x major); bumps via
-# update-policies/clickstack.yaml.
+# v2.7.0 line; bumps via update-policies/clickstack.yaml.
 # Connection contract (documented for app writers, see README):
 # - HyperDX MONGO_URI=mongodb://ferretdb.clickstack.svc:27017/hyperdx.
 # - FerretDB reaches Postgres at ferretdb-rw.clickstack.svc:5432/ferretdb

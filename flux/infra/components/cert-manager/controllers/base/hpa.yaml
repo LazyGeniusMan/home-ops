@@ -1,4 +1,4 @@
-# Out-of-band HPAs for the cert-manager chart (v1.21.1 exposes no autoscaling
+# Out-of-band HPAs for the cert-manager chart (v1.21.2 exposes no autoscaling
 # knob; values keys are replicaCount + webhook/cainjector.replicaCount —
 # see cert-manager-docs/content/docs/installation/best-practice.md). All three
 # Deployments are leader-elected, so horizontal scale is HA-safe.

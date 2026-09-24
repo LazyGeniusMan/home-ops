@@ -5,8 +5,7 @@
 # httproutes.yaml discipline); real traffic terminates on 443 with the
 # in-namespace wildcard Secret. BOTH routes backend to the per-instance
 # oauth2-proxy Service (port 4180) — the UI Service is never exposed directly
-# (admin-only auth enforced by the proxy). Hostname leaves room for
-# wave-3c siblings without renaming.
+# (admin-only auth enforced by the proxy).
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

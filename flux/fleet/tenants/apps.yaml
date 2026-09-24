@@ -1,10 +1,9 @@
 # Apps tenants: one entry per component directory under flux/apps/components.
-# Every component uses the d2-apps environment-direct layout
+# Every component uses the environment-direct layout
 # ({base,dev,prd}/ with `resources: [../base]` env overlays)
 # and reconciles through a SINGLE Kustomization at ./<<environment>>
-# (mirrors the upstream d2-fleet tenants/apps.yaml; infra keeps its
-# configs/controllers split in tenants/infra.yaml).
-# To onboard a new application (§§8-14): add its directory as a new input
+# (infra keeps its configs/controllers split in tenants/infra.yaml).
+# To onboard a new application: add its directory as a new input
 # tenant here AND add it to the components matrix in
 # .github/workflows/flux-apps-push.yaml so its OCI artifact is published.
 apiVersion: fluxcd.controlplane.io/v1
@@ -15,19 +14,18 @@ metadata:
   annotations:
     fluxcd.controlplane.io/reconcileEvery: "5m"
 spec:
-  # Convergence gate (GOAL 4): the whole apps layer reconciles only after
+  # Convergence gate: the whole apps layer reconciles only after
   # infra readiness — no app races its platform dependency. Each entry blocks
   # with a clear dependsOn (missing dep = waiting Kustomization, never a
   # CrashLoop). Per-app consumption:
-  # - Zitadel FirstInstance Job (configs/zitadel): clickstack, coder,
+  # - Zitadel FirstInstance (controllers/zitadel): clickstack, coder,
   #   flux-operator-ui, headlamp, hubble-ui (SSO Terraform CRs read the
   #   zitadel-bootstrap-outputs handoff) + matrix/tuwunel (tuwunel-sso CR).
   #   matrix/rooms + element-proxy Terraform CRs ride the same gate via the
   #   in-tenant bootstrap Job kept Secret (no separate entry — the Job itself
   #   retries until tuwunel is Ready).
-  # - Cilium (configs/cilium: Gateway main + hubble-relay Service) +
-  #   gateway-api (configs/gateway-api: GatewayClass cilium): every app with
-  #   an HTTPRoute (all except the two VMs).
+  # - gateway-api (configs/gateway-api: Gateway main, GatewayClass cilium):
+  #   every app with an HTTPRoute (all except the two VMs).
   # - CoreDNS (configs/coredns) + Cilium kube-proxy replacement: all apps
   #   (in-cluster DNS + Service VIPs).
   # - cert-manager (configs/cert-manager: ClusterIssuer letsencrypt):
@@ -43,8 +41,7 @@ spec:
   #   talos-vm + win11-vm (VirtualMachines on the secondary net).
   # - tofu-controller (controllers/tofu-controller): every app with a
   #   Terraform CR (all SSO apps + matrix rooms/proxy).
-  # Kustomization-level dependsOn (not Terraform-CR dependsOn, which is
-  # Terraform-CR-only upstream) is the mechanism — see each app's
+  # Kustomization-level dependsOn is the mechanism — see each app's
   # base/terraform.yaml header.
   dependsOn:
     - apiVersion: kustomize.toolkit.fluxcd.io/v1

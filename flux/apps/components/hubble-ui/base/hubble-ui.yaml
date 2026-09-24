@@ -4,9 +4,7 @@
 # (frontend + backend v0.13.6); bumps via update-policies/hubble-ui.yaml.
 # Shape mirrors the chart's hubble-ui templates (Deployment env, probes, nginx
 # ConfigMap, Service 80→8081) minus cluster-scoped RBAC (see Role below).
-# Telemetry: the chart exposes no usage-reporting keys (verified at authoring:
-# non-comment values lines matching telemetry|usageReporting|phoneHome|
-# analytics are empty), so there is nothing to switch off.
+# Telemetry: no usage-reporting keys in chart values; nothing to switch off.
 # Monitoring: no ServiceMonitor (monitoring.coreos.com CRDs not present —
 # same §9 deviation); flip once the monitoring stack lands.
 ---

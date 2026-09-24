@@ -8,8 +8,7 @@
 # Covers BOTH nested service hostnames in this tenant
 # (tuwunel.matrix.__BASE_DOMAIN__ + element.matrix.__BASE_DOMAIN__ — one
 # cert, one TLS secret, shared by both Gateways/listeners; per the Gateway
-# API spec a `*.` hostname matches dots to the left). The tuwunel and
-# element-web copies were spec-identical, so they merge here into one.
+# API spec a `*.` hostname matches dots to the left).
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate

@@ -6,11 +6,9 @@
 # chart↔app divergence, unlike §11.1 Zitadel; on bumps set the
 # OCIRepository ref.tag AND image.tag to the new version together). No
 # cosign verify block: proxied tarballs are live-translated by chartproxy,
-# so no upstream signature applies. App image verified live on GHCR
-# (ghcr.io/headlamp-k8s/headlamp:v0.45.0 tag listed at authoring time).
-# Telemetry: chart values carry no phone-home/analytics/usage-reporting knobs
-# (checked at authoring time); bundled static plugins stay on (pure UI, no
-# reporting). No ServiceMonitor is shipped until monitoring.coreos.com CRDs
+# so no upstream signature applies. App image ghcr.io/headlamp-k8s/headlamp:v0.45.0.
+# Telemetry: chart values carry no phone-home/analytics/usage-reporting knobs;
+# bundled static plugins stay on (pure UI, no reporting). No ServiceMonitor is shipped until monitoring.coreos.com CRDs
 # land (same §9 deviation).
 # Ordering: the headlamp-oidc ExternalSecret lives alongside the release in
 # this same Kustomization, so the first install attempt pends until ESO syncs

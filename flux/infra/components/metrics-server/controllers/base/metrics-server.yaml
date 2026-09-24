@@ -44,7 +44,7 @@ spec:
     # owns the count at runtime (chart 3.14.0 has no autoscaling knob, only the
     # addonResizer sidecar default off). Dev seeds 1, prd seeds 2.
     # NOTE: metrics-server feeds the Metrics API that every other HPA in this
-    # refactor consumes — keep it Ready (apiService.create stays true) or all
+    # repo consumes — keep it Ready (apiService.create stays true) or all
     # targetCPU HPAs go blind. Chart already defaults CPU requests 100m.
     replicas: 1 # placeholder - overridden by dev/prd overlays
     # Resources: upstream chart defaults pinned explicit (verified via helm

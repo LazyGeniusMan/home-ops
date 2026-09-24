@@ -1,15 +1,15 @@
 # Infra tenants: one entry per component directory under flux/infra/components.
-# To onboard a new platform component (§§8-14): add its directory as a new
+# To onboard a new platform component: add its directory as a new
 # input tenant here AND add it to the components matrix in
 # .github/workflows/flux-infra-push.yaml so its OCI artifact is published.
 #
-# CRD delivery (§8.1 gateway-api, §12 COSI): vendored CRDs render through a
-# dedicated prune:false infra-crds Kustomization per tenant below — a removed
-# CRD file must never cascade-delete CRs cluster-wide (CRDs are never
+# CRD delivery (gateway-api, cosi only): CRDs render through a dedicated
+# prune:false infra-crds Kustomization per tenant below — a removed CRD file
+# must never cascade-delete CRs cluster-wide (CRDs are never
 # garbage-collected). The matching infra-controllers Kustomization keeps
 # prune:true and gains a conditional dependsOn on its sibling infra-crds so
 # the controller only reconciles once its CRDs are Ready.
-# Sanctioned pattern: upstream ResourceSet conditional-resource inclusion —
+# Sanctioned pattern: ResourceSet conditional-resource inclusion —
 # per-input resources gated by the fluxcd.controlplane.io/reconcile
 # annotation set from << if >> Go-template conditionals. The infra-crds
 # Kustomization carries reconcile: enabled only for the two tenants that ship

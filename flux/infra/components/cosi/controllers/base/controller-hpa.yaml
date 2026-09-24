@@ -1,6 +1,5 @@
 # HPA for the COSI central controller (safe multi-replica: the pinned
-# image gcr.io/k8s-staging-sig-storage/objectstorage-controller:
-# v20250905-controllerv0.2.0-rc1-100-gd904c62 runs
+# image gcr.io/k8s-staging-sig-storage/objectstorage-controller:v0.2.2 runs
 # controller/cmd/controller-manager.go which calls
 # internal/runtime NewDefaultObjectStorageController with lock
 # "leader-lock" — and internal/runtime/controller.go Run() executes

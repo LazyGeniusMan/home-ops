@@ -4,7 +4,7 @@
 # (must not flap admission). Recreate would evict; Off would waste the
 # recommender history — Initial is the correct middle ground.
 # Release name `external-secrets` renders Deployment `external-secrets-webhook`
-# (chart 2.10.0; webhook stays singleton 1 per hpa.yaml header).
+# (chart 2.11.0; webhook stays singleton 1 per hpa.yaml header).
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler

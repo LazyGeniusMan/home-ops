@@ -1,5 +1,5 @@
 # Local Path Provisioner v0.0.37 (§9.5): node-local dynamic volumes for the
-# prd data layer. Chart: oci://ghcr.io/rancher/local-path-provisioner/charts/local-path-provisioner
+# data layer. Chart: oci://ghcr.io/rancher/local-path-provisioner/charts/local-path-provisioner
 # (verified tag 0.0.37 == app v0.0.37).
 # Talos alignment: UserVolumeConfig volumes mount at /var/mnt/<name>, so
 # nvme-data -> /var/mnt/nvme-data and sata-data -> /var/mnt/sata-data

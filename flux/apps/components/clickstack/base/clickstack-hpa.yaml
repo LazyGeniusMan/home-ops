@@ -1,9 +1,7 @@
 # Clickstack + OTel collector + FerretDB + oauth2-proxy HPAs (§11.2):
-# autoscaling/v2 over the hand-vendored Deployments (no chart — the upstream
-# hdx-oss-v2 chart was rejected for the ESO-only secret posture, see
-# clickstack.yaml header; clickstack-helm-charts-docs confirms the chart
-# shape but carries no autoscaling knob usable here; oauth2-proxy-docs covers
-# app flags only — no autoscaling knob exists for a plain Deployment).
+# autoscaling/v2 over the hand-vendored Deployments (ESO-only secret posture,
+# no chart — see clickstack.yaml header; no autoscaling knob exists for a
+# plain Deployment).
 # All four are horizontally safe: HyperDX app + OTel collector repointed at
 # the external CHI (stateless); FerretDB is a stateless Mongo-wire proxy
 # (state lives in the CNPG backend, no leader election); oauth2-proxy uses

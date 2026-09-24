@@ -1,4 +1,4 @@
-# Element Web HPA (Goal 2d): autoscaling/v2 over the hand-vendored
+# Element Web HPA: autoscaling/v2 over the hand-vendored
 # Deployment (upstream ships a plain Deployment example with replicas: 1 —
 # no autoscaling knob exists there). Stateless nginx SPA (no session, no
 # local state — every replica serves identical static files + the same

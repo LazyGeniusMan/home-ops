@@ -39,5 +39,5 @@ resources:
 #       - op: add
 #         path: /spec/resources/0/data/prd-only-note
 #         value: >-
-#           prd pins stable tags via cosign verify; see tenants/infra.yaml
-#           and tenants/apps.yaml matchOIDCIdentity blocks.
+#           prd pins stable tags; see matchOIDCIdentity in tenants/infra.yaml,
+#           tenants/apps.yaml, and clusters/*/flux-system/flux-instance.yaml.

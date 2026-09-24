@@ -1,8 +1,8 @@
-# Flux notification wiring (Goal 3): every Flux-native event source emits via
+# Flux notification wiring: every Flux-native event source emits via
 # apprise-go-api into per-purpose Matrix rooms. Full contract (room -> source
 # -> tag matrix, payload mapping, E2EE decision, test plan, deferred items):
-# base/NOTIFICATIONS.md. Tenant/workflow onboarding (tenants/apps.yaml +
-# flux-apps-push.yaml matrix) is a SEPARATE task — this base only.
+# base/NOTIFICATIONS.md. Tenant/workflow onboarding (flux/fleet/tenants/apps.yaml
+# + the flux-apps image-update workflow) is a SEPARATE task — this base only.
 #
 # Provider type is generic (NOT generic-hmac): apprise-go-api has no HMAC
 # verification path (SECRET_KEY is internal-callback auth only), so an

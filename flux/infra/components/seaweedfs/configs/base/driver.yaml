@@ -11,9 +11,9 @@
 #   unix:///var/lib/cosi/cosi.sock), SEAWEEDFS_FILER (filer gRPC —
 #   seaweed-main-filer.seaweedfs:8888, same as the CSI HelmRelease), ENDPOINT
 #   (S3 URL handed back in BucketAccess secrets as secretS3.endpoint —
-#   internal ClusterIP FQDN http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333
-#   so credentials work in-cluster without hairpinning or search-expansion), REGION (us-east-1 — SeaweedFS
-#   ignores region; required non-empty by some S3 clients).
+#   in-cluster short name http://seaweed-main-s3.seaweedfs:8333),
+#   REGION (us-east-1 — SeaweedFS ignores region; required non-empty by
+#   some S3 clients).
 # - seaweedfs-cosi-sidecar: release-0.2 objectstorage-sidecar v0.2.2 (Bucket +
 #   BucketAccess listeners, --driver-addr unix:///var/lib/cosi/cosi.sock),
 #   the release-0.2 counterpart of the COSI controller v0.2.2 pin.

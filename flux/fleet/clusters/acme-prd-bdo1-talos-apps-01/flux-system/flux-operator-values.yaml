@@ -10,7 +10,7 @@
 #
 # The operator chart exposes no telemetry knobs; defaults are telemetry-off.
 # Controller monitoring (metrics endpoints, ServiceMonitors) is enabled per
-# component in flux/infra and flux/apps (§§8-14), not here.
+# component, not here.
 multitenancy:
   enabled: true
   defaultServiceAccount: flux-operator

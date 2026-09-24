@@ -1,5 +1,5 @@
 # Out-of-band HPAs for the external-secrets controller + certController
-# Deployments (chart 2.10.0 exposes no autoscaling knob — replicaCount,
+# Deployments (chart 2.11.0 exposes no autoscaling knob — replicaCount,
 # webhook.replicaCount, certController.replicaCount are static integers).
 # The webhook Deployment stays singleton 1 (no HPA): it fronts a validating
 # admission chain where a second replica adds risk without benefit.

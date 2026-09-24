@@ -63,17 +63,8 @@ spec:
           type: RuntimeDefault
       containers:
         - name: eso-proton-pass
-          # Image-stream decision (G5, recorded — no undocumented
-          # prd-tracks-dev): intentional single-stream :dev (branch pushes)
-          # for ALL envs — prd runs the dev stream too. Risk: prd inherits
-          # every main-branch webhook push with no release gate; a bad push
-          # breaks the cluster-wide proton-pass ClusterSecretStore (every
-          # downstream ExternalSecret goes Ready=False). Accepted because no
-          # eso-proton-pass-v* tagged release exists yet. Promotion trigger:
-          # when the first eso-proton-pass-v* tag lands, CI publishes the
-          # :stable + semver leg and prd pins :stable (policy
-          # infra:eso-proton-pass:tag in update-policies/external-secrets.yaml
-          # tracks the new leg) while dev stays on :dev.
+          # Webhook image tracks single-stream :dev in all envs; prd pins
+          # :stable once the first eso-proton-pass-v* tag lands.
           image: ghcr.io/lazygeniusman/home-ops/projects/eso-proton-pass:dev # {"$imagepolicy": "infra:eso-proton-pass:tag"}
           imagePullPolicy: IfNotPresent
           ports:

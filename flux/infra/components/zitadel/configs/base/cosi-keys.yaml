@@ -7,8 +7,7 @@
 # omitted (defaults to kubernetes.default), kube-root-ca.crt supplies the API
 # CA. Consumers (cnpg-s3-credentials / dragonfly-s3-credentials here) use
 # GJSON `property` (BucketInfo.spec.secretS3.accessKeyID/accessSecretKey) —
-# verified against ESO v2.10.0 providers/v1/kubernetes/client.go
-# getFromSecretData.
+# verified against ESO providers/v1/kubernetes/client.go getFromSecretData.
 ---
 apiVersion: v1
 kind: ServiceAccount

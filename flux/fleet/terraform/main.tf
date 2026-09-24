@@ -15,7 +15,7 @@
 #   pre-Flux  (this module): Cilium Helm chart (node networking), Flux
 #             Operator chart, FluxInstance. Managed by Terraform/bootstrap Job.
 #   post-Flux (Flux tenants): Cilium + CoreDNS HelmReleases via the infra
-#             ResourceSet (flux/fleet/tenants/infra.yaml, inputs #1/#2).
+#             ResourceSet (flux/fleet/tenants/infra.yaml inputs cilium, coredns).
 #             Flux adopts the Cilium release (flux_adoption_check below) and
 #             the namespace, then owns it; Terraform stops touching it.
 # CoreDNS is deliberately NOT a prerequisite: pre-Cilium the Job uses
@@ -35,7 +35,9 @@
 #   ../clusters/<cluster_name>/flux-system/flux-operator.yaml (asserted by
 #   tests/versions.tftest.hcl). The GitOps OCIRepository itself tracks
 #   semver '*' per D2; versions.yaml records the chart version used for the
-#   initial bootstrap install.
+#   initial bootstrap install. The operator version moves with the
+#   flux/apps/components/flux-operator-ui chart tag (see terraform/README.md
+#   "Upgrading the operator").
 # - prerequisites Cilium chart coordinates (repository + tag) and values <-
 #   ../../../infra/components/cilium/controllers/base/cilium.yaml (the same
 #   HelmRelease Flux reconciles). main.tf parses that file with yamldecode:

@@ -51,7 +51,7 @@ spec:
   # https://coder.com/docs/install/kubernetes
   values:
     coder:
-      # Chart schema `coder.replicaCount` (default 1; HA needs >1 + Enterprise).
+      # Chart schema `coder.replicaCount` (default 1; prd runs 2 — see prd overlay).
       replicaCount: 1 # placeholder - overridden by dev/prd
       image:
         repo: ghcr.io/coder/coder

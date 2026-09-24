@@ -3,15 +3,13 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # ---- apprise-go-api consumer wiring (workload now in the infra
+  # ---- apprise-go-api consumer wiring (workload in the infra
   # apprise-go-api tenant — no Deployment/Service/HPA/VPA here) ----
   # BOOTSTRAPPED: apprise-stateless-urls reads the notifier credential from
-  # the in-cluster kept Secret (tuwunel-k8s store) — NO vault patch here
-  # (the matrix-rooms/notifier-bot-token + homeserver-host vault path is
-  # retired; see VAULT-SEEDS.md). Providers post to the infra Service DNS
-  # (see base/notifications.yaml). This stanza is intentionally absent.
+  # the in-cluster kept Secret (tuwunel-k8s store) — no vault patch here.
+  # Providers post to the infra Service DNS (see base/notifications.yaml).
   # ---- (no apprise-stateless-urls patch — bootstrapped, see above) ----
-  # ---- tuwunel (homeserver) (carried over from components/tuwunel/dev/) ----
+  # ---- tuwunel homeserver ----
   # Dev route hostnames (tuwunel.matrix.home-ops-dev.yansyah.my.id).
   - patch: |
       - op: replace
@@ -123,7 +121,7 @@ patches:
     target:
       kind: Deployment
       name: tuwunel
-  # ---- mautrix-discord (bridge + colocated Postgres) (carried over from components/mautrix-discord/dev/) ----
+  # ---- mautrix-discord bridge + colocated Postgres ----
   # Dev Proton Pass identity: every mautrix-discord vault ref (base holds
   # __PROTON_PASS_BASE__ placeholders). The S3 entry stays COSI-minted —
   # no per-env patch for cnpg-s3-credentials.
@@ -219,7 +217,7 @@ patches:
     target:
       kind: Cluster
       name: mautrix-discord-db
-  # ---- element-web (stateless SPA + NetBird consumer) (carried over from components/element-web/dev/) ----
+  # ---- element-web stateless SPA + NetBird consumer ----
   # Dev route hostname (element.matrix.home-ops-dev.yansyah.my.id).
   - patch: |
       - op: replace
@@ -323,10 +321,8 @@ patches:
       name: element-web
   # ---- live room provisioning (tofu-controller) ----
   # BOOTSTRAPPED: room provider auth flows from the matrix-bot-bootstrap
-  # Job's kept Secret (same-namespace varsFrom — NO ESO mirror, NO vault
-  # patch). The matrix-rooms/{homeserver-url,bot-access-token,bot-user-id}
-  # vault path is retired (see VAULT-SEEDS.md); this stanza is
-  # intentionally absent.
+  # Job's kept Secret (same-namespace varsFrom — no ESO mirror, no vault
+  # patch).
   # ---- (no matrix-rooms-terraform-vars patch — bootstrapped, see above) ----
   # Dev bot identity for the matrix-bot-bootstrap Job (ONE bot per env;
   # base holds __PLACEHOLDERS__; Job writes the kept Secret the CRs read).

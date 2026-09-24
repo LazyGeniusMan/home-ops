@@ -12,7 +12,7 @@
 #   /_matrix/client/unstable/login/sso/callback/<client_id>) + /_tuwunel/
 #   (server admin console) + /_synapse/admin/ (Synapse-admin compat) +
 #   /.well-known/matrix/* (client auto-discovery — served by tuwunel itself
-#   via TUWUNEL_WELL_KNOWN__CLIENT; see README §well-known decision).
+#   via TUWUNEL_WELL_KNOWN__CLIENT; see README).
 #   X-Forwarded-For preservation: Cilium Gateway appends the downstream peer
 #   itself (Envoy xfcc/xff semantics) and tuwunel resolves the real client
 #   from the rightmost X-Forwarded-For entry (TUWUNEL_IP_SOURCE); no

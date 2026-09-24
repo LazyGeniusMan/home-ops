@@ -82,7 +82,7 @@ spec:
       create: true
     csiDriver:
       # The driver ships as the `seaweedfs-csi-driver` HelmRelease below, not via
-      # the operator: bundled CSI pins v1.4.20 vs chart-tracked v1.4.30 ($imagepolicy),
+      # the operator: bundled CSI pins v1.4.32 ($imagepolicy-tracked),
       # manages one StorageClass per SeaweedCSIDriver CR vs our two tiered (nvme/sata)
       # classes, and couples driver upgrades to the operator — so it stays off.
       enabled: false

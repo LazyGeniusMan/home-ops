@@ -2,7 +2,7 @@
 # Proton Pass (__PROTON_PASS_BASE__/cert-manager/cloudflare-api-token);
 # the token needs Zone:Read + DNS:Edit on the __BASE_DOMAIN__ zone.
 # ACME server is set per environment (prd/dev overlays); the base
-# intentionally leaves it unset like the upstream D2 reference.
+# intentionally leaves it unset (overlays set it).
 # Renewal: cert-manager renews at 2/3 of the issued lifetime automatically;
 # chart bumps flow through update-policies/cert-manager.yaml + PR automation.
 # PREREQUISITE (ordering): the ExternalSecret above resolves through
@@ -11,7 +11,7 @@
 # proton-pass-pat bootstrap; see the external-secrets README). The
 # ClusterIssuer cannot issue, and the wildcard Certificate stays NotReady,
 # until the cloudflare-api-token Secret syncs. Cross-tenant ordering is owned
-# by tenants/*.yaml (parallel task — do not add it here). Fresh-cluster
+# by tenants/*.yaml (do not add it here). Fresh-cluster
 # NotReady is EXPECTED and heals via ESO refreshInterval (1h) +
 # cert-manager retries; alert past ~10m.
 ---

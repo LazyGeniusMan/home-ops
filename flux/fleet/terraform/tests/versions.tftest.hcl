@@ -2,7 +2,7 @@
 # versions.yaml must match the OCIRepository consumed by Flux in
 # clusters/acme-prd-bdo1-talos-apps-01, clusters/update, AND
 # clusters/acme-dev-bdo1-talos-apps-01 flux-operator.yaml
-# (§14: dev bootstrap reuses the same single source).
+# (dev bootstrap reuses the same single source).
 mock_provider "kubernetes" {}
 mock_provider "helm" {}
 
@@ -31,7 +31,7 @@ run "operator_versions_match_gitops" {
     error_message = "flux-operator.yaml OCIRepository url must contain the versions.yaml operator_chart_repository."
   }
 
-  # Pinned versions: bootstrap module 0.8.0, operator chart 0.60.0.
+  # Pinned versions match versions.yaml (asserted below).
   assert {
     condition     = output.test_operator_ref["bootstrap_module_version"] == "0.8.0"
     error_message = "bootstrap module version must stay pinned at 0.8.0 (versions.yaml)."

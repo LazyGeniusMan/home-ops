@@ -19,7 +19,7 @@
 # zitadel-bootstrap-credentials.jwt_profile_json; PAT:
 # zitadel-bootstrap-sa-pat / zitadel-bootstrap-credentials.pat).
 # Users (human, operator-invited post-install):
-# - admin@home-ops.yansyah.my.id — super-admin (org owner; invite via console)
+# - admin@<base domain> — super-admin (org owner; invite via console)
 # Non-admin users are owned per consumer app, not by this bootstrap.
 # Groups (asserted into the `groups` claim via per-app project roles/grants):
 # - admin: admin@ as ORG_OWNER + project admin grant

@@ -1,5 +1,5 @@
 # Tuwunel Matrix homeserver (fresh install, federation-off).
-# Upstream reference (read-only): `/tmp/home-ops-docs/tuwumel-docs`.
+# Upstream reference (read-only): `/tmp/home-ops-docs/tuwunel-docs`.
 # - Deployment: replicas 1, strategy Recreate (RocksDB is single-writer; a
 #   second replica must never open the same database_path). Single RWO PVC
 #   (tuwunel-data, storageClassName local-ssd-nvme — the repo default class)
@@ -28,12 +28,12 @@
 #   envs + a read-only file mount from ESO Secrets — never literals in git,
 #   and never envFrom (the ESO keys contain dashes, which are invalid env
 #   names and would be silently skipped by kubelet). client_secret rides
-#   CLIENT_SECRET_FILE (brief contract; read at startup and on each OAuth
-#   exchange). client_id rides secretKeyRef; the callback URL embeds it via
+#   CLIENT_SECRET_FILE (read at startup and on each OAuth exchange).
+#   client_id rides secretKeyRef; the callback URL embeds it via
 #   k8s $(VAR) expansion so no generated id ever lands in git.
 # - server_name is IMMUTABLE (database wipe to change): per-env value
 #   patched by the overlays; prd tuwunel.matrix.home-ops.yansyah.my.id.
-# - Federation-off BEFORE first room (brief contract): allow_federation +
+# - Federation-off BEFORE first room: allow_federation +
 #   federate_created_rooms + federate_admin_room all false, plus the two
 #   assert-off keys; m.federate pin documented in README (rooms freeze the
 #   setting at creation).
@@ -66,7 +66,7 @@ metadata:
     app.kubernetes.io/name: tuwunel
     app.kubernetes.io/part-of: tuwunel
 spec:
-  replicas: 1
+  replicas: 1 # singleton: RocksDB single-writer, Recreate
   strategy:
     type: Recreate
   selector:

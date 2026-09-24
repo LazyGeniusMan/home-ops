@@ -4,8 +4,7 @@
 # on the CNPG Cluster in base/ferretdb-postgres.yaml).
 # Vendored shape (not the upstream hdx-oss-v2 chart): every credential is a
 # secretKeyRef/envFrom to ESO-synced Secrets (ESO-only contract, cf. README).
-# Images pinned to the chart's appVersion line (v2.7.1, verified via
-# `helm show chart clickstack/hdx-oss-v2` at authoring); bumps via
+# Images pinned to the hdx-oss-v2 appVersion line (v2.7.1); bumps via
 # update-policies/clickstack.yaml. Env shape mirrors the chart's app ConfigMap
 # + Deployment (ports, probes, OPAMP wiring) minus the in-chart DBs.
 # Telemetry: USAGE_STATS_ENABLED=false (chart knob, defaults true) and the
