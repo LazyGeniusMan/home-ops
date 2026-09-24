@@ -39,7 +39,7 @@ yq.pkg-path = "yq-go"
 yq.version = "4.53.3"
 kubeconform.pkg-path = "kubeconform"
 kubeconform.version = "0.8.0"
-# CI validation/test tools (pinned to latest catalog versions 2026-09-24).
+# CI validation/test tools.
 cosign.pkg-path = "cosign"
 cosign.version = "3.1.3"
 oras.pkg-path = "oras"

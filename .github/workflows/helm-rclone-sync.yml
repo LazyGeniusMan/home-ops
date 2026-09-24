@@ -9,10 +9,9 @@
 # Tag mapping:
 #   branch pushes -> chart version 0.0.0-dev.<sha> + `dev`, `dev-<sha>` aliases
 #   helm-rclone-sync-v<X.Y.Z> tags -> chart version <X.Y.Z> + `stable` alias
-# Semver-vs-convention exception: Helm OCI tags must be semver chart
-# versions, so the floating `dev` / `dev-<sha>` / `stable` aliases are
-# applied after the push with `oras tag` (the registry alias, not the chart
-# version, carries the floating name). Neither leg publishes `latest`.
+# Floating `dev` / `dev-<sha>` / `stable` aliases are applied after the
+# push with `oras tag` (the registry alias carries the floating name).
+# Neither leg publishes `latest`.
 #
 # Signing: cosign signs the digest-pinned ref
 # (`cosign sign --yes <repo>@<digest>`), covering every alias on that
@@ -148,10 +147,8 @@ jobs:
           DIGEST: ${{ steps.push.outputs.digest }}
 
       - name: Apply floating tags
-        # Mirrors the flux push dev + dev-<sha> convention (branch leg) and
-        # the eso floating-alias idea (tag leg uses `stable`, not `latest`,
-        # so pre-release tag legs stay unambiguous). Reuses the
-        # docker/login-action credentials via the Docker config.
+        # Branch leg retags dev + dev-<sha>; tag leg retags stable.
+        # Reuses the docker/login-action credentials via the Docker config.
         env:
           REF_TYPE: ${{ github.ref_type }}
           VERSION: ${{ steps.version.outputs.version }}

@@ -105,7 +105,6 @@ jobs:
           flavor: |
             latest=false
           # Branch leg: dev + dev-<sha>. Tag leg: stable + <semver>.
-          # BREAKING: tags publish `stable` instead of `latest`.
           tags: |
             type=raw,value=dev,enable=${{ github.ref_type == 'branch' }}
             type=sha,format=short,prefix=dev-,enable=${{ github.ref_type == 'branch' }}

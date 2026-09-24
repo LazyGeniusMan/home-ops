@@ -2,7 +2,7 @@
 # Owner: flux/infra
 # Self-contained: all steps are inline in this file; no local composite
 # actions are referenced (only pinned external owner/repo@sha actions).
-# To onboard a component (§§8-14): add its directory name to the components
+# To onboard a component: add its directory name to the components
 # matrix here AND add a matching tenant input in flux/fleet/tenants/infra.yaml.
 # Unchanged components are no-ops (push action only pushes on diff).
 name: flux-infra-push
