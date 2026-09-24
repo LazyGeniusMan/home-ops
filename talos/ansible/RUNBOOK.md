@@ -120,7 +120,7 @@ Confirm the link name matches the node patch (`ens18` on dev/QEMU,
 Generates everything under `build/<cluster>/` (gitignored): injected
 patches, per-node schematics + factory IDs, secrets bundle, `talosconfig`,
 per-node machine configs. Validates each machine config with
-`talosctl validate -m metal`. Changes nothing on the nodes.
+`talosctl validate -c <node file> -m metal`. Changes nothing on the nodes.
 
 Prerequisites (per cluster vault): a `talos` item with a `netbird-pat`
 field (the NetBird management PAT — resolved via `pass-cli item view`
@@ -147,7 +147,7 @@ throughout, `0600` kept) → per-node
 schematic deep-merge (`_base` → cluster → node) / factory
 upload / ID-rewrite → `gen secrets` bundle → `mkdir nodes/<node>` →
 `gen config -t talosconfig` → per-node `gen config -t <role>` with
-`--install-image` → `validate -m metal`.
+`--install-image` → `validate -c <node file> -m metal`.
 
 ### 1.0b NetBird setup key (PAT-driven Terraform, never vault-seeded)
 

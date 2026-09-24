@@ -29,7 +29,7 @@ Key facts:
 - When a task touches an unfamiliar tool, check whether a matching agent skill is available and use it instead of improvising.
 - Always resolve a Kubernetes question in two passes: search the Talos docs first for prerequisites, known issues, and workarounds, then read the component's own docs. Talos constraints (e.g. no kube-proxy sidecars, schematic-gated extensions) invalidate otherwise-correct upstream advice.
 - Keep every doc current-state-only. After any code or config change, update the adjacent doc in the same commit; never leave a doc describing a past design.
-- Toolchain source of truth is `.flox/env/manifest.toml` (ansible 2.21.3, ansible-lint 25.8.2, go 1.26.7, gopls 0.23.0, golangci-lint 2.13.2, govulncheck 1.8.0, opentofu 1.12.6, kubectl 1.37.0, helm 4.2.4, kustomize 5.8.1, fluxcd 2.9.4, yq 4.53.3, kubeconform 0.8.0, yamllint 1.37.1, cosign 3.1.3, oras 1.3.4, proton-pass-cli 2.3.3; `terraform` is aliased to `tofu`). `talosctl` v1.15.0-alpha.0 is the one exception: it is fetched by the `on-activate` hook via curl into `.flox/cache/bin`, not from the catalog. On any tool upgrade, migrate every consumer together so pins keep parity across the Flox manifest, `talos/ansible/group_vars/all.yml`, Terraform/Ansible version constraints, GitHub workflows, Dockerfiles, and Flux manifests.
+- Toolchain source of truth is `.flox/env/manifest.toml` (ansible 2.21.4, ansible-lint 25.8.2, go 1.26.7, gopls 0.23.0, golangci-lint 2.13.2, govulncheck 1.8.0, opentofu 1.12.6, kubectl 1.37.0, helm 4.3.0, kustomize 5.8.1, fluxcd 2.9.5, yq 4.53.3, kubeconform 0.8.0, yamllint 1.37.1, cosign 3.1.3, oras 1.3.4, proton-pass-cli 2.3.3; `terraform` is aliased to `tofu`). `talosctl` v1.15.0-alpha.0 is the one exception: it is fetched by the `on-activate` hook via curl into `.flox/cache/bin`, not from the catalog. On any tool upgrade, migrate every consumer together so pins keep parity across the Flox manifest, `talos/ansible/group_vars/all.yml`, Terraform/Ansible version constraints, GitHub workflows, Dockerfiles, and Flux manifests.
 - Secrets live in Proton Pass and are injected with the `pass-cli` binary (not `proton-pass-cli`). Gate on `pass-cli info` for login state, inject with double-brace templates plus `item view`, and always export the hardened env (`PROTON_PASS_DISABLE_TELEMETRY=1`, key provider `fs`, agent reason set, `*_FILE` file-backed pattern). Unencrypted secrets are gitignored at repo root and under `talos/.gitignore`; only double-brace `{{ }}` placeholders are ever committed. For every `pass://` reference you add, document its full path length, one redacted example, and the command that generates the value.
 
 ## Essential commands
@@ -42,7 +42,7 @@ ansible-playbook talos/ansible/playbooks/day0.yml -i localhost -e talos_cluster=
 ansible-playbook talos/ansible/playbooks/day1.yml -i localhost -e talos_cluster=<cluster>   # bootstrap
 ansible-playbook talos/ansible/playbooks/day2.yml -i localhost -e talos_cluster=<cluster>   # operate
 ansible-playbook talos/ansible/playbooks/day2.yml -i localhost -e talos_cluster=<cluster> --check --diff  # dry run
-talosctl validate -m metal --config-patch @talos/clusters/<cluster>/patches.yml             # validate metal patches
+talosctl validate -c ansible/build/<cluster>/nodes/<node>/controlplane.yaml -m metal   # validate rendered machine config
 ```
 
 ```bash
@@ -125,6 +125,6 @@ CI mirrors these gates per path (Go workflows, `flux-*-validate.yaml`, push/rele
 - Conventional Commits, all lowercase, imperative subject: `type(scope): subject`. Examples: `docs: add AGENTS.md contribution guide`, `feat(netbird): bound request-log route labels`, `fix(eso-proton-pass): bound log route`. Keep the subject under ~72 chars; explain the why in the body.
 - Image/chart tags are `<svc>-v*` (automation proposes, human merges); never tag or reference `:latest`.
 - One logical change per commit; docs travel with their code/config change (current-state-only, no "part 2" docs promises).
-- Before pushing, run the gates for every scope you touched (Go vet/build/test + lint + vuln check; `helm lint`/`template` + `ci/verify.sh`; `flux/scripts/validate.sh -d flux/{apps,infra,fleet}` per scope; `tofu init -backend=false/validate/test`; `cosign sign` for published images; Ansible `--check --diff` + `talosctl validate -m metal` + FQCN lint). Report gate results in the PR.
+- Before pushing, run the gates for every scope you touched (Go vet/build/test + lint + vuln check; `helm lint`/`template` + `ci/verify.sh`; `flux/scripts/validate.sh -d flux/{apps,infra,fleet}` per scope; `tofu init -backend=false/validate/test`; `cosign sign` for published images; Ansible `--check --diff` + `talosctl validate -c <node file> -m metal` + FQCN lint). Report gate results in the PR.
 - Workflows stay hardened: SHA-pinned `uses:`, `contents: read` least privilege, concurrency groups, path-gated triggers.
 - Open a PR for review; do not push to a protected branch. The image-update bot's PRs get manual review and merge like any other.
