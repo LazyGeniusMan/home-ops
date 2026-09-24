@@ -3,12 +3,10 @@
 # Self-contained: all steps are inline in this file; no local composite
 # actions are referenced (only pinned external owner/repo@sha actions).
 #
-# Docker-to-Helm adaptation of eso-proton-pass.yml: this workflow publishes a
-# Helm chart, not a container image, so there is no docker/build-push-action
-# step and no Dockerfile context. The OCI artifact is produced with
-# `helm package` and pushed with `helm push` to the chart OCI repository.
+# Publishes the helm-rclone-sync chart as an OCI artifact with
+# `helm package` + `helm push` to the chart OCI repository.
 #
-# Tag mapping mirrors the eso metadata tags, adapted for Helm semver:
+# Tag mapping:
 #   branch pushes -> chart version 0.0.0-dev.<sha> + `dev`, `dev-<sha>` aliases
 #   helm-rclone-sync-v<X.Y.Z> tags -> chart version <X.Y.Z> + `stable` alias
 # Semver-vs-convention exception: Helm OCI tags must be semver chart
@@ -16,13 +14,9 @@
 # applied after the push with `oras tag` (the registry alias, not the chart
 # version, carries the floating name). Neither leg publishes `latest`.
 #
-# Signing: `helm push` prints the pushed manifest digest; cosign signs the
-# digest-pinned ref (`cosign sign --yes <repo>@<digest>`), which covers every
-# alias pointing at that manifest. OCI cosign signatures work on any OCI
-# manifest, including Helm chart manifests, so no exception is needed; Helm
-# provenance (.prov) sidecars are not uploaded because `helm push` to OCI
-# has no provenance transport -- cosign on the digest is the integrity
-# record, deliberately, not a skipped step.
+# Signing: cosign signs the digest-pinned ref
+# (`cosign sign --yes <repo>@<digest>`), covering every alias on that
+# manifest. Helm provenance (.prov) sidecars are not uploaded.
 #
 # Efficiency: no dependency cache -- helm lint/template downloads nothing
 # beyond the pinned setup-helm tool; runs stay cheap via path-gating and

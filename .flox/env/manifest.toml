@@ -57,10 +57,8 @@ gnutar.version = "1.35"
 yamllint.pkg-path = "yamllint"
 yamllint.version = "1.37.1"
 # EXCEPTION: ControlPlane flux distribution CLI (controlplaneio-fluxcd/distribution/actions/*)
-# has no Flox catalog package (verified 2026-09-12: `flox search controlplane` = no match;
-# `flox search fluxcd` lists only OSS fluxcd/fluxcd-operator/fluxcd-operator-mcp, which are
-# NOT the same binary). CI push legs using the ControlPlane distribution remain the only
-# tool invocation without a local Flox-provided equivalent.
+# has no Flox catalog package. CI push legs using the ControlPlane distribution
+# remain the only tool invocation without a local Flox-provided equivalent.
 
 [vars]
 PROTON_PASS_KEY_PROVIDER = "fs"

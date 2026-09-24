@@ -5,7 +5,7 @@
 #
 # Fetch method is selectable via the FETCH_MODE environment variable or the
 # --mode/-m CLI flag (flag wins):
-#   http  git clone over HTTPS (default, preserves historical behavior)
+#   http  git clone over HTTPS (default)
 #   ssh   git clone over SSH (git@github.com:, for SSH-auth environments)
 #   zip   download the branch ZIP over HTTPS and extract it (no git needed)
 #

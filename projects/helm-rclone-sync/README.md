@@ -7,11 +7,8 @@ creates **no `rclone.conf` file** (no ConfigMap, Secret, volume, mount, or
 `RCLONE_CONFIG=/dev/null`, the documented equivalent of
 `rclone --config /dev/null`, so no config file can be read or auto-created.
 
-> Guard-var note: the task brief names the guard `RCLONE_CONFIG_FILE=/dev/null`.
-> The correct variable is **`RCLONE_CONFIG`** — that is the environment-variable
-> form of rclone's `--config` flag ("Set RCLONE_CONFIG to override the config
-> file path entirely", rclone docs). `RCLONE_CONFIG_FILE` is not honoured by
-> rclone, so the chart sets `RCLONE_CONFIG=/dev/null` instead.
+> Guard var: every rendered container sets `RCLONE_CONFIG=/dev/null`, the
+> environment-variable form of rclone's `--config` flag.
 
 One generic CronJob template serves **all 10 sync directions** — each direction
 is expressed purely via `source.type` / `destination.type`. There are no
@@ -276,10 +273,8 @@ Caveats:
 
 ## values.schema.json
 
-Omitted on purpose: this repo has no `values.schema.json` convention (zero
-existing instances), so validation lives in fail-fast template guards
-(`required`/`fail` with field-naming messages) instead of a JSON schema. The
-trade-off is explicit: adding a schema later would duplicate those guards.
+No `values.schema.json`: validation is fail-fast template guards
+(`required`/`fail` with field-naming messages).
 
 ## Helm merge semantics (read before `--set`)
 
