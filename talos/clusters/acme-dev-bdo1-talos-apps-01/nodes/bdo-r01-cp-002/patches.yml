@@ -1,7 +1,8 @@
 # Node patch: bdo-r01-cp-002 — acme-dev-bdo1-talos-apps-01 (Talos v1.15.0-alpha.0).
 # QEMU/KVM VM: virtio NIC (ens18), install disk /dev/sda (20 GiB OS),
 # data disk /dev/sdb (960 GB passthrough). Install selector pins /dev/sda;
-# EPHEMERAL capped at 32GiB on the system disk; nvme-data (system disk) +
+# EPHEMERAL capped via maxSize -30GiB (30GiB reserved) on the system disk;
+# nvme-data (system disk, maxSize 30GiB, grow) +
 # sata-data (/dev/sdb) XFS volumes. Manual pre-flight:
 # `talosctl get links/disks --insecure -n 192.168.1.201`.
 ---

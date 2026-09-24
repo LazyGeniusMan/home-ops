@@ -199,10 +199,12 @@
   changed_when: true
 
 # NetBird setup key (Terraform-minted, PAT-driven): resolves the NetBird PAT
-# from Proton Pass, drives a throwaway tofu run (or reads the Flux outputs
-# Secret post-install) to fetch the sensitive talos_setup_key output, and
-# rewrites the __TALOS_NETBIRD_SETUP_KEY__ placeholder in the rendered
-# cluster patch. no_log throughout; 0600 on the rewrite.
+# from Proton Pass, applies the dedicated Talos root via the
+# `community.general.terraform` module against the staged persistent
+# build/<cluster>/netbird-tf/ dir (upsert re-applies; NO outputs_secret
+# fallback — the module plane is the only source), and rewrites the
+# __TALOS_NETBIRD_SETUP_KEY__ placeholder in the rendered cluster patch.
+# no_log throughout; 0600 on the rewrite.
 - name: Resolve NetBird setup key from Terraform and rewrite cluster patch
   ansible.builtin.include_tasks: netbird_setup_key.yml
 
