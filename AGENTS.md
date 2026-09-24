@@ -58,10 +58,10 @@ Run everything from the repo root inside Flox (`terraform` already means `tofu`)
 
 ```bash
 # Talos Day 0/1/2 — replace <cluster> with acme-dev-bdo1-talos-apps-01 or acme-prd-bdo1-talos-apps-01
-ansible-playbook talos/ansible/playbooks/day0.yml -i localhost -e talos_cluster=<cluster>   # render
-ansible-playbook talos/ansible/playbooks/day1.yml -i localhost -e talos_cluster=<cluster>   # bootstrap
-ansible-playbook talos/ansible/playbooks/day2.yml -i localhost -e talos_cluster=<cluster>   # operate
-ansible-playbook talos/ansible/playbooks/day2.yml -i localhost -e talos_cluster=<cluster> --check --diff  # dry run
+ansible-playbook talos/ansible/playbooks/day0.yml -i localhost, -e talos_cluster=<cluster>   # render
+ansible-playbook talos/ansible/playbooks/day1.yml -i localhost, -e talos_cluster=<cluster>   # bootstrap
+ansible-playbook talos/ansible/playbooks/day2.yml -i localhost, -e talos_cluster=<cluster>   # operate
+ansible-playbook talos/ansible/playbooks/day2.yml -i localhost, -e talos_cluster=<cluster> --check --diff  # dry run
 talosctl validate -c ansible/build/<cluster>/nodes/<node>/controlplane.yaml -m metal   # validate rendered machine config
 ```
 ```bash

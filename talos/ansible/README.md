@@ -17,7 +17,7 @@ used only by the day-2 PAT Secret plane (post-Flux apply + webhook restart).
 ```text
 ansible/
   ansible.cfg                  # roles_path, transport=local, diff output
-  requirements.yml             # collections (community.general for key-value lookups)
+  requirements.yml             # collections (community.general for the terraform module + random_string lookup)
   group_vars/all.yml           # talos version, per-cluster map, shared filenames
   playbooks/day0.yml           # render secrets/configs, gen + validate machine configs
   playbooks/day1.yml           # insecure-apply, wait gates, bootstrap etcd, kubeconfig
@@ -58,9 +58,9 @@ ansible/
   the sensitive `talos_setup_key` output
   (`outputs.talos_setup_key.value`), rewrites the
   `__TALOS_NETBIRD_SETUP_KEY__` placeholder in the rendered cluster patch
-  (`0600`, `no_log: true` throughout, UUID shape-gated). There is NO
-  `outputs_secret` fallback — the Flux consumer is proxy-only and does
-  not expose `talos_setup_key`. The setup key never lives in the vault.
+  (`0600`, `no_log: true` throughout, UUID shape-gated). The module-driven
+  plane is the only setup-key source (the Flux consumer is proxy-only).
+  The setup key never lives in the vault.
   (manual commands can also
   `export PROTON_PASS_AGENT_REASON=talos-render-manual-exec-<16 hex>` for
   audit attribution). Ansible auto-generates a fresh unique
@@ -68,10 +68,9 @@ ansible/
   (`<prefix>-<cluster>[-<node>]-exec-<16 random lowercase hex>`,
   `no_log: true` keeps it out of logs).
   (`community.general.terraform`, requirements.yml pins
-  community.general `>=9.0.0` which ships this module — verified via
-  `ansible-doc community.general.terraform`; module FQCN documented in the
+  community.general `>=9.0.0`; module FQCN documented in the
   `roles/talos_render/tasks/netbird_setup_key.yml` header.)
-- `talos_cluster` — active cluster name (override with `-e talos_cluster=...`).
+- `talos_cluster` — active cluster name (default `acme-dev-bdo1-talos-apps-01`; override with `-e talos_cluster=...`).
 - `talos_clusters.<name>` — per-cluster map: `vault` (Proton Pass vault),
   `endpoint` (VIP URL), `nodes: [{name, ip, role}]`. This map is the single
   source of truth for node IPs — they are data for `talosctl -n/-e` flags
@@ -106,7 +105,7 @@ copies of inherited ones):
 For each node the role (`roles/talos_render/tasks/schematic.yml`) slurps
 all three levels, merges them, then stages a reference copy at
 `build/<cluster>/schematics-<node>.yml`, uploads it via
-`POST https://factory.talos.dev/schematics` (JSON `.id`, raw-ID fallback),
+`POST https://factory.talos.dev/schematics` (JSON `.id`),
 and persists `schematic-<node>.id` + `schematic-<node>.sha256`. Merged
 bytes change → new factory ID on the next day-0 (hash-gated). Upload is
 idempotent: skipped when the schematic hash is unchanged (re-upload only on

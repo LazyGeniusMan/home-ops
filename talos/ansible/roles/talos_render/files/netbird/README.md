@@ -14,14 +14,14 @@ its local `terraform.tfstate` there ACROSS runs, so re-applies are true
 upserts driven by `var.cluster_name` (`acme-dev-bdo1-talos-apps-01` /
 `acme-prd-bdo1-talos-apps-01`).
 
-Managed fabric (greenfield root — upsert only, never delete):
+Managed fabric (upsert only, never delete):
 
 - groups `admin-users`, `guest-users`, `<cluster>-nodes`, plus resource
   groups `admin-users-resources` / `guest-users-resources`
 - network `<cluster-name>` + `netbird_network_router` routing peer for that
   network to the `<cluster>-nodes` group (`peer_groups`; the
-  `netbird_route` resource is intentionally unused — see
-  `network_router.md` vs `route.md`)
+  `netbird_route` resource is unused — see
+  `network_router.md`)
 - setup key: `netbird_setup_key.talos`, `type = reusable`,
   `expiry_seconds = 0` (never expires), `usage_limit = 0` (unlimited),
   `auto_groups = [<cluster>-nodes]` — plaintext ONLY via the sensitive
