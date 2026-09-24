@@ -3,11 +3,8 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Prd Proton Pass base + rclone-sync cluster segment + Proton refs. Base
-  # carries __PROTON_PASS_BASE__/__CLUSTER_NAME__ placeholders (same
-  # convention as __S3_ENDPOINT_URL__/__S3_HOST__); prd fills the vault base
-  # (pass://acme-prd-bdo1-talos-apps-01) and the cluster segment
-  # (acme-prd-bdo1-talos-apps-01).
+  # Prd Proton Pass base + rclone-sync cluster segment (base placeholders;
+  # prd fills pass://acme-prd-bdo1-talos-apps-01 + cluster segment).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -39,10 +36,8 @@ patches:
     target:
       kind: HelmRelease
       name: zitadel-assets-rclone-sync
-  # Prd DB/cache/asset S3 endpoints. (S3 keys are COSI-minted via the
-  # in-namespace zitadel-cosi SecretStore — no per-env vault ref patch.
-  # The asset endpoint below is the same internal S3 literal as base; kept
-  # explicit so dev/prd stay greppable alongside the CNPG/Dragonfly patches.)
+  # Prd DB/cache/asset S3 endpoints (keys COSI-minted; same internal S3 literal
+  # as base, kept explicit for dev/prd greppability).
   - patch: |
       - op: replace
         path: /spec/backup/barmanObjectStore/endpointURL
@@ -73,8 +68,6 @@ patches:
       kind: ExternalSecret
       name: zitadel-masterkey
   - patch: |
-      # zitadel-db-credentials composes the full DSN in ESO template from
-      # this single db-password source (same field as zitadel-db-app-secret).
       - op: replace
         path: /spec/data/0/remoteRef/key
         value: pass://acme-prd-bdo1-talos-apps-01/zitadel/db-password
@@ -98,7 +91,7 @@ patches:
     target:
       kind: ExternalSecret
       name: zitadel-db-app-secret
-  # Prd login-proxy vars mirror (vault path) + login domain.
+  # Prd login-proxy vars (vault path) + login domain.
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -109,8 +102,7 @@ patches:
     target:
       kind: ExternalSecret
       name: zitadel-login-proxy-vars
-  # Prd login-proxy domain + mesh attach (cloudflare_zone_id intentionally
-  # absent — defaults to null, DNS self-managed; see base note).
+  # Prd login-proxy domain + mesh attach (cloudflare_zone_id absent = null).
   - patch: |
       - op: replace
         path: /spec/vars/0/value
@@ -156,10 +148,7 @@ patches:
     target:
       kind: Certificate
       name: wildcard-home-ops
-  # Prd admin route hostname (admin.zitadel.home-ops.yansyah.my.id). The
-  # end-user login host (login.zitadel.home-ops.yansyah.my.id) is exposed
-  # via the NetBird reverse-proxy consumer (zitadel-login-proxy.yaml) — no
-  # Gateway zitadel-login route ships.
+  # Prd admin route hostname (login host rides NetBird, no Gateway login route).
   - patch: |
       - op: replace
         path: /spec/hostnames/0
@@ -167,7 +156,7 @@ patches:
     target:
       kind: HTTPRoute
       name: zitadel
-  # Prd production HA: pin the stateful placeholders (DB 3, cache 3).
+  # Prd production HA: stateful placeholders (DB 3, cache 3).
   - patch: |
       - op: replace
         path: /spec/instances

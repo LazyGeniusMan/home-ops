@@ -69,7 +69,7 @@ variable "rewrite_redirects" {
 }
 
 variable "targets" {
-  description = "Extra backend targets inside the NetBird mesh (peer/host/domain/subnet; port/protocol per target — see README for the HTTP example). The shared Service-LB subnet target (var.service_lb_ip) is always appended by the root, so callers needing only the LB backend pass [] (or omit)."
+  description = "Extra backend targets inside the NetBird mesh (shared Service-LB subnet target always appended; callers needing only the LB backend pass [])"
   type = list(object({
     target_id   = string
     target_type = string
@@ -91,7 +91,7 @@ variable "targets" {
 }
 
 variable "auth" {
-  description = "Proxy-level authentication block (default {} = none; backends needing NetBird identity read the X-NetBird-User / X-NetBird-Groups headers instead — see README)"
+  description = "Proxy-level authentication block (default {} = none)"
   type        = any
   default     = {}
 }
@@ -108,31 +108,31 @@ variable "access_restrictions" {
 }
 
 variable "netbird_token" {
-  description = "NetBird management PAT with reverse-proxy read/write (controller injects via varsFrom from the ESO-synced <app>-terraform-vars Secret; manual runs pass -var, never commit)"
+  description = "NetBird management PAT with reverse-proxy read/write (injected via varsFrom; manual runs pass -var, never commit)"
   type        = string
   sensitive   = true
   default     = null
 }
 
 variable "network_name" {
-  description = "Name of the Talos-owned NetBird network this slice's Service LB resource attaches to (created by the Talos Ansible Terraform task; read here via the netbird_network data source, never managed)"
+  description = "Talos-owned NetBird network this slice attaches to (data source lookup, never managed)"
   type        = string
 }
 
 variable "service_lb_ip" {
-  description = "Cilium Service LoadBalancer VIP the shared reverse-proxy subnet target points at (per-env: dev 192.168.1.249, prd 192.168.1.199 - the consumer passes it; never hardcode both in the root)"
+  description = "Cilium Service LoadBalancer VIP the shared subnet target points at (per-env; passed by the consumer)"
   type        = string
   default     = "192.168.1.199"
 }
 
 variable "target_port" {
-  description = "Backend port of the shared Service-LB subnet target (zitadel-login ClusterIP Service port)"
+  description = "Backend port of the shared Service-LB subnet target"
   type        = number
   default     = 3000
 }
 
 variable "target_protocol" {
-  description = "Backend protocol of the shared Service-LB subnet target (http mode: http or https; L4 modes use tcp/udp in the extra targets instead)"
+  description = "Backend protocol of the shared Service-LB subnet target"
   type        = string
   default     = "http"
 }
@@ -150,7 +150,7 @@ variable "management_url" {
 }
 
 variable "cloudflare_api_token" {
-  description = "Cloudflare API token with DNS edit on the zone (controller injects via varsFrom from the ESO-synced <app>-terraform-vars Secret; manual runs pass -var, never commit)"
+  description = "Cloudflare API token with DNS edit on the zone (injected via varsFrom; manual runs pass -var, never commit)"
   type        = string
   sensitive   = true
   default     = null

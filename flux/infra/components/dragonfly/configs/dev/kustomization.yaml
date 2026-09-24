@@ -4,13 +4,8 @@ resources:
   - ../base
   - cloudflare-api-token.yaml
 patches:
-  # Dev S3 host + wildcard DNS. (S3 keys are COSI-minted via the
-  # in-namespace dragonfly-cosi SecretStore — no per-env vault ref patch for
-  # dragonfly-s3-credentials, rclone-dragonfly-backups-s3, or
-  # rclone-dragonfly-backups-s3-path.)
-  # Dev rclone-sync-dragonfly-backups identity: Proton Pass vault keys + the
-  # Proton Drive destination cluster segment (base holds __PROTON_PASS_BASE__
-  # / __CLUSTER_NAME__ placeholders).
+  # Dev S3 host + wildcard DNS (keys COSI-minted) + rclone identity
+  # (vault keys + destination cluster segment; base holds placeholders).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -56,7 +51,7 @@ patches:
     target:
       kind: Certificate
       name: wildcard-dragonfly
-  # Dev single-instance scaling: stateful HA placeholder -> 1.
+  # Dev scaling: stateful placeholder -> 1.
   - patch: |
       - op: replace
         path: /spec/replicas

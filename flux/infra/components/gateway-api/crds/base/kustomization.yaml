@@ -1,7 +1,5 @@
-# Gateway API CRDs (vendored v1.6.1 standard-install.yaml). Rendered by the
-# fleet through the prune:false infra-crds Kustomization — CRDs are never
-# garbage-collected (see flux/fleet/tenants/infra.yaml). Base holds the full
-# bundle; dev/prd track ../base with no patches (no per-env CRD forks).
+# Gateway API CRDs (vendored v1.6.1 standard-install.yaml). Rendered by the fleet
+# through the prune:false infra-crds Kustomization — CRDs are never garbage-collected.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:

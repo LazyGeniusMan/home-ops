@@ -7,15 +7,13 @@
 # The SeaweedFS COSI driver + its sidecar moved to the seaweedfs component
 # (configs/base/driver.yaml) — their policies live in seaweedfs.yaml now.
 #
-# COSI note: release-0.2 is now tagged (v0.2.2 on
-# gcr.io/k8s-staging-sig-storage — no registry.k8s.io promotion yet), so the
-# controller pin tracks the v0.2.x semver tag. The range is capped <0.3.0:
-# main-line v1alpha2 (breaking, incompatible with the SeaweedFS driver)
-# versions above v0.2.x, so automation must never PR past the v0.2 line.
+# Range capped <0.3.0: main-line v1alpha2 is breaking for the SeaweedFS driver.
 # Bump pins + all three caps (here + seaweedfs.yaml sidecar/driver) together.
-# Changelog: https://github.com/kubernetes-sigs/container-object-storage-interface/releases.
-# Mode: auto (capped <0.3.0 — main-line v1alpha2 is breaking for the SeaweedFS driver).
-# Coupled files: [controllers/base/deployment.yaml, crds/base/objectstorage.k8s.io_*.yaml (5 files, re-vendor together), ../seaweedfs.yaml (sidecar/driver caps move together)].
+# Changelog: COSI releases (kubernetes-sigs/container-object-storage-interface).
+# Mode: auto (capped <0.3.0).
+# Coupled: controllers/base/deployment.yaml,
+# crds/base/objectstorage*.yaml (5, re-vendor together),
+# ../seaweedfs.yaml (sidecar/driver caps move together).
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

@@ -1,11 +1,7 @@
-# apprise-go-api HPA (autoscaling/v2 over the hand-vendored Deployment —
-# no chart autoscaling knob exists, so the HPA lives here). Stateless
-# (request-scoped state only; APPRISE_STATELESS_STORAGE=no), so horizontal
-# scaling is safe. No Deployment /spec/replicas overlay patches: base
-# replicas: 1 is the create-time seed, HPA owns runtime count (HPA
-# minReplicas enforces the floor). Dev min 1/max 2, prd min 2/max 4 (base
-# carries the prd floor) via overlay patches. CPU + memory: the Deployment
-# requests cpu/memory, so HPA works.
+# apprise-go-api HPA (autoscaling/v2 over the hand-vendored Deployment).
+# Stateless (request-scoped state only), so horizontal scaling is safe. Base
+# replicas: 1 is the create-time seed, HPA owns runtime count. Dev min 1/max 2,
+# prd min 2/max 4 (base carries the prd floor) via overlay patches.
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

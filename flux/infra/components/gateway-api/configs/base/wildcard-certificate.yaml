@@ -1,11 +1,8 @@
-# In-namespace wildcard Certificate (§§8.1/9.3). cert-manager Secrets are
-# namespace-local, so the §9 Certificate (cert-manager namespace) cannot feed
-# this component's Gateway listener — this duplicate Certificate mints
-# __WILDCARD_TLS_SECRET__ HERE via the same ClusterIssuer/letsencrypt and
-# dnsNames (prd wildcard-home-ops-tls, dev wildcard-home-ops-dev-tls). Let's Encrypt permits duplicate wildcard orders, so both
-# Certificates stay valid. The token ExternalSecret mirrors
-# cert-manager/configs/base/cluster-issuer.yaml (same Proton Pass remoteRef)
-# so the DNS-01 solver credential exists in this namespace too.
+# In-namespace wildcard Certificate. cert-manager Secrets are namespace-local, so
+# this component mints __WILDCARD_TLS_SECRET__ HERE via ClusterIssuer/letsencrypt
+# (same dnsNames pattern; duplicate wildcard orders stay valid). The token
+# ExternalSecret mirrors cert-manager/configs/base/cluster-issuer.yaml so the
+# DNS-01 solver credential exists in this namespace too.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

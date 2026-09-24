@@ -6,13 +6,10 @@
 # Image: ghcr.io/lazygeniusman/home-ops/projects/apprise-go-api (branch leg
 # dev/dev-sha, tag leg stable/semver; marker below owned by
 # update-policies/apprise-go-api.yaml).
-# Credential-free by design: no stateless-URLs fallback env, no secret key,
-# no token-embedded URLs — every caller passes full per-request apprise URLs
-# in each POST /notify `urls`. The app boots clean with an empty fallback
-# (missing urls -> HTTP 204, no crash).
-# Distroless nonroot: no volumes — APPRISE_ATTACH_DIR stays unset so
-# attachments stage request-scoped under os.TempDir() and are deleted at
-# request end (never GC-dependent, see projects/apprise-go-api/README.md).
+# Credential-free: every caller passes full per-request apprise URLs in each
+# POST /notify `urls` (empty fallback boots clean; missing urls -> HTTP 204).
+# Distroless nonroot: no volumes — APPRISE_ATTACH_DIR stays unset so attachments
+# stage request-scoped under os.TempDir() (see projects/apprise-go-api/README.md).
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -53,17 +50,10 @@ spec:
               value: "disabled"
             - name: APPRISE_STATELESS_STORAGE
               value: "no"
-            # Matrix-only service posture: exclusive allowlist (non-empty
-            # wins over deny); "matrix" prefix-matches both matrix URL
-            # schemes (see projects/apprise-go-api README Matrix strategy).
-            # APPRISE_DENY_SERVICES unset.
+            # Matrix-only allowlist ("matrix" prefix-matches both matrix URL schemes).
             - name: APPRISE_ALLOW_SERVICES
               value: "matrix"
-            # SSRF posture for remote attachment fetch (deny-first,
-            # allow-second): allow all, but reject loopback/hostname tricks
-            # plus the `internal` token (opt-in DNS resolution blocking
-            # loopback, private, link-local, reserved, unspecified,
-            # multicast, and CGN addresses).
+            # SSRF posture: allow all, reject loopback/hostname tricks plus `internal`.
             - name: APPRISE_ATTACH_ALLOW_URL
               value: "*"
             - name: APPRISE_ATTACH_REJECT_URL

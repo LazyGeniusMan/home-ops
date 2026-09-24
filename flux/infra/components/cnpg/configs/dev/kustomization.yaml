@@ -4,13 +4,8 @@ resources:
   - ../base
   - cloudflare-api-token.yaml
 patches:
-  # Dev S3 endpoint + wildcard DNS. (S3 keys are COSI-minted via the
-  # in-namespace cnpg-cosi SecretStore — no per-env vault ref patch for
-  # cnpg-s3-credentials, rclone-cnpg-backups-s3, or
-  # rclone-cnpg-backups-s3-path.)
-  # Dev rclone-sync-cnpg-backups identity: Proton Pass vault keys + the
-  # Proton Drive destination cluster segment (base holds __PROTON_PASS_BASE__
-  # / __CLUSTER_NAME__ placeholders).
+  # Dev S3 endpoint + wildcard DNS (keys COSI-minted) + rclone identity
+  # (vault keys + destination cluster segment; base holds placeholders).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -56,7 +51,7 @@ patches:
     target:
       kind: Certificate
       name: wildcard-postgres
-  # Dev single-instance scaling: stateful HA placeholder -> 1.
+  # Dev scaling: stateful placeholder -> 1.
   - patch: |
       - op: replace
         path: /spec/instances

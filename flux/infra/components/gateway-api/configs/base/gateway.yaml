@@ -1,11 +1,7 @@
-# Shared Gateway (§8.1) for __BASE_DOMAIN__. Listens on HTTP 80 (plain —
-# only a redirect source, see httproutes.yaml) and HTTPS 443 (terminated with
-# the in-namespace wildcard Secret from wildcard-certificate.yaml). Listeners
-# accept routes from all namespaces so per-service HTTPRoutes (§§11-13) can
-# attach from their app namespaces later. Lands in the gateway-api namespace
-# via the Flux Kustomization targetNamespace (no explicit namespace, like the
-# cert-manager component). Base holds the __WILDCARD_TLS_SECRET__ placeholder
-# (prd wildcard-home-ops-tls, dev wildcard-home-ops-dev-tls).
+# Shared Gateway for __BASE_DOMAIN__. HTTP 80 is a redirect source only (see
+# httproutes.yaml); HTTPS 443 terminates with the in-namespace wildcard Secret
+# (wildcard-certificate.yaml). Listeners accept routes from all namespaces.
+# Base holds the __WILDCARD_TLS_SECRET__ placeholder (patched per env).
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
