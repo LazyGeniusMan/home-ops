@@ -1,35 +1,17 @@
 # Zitadel
 
-Zitadel **v4.17.1** identity provider: the OIDC issuer on `https://admin.zitadel.home-ops.yansyah.my.id` (login UI on `https://login.zitadel.home-ops.yansyah.my.id`, NetBird-exposed) plus the locked client contract the
-wave-3c app writers build against (table below — do not deviate).
+Zitadel **v4.17.1** identity provider: the OIDC issuer on `https://admin.zitadel.home-ops.yansyah.my.id` (login UI on `https://login.zitadel.home-ops.yansyah.my.id`, NetBird-exposed) plus the locked client contract app writers build against (table below — do not deviate).
 
 ## Chart source
 
-OCI is the upstream source of truth, verified by pull:
-
 - `oci://ghcr.io/zitadel/zitadel-charts/zitadel`, tag **10.0.4** (digest
-  `sha256:9afa657fad65079857339f7d7fd296c73e577f6c8ec4e4a103093be35964b50c`,
-  `helm template` + `helm lint` pass locally).
-- Chart↔app divergence (same split as the cnpg component, unlike the
-  dragonfly component where chart and operator versions agree): chart
-  **10.0.4** embeds app **v4.15.3**, but the app image is pinned
-  separately in values (`image.tag` + `login.image.tag` = **v4.17.1**;
-  `ghcr.io/zitadel/zitadel:v4.17.1` and
-  `ghcr.io/zitadel/zitadel-login:v4.17.1` manifests verified on GHCR). On
-  chart bumps set both tags to the new chart's appVersion together.
-- No OCI fallback was needed: the chart repo's own release workflow pushes
-  every chart version to exactly this GHCR path (classic repo
-  `https://charts.zitadel.com` carries the same charts but is not referenced).
-- Local reference: `/tmp/home-ops-docs/zitadel-docs` (upstream
-  [zitadel](https://github.com/zitadel/zitadel) branch `main`); d2-infra
-  carries no Zitadel component, so the bounded sources were the local docs
-  plus the pulled chart `values.yaml`/templates. Chart repo + provider
-  contracts: `/tmp/home-ops-docs/zitadel-helm-charts-docs`,
-  `/tmp/home-ops-docs/zitadel-terraform-provider-docs`.
-- The `update-policies/zitadel.yaml` floor `>=10.0.4` tracks the CHART line
+  `sha256:9afa657fad65079857339f7d7fd296c73e577f6c8ec4e4a103093be35964b50c`).
+- Chart **10.0.4** embeds app **v4.15.3**; the app image is pinned
+  separately in values (`image.tag` + `login.image.tag` = **v4.17.1**).
+  On chart bumps set both tags to the new chart's appVersion together.
+- The `update-policies/zitadel.yaml` floor `>=10.0.4` tracks the chart line
   (ImageRepository + ImagePolicy + `$imagepolicy` marker
-  `infra:zitadel:tag`, same image update policy contract as the
-  cert-manager/cnpg/dragonfly components).
+  `infra:zitadel:tag`).
 
 ## Layout
 
@@ -91,13 +73,12 @@ Seed each vault entry with pass-cli:
   logos via `ZITADEL_ASSETSTORAGE_*` env) from `zitadel-assets-cosi-creds`,
   all through the in-namespace `zitadel-cosi`
   SecretStore (dedicated claims `zitadel-db`/`zitadel-cache`/`zitadel-assets`
-  — see `configs/base/bucketclaims.yaml` and the cosi README). The
-  `pass://…/{cnpg,dragonfly}/s3-*` vault entries stay seeded as rollback.
+  — see `configs/base/bucketclaims.yaml` and the cosi README).
 - `pass://acme-prd-bdo1-talos-apps-01/cert-manager/cloudflare-api-token` —
   same vault path as the cert-manager component, copied so the DNS-01
   secret exists in this namespace too.
 
-## OIDC contract (LOCKED for wave-3c app writers)
+## OIDC contract (LOCKED for app writers)
 
 App writers build against THIS table — do not deviate.
 
@@ -141,48 +122,9 @@ No Tofu Controller for initial setup — the chart's setup Job does it
 Non-expiring bootstrap auth (maintenance-free by design):
 
 - Both `MachineKey.ExpirationDate` and `Pat.ExpirationDate` are explicit
-  `null` in `controllers/base/zitadel.yaml` — fresh-install keys/PATs never
-  expire, so the six tofu-controller `Terraform` objects (coder, clickstack,
-  hubble-ui, flux-operator-ui, headlamp, seaweedfs, all on
-  `jwt_profile_json`) authenticate indefinitely with zero maintenance (no
-  CronJob, no rotation automation, no provider-mode switch; the PAT stays
-  mirrored-idle via `zitadel-bootstrap-credentials`).
-- Why explicit null, not omission: Helm coalesce fills an OMITTED key with
-  the chart `values.yaml` default (`2029-01-01T00:00:00Z`), verified by
-  `helm template` against chart 10.0.4. Explicit `null` overrides the
-  default and renders as an absent key (no `ExpirationDate` line in the
-  Zitadel ConfigMap, no `2029` anywhere in the render); schema
-  (`values.schema.json`) requires nothing under `MachineKey`/`Pat`, and
-  `helm lint` passes. `Pat` also carries `Scopes: []` so the chart
-  template's `$hasMachinePat` stays truthy (PATPATH env + pat-writer
-  sidecar render); a bare `Pat: {}` would silently drop PAT wiring.
-- Why absent means never-expires (server side): the setup Job feeds the
-  ConfigMap through viper/mapstructure into `time.Time`; an absent key
-  decodes to the zero time, and `internal/domain/expiration.go`
-  `ValidateExpirationDate` maps zero → `9999-12-31T23:59:59Z` for both
-  machine keys and PATs (`user_machine_key.go` / `user_personal_access_token.go`
-  call it from `valid()`). This is the config-file equivalent of the guides'
-  "leave empty for no expiration" (private-key-jwt guide: "Optionally set an
-  expiration date for the key, or leave empty for no expiration";
-  personal-access-token guide: "You can either set an expiration date or
-  leave it empty if you don't want it to expire").
-- No in-place extend exists (rotation = create-new + delete-old), so
-  no-expiry is the fix — not a rotation CronJob/operator (deliberately no
-  new moving parts).
+  `null` in `controllers/base/zitadel.yaml`, so keys/PATs never expire.
+  `Pat` also carries `Scopes: []` so the chart template keeps PAT wiring rendered.
 
-One-time migration for 2029-expiry keys (FirstInstance only runs on
-fresh setup — changing values does NOT re-mint keys on existing installs):
-
-1. Delete the kept Secrets so the setup Job re-runs key creation:
-   `kubectl -n zitadel delete secret zitadel-bootstrap-sa
-   zitadel-bootstrap-sa-pat` (both carry `helm.sh/resource-policy=keep`, so
-   delete explicitly), then restart/re-run the `zitadel-setup` Job. ESO
-   re-mirrors `zitadel-bootstrap-credentials` automatically
-   (`refreshInterval: 1h`).
-2. Alternative: rotate via console/API (create a new non-expiring key/PAT
-   on `zitadel-bootstrap-sa`, update the kept Secrets, delete the old ones).
-3. Verify: new key JSON / PAT carry no expiry (server shows 9999-12-31 or
-   empty); `grep -rn 2029` under this component is empty.
 - `configs/base/zitadel-bootstrap-handoff.yaml` — ESO mirrors (all secrets
   from ESO, no inline credentials, no manual vault seeding):
   - `zitadel-bootstrap-credentials` (keys `jwt_profile_json`, `pat`) via the
@@ -224,10 +166,7 @@ First-install runbook (zero-UI):
 3. Operator reads `org_id` once (console/API) and creates the plain Secret:
    `kubectl -n zitadel create secret generic zitadel-bootstrap-outputs
    --from-literal=org_id=<id> --from-literal=admin_user_id=<id>`.
-   Invite `admin@…` via the console. Fresh installs mint non-expiring keys
-   (nothing to rotate). For pre-existing 2029-expiry keys see the one-time
-   migration above (delete the two kept Secrets + re-run the setup Job, or
-   rotate via console/API — ESO re-mirrors).
+   Invite `admin@…` via the console. Keys are non-expiring (nothing to rotate).
 
 ESO pull-only is sufficient (no push needed):
 
@@ -237,10 +176,6 @@ ESO pull-only is sufficient (no push needed):
   mirrors (`zitadel-bootstrap-credentials`). Proton Pass holds only STATIC
   secrets (masterkey, DSN, passwords); nothing generated ever flows back to
   the vault.
-- `projects/eso-proton-pass` is pull-only by design (`POST /push` → 501,
-  `Push() → ErrPushUnimplemented`); the repo carries zero `kind:
-  PushSecret`. That path is never exercised by this component — no code
-  changes, no PushSecret, no push wiring needed.
 
 No `terraform/` bootstrap slice ships: org, users, and membership are owned
 by the FirstInstance stanza above; per-app projects/roles/grants/clients live

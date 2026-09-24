@@ -42,8 +42,8 @@ The `matrix-bot-bootstrap` Job (`../base/matrix-bot-bootstrap.yaml`) owns
 bot creation end-to-end: it registers the bot via the Synapse-compat admin
 API + mints the token + writes the KEPT Secret
 `matrix-bot-bootstrap-outputs` the room CRs read. The ONLY manual step left
-is seeding the registration secret ONCE per env (everything else the old
-runbook did — nonce/HMAC/register/login/vault bot seeding — the Job does):
+is seeding the registration secret ONCE per env (the Job handles
+nonce/HMAC/register/login/token minting):
 
 ```shell
 pass-cli item create login --vault-name 'acme-<env>-bdo1-talos-apps-01' --title 'matrix/tuwunel-registration-secret'  # 32+ random bytes
@@ -65,30 +65,16 @@ rotates the token (kept Secret patched -> ESO/varsFrom propagate within
 Per-env bots (no shared prod/dev bot): dev `@apprise-dev:<server>`,
 prd `@apprise:<server>` — the Job mints the SAME identities (ONE bot per
 env shared by all 3 rooms). The Job registers via the Synapse-compatible
-admin API + mints the token server-side; the manual HMAC/nonce/vault path is
-retired (the `matrix-rooms/*` vault fields below are NOT reseeded).
+admin API + mints the token server-side; there is no manual HMAC/nonce/vault
+path.
 
-## Token strategy (chosen: bootstrap Job v2)
+## Token strategy
 
-- **(a) Vault → ESO manual (RETIRED v1).** The token lived in the vault;
-  ESO mirrored it into `matrix-rooms-terraform-vars`. Retired: the manual
-  path is dead on purpose (re-adding the mirror resurrects it).
-- **(a2) Bootstrap Job → kept Secret (CHOSEN v2).** The Job mints the token
-  server-side and writes `matrix-bot-bootstrap-outputs`; the CRs consume it
-  via `varsFrom`, the apprise ES via the in-cluster store. Rotation =
-  delete Job + reconcile (new login -> kept Secret patched -> propagate
-  within `refreshInterval`). No vault bot seeding, no password in git —
-  zitadel chain analogue (setup-Job-keeps-Secret).
-- **(b) CronJob re-login → Secret (NOT chosen).** A CronJob holding the bot
-  *password* re-logs-in and writes the Secret. Rejected: stores a second
-  long-lived credential (the password) to protect the first, for no gain —
-  access tokens do not expire on tuwunel, so scheduled rotation buys
-  nothing. Revisit only if the homeserver starts expiring tokens.
-- **(c) Per-env bot + alias (ADOPTED alongside (a2)).** Separate mxids (and
-  room aliases) per env — `@apprise-dev` vs `@apprise` — so dev applies can
-  never post into prod rooms. This is scoping, not storage: it composes
-  with (a2); the Job mints ONE bot per env (dev overlay: `apprise-dev`;
-  prd overlay: `apprise`).
+The Job mints the token server-side and writes the kept Secret
+`matrix-bot-bootstrap-outputs`; the CRs consume it via `varsFrom`, the
+apprise ES via the in-cluster store. Rotation = delete Job + reconcile.
+Separate mxids per env (`@apprise-dev` dev, `@apprise` prd) so dev applies
+never post into prod rooms.
 
 ## State backend + CR shape
 

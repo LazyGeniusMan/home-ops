@@ -15,15 +15,12 @@ pass-cli item create 'acme-<env>-bdo1-talos-apps-01/<path>'
 ```
 
 Field count per env: **12** Proton Pass fields (1 cert-manager + 1
-registration-secret + 8 mautrix-discord + 2 element-web). The 5 retired
-`matrix-rooms/*` bot fields (notifier + room-provider) are BOOTSTRAPPED
-in-cluster now (see "Retired" below) — do NOT reseed them. Coder's 2
-notifier fields (`coder/matrix-*`) are RETIRED too — coder consumes the
-kept Secret cross-namespace now (see "Retired" below).
-Everything
-else in this tenant is minted in-cluster (COSI, Terraform outputs, CNPG,
-bootstrap kept Secret) and needs NO seeding — see "Not vault-seeded"
-below.
+registration-secret + 8 mautrix-discord + 2 element-web). Matrix bot
+credentials are minted in-cluster by the bootstrap Job, and coder reads
+the kept Secret cross-namespace — neither needs vault seeding.
+Everything else in this tenant is minted in-cluster (COSI, Terraform
+outputs, CNPG, bootstrap kept Secret) and needs NO seeding — see
+"Not vault-seeded" below.
 
 ## Per-env seed table
 
@@ -67,7 +64,7 @@ pass-cli item create 'acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-tok
 
 - **Tuwunel SSO `client_id`/`client_secret`**: NO `pass://` seeding.
   The companion `tuwunel-sso` Terraform CR (Zitadel project + `tuwunel`
-  OIDC client — ships in the follow-up tofu task, not in this tenant)
+  OIDC client, not in this tenant)
   writes the `tuwunel-sso-outputs` Secret; ExternalSecret
   `tuwunel-sso-client` reads it through the in-cluster `tuwunel-k8s`
   SecretStore into `tuwunel-sso-client` (`client-id`, `client-secret`),
@@ -79,9 +76,7 @@ pass-cli item create 'acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-tok
   in-cluster `tuwunel-cosi` SecretStore.
 - **CNPG backup S3 keys** (`cnpg-s3-credentials` Secret): COSI-minted.
   Same chain via `mautrix-discord-db` BucketClaim/Access +
-  `mautrix-discord-db-cosi-creds` through `mautrix-discord-cosi`. (The
-  old `pass://…/cnpg/s3-*` fallback entries may stay in the vault but are
-  NOT referenced — rollback only.)
+  `mautrix-discord-db-cosi-creds` through `mautrix-discord-cosi`.
 - **NetBird proxy outputs** (`element-proxy-outputs` Secret):
   `writeOutputsToSecret` of the `element-proxy` Terraform CR. Never in
   the vault, never in Git.
@@ -96,47 +91,10 @@ pass-cli item create 'acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-tok
   files are copy-paste skeletons for TEAM namespaces only
   (`team-terraform.yaml` stays example-only — no team room here).
 - **Coder notifier fields** (`coder/matrix-bot-token`, `coder/matrix-host`):
-  RETIRED — coder's `matrix-notify` ES reads the kept Secret
-  (`notifier-token`/`homeserver-host`) cross-namespace now; they never
-  lived in this tenant's seed table (see the coder README credentials
-  section). Zero vault refs, zero `matrix-rooms` refs in the coder
-  namespace.
+  not seeded — coder's `matrix-notify` ES reads the kept Secret
+  (`notifier-token`/`homeserver-host`) cross-namespace (see the coder
+  README credentials section).
 - **In-namespace plumbing**: `eso-k8s-reader` RBAC, `kube-root-ca.crt`,
   the wildcard TLS Secret minted by cert-manager. No seeding.
 
-## Retired (do NOT reseed — bootstrapped or decoupled)
-
-- `matrix-rooms/notifier-bot-token` + `matrix-rooms/homeserver-host`:
-  RETIRED — the apprise fallback now reads the bootstrapped
-  `notifier-token`/`homeserver-host` from the kept Secret via the
-  in-cluster store. Old vault entries may stay as rollback, NOT referenced.
-- `matrix-rooms/homeserver-url` + `matrix-rooms/bot-access-token` +
-  `matrix-rooms/bot-user-id`: RETIRED — rooms.yaml reads the kept Secret
-  directly. Old vault entries may stay as rollback, NOT referenced.
-- `coder/matrix-bot-token` + `coder/matrix-host`: RETIRED — coder's
-  `matrix-notify` ES now reads the bootstrapped `notifier-token` /
-  `homeserver-host` from the kept Secret cross-namespace (narrow
-  `coder-matrix-handoff-reader` Role/Binding in ns `matrix` +
-  `coder-matrix` SecretStore, owned by the coder component). Old vault
-  entries may stay as rollback, NOT referenced (see the coder README
-  credentials section).
-
-## Cross-check (READMEs consulted)
-
-- `base/tuwunel-secrets.yaml` + `base/tuwunel.yaml` header (SSO/S3
-  contract + registration-secret wiring) → row #2 (registration secret);
-  checks #1 (shared solver token).
-- `base/mautrix-discord-secrets.yaml` header (7 tokens + db-password) →
-  rows 3–10.
-- `base/mautrix-discord-db.yaml` header (COSI chain + `cnpg/s3-*`
-  fallback note) → not-seeded list.
-- `base/apprise-go-api-secrets.yaml` header (bootstrapped token + host
-  composition, 3 legs) → not-seeded (kept-Secret sourced).
-- `base/element-proxy.yaml` header (NetBird varsFrom) → rows 11–12.
-- `base/rooms.yaml` header (bootstrap kept-Secret varsFrom + per-room CRs)
-  → not-seeded (kept-Secret sourced).
-- `base/matrix-bot-bootstrap.yaml` header (Job + kept Secret chain) →
-  not-seeded list.
-- `base/NOTIFICATIONS.md` + pre-consolidation `tuwunel`/`mautrix-discord`
-  READMEs (git history) → SSO Terraform follow-up + bootstrapped bot
-  → not-seeded list.
+Deleted vault paths (do not reseed): `matrix-rooms/*`, `coder/matrix-*`.
