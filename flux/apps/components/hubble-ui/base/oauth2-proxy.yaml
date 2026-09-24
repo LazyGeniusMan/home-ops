@@ -17,13 +17,13 @@
 # oauth2-proxy (HTTPRoute backend, HPA/VPA targets, and ESO target untouched);
 # existingSecret + proxyVarsAsSecrets: false keep credential ownership in ESO
 # (chart renders no Secret); no-config mode (forceLegacyConfig: false, no
-# configFile) keeps every flag in extraArgs flag-for-flag with the previous
-# args list (the chart always injects --http-address/--https-address itself);
+# configFile) keeps every flag in extraArgs (the chart always injects
+# --http-address/--https-address itself);
 # metrics/ServiceMonitor off (no telemetry); ServiceAccount, autoscaling, and
 # PDB off (no SA token, create-time seed replica, external HPA/VPA own
-# scaling — same as before).
-# Probes: liveness stays /ping; readiness is the chart default /ready (deep
-# check on the same port) — the one intended delta, same binary.
+# scaling).
+# Probes: liveness /ping; readiness is the chart default /ready (deep
+# check on the same port), same binary.
 # The chart tag auto-tracks flux/apps/update-policies/hubble-ui.yaml via the
 # $imagepolicy marker (chart marker shared with clickstack + flux-operator-ui;
 # image marker apps:oauth2-proxy shared with clickstack + flux-operator-ui —

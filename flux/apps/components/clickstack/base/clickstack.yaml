@@ -2,12 +2,8 @@
 # plain Deployments (no embedded MongoDB/ClickHouse — backends are the
 # namespace-local CHI in base/clickstack-clickhouse.yaml and FerretDB
 # on the CNPG Cluster in base/ferretdb-postgres.yaml).
-# Chart decision (bounded, 2 attempts, documented in README): the upstream
-# hdx-oss-v2 chart (classic repo https://clickhouse.github.io/ClickStack-helm-charts,
-# chart 0.8.4 = app 2.7.1) is deployable with mongodb/clickhouse.enabled=false,
-# but renders its API-key Secret from values with NO existingSecret knob, so a
-# real key would land in Git — incompatible with the ESO-only secret posture.
-# Vendoring keeps every credential a secretKeyRef/envFrom to ESO-synced Secrets.
+# Vendored shape (not the upstream hdx-oss-v2 chart): every credential is a
+# secretKeyRef/envFrom to ESO-synced Secrets (ESO-only contract, cf. README).
 # Images pinned to the chart's appVersion line (v2.7.1, verified via
 # `helm show chart clickstack/hdx-oss-v2` at authoring); bumps via
 # update-policies/clickstack.yaml. Env shape mirrors the chart's app ConfigMap
@@ -16,7 +12,7 @@
 # app's OTLP endpoint points at the in-namespace collector — nothing leaves
 # the cluster. See README for evidence.
 # Monitoring: no ServiceMonitor (monitoring.coreos.com CRDs not present —
-# same §9 deviation); flip once the monitoring stack lands.
+# same §9 deviation).
 ---
 apiVersion: apps/v1
 kind: Deployment

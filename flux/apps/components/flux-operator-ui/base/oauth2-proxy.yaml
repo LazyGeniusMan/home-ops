@@ -18,21 +18,17 @@
 # oauth2-proxy-credentials untouched); existingSecret +
 # proxyVarsAsSecrets: false keep credential ownership in ESO (chart renders
 # no Secret); no-config mode (forceLegacyConfig: false, no configFile) keeps
-# every flag in extraArgs flag-for-flag with the previous args list — note
-# the previous Deployment carried no --cookie-domain flag, so none is set
-# here either (the chart always injects --http-address/--https-address
-# itself); metrics/ServiceMonitor off (no telemetry); ServiceAccount,
-# autoscaling, and PDB off (no SA token, create-time seed replica, external
-# HPA/VPA own scaling — same as before).
-# Probes: liveness stays /ping; readiness is the chart default /ready (deep
-# check on the same port) — the one intended delta, same binary.
-# Security: hardened container defaults (chart securityContext) replace the
-# previous bare container which set no securityContext.
+# every flag in extraArgs; no --cookie-domain flag is set (the chart always
+# injects --http-address/--https-address itself); metrics/ServiceMonitor off
+# (no telemetry); ServiceAccount, autoscaling, and PDB off (no SA token,
+# create-time seed replica, external HPA/VPA own scaling).
+# Probes: liveness /ping; readiness is the chart default /ready (deep
+# check on the same port), same binary.
+# Security: hardened container defaults (chart securityContext).
 # The chart tag auto-tracks flux/apps/update-policies/flux-operator-ui.yaml
 # via the $imagepolicy marker (chart marker shared with clickstack +
 # hubble-ui; image marker apps:oauth2-proxy shared with clickstack +
-# hubble-ui — bump together). The previous pin carried no marker; this closes
-# the automation gap.
+# hubble-ui — bump together).
 # Ordering: the ESO ExternalSecrets live alongside the release in this same
 # Kustomization, so the first install attempt pends until ESO syncs them and
 # Flux retries (RetryOnFailure below).

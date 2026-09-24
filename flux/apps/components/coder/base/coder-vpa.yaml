@@ -3,9 +3,7 @@
 # Resource metric cpu @70% — CPU-only verified, no memory metric), and
 # controlledResources [memory] splits the axes per faq.md (memory-only VPA +
 # CPU-based HPA is the sanctioned pattern; known-limitations.md: never
-# VPA-apply on a resource HPA scales on). Pilot for controlledResources —
-# first HPA-paired VPA to carry it; extend to other CPU-only-HPA targets
-# once recommendations prove out.
+# VPA-apply on a resource HPA scales on).
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler

@@ -1,20 +1,7 @@
-# Element Web NetBird reverse-proxy consumer (Goal 2d — DECISION: both).
-#
-# Decision: expose via BOTH the §8.1 Gateway (public clients) AND a NetBird
-# reverse-proxy service (private tailnet path for the same SPA). Rationale:
-# Element Web is a stateless, credential-free SPA (no SSO secret to split
-# across two front doors — unlike oauth2-proxy-fronted apps there is no
-# callback/cookie-domain cost to a second hostname), the tuwunel homeserver
-# it speaks to is itself reachable over the tailnet, and the NetBird
-# consumer pattern is an upsert-only sidecar (own Terraform CR +
-# proton-pass-sourced vars Secret + `<app>-proxy-outputs`; it never touches
-# the Deployment/Service/HTTPRoute). Cost of "both" is one extra FQDN to
-# verify within 48h; benefit is an internal path that survives public-DNS
-# or Gateway outages.
-#
-# If operators later decide Gateway-only is enough, delete this file +
-# element-proxy-vars from the kustomization (and the prd/dev vars-key
-# patches) — nothing else references them.
+# Element Web NetBird reverse-proxy consumer: private tailnet path for the
+# element-web SPA alongside the §8.1 Gateway (public clients).
+# Upsert-only sidecar (own Terraform CR + proton-pass-sourced vars Secret +
+# `<app>-proxy-outputs`; it never touches the Deployment/Service/HTTPRoute).
 #
 # Owns ONLY this app's slice: one custom-domain registration (the element
 # hostname) + one wildcard CNAME + one reverse-proxy service, following the
