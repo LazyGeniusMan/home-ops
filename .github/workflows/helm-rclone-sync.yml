@@ -51,12 +51,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Set up Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5
         with:
-          version: v4.2.4
+          version: v4.3.0 # match .flox kubernetes-helm pin
 
       - name: Verify (lint + fixtures + assertions)
         # Directions are expressed via source.type/destination.type, not a
@@ -77,17 +77,19 @@ jobs:
       OCI_REPO: ghcr.io/lazygeniusman/home-ops/projects/helm-rclone-sync
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Set up Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5
         with:
-          version: v4.2.4
+          version: v4.3.0 # match .flox kubernetes-helm pin
 
       - name: Set up ORAS
         uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d # v2.0.1
         with:
-          version: 1.3.3 # should match .flox oras pin, but 1.3.4 is not yet supported by oras-project/setup-oras v2.0.1
+          # Pinned below the .flox oras pin (1.3.4): setup-oras v2.0.1 only
+          # bundles up to 1.3.3 (releases.json); version takes no `v` prefix.
+          version: 1.3.3
 
       - name: Install cosign
         uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
