@@ -7,6 +7,9 @@
 # flux/fleet/terraform/versions.yaml together. Bootstrap/Managed sync are NEVER
 # touched by this policy — the UI is serverOnly with installCRDs: false, so it
 # cannot own CRDs or the fleet sync path.
+# Changelog: https://github.com/controlplaneio-fluxcd/flux-operator/releases.
+# Mode: auto (UI tag in lockstep with operator_chart_version in flux/fleet/terraform/versions.yaml — bump together; tests/versions.tftest.hcl asserts the mapping).
+# Coupled files: [components/flux-operator-ui/base/flux-operator-ui.yaml, ../../../fleet/terraform/versions.yaml (operator_chart_version)].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

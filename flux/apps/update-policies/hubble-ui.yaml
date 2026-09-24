@@ -2,6 +2,9 @@
 # and the ImageUpdateAutomation (update cluster) opens PRs via markers in
 # components/hubble-ui (see README). Follows the §7 update-policy contract
 # (ImageRepository + ImagePolicy + $imagepolicy markers).
+# Changelog: https://github.com/cilium/cilium/releases (UI ships with Cilium — pins follow the Cilium chart defaults).
+# Mode: auto (frontend+backend move together; check the new Cilium chart defaults on every Cilium minor).
+# Coupled files: [components/hubble-ui/base/hubble-ui.yaml, base/oauth2-proxy.yaml (shared apps:oauth2-proxy marker with clickstack), ../../infra/update-policies/cilium.yaml].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

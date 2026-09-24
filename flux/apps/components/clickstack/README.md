@@ -131,6 +131,25 @@ Secrets are namespace-local).
   (ImageRepository + ImagePolicy, `$imagepolicy` markers on all four images;
   the HyperDX floors `>=2.7.1` track the appVersion line, FerretDB `>=2.7.0`).
 
+## Upgrade runbook
+
+- Version source: image tags in `base/clickstack.yaml` (HyperDX app +
+  collector v2.7.1, tracking the hdx-oss-v2 appVersion line),
+  `base/ferretdb.yaml` (FerretDB 2.7.0), and
+  `base/oauth2-proxy.yaml` (v7.15.4, marker `apps:oauth2-proxy`
+  SHARED with hubble-ui by design).
+- Changelog (HyperDX): https://github.com/hyperdxio/hyperdx/releases.
+  Changelog (FerretDB): https://github.com/FerretDB/FerretDB/releases.
+  Changelog (proxy): https://github.com/oauth2-proxy/oauth2-proxy/releases.
+- Bump: let the ImagePolicy PRs land
+  (`update-policies/clickstack.yaml`); move the proxy pin together with
+  hubble-ui in the same round. The namespace-local CHI instantiates the
+  §10.2 `installation-base` template — check the infra clickhouse
+  26.8 LTS line before taking a server-coupled bump.
+- Migrate: snapshot the `ferretdb` CNPG cluster + confirm a ClickHouse
+  `BACKUP ALL` completed BEFORE major bumps. Verify: the logs/traces UI
+  loads through the proxy and the collector still receives OTLP.
+
 ## Environments
 
 | Env | Replicas | Patches |

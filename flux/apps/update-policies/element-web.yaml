@@ -3,6 +3,9 @@
 # marker in components/matrix/base/element-web.yaml. Follows the §7
 # update-policy contract (ImageRepository + ImagePolicy + $imagepolicy
 # markers).
+# Changelog: https://github.com/element-hq/element-web/releases.
+# Mode: auto (stateless SPA — safe to roll).
+# Coupled files: [components/matrix/base/element-web.yaml].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

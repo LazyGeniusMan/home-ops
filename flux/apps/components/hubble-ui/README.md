@@ -82,6 +82,23 @@ Secrets are namespace-local).
   (ImageRepository + ImagePolicy, `$imagepolicy` markers on all three
   images; the UI floor `>=0.13.6` tracks the UI image line).
 
+## Upgrade runbook
+
+- Version source: frontend + backend image tags in
+  `base/hubble-ui.yaml` (v0.13.6 — MUST match the Cilium v1.20.2 chart
+  defaults; the Relay backend lives in the infra cilium component, NOT
+  here).
+- Changelog: https://github.com/cilium/cilium/releases (the UI ships
+  with Cilium — there is no separate UI release line).
+- Bump: on every Cilium minor, check the new chart's hubble-ui defaults
+  first, then move frontend + backend together via the ImagePolicy PRs
+  (markers `apps:hubble-ui:tag` + `apps:hubble-ui-backend:tag`,
+  `update-policies/hubble-ui.yaml`). The oauth2-proxy marker
+  (`apps:oauth2-proxy`) is shared with clickstack — bump both apps'
+  proxy pins together.
+- Verify: the service map renders live flows via
+  `hubble-relay.cilium.svc:80` and OIDC login still gates the UI.
+
 ## Environments
 
 | Env | Replicas | Patches |

@@ -3,6 +3,9 @@
 # marker in components/win11-vm (see README). Follows the §7 update-policy
 # contract (ImageRepository + ImagePolicy + $imagepolicy markers). Static
 # until the ISO refresh cadence is set — document bumps in the README.
+# Changelog: n/a (licensed Microsoft ISO staged on local infra — no public release feed).
+# Mode: static (manual ISO refresh; marker anchors the staged source).
+# Coupled files: [components/win11-vm/base/win11-vm.yaml (spec.source + marker)].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

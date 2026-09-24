@@ -93,3 +93,17 @@ Upstream reference (read-only): `/tmp/home-ops-docs/talos-docs` (guest image/ISO
 - This VM tracks its base image/ISO: the `$imagepolicy` marker
   (`apps:talos-vm:tag`) anchors the nocloud ISO URL. Refresh the URL on Talos
   minor bumps so update-automation opens a PR.
+
+## Upgrade runbook
+
+- Version source: the nocloud ISO URL in `base/talos-vm.yaml`
+  (v1.15.0-alpha.0) — MUST stay aligned to the Talos version in
+  `talos/ansible/group_vars/all.yml`.
+- Changelog: https://github.com/siderolabs/talos/releases.
+- Bump: refresh the factory nocloud URL + move the
+  `$imagepolicy` marker (`apps:talos-vm:tag`,
+  `update-policies/talos-vm.yaml`) together on Talos minor bumps so
+  update-automation opens the PR.
+- Migrate: power is manual (`runStrategy: Manual` — use the virtctl
+  runbook above, never let Flux flip power). Verify: the guest DHCPs a
+  `lan` address and `talosctl health` passes post-bump.

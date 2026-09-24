@@ -96,6 +96,23 @@ cert-manager Secrets cannot cross namespaces).
   no bootstrap values, and no Managed sync resources — bumps move the UI tag
   and `operator_chart_version` together, nothing else.
 
+## Upgrade runbook
+
+- Version source: the chart tag in `base/flux-operator-ui.yaml` (UI
+  0.60.0) IN LOCKSTEP with `operator_chart_version` in
+  `flux/fleet/terraform/versions.yaml` (the single source —
+  `tests/versions.tftest.hcl` asserts the GitOps↔Terraform mapping).
+- Changelog:
+  https://github.com/controlplaneio-fluxcd/flux-operator/releases.
+- Bump: let the ImagePolicy PR land (marker
+  `apps:flux-operator-ui:tag`, `update-policies/flux-operator-ui.yaml`),
+  then set the chart tag here AND `operator_chart_version` in
+  `versions.yaml` together. The UI is `serverOnly` with
+  `installCRDs: false` — bumps never touch fleet sync, bootstrap values,
+  or Managed resources.
+- Verify: the UI lists Kustomizations/HelmReleases read-only and the
+  fleet `FluxInstance` still reconciles `Ready=True`.
+
 ## Environments
 
 | Env | Replicas | Patches |

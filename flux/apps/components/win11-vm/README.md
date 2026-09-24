@@ -97,3 +97,18 @@ Upstream reference (read-only): `/tmp/home-ops-docs/kubevirt-docs` (guest shape;
 - This VM tracks its base image/ISO, not a chart: the `$imagepolicy` marker
   (`apps:win11-vm:tag`) anchors the ISO annotation. When the staged ISO is
   refreshed, update the source + marker so update-automation opens a PR.
+
+## Upgrade runbook
+
+- Version source: the staged ISO behind `spec.source` in
+  `base/win11-vm.yaml` (licensed Microsoft image, never committed) —
+  static until the ISO refresh cadence is set.
+- Changelog: n/a (no public feed for the staged ISO; track the
+  Windows 11 release notes for the build in use).
+- Bump: stage the new ISO on local infra, point `spec.source` at it,
+  move the `$imagepolicy` marker (`apps:win11-vm:tag`,
+  `update-policies/win11-vm.yaml`) in the same commit, and record the
+  build in this README.
+- Migrate: power is manual (`runStrategy: Manual` — use the virtctl
+  runbook above with the Flux Kustomization suspended). Verify: the
+  guest boots, DHCPs a `lan` address, and virtio drivers stay healthy.

@@ -69,6 +69,25 @@ Full design notes live on: `projects/apprise-go-api/README.md`,
 `base/NOTIFICATIONS.md` (Flux→apprise→Matrix wiring + tag/matrix
 contract), and the per-area sections above.
 
+## Upgrade runbook
+
+- Version source: image tags in `base/tuwunel.yaml` (tuwunel, auto via
+  `apps:tuwunel:tag`), `base/element-web.yaml` (element-web, auto via
+  `apps:element-web:tag`), and `base/mautrix-discord.yaml` (bridge
+  v0.7.7, PINNED — no policy, upstream is `dock.mau.dev`).
+- Changelog (tuwunel): https://github.com/matrix-construct/tuwunel/releases.
+  Changelog (element): https://github.com/element-hq/element-web/releases.
+  Changelog (bridge): https://github.com/mautrix/discord/releases.
+- Bump: let the tuwunel/element-web ImagePolicy PRs land
+  (`update-policies/tuwunel.yaml`, `update-policies/element-web.yaml`);
+  move the bridge pin by hand after reading its release notes (config
+  shape is authored from `example-config.yaml` — re-diff on bumps).
+- Migrate: tuwunel is a singleton on a single RWO PVC (RocksDB
+  single-writer, `Recreate`) and `server_name` is IMMUTABLE — export
+  media + snapshot the `mautrix-discord-db` CNPG cluster BEFORE tuwunel
+  major bumps. Verify: send a message end-to-end (Element → tuwunel →
+  bridged Discord room) in each env.
+
 ## Environments
 
 | Env | Hosts | Notable patches |

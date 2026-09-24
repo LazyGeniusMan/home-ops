@@ -152,3 +152,16 @@ Upstream reference (read-only): `/tmp/home-ops-docs/headlamp-docs/charts/headlam
 - App auto-tracks via `update-policies/headlamp.yaml`
   (`ghcr.io/headlamp-k8s/headlamp:v0.45.0` marker + chart version floor);
   plugin pins ride along in the same PR by hand.
+
+## Upgrade runbook
+
+- Version source: chart `version:` + `image.tag` in
+  `base/headlamp.yaml` (chart 0.45.0 == app 0.45.0 lockstep — NOT the
+  §11.1 Zitadel divergence) plus the plugin pins in `configContent`
+  (ai-assistant, flux, kubevirt).
+- Changelog: https://github.com/headlamp-k8s/headlamp/releases
+  (plugins via the ArtifactHub links in the Plugins table above).
+- Bump: let the image ImagePolicy PR land (marker `apps:headlamp:tag`,
+  `update-policies/headlamp.yaml`), then set the chart `version:` to
+  match AND hand-bump the plugin pins in the SAME PR (same file).
+- Verify: OIDC login succeeds and the plugin list renders in the UI.

@@ -222,3 +222,18 @@ Upstream reference (read-only): `/tmp/home-ops-docs/coder-docs`.
   deviation). Coderd health via `kube-state-metrics` meanwhile.
 - App image auto-tracks via `update-policies/coder.yaml`
   (`ghcr.io/coder/coder:v2.37.3` marker); chart bumps are manual.
+
+## Upgrade runbook
+
+- Version source: app image tag in `base/coder.yaml`
+  (`ghcr.io/coder/coder:v2.37.3`, auto) + chart `version:` in the same
+  file (2.37.3, classic `https://helm.coder.com/v2` repo — hand-bumped,
+  no OCI upstream, same split as the seaweedfs component).
+- Changelog (app+chart): https://github.com/coder/coder/releases.
+- Bump: let the image ImagePolicy PR land (marker `apps:coder:tag`,
+  `update-policies/coder.yaml`); move the chart `version:` by hand in
+  the same PR when the release notes call for it.
+- Migrate: snapshot `coder-db` BEFORE major bumps (fresh CNPG base
+  backup — see the infra cnpg README restore runbook). Verify:
+  dashboard OIDC login succeeds and a workspace agent connects via the
+  `*.coder` wildcard route.
