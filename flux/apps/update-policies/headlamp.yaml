@@ -6,8 +6,8 @@
 # markers). Plugin pins (ai-assistant, flux, kubevirt in the HelmRelease
 # configContent) are bumped by hand in the same PR — see README.
 # Changelog: https://github.com/headlamp-k8s/headlamp/releases (plugins via the ArtifactHub links in the README).
-# Mode: auto (image) + manual same-PR (chart `version:` to match + plugin pins in configContent).
-# Coupled files: [components/headlamp/base/headlamp.yaml (chart `version:` + image tag + plugin pins)].
+# Mode: auto (image) + manual same-PR (OCIRepository `ref.tag` to match + plugin pins in configContent).
+# Coupled files: [components/headlamp/base/headlamp.yaml (OCIRepository `ref.tag` + image tag + plugin pins)].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

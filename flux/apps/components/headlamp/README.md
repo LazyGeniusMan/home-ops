@@ -5,7 +5,7 @@ OIDC login via Zitadel (§11.1) plus the locked plugin set.
 
 ## Layout (environment-direct, apps area)
 
-`base/` holds every manifest (`headlamp.yaml` HelmRepository + HelmRelease,
+`base/` holds every manifest (`headlamp.yaml` OCIRepository + HelmRelease,
 secrets, RBAC, wildcard certificate, HTTPRoute); env overlays
 `{dev,prd}/` patch hostnames, vault refs, and OIDC issuer via
 `resources: [../base]`. Tenant is `apps/headlamp` via
@@ -13,18 +13,24 @@ secrets, RBAC, wildcard certificate, HTTPRoute); env overlays
 
 ## Chart source
 
-Classic HelmRepository `https://kubernetes-sigs.github.io/headlamp/`, chart
-**0.45.0** (verified in the repo index at authoring time; `helm template` +
-`helm lint` pass locally against the chart copy in
-`/tmp/home-ops-docs/headlamp-docs/charts/headlamp`).
+OCI `oci://ghcr.io/home-operations/charts-mirror/headlamp`, tag **0.45.0**
+(same chart version as the classic `https://kubernetes-sigs.github.io/headlamp/`
+upstream — delivery-mechanism-only switch; `helm template` + `helm lint`
+pass locally, cosign `verify` with the home-operations OIDC identity per
+the [charts-mirror README](/tmp/home-ops-docs/home-operations-oci-helm-chart-mirror-docs/README.md)).
 
 - Chart↔app lockstep (NOT the §11.1 Zitadel divergence): chart **0.45.0**
   carries app **0.45.0**. `image.tag` is pinned explicitly to `v0.45.0` with
   the `$imagepolicy` marker (`apps:headlamp:tag`); on automation PRs bump the
-  chart `version:` to match.
-- No OCI fallback: no OCI artifact is published for this chart (`helm pull
-  oci://ghcr.io/headlamp-k8s/charts/headlamp --version 0.45.0` → 403 denied
-  at authoring time). Same OCI-first deviation as §8.3 CoreDNS.
+  OCIRepository `ref.tag` to match.
+- Mirror stop-gap: the official upstream OCI
+  (`oci://ghcr.io/kubernetes-sigs/headlamp/charts/headlamp`) is private
+  (upstream issue [kubernetes-sigs/headlamp#5684](https://github.com/kubernetes-sigs/headlamp/issues/5684)
+  open — 401/403 at authoring time), so delivery flows through the
+  home-operations charts-mirror republish (byte-identical, cosign-signed).
+  Subscribe to #5684 and switch to the official OCI chart once it goes
+  public — mirrored charts are deprecated 6 months after upstream support
+  lands.
 - App image verified live on GHCR (`ghcr.io/headlamp-k8s/headlamp:v0.45.0`
   tag listed at authoring time).
 
@@ -155,13 +161,13 @@ Upstream reference (read-only): `/tmp/home-ops-docs/headlamp-docs/charts/headlam
 
 ## Upgrade runbook
 
-- Version source: chart `version:` + `image.tag` in
+- Version source: OCIRepository `ref.tag` + `image.tag` in
   `base/headlamp.yaml` (chart 0.45.0 == app 0.45.0 lockstep — NOT the
   §11.1 Zitadel divergence) plus the plugin pins in `configContent`
   (ai-assistant, flux, kubevirt).
 - Changelog: https://github.com/headlamp-k8s/headlamp/releases
   (plugins via the ArtifactHub links in the Plugins table above).
 - Bump: let the image ImagePolicy PR land (marker `apps:headlamp:tag`,
-  `update-policies/headlamp.yaml`), then set the chart `version:` to
-  match AND hand-bump the plugin pins in the SAME PR (same file).
+  `update-policies/headlamp.yaml`), then set the OCIRepository `ref.tag`
+  to match AND hand-bump the plugin pins in the SAME PR (same file).
 - Verify: OIDC login succeeds and the plugin list renders in the UI.
