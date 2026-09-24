@@ -347,6 +347,10 @@ fetch_repo zitadel-terraform-provider-docs https://github.com/zitadel/terraform-
 # /tmp/home-ops-docs/oauth2-proxy-docs/docs/versioned_docs/version-7.15.x
 fetch_repo oauth2-proxy-docs https://github.com/oauth2-proxy/oauth2-proxy master || record_fail oauth2-proxy-docs
 
+# /tmp/home-ops-docs/oauth2-proxy-helm-charts-docs/helm/oauth2-proxy/README.md
+fetch_repo oauth2-proxy-helm-charts-docs https://github.com/oauth2-proxy/manifests main || record_fail oauth2-proxy-helm-charts-docs
+
+
 # /tmp/home-ops-docs/seaweedfs-operator-docs/README.md
 fetch_repo seaweedfs-operator-docs https://github.com/seaweedfs/seaweedfs-operator master || record_fail seaweedfs-operator-docs
 
