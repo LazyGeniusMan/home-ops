@@ -66,3 +66,25 @@ cluster tracks `dev` mirrored from main.
 3. Add the component to the workflow matrix in
    `.github/workflows/flux-infra-push.yaml` (or `flux-apps-push.yaml`).
 4. Create the update policy in the area's `update-policies/`.
+
+## Upgrades
+
+Fleet content promotes dev → prd through `ARTIFACT_TAG`, never by forking files:
+
+1. **Propose.** The `update` cluster's `ImageUpdateAutomation` (30m) opens
+   `image-updates-*` PRs for the infra + apps update policies
+   (`ImageRepository` 12h); fleet's own OCI artifact carries no update policy —
+   it versions by release tag.
+2. **Merge (human).** Automation proposes, never merges — review the PR and
+   merge by hand.
+3. **Bake on dev.** Every `main` commit publishes `dev` (+ `dev-<sha>`); the
+   dev and `update` clusters sync `dev`, so validate there first.
+4. **Promote to prd.** Tag `flux-fleet-vX.Y.Z` to publish `stable`
+   (+ `stable-<version>`) with cosign signatures; prd pins `stable` with
+   cosign verification against the release workflow and tag.
+
+Cadences: tenants `OCIRepository` 5m, tenant Kustomizations 30m, charts 1h,
+`ImageUpdateAutomation` 30m, ResourceSets 5m, per-cluster `tenants`
+Kustomization 12h. Per-cluster differences stay in
+`tenants/overlays/` (selection patches only — overlays carry no version
+pins), so promotion is always a tag move, never a file fork.

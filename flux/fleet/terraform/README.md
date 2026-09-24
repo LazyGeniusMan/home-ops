@@ -105,6 +105,33 @@ pulls the OCI tag), so this order is purely about making `stable` exist and
 trustworthy before prd points at it. Later bootstraps (recovery, new prd
 hardware) skip straight to step 3.
 
+## Upgrading the operator
+
+Three pins move together — bump one, bump all three, then prove it:
+
+- `operator_chart_version` in `versions.yaml` (currently 0.60.0): the
+  bootstrap install version. The GitOps `OCIRepository`
+  (`flux-operator.yaml`) floats semver `*`, so this pin only governs fresh
+  bootstraps.
+- The chart tag consumed by `flux-operator-ui`
+  (`flux/apps/components/flux-operator-ui`): its update policy tracks the
+  same operator chart line (`>=0.60.0`) and opens PRs via `$imagepolicy`
+  markers — on bumps set the chart tag there AND `operator_chart_version`
+  here together (see the policy header).
+- `FluxInstance` `spec.distribution.version` (`2.x`, registry
+  `ghcr.io/fluxcd`, artifact `flux-operator-manifests:latest`): the 2.x Flux
+  line the operator installs; keep it on the 2.x major while bumping the chart.
+
+`tests/versions.tftest.hcl` asserts the mapping (bootstrap module 0.8.0,
+operator chart pin, per-cluster instance/values single-source, prd `stable` /
+dev `dev` refs), so `tofu test` fails on drift:
+
+```shell
+cd flux/fleet/terraform
+tofu init -backend=false
+tofu test
+```
+
 ## Usage (manual, no live apply in CI)
 
 ```shell
