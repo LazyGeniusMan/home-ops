@@ -9,8 +9,10 @@
 #
 # COSI note: release-0.2 is now tagged (v0.2.2 on
 # gcr.io/k8s-staging-sig-storage — no registry.k8s.io promotion yet), so the
-# controller pin tracks the v0.2.x semver tag and the floor below moved from
-# >=0.0.0 to >=0.2.2 with it.
+# controller pin tracks the v0.2.x semver tag. The range is capped <0.3.0:
+# main-line v1alpha2 (breaking, incompatible with the SeaweedFS driver)
+# versions above v0.2.x, so automation must never PR past the v0.2 line.
+# Bump pins + all three caps (here + seaweedfs.yaml sidecar/driver) together.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
@@ -30,4 +32,4 @@ spec:
     name: cosi-controller
   policy:
     semver:
-      range: ">=0.2.2"
+      range: ">=0.2.2 <0.3.0"

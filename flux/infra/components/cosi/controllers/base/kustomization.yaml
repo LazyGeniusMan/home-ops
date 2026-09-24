@@ -1,6 +1,10 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: cosi
+# NOTE: the 5 vendored CRDs live in crds/base (fleet prune:false
+# infra-crds) — this Kustomization must stay CRD-free so infra-controllers
+# keeps prune:true. Depends on its sibling infra-crds via the fleet
+# (see flux/fleet/tenants/infra.yaml).
 resources:
   - namespace.yaml
   - sa.yaml
@@ -8,8 +12,3 @@ resources:
   - deployment.yaml
   - controller-hpa.yaml
   - controller-vpa.yaml
-  - objectstorage.k8s.io_bucketaccessclasses.yaml
-  - objectstorage.k8s.io_bucketaccesses.yaml
-  - objectstorage.k8s.io_bucketclaims.yaml
-  - objectstorage.k8s.io_bucketclasses.yaml
-  - objectstorage.k8s.io_buckets.yaml

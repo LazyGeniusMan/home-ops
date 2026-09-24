@@ -1,18 +1,21 @@
-# COSI central controller (release-0.2, v1alpha1 API) + CRDs.
-# Vendored from kubernetes-sigs/container-object-storage-interface @
-# origin/release-0.2 (f75d4750) — do NOT track main (v1alpha2, incompatible).
+# COSI central controller (tag v0.2.2, v1alpha1 API) + CRDs.
+# Vendored from kubernetes-sigs/container-object-storage-interface @ tag
+# v0.2.2 (commit f75d47509dae3e4ed0fd18ce0a60474b78e8d29b, 2025-12-03 —
+# the release-0.2 branch tip, now tagged; CRDs byte-identical to the tag,
+# verified 2026-09-24) — do NOT track main (v1alpha2, incompatible).
 # CRDs: group objectstorage.k8s.io, version v1alpha1 (BucketClass,
 # BucketClaim, Bucket, BucketAccessClass, BucketAccess), generated via
-# controller-gen v0.17.3.
+# controller-gen v0.17.3; the 5 files live in crds/base (fleet prune:false
+# infra-crds), not in controllers/.
 # Namespace: upstream ships `system` with namespace-scoped RBAC bound to
 # `default`; this component sets the kustomize `namespace: cosi` (matches the
 # Flux tenant namespace) and patches RBAC subjects below, so the controller
 # and its leader-election Role live in `cosi`.
-# Controller image: staging build of the release-0.2 branch
-# (v20250905-controllerv0.2.0-rc1-100-gd904c62). No registry.k8s.io
-# promotion exists yet (RELEASE.md keeps the template-project boilerplate;
-# cloudbuild publishes only gcr.io/k8s-staging-sig-storage). Tracked via
-# flux/infra/update-policies/cosi.yaml ($imagepolicy marker below).
+# Controller image: tag v0.2.2 on gcr.io/k8s-staging-sig-storage. No
+# registry.k8s.io promotion exists yet (RELEASE.md keeps the
+# template-project boilerplate; cloudbuild publishes staging only).
+# Tracked via flux/infra/update-policies/cosi.yaml ($imagepolicy marker
+# in deployment.yaml; range capped <0.3.0 — v1alpha2 lives above it).
 ---
 kind: Namespace
 apiVersion: v1

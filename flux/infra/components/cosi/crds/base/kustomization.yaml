@@ -1,0 +1,13 @@
+# COSI CRDs (5 vendored v0.2.2 files, objectstorage.k8s.io/v1alpha1).
+# Rendered by the fleet through the prune:false infra-crds Kustomization —
+# CRDs are never garbage-collected (see flux/fleet/tenants/infra.yaml).
+# Base holds the full set; dev/prd track ../base with no patches
+# (no per-env CRD forks). Bump: re-vendor all 5 files from the tag together.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - objectstorage.k8s.io_bucketaccessclasses.yaml
+  - objectstorage.k8s.io_bucketaccesses.yaml
+  - objectstorage.k8s.io_bucketclaims.yaml
+  - objectstorage.k8s.io_bucketclasses.yaml
+  - objectstorage.k8s.io_buckets.yaml

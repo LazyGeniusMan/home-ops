@@ -1,7 +1,7 @@
 # COSI (Container Object Storage Interface)
 
 GitOps-managed object-storage provisioning on SeaweedFS: the central COSI
-controller (release-0.2, `objectstorage.k8s.io/v1alpha1`) plus the SeaweedFS
+controller (tag v0.2.2, `objectstorage.k8s.io/v1alpha1`) plus the SeaweedFS
 COSI driver, with default `BucketClass/seaweedfs` +
 `BucketAccessClass/seaweedfs-key`. `BucketClaim`/`BucketAccess` pairs are
 colocated with their consumers (one pair per live bucket — 8 claims: 3
@@ -24,36 +24,46 @@ tenant namespace.
 
 ## Layout (mirrors the cert-manager component pattern)
 
-`controllers/base/` (vendored release-0.2 CRDs + central controller) +
-`configs/base/` (driver RBAC + Deployment + classes) + plain `../base`
-passthroughs in `controllers/{dev,prd}` and `configs/{dev,prd}`;
+`crds/base/` (5 vendored v0.2.2 CRDs, fleet prune:false `infra-crds`) +
+`controllers/base/` (central controller: `namespace`/`sa`/`rbac`/`deployment`
++ HPA/VPA — CRD-free so `infra-controllers` keeps prune:true) +
+`configs/base/` (`resources: []` placeholder — the driver moved to the
+seaweedfs component) + plain `../base` passthroughs in
+`crds/{dev,prd}` and `controllers/{dev,prd}`;
 tenant is `infra/cosi` via `flux/infra/update-policies/cosi.yaml`.
 
 ## Sources (all vendored — no remote kustomize URLs)
 
-- `controllers/base/objectstorage.k8s.io_*.yaml` (5 CRDs: BucketClass,
+- `crds/base/objectstorage.k8s.io_*.yaml` (5 CRDs: BucketClass,
   BucketClaim, Bucket, BucketAccessClass, BucketAccess, v1alpha1,
-  controller-gen v0.17.3) + `deployment.yaml` / `sa.yaml` / `rbac.yaml` /
-  `namespace.yaml`: from `kubernetes-sigs/container-object-storage-interface`
-  @ `origin/release-0.2` (`f75d4750`). Do NOT track `main` (v1alpha2,
-  incompatible with this driver).
+  controller-gen v0.17.3) + `controllers/base/deployment.yaml` / `sa.yaml` /
+  `rbac.yaml` / `namespace.yaml`: from
+  `kubernetes-sigs/container-object-storage-interface` @ tag `v0.2.2`
+  (commit `f75d47509dae3e4ed0fd18ce0a60474b78e8d29b`, 2025-12-03 — the
+  release-0.2 branch tip, now tagged; CRDs byte-identical to the tag,
+  verified 2026-09-24). Do NOT track `main` (v1alpha2,
+  incompatible with this driver). Re-vendor all 5 CRD files together from
+  the tag to bump (never hand-edit); pins + caps move together
+  (`update-policies/cosi.yaml` + `seaweedfs.yaml`, all `<0.3.0`).
 - Controller image
-  `gcr.io/k8s-staging-sig-storage/objectstorage-controller:v20250905-controllerv0.2.0-rc1-100-gd904c62`:
-  staging build of the release-0.2 branch. No `registry.k8s.io` promotion
+  `gcr.io/k8s-staging-sig-storage/objectstorage-controller:v0.2.2`:
+  tag on the staging registry. No `registry.k8s.io` promotion
   exists yet (`RELEASE.md` keeps template-project boilerplate; `cloudbuild`
   publishes staging only). Adapted from upstream: namespace `system`→`cosi`
   (matches the Flux tenant namespace), leader-election Role/Binding +
   ClusterRoleBinding subjects `default`→`cosi`.
-- `configs/base/driver.yaml` + `driver-rbac.yaml`: mirror the upstream
-  `seaweedfs` chart `templates/cosi/` (`cosi-deployment.yaml`,
+- Driver + classes live in the seaweedfs component's `configs/base/`
+  (`driver.yaml`, `driver-rbac.yaml`, `bucketclasses.yaml` — the driver is
+  a SeaweedFS workload, hosted in that tenant namespace): mirror the
+  upstream `seaweedfs` chart `templates/cosi/` (`cosi-deployment.yaml`,
   `cosi-cluster-role.yaml`, `cosi-service-account.yaml`), minus the
   auth/TLS branches (plain in-cluster gRPC). Driver image
-  `ghcr.io/seaweedfs/seaweedfs-cosi-driver:v0.1.2` (matches the chart
-  default; `quay.io/seaweedfs` repo is disabled/unauthenticated). Sidecar
-  `gcr.io/k8s-staging-sig-storage/objectstorage-sidecar:v20250711-controllerv0.2.0-rc1-80-gc2f6e65`
-  (the chart's pin — the release-0.2 counterpart of the driver's
-  `provisioner-sidecar v0.1.0` library).
-- `configs/base/bucketclasses.yaml`: mirrors the chart's
+  `ghcr.io/seaweedfs/seaweedfs-cosi-driver:v0.3.1`
+  (`quay.io/seaweedfs` repo is disabled/unauthenticated). Sidecar
+  `gcr.io/k8s-staging-sig-storage/objectstorage-sidecar:v0.2.2`
+  (the v0.2.2 counterpart of the driver's `provisioner-sidecar v0.1.0`
+  library).
+- `bucketclasses.yaml`: mirrors the chart's
   `cosi-bucket-class.yaml` (`BucketClass/seaweedfs` deletionPolicy Delete +
   `BucketAccessClass/seaweedfs-key` authenticationType Key), plus
   `parameters: {replication: "001", disk: ssd}` (driver keys per
@@ -160,7 +170,8 @@ Upstream reference (read-only): `/tmp/home-ops-docs/k8s-cosi-docs`.
   takes only `--v`; driver takes only endpoint env); metrics endpoints, if
   any, are unscraped until the monitoring stack lands (same as the
   cert-manager component).
-- Images auto-track via `update-policies/cosi.yaml` + PR automation, except
-  the controller/sidecar staging pins (date-stamped, non-semver —
-  hand-bumped until a `v0.2.x` release tag lands; then switch pins + policy
-  ranges to it).
+- Images auto-track via `update-policies/cosi.yaml` (controller) +
+  `seaweedfs.yaml` (sidecar + driver) → PR automation. All three policy
+  ranges are capped `<0.3.0`: v1alpha2 (breaking, main-line) lives above
+  the cap; bumps hand-bump pins + ranges together (see the per-file CRD
+  headers in `crds/base/`).

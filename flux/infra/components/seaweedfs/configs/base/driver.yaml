@@ -1,5 +1,8 @@
-# SeaweedFS COSI driver (mirrors upstream seaweedfs chart templates/cosi/
-# cosi-deployment.yaml; auth/TLS branches dropped — plain in-cluster gRPC).
+# SeaweedFS COSI driver (hand-vendored workload CR — NOT a CRD: the 5 COSI
+# CRDs live in cosi/crds/base under fleet prune:false; chart `cosi.enabled`
+# stays off per the seaweedfs README). Mirrors upstream seaweedfs chart
+# templates/cosi/cosi-deployment.yaml; auth/TLS branches dropped — plain
+# in-cluster gRPC.
 # Two containers share an emptyDir socket at /var/lib/cosi/cosi.sock:
 # - seaweedfs-cosi-driver: the provisioner gRPC server (driver binary embeds
 #   provisioner sidecar server via NewDefaultCOSIProvisionerServer). Env per
