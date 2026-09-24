@@ -93,8 +93,7 @@ cert-manager Secrets cannot cross namespaces).
   `update-policies/flux-operator-ui.yaml` (UI chart marker
   `apps:flux-operator-ui:tag`, floor `>=0.60.0`; proxy chart marker
   `apps:oauth2-proxy-chart` shared with clickstack + hubble-ui, image
-  marker `apps:oauth2-proxy` shared with clickstack + hubble-ui — this
-  closes the previous automation gap where the proxy pin had no marker). It NEVER touches fleet sync:
+  marker `apps:oauth2-proxy` shared with clickstack + hubble-ui). It NEVER touches fleet sync:
   this release is `serverOnly` with `installCRDs: false`, so it owns no CRDs,
   no bootstrap values, and no Managed sync resources — bumps move the UI tag
   and `operator_chart_version` together, nothing else.

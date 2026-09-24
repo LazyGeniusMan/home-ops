@@ -37,21 +37,9 @@ the `apps` ResourceSet); the prd overlay has no active patches.
 
 ## One mechanism for apps + infra + policies
 
-Per-cluster differences are RFC 6902 JSON patches (`patches:` entries in the
+Per-cluster differences are inline RFC 6902 JSON patches (`patches:` entries in the
 overlay `kustomization.yaml`), applied uniformly to any of the three
-ResourceSets. Why JSON patches and not strategic-merge `$patch: delete`?
-
-- `ResourceSet` is a Flux custom resource: strategic-merge has no merge-key
-  schema for `spec.inputs[]`, so SMP cannot address a single tenant entry.
-- `spec.inputs[]` is an **ordered list**; JSON `remove` is index-based, so
-  every list removal is guarded by a preceding `test` op on the tenant name
-  at that index. If someone reorders `tenants/{apps,infra}.yaml`, the
-  `kustomize build` **fails loudly** instead of silently dropping the wrong
-  tenant.
-- Removals go **highest index first** so earlier ops do not shift later
-  targets. Re-check the 0-based index in `tenants/apps.yaml` (or
-  `infra.yaml`) every time you write a patch; the current order is noted in
-  the comments of each overlay `kustomization.yaml`.
+ResourceSets; list removals carry `test` guards on the tenant name and go highest index first.
 
 Patches are inline `patch: |-` YAML blocks (not separate `path:` files and
 not `*.json`) so the op list stays readable and every file remains a valid

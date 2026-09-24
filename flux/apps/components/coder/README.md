@@ -170,10 +170,9 @@ pass:// entry left), `coder-db-credentials` + `coder-db-app-secret`
 `cloudflare-api-token`. `cnpg-s3-credentials` (coder-db) is COSI-minted:
 it syncs from the `coder-db-cosi-creds` BucketInfo JSON through the
 in-namespace `coder-cosi` SecretStore (dedicated claim `coder-db` — see
-`base/bucketclaims.yaml` and the cosi README). Decommissioned vault paths
-(`pass://…/cnpg/s3-*`) are deleted; no rollback entries are kept.
+`base/bucketclaims.yaml` and the cosi README).
 `cloudflare-api-token` follows the §9 vault path so the DNS-01 secret
-exists in this namespace too. Seed each remaining vault entry with
+exists in this namespace too. Seed each vault entry with
 pass-cli.
 
 Coder-owned Matrix notifier (BOOTSTRAPPED — no matrix-tenant fallback leg,
@@ -187,8 +186,7 @@ bot bootstrap kept Secret in ESO `target.template` (cross-namespace
 | `notifier-token` | `matrix-notify` → `matrix-notify` (`apprise-urls` bare + `webhook-endpoint` full) | `CODER_MATRIX_APPRISE_URLS` + `CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT` (valueFrom.secretKeyRef in `base/coder.yaml`) | The SAME per-env bot token that delivers to every room (`@apprise-dev` dev / `@apprise` prd); only rooms differ |
 | `homeserver-host` | (same ES/Secret) | (same — the `<host>` half of the composed `matrixs://` URL) | Bare host, NO scheme (dev `tuwunel.matrix.home-ops-dev.yansyah.my.id`, prd `tuwunel.matrix.home-ops.yansyah.my.id` — minted by the Job, never Git) |
 
-Deleted vault paths: `coder/matrix-bot-token` + `coder/matrix-host` — the
-notifier credential flows Job -> kept Secret -> this ES cross-namespace
+The notifier credential flows Job -> kept Secret -> this ES cross-namespace
 (narrow `coder-matrix-handoff-reader` Role/Binding in ns `matrix` +
 `coder-matrix` SecretStore in `base/coder-secrets.yaml`).
 

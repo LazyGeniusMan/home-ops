@@ -96,5 +96,3 @@ pass-cli item create 'acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-tok
   README credentials section).
 - **In-namespace plumbing**: `eso-k8s-reader` RBAC, `kube-root-ca.crt`,
   the wildcard TLS Secret minted by cert-manager. No seeding.
-
-Deleted vault paths (do not reseed): `matrix-rooms/*`, `coder/matrix-*`.

@@ -111,12 +111,11 @@ One flat root = one room (+ optional parent space): `matrix_room`
 optional `matrix_space` (+child) + `matrix_room_alias` + bot identity
 (`matrix_user_profile` global, `matrix_user_profile_override` per room).
 
-## Why the root looks like this
+## Root contract
 
-- **Bot + token are NOT manageable by the provider** (no user/token
-  resources), so the bootstrap Job creates them once outside Terraform —
-  see the runbook above. This root assumes the bot + token already exist
-  (kept Secret `matrix-bot-bootstrap-outputs`).
+- **Bot + token come from the bootstrap Job.** This root consumes the kept
+  Secret `matrix-bot-bootstrap-outputs` via `varsFrom` and never manages
+  the bot or token itself.
 - **Power levels are self-lockout safe.** A declared `users` map *replaces*
   the whole map homeserver-side; omitting the provider account drops it to
   `users_default` (below `state_default` = no more power-level writes, and

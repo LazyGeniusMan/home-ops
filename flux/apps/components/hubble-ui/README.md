@@ -72,7 +72,7 @@ Secrets are namespace-local).
 
 ## Telemetry-off / monitoring / updates
 
-- Telemetry evidence: the Cilium v1.20.1 chart exposes no usage-reporting
+- Telemetry evidence: the Cilium v1.20.2 chart exposes no usage-reporting
   keys (checked at authoring: non-comment values lines matching
   `telemetry|usageReporting|phoneHome|analytics` are empty), so there is
   nothing to switch off. No analytics env/args are set on either container.

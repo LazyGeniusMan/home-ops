@@ -23,12 +23,9 @@ via `flux/apps/update-policies/clickstack.yaml` (proxy chart marker
 | Collector `docker.hyperdx.io/hyperdx/hyperdx-otel-collector` | `v2.7.1` | same chart appVersion line (`otel.image.tag` defaults to `Chart.AppVersion`) |
 | FerretDB `ghcr.io/ferretdb/ferretdb` | `2.7.0` | newest non-`latest` 2.x tag (Docker Hub tags API) |
 
-## Why vendored, not the chart
+## Deployment shape
 
-The `hdx-oss-v2` 0.8.4 chart renders its API-key Secret straight from
-values with no `existingSecret` knob, which violates the ESO-only
-contract. Hence plain Deployments mirroring the chart's env shape with
-every credential as a `secretKeyRef` to ESO-synced Secrets.
+Plain Deployments mirroring the chart's env shape; every credential is a `secretKeyRef` to an ESO-synced Secret (ESO-only contract).
 
 ## ClickHouse backend (namespace-local CHI)
 

@@ -56,7 +56,7 @@ values):
 | `prerequisites.charts[0]` (repository = OCI url minus `oci://`, version = ref tag, values = HelmRelease `spec.values`) | `../../infra/components/cilium/controllers/base/cilium.yaml` (the same OCIRepository + HelmRelease Flux reconciles; `k8sServiceHost` placeholder filled from `var.cilium_k8s_service_host`) |
 
 `tests/versions.tftest.hcl` asserts the operator mapping (plus the 0.8.0 /
-0.59.0 pins and the per-cluster instance/values single-source) and
+0.60.0 pins and the per-cluster instance/values single-source) and
 `tests/prerequisites.tftest.hcl` asserts the Cilium mapping (prd + dev
 VIPs, adoption check, host-networked Job, runtime seed, LB-pool guard);
 `tofu test` fails on drift.
