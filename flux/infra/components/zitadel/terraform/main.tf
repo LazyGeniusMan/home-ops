@@ -38,8 +38,7 @@ locals {
 # Secret in the `zitadel` namespace: org_id + admin_user_id, operator-created once
 # per the zitadel README runbook) via the ESO-synced `<app>-terraform-vars`
 # Secret (same-namespace `varsFrom` in the consumer's base/terraform.yaml).
-# No literal org_id in git, no manual per-env fill, no remote-state read off
-# the retired bootstrap state.
+# No literal org_id in git, no manual per-env fill, no remote-state reads.
 data "zitadel_org" "home_ops" {
   id = var.org_id
 }

@@ -37,8 +37,7 @@
 # - policy.md ............... netbird_policy: `destinations` and
 #   `destination_resource` are mutually exclusive per rule, and the provider
 #   accepts exactly ONE rule per policy — so the admin peer chain and the
-#   admin LAN-resource chain ride TWO policies (same split as the old
-#   shared root).
+#   admin LAN-resource chain ride TWO policies.
 #
 # PAT-driven access fabric (admin/guest segmentation + per-cluster Network).
 # Talos nodes join via the reusable setup key below (no per-node Proton Pass
@@ -167,8 +166,7 @@ resource "netbird_network_resource" "lan" {
 # schema allows exactly ONE rule per policy AND forbids destinations +
 # destination_resource in one rule (both mutually exclusive), so the peer
 # chain and the LAN-resource chain ride TWO policies — admin-users-access
-# here plus admin-users-lan-access below (same split as the retired shared
-# root; task scope names the pair admin-users-access, split documented).
+# here plus admin-users-lan-access below.
 resource "netbird_policy" "admin_users_access" {
   name        = "admin-users-access"
   description = "Admin users reach all mesh groups (peer-to-peer / input chain)"
