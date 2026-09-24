@@ -9,9 +9,7 @@
 # kubernetes.default), kube-root-ca.crt supplies the API CA. One store
 # serves BOTH ExternalSecrets (cnpg-s3-credentials in ferretdb-postgres.yaml
 # + clickhouse-s3-backup in clickstack-secrets.yaml), which use GJSON
-# `property` (BucketInfo.spec.secretS3.accessKeyID/accessSecretKey) —
-# verified against ESO v2.10.0 providers/v1/kubernetes/client.go
-# getFromSecretData.
+# `property` (BucketInfo.spec.secretS3.accessKeyID/accessSecretKey).
 ---
 apiVersion: v1
 kind: ServiceAccount

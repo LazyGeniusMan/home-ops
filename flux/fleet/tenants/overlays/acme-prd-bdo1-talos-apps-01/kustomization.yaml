@@ -12,8 +12,8 @@
 # below (or add a new RFC 6902 patch, see ../README.md). Patches are inline
 # so every file in this directory stays a valid Kubernetes manifest.
 # Verify: kustomize build on this directory must succeed, and the guarded
-# `test` ops must pass (they fail the build loudly if the base input order
-# in tenants/*.yaml changed under you).
+# `test` ops must pass (they fail the build if the base input order in
+# tenants/*.yaml changed).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
@@ -23,8 +23,8 @@ resources:
 # EXAMPLE (disabled by default): prd-only source-policy tightening.
 # The shared tenants/policies.yaml allowlist trusts the same OCI prefixes on
 # every cluster. An operator MAY enable this patch so prd records an extra
-# pinning note in the allowlist ConfigMap (belt-and-braces on top of the
-# cosign verify blocks that already pin the release workflow + tag).
+# pinning note in the allowlist ConfigMap (on top of the cosign verify
+# blocks that already pin the release workflow + tag).
 # To enable, uncomment the block below.
 # NOTE: this edits a map value (not an ordered list), so no `test` guard is
 # needed — but keep the resource index + key name stable with

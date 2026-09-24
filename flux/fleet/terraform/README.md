@@ -76,7 +76,7 @@ via `copyFrom`, and every tenant Kustomization declares
 `controllers/<env>/` paths and any component manifest can consume
 `${CLUSTER_NAME}` / `${CLUSTER_DOMAIN}` / `${CLUSTER_REGION}` with zero
 fleet changes. `tenants.yaml` per cluster wires `substituteFrom`; the
-`update` cluster is intentionally out of scope (automation only).
+The `update` cluster is out of scope (automation only).
 
 ## First bootstrap order (the `stable` chicken-and-egg)
 

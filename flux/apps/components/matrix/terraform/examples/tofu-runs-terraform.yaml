@@ -8,17 +8,15 @@
 # flux room by design (tofu events post to BOTH rooms).
 #
 # Notification-only power lock (events_default 50) + plaintext
-# (encryption_enabled false): same rationale as the flux room header — the
-# stateless apprise notifier has no Olm persistence, so E2EE rooms are
-# unreadable to it. Upstream wiring (varsFrom Secret, OCI sourceRef, no
+# (encryption_enabled false): the stateless apprise notifier has no Olm
+# persistence, so E2EE rooms are unreadable to it. Upstream wiring (varsFrom Secret, OCI sourceRef, no
 # dependsOn, writeOutputsToSecret): identical to the flux example.
 ---
 # Vars mirror: team-owned bot-token mirror (same-namespace `varsFrom`;
 # keys land under the module var names, no varsKeys renames). Team
 # namespaces mint their own bot via their own bootstrap (same Job pattern
 # as matrix base/matrix-bot-bootstrap.yaml) — NEVER the matrix tenant's
-# kept Secret (varsFrom CANNOT cross namespaces). This doc block duplicates
-# so each example file is self-contained when copied.
+# kept Secret (varsFrom CANNOT cross namespaces).
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:

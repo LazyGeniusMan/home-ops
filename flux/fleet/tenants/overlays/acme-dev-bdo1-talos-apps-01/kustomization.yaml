@@ -13,8 +13,8 @@
 # below (or add a new RFC 6902 patch, see ../README.md). Patches are inline
 # so every file in this directory stays a valid Kubernetes manifest.
 # Verify: kustomize build on this directory must succeed, and the guarded
-# `test` ops must pass (they fail the build loudly if the base input order
-# in tenants/*.yaml changed under you).
+# `test` ops must pass (they fail the build if the base input order in
+# tenants/*.yaml changed).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
@@ -22,12 +22,10 @@ resources:
   - ../../infra.yaml
   - ../../policies.yaml
 # Dev exception (active): skip the Windows 11 VM on dev.
-# The dev box does not need the Windows 11 VM; talos-vm still deploys here.
-# Why the `test` op: ResourceSet inputs are an ORDERED list and RFC 6902
-# `remove` is index-based. The removal is guarded by a `test` on the tenant
-# name at that index, so the build FAILS LOUDLY (instead of silently dropping
-# the wrong tenant) if someone reorders tenants/apps.yaml. Single-index
-# removal needs no descending-order trick.
+# ResourceSet inputs are an ORDERED list and RFC 6902 `remove` is
+# index-based. The removal is guarded by a `test` on the tenant
+# name at that index, so the build fails if someone reorders
+# tenants/apps.yaml. Single-index removal needs no descending-order trick.
 # Current apps.yaml order (0-based):
 #   0 win11-vm, 1 talos-vm, 2 clickstack, 3 hubble-ui,
 #   4 flux-operator-ui, 5 headlamp, 6 coder, 7 matrix

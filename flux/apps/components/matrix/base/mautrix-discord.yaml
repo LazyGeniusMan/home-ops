@@ -2,13 +2,12 @@
 # Upstream references (read-only): `/tmp/home-ops-docs/matrix-mautrix-bridge-docs`,
 # `/tmp/home-ops-docs/matrix-mautrix-discord-bridge-docs`.
 # Single-replica Deployment (replicas: 1, strategy Recreate, NO HPA — see
-# below) running dock.mau.dev/mautrix/discord v0.7.7 (pinned; GH release
-# mautrix/discord is the alternative source). The image already bundles
+# below) running dock.mau.dev/mautrix/discord v0.7.7 (pinned). The image already bundles
 # ffmpeg + lottieconverter (see its Dockerfile: apk add ffmpeg ...), so no
 # sidecar is needed for voice-message or animated-sticker conversion.
 #
-# Config mechanics (legacy arch — no -e flag at this revision, so the full
-# config.yaml is authored here from example-config.yaml instead of generated):
+# Config mechanics (no -e flag at this revision, so the full
+# config.yaml is authored here from example-config.yaml):
 # - `mautrix-discord-config-tmpl` holds the complete bridge config with
 #   non-secret values baked in. Secret/token fields carry BOOT-PLACEHOLDER
 #   tokens (__...__ markers the entrypoint overwrites at boot via
@@ -19,7 +18,7 @@
 #   copies the template to /data/config.yaml and overwrites every secret and
 #   environment-wired field from env via `yq ... strenv(...)`, then generates
 #   /data/registration.yaml with `./mautrix-discord -g` ONLY if absent.
-#   SWEEP NOTE (G4+G3): the strenv-overwritten BOOT-PLACEHOLDER set is
+#   The strenv-overwritten BOOT-PLACEHOLDER set is
 #   HS_ADDRESS (__TUWUNEL_INTERNAL_URL__), HS_DOMAIN (__TUWUNEL_SERVER_NAME__
 #   — also patched positionally as Deployment env/1), DATABASE_URL
 #   (__DATABASE_URL__, ESO-composed via secretKeyRef), AS_TOKEN (__AS_TOKEN__),
@@ -33,10 +32,10 @@
 #   TUWUNEL_STORAGE_PROVIDER__MEDIA_ON_S3__S3__*) are upstream
 #   array-table syntax, not placeholders.
 # - /data lives on the `mautrix-discord-data` PVC, so as_token/hs_token (seeded
-#   from vault ONCE via ESO, see mautrix-discord-secrets.yaml) and the derived
+#   from vault via ESO, see mautrix-discord-secrets.yaml) and the derived
 #   registration.yaml survive restarts: a restart never re-registers and never
 #   rotates tokens. To rotate, change the vault fields and delete
-#   /data/registration.yaml (runbook in README.md).
+#   /data/registration.yaml.
 # - Strategy Recreate (not RollingUpdate): with replicas: 1 the default
 #   RollingUpdate would briefly run TWO bridges (maxSurge), which would fight
 #   over the fixed appservice port and the Postgres rows. Recreate guarantees
@@ -96,7 +95,7 @@ data:
         # MUST stay false: ordered delivery per portal (portal_message_buffer
         # below depends on it).
         async_transactions: false
-        # Overwritten at boot from AS_TOKEN / HS_TOKEN (vault-seeded once via
+        # Overwritten at boot from AS_TOKEN / HS_TOKEN (vault-seeded via
         # ESO; stable across restarts — see the header comment).
         as_token: __AS_TOKEN__
         hs_token: __HS_TOKEN__
@@ -133,10 +132,7 @@ data:
         forbid_dming_strangers: true
         proxy:
         cache_media: unencrypted
-        # Direct media (MSC3860 custom mxc:// URIs): disabled. Enabling needs
-        # a real Matrix server name with .well-known delegation (or a Gateway
-        # proxy) to this bridge plus the server_key already plumbed from
-        # vault. Decision recorded in README.md.
+        # Direct media (MSC3860 custom mxc:// URIs): disabled.
         direct_media:
             enabled: false
             # Derived at boot as discord-media.<HS_DOMAIN> (see the
@@ -153,12 +149,12 @@ data:
                 width: 320
                 height: 320
                 fps: 25
-        # No legacy server-wide puppet map: discovery off, per-server entries
-        # added only if a second HS ever needs double puppeting.
+        # No server-wide puppet map: discovery off, per-server entries
+        # added only if a second HS needs double puppeting.
         double_puppet_server_map: {}
         double_puppet_allow_discovery: false
-        # Legacy automatic double-puppet map (THIS revision has no
-        # double_puppet.secrets block — see README.md decision). The entrypoint
+        # Automatic double-puppet map (this revision has no
+        # double_puppet.secrets block). The entrypoint
         # writes {HS_DOMAIN: <DOUBLE_PUPPET_SHARED_SECRET>} here at boot. The
         # value is inert unless the homeserver runs a shared-secret-auth
         # password provider; manual `login-matrix` always works.
@@ -259,7 +255,7 @@ data:
        .bridge.permissions[strenv(BRIDGE_ADMIN_MXID)] = "admin"' "$CFG"
     if [ ! -f "$REG" ]; then
       /usr/bin/mautrix-discord -g -c "$CFG" -r "$REG"
-      echo "Generated new registration.yaml — install it on the homeserver (README.md runbook), then restart tuwunel."
+      echo "Generated new registration.yaml — install it on the homeserver, then restart tuwunel."
     fi
     exec /usr/bin/mautrix-discord -c "$CFG" -r "$REG"
 ---
@@ -304,7 +300,7 @@ metadata:
     app.kubernetes.io/name: mautrix-discord
     app.kubernetes.io/part-of: mautrix-discord
 spec:
-  # SINGLETON: exactly 1, forever. No HPA scales this (see header + README).
+  # Singleton: exactly 1. No HPA scales this (see header).
   replicas: 1
   strategy:
     type: Recreate
@@ -324,9 +320,8 @@ spec:
         fsGroup: 1337
       containers:
         - name: bridge
-          # Pinned upstream image (GH release mautrix/discord is the
-          # alternative source). No $imagepolicy marker by design: upstream
-          # is dock.mau.dev (manual bumps) — bump manually.
+          # Pinned upstream image. No $imagepolicy marker by design: upstream
+          # is dock.mau.dev (manual bumps).
           image: dock.mau.dev/mautrix/discord:v0.7.7
           imagePullPolicy: IfNotPresent
           command:

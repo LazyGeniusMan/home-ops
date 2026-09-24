@@ -1,7 +1,7 @@
 # S3 -> Proton Drive backup of the `coder-db` COSI bucket (colocated with the
 # consuming component — lands in the `coder` tenant namespace via the Fleet
 # `apps` Kustomization's `targetNamespace`). One HelmRelease per bucket, per
-# the colocated-backup rule (centralized backup is out of scope).
+# the colocated-backup rule.
 #
 # What it syncs: the SeaweedFS bucket provisioned for BucketClaim/coder-db
 # (bucketclaims.yaml), which holds the coder-db CNPG Cluster WAL + base

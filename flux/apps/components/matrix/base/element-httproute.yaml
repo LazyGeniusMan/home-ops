@@ -6,13 +6,12 @@
 # (single-page app — all paths serve the SPA shell). TLS terminates at the
 # Gateway via the in-namespace wildcard Certificate
 # (wildcard-certificate.yaml).
-# Upstream nginx-snippet headers translated (docs/kubernetes.md Ingress
-# annotations → Gateway ResponseHeaderModifier — Cilium Gateway supports
-# the standard filter):
+# Upstream nginx-snippet headers translated (Ingress annotations →
+# Gateway ResponseHeaderModifier):
 #   X-Frame-Options SAMEORIGIN, X-Content-Type-Options nosniff,
 #   Content-Security-Policy "frame-ancestors 'self'".
 # Response headers set: X-Frame-Options, X-Content-Type-Options,
-# Content-Security-Policy (no X-XSS-Protection — deprecated).
+# Content-Security-Policy.
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

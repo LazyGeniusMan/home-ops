@@ -22,8 +22,8 @@ Flux Operator release line compatible with bootstrap
 `flux/fleet/terraform/versions.yaml`, the single source: `clusters/*/flux-system/flux-operator.yaml`
 consumes the same coordinates via Flux after bootstrap, and
 `tests/versions.tftest.hcl` asserts the GitOps↔Terraform mapping). The
-standalone install comes from the upstream docs (bounded source:
-`/tmp/home-ops-docs/flux-operator-docs/docs/web`, upstream
+standalone install comes from the upstream docs
+(`/tmp/home-ops-docs/flux-operator-docs/docs/web`, upstream
 [flux-operator](https://github.com/controlplaneio-fluxcd/flux-operator) branch
 `main`, `docs/web/web-standalone.md`): dedicated Helm release with
 `web.serverOnly: true` and `installCRDs: false`, `fullnameOverride:

@@ -1,7 +1,6 @@
 # Test-only hooks: expose the Cilium prerequisite wiring so
-# tests/prerequisites.tftest.hcl can assert the single-source mapping
-# (module inputs are not otherwise readable from test assertions).
-# These carry no runtime meaning — the module owns the real install.
+# tests/prerequisites.tftest.hcl can assert the single-source mapping.
+# These carry no runtime meaning.
 
 output "test_cilium_chart_repository" {
   description = "Cilium prerequisite chart repository passed to the bootstrap module (test hook)."

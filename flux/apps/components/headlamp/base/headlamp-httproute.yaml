@@ -1,8 +1,7 @@
 # Headlamp HTTPRoute (§13.3): attach to the shared §8.1 Gateway (listeners
 # accept routes from all namespaces — cross-namespace parentRef, no
 # targetNamespace override needed). Chart-native httpRoute templating stays
-# OFF (we own the §8.1 pattern explicitly rather than through chart values,
-# same split as §11.1 Zitadel). TLS terminates at the Gateway via the
+# OFF (we own the §8.1 pattern explicitly rather than through chart values). TLS terminates at the Gateway via the
 # in-namespace wildcard Certificate (wildcard-certificate.yaml — cert-manager
 # Secrets are namespace-local, same duplicate pattern as §§8.1/11.1).
 # Catch-all `/` covers the app plus the OIDC callback path /oidc-callback

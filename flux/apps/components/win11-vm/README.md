@@ -66,10 +66,9 @@ Safety rules for every MAC below:
 | dev | — (passthrough, router-assigned) | n/a |
 | prd | `52:54:00:03:0B:01` | `pass://acme-prd-bdo1-talos-apps-01/win11-vm/lan-mac` |
 
-Mirror warning: the per-env patch literal and the vault value must agree —
-just two copies, nothing else to keep in step. If either side changes, update
-both. User action: create a `lan-mac` item holding the env's exact literal
-under `<vault>/win11-vm/` in Proton Pass.
+The per-env patch literal and the vault value must agree — if either side
+changes, update both. Create a `lan-mac` item holding the env's exact
+literal under `<vault>/win11-vm/` in Proton Pass.
 
 ## Firmware
 

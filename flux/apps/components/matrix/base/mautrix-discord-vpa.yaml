@@ -1,9 +1,7 @@
-# VPA for the SINGLETON mautrix-discord Deployment: updateMode Auto (the
-# sanctioned singleton pattern — VPA evicts + recreates the lone pod with the
-# recommended request; Recreate strategy keeps at-most-one-writer). Initial
-# mode lets the recommender learn before the first apply; NO HPA exists or
-# may ever exist on this target (known-limitations.md: never VPA-apply on a
-# resource HPA scales on — trivially satisfied: there is no HPA).
+# VPA for the SINGLETON mautrix-discord Deployment: updateMode Auto (VPA
+# evicts + recreates the lone pod with the recommended request; Recreate
+# strategy keeps at-most-one-writer). Initial mode lets the recommender
+# learn before the first apply; NO HPA exists on this target.
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler

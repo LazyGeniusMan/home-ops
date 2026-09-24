@@ -6,7 +6,7 @@
 # ConfigMap, Service 80→8081) minus cluster-scoped RBAC (see Role below).
 # Telemetry: no usage-reporting keys in chart values; nothing to switch off.
 # Monitoring: no ServiceMonitor (monitoring.coreos.com CRDs not present —
-# same §9 deviation); flip once the monitoring stack lands.
+# same §9 deviation).
 ---
 apiVersion: v1
 kind: ServiceAccount

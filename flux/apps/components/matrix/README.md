@@ -6,10 +6,8 @@ the `mautrix-discord` bridge (+ colocated Postgres), the `element-web` SPA,
 and consumer-only apprise wiring (the `apprise-go-api` workload lives in the
 infra `apprise-go-api` tenant as shared credential-free platform plumbing).
 They are highly integrated (bridge dials tuwunel, Element points at
-tuwunel, Providers post cross-namespace to the infra sink), never used
-outside the stack, and fail together, so one tenant fits the
-tenant==namespace==artifact invariant (fleet templates, cosign subject,
-push path all assume it).
+tuwunel, Providers post cross-namespace to the infra sink), so one tenant
+fits the tenant==namespace==artifact invariant.
 
 ## Workloads
 

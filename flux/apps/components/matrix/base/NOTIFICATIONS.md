@@ -1,6 +1,6 @@
 # Flux -> apprise-go-api -> Matrix wiring
 
-Greenfield Flux notification wiring: every Flux-native event source emits
+Flux notification wiring: every Flux-native event source emits
 via the infra apprise-go-api sink
 (`http://apprise-go-api.apprise-go-api.svc:80/notify` — workload lives in
 the infra `apprise-go-api` tenant, NOT this one) into per-purpose Matrix

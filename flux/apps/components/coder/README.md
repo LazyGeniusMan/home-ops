@@ -1,16 +1,13 @@
 # Coder (§13.6)
 
 Self-hosted remote dev environments at
-`https://coder.home-ops.yansyah.my.id`, app `v2.37.3` via chart
-`oci://ghcr.io/coder/chart/coder` **2.37.3** (OCI on GHCR is the upstream
-source of truth — digest
-`sha256:922fa45fae4cb2e2cb92d73fb0327878cc84177c3c701affa5cfb866706b4d50`,
-appVersion 2.37.3, verified by pull; chart<->app lockstep, so the chart
-tag and `ghcr.io/coder/coder` image tag auto-track together through
-`update-policies/coder.yaml`). Default upstream templates first — no
-custom workspace template is authored here
-(`coder-templates`/`coder-modules` skills apply only when a custom
-template is required; none is).
+`https://coder.home-ops.yansyah.my.id`, app `v2.37.3` via chart `oci://ghcr.io/coder/chart/coder` **2.37.3**
+(digest `sha256:922fa45fae4cb2e2cb92d73fb0327878cc84177c3c701affa5cfb866706b4d50`,
+appVersion 2.37.3; chart<->app lockstep, so the chart tag and
+`ghcr.io/coder/coder` image tag auto-track together through
+`update-policies/coder.yaml`). No custom workspace template is authored
+ here (`coder-templates`/`coder-modules` skills apply only when one is
+required; none is).
 
 ## Layout (environment-direct, apps area)
 
@@ -80,7 +77,7 @@ the `proton-pass` ClusterSecretStore). The HelmRelease consumes them via
 vault entries exist or are needed; rotation is automatic on the next
 `coder-sso` reconcile (refreshInterval 1h).
 
-Zero-UI prerequisite: the chart setup Job mints the IAM_OWNER machine key
+Prerequisite: the chart setup Job mints the IAM_OWNER machine key
 and ESO mirrors both handoff Secrets (`zitadel-bootstrap-credentials` for
 provider auth, `zitadel-bootstrap-outputs` for org_id + admin_user_id) into
 `coder-terraform-vars` — no vault seeding, no console step, no pass://
@@ -145,13 +142,13 @@ single-label wildcard cannot cover the nested workspace shape, hence two
 certs. No manual DNS: issuance uses DNS-01 TXT, and A records ride on the
 §9.4 external-dns automation.
 
-Gateway requirement (unimplemented): the shared Gateway `main` has only
-`http:80` (redirect) + `https:443` listeners terminating with the
-top-level `*.home-ops.yansyah.my.id` cert, which does not cover
-`*.coder.…`. Coder ships `coder-tls` + `coder-wildcard-tls` Secrets, but
-no Gateway listener references `coder-wildcard-tls` yet — workspace
-hostnames need an additional `https` listener with that certificateRef
-(or an SNI-based listener addition) before they terminate correctly.
+Gateway requirement: the shared Gateway `main` has only `http:80`
+(redirect) + `https:443` listeners terminating with the top-level
+`*.home-ops.yansyah.my.id` cert, which does not cover `*.coder.…`.
+Coder ships `coder-tls` + `coder-wildcard-tls` Secrets, but no Gateway
+listener references `coder-wildcard-tls` yet — workspace hostnames need
+an additional `https` listener with that certificateRef before they
+terminate correctly.
 
 ## Database
 

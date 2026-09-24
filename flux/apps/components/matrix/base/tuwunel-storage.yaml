@@ -17,9 +17,8 @@
 #   accessKeyID/accessSecretKey). The driver hands back the INTERNAL
 #   endpoint (http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333);
 #   SeaweedFS S3 is path-style, so USE_VHOST_REQUEST=false (see tuwunel.yaml).
-# - Base-path decision: BASE_PATH=tuwunel-media (see
-#   TUWUNEL_STORAGE_PROVIDER__MEDIA_ON_S3__S3__BASE_PATH in tuwunel.yaml) so
-#   this bucket is never shared with CNPG/Dragonfly/Zitadel backup buckets.
+# - Base path BASE_PATH=tuwunel-media (see
+#   TUWUNEL_STORAGE_PROVIDER__MEDIA_ON_S3__S3__BASE_PATH in tuwunel.yaml).
 ---
 apiVersion: objectstorage.k8s.io/v1alpha1
 kind: BucketClaim

@@ -11,7 +11,7 @@
 # above is the mechanism.
 # Upstream wiring: org_id + admin_user_id flow from the FirstInstance handoff
 # (`zitadel-bootstrap-outputs` Secret in the `zitadel` namespace,
-# operator-created once per the zitadel README runbook) via the ESO-synced
+# operator-created) via the ESO-synced
 # `tuwunel-terraform-vars` Secret (same-namespace `varsFrom` below; the
 # cross-namespace `tuwunel-zitadel` SecretStore + narrow
 # `tuwunel-zitadel-handoff-reader` Role in `zitadel-handoff-rbac.yaml` do the
@@ -20,11 +20,11 @@
 # handoff (`zitadel-bootstrap-credentials` key `jwt_profile_json`) through
 # the same Secret. Same-namespace `varsFrom` CANNOT cross namespaces (no
 # namespace field), which is why the ESO mirror + RBAC is the mechanism here.
-# First-run prerequisite (zero-UI): chart setup Job mints the key + ESO
+# Prerequisite: chart setup Job mints the key + ESO
 # mirrors both handoff Secrets. Without the mirrored `tuwunel-terraform-vars`
 # the CR retries on interval — no vault seeding, no console step.
 # Backend: in-cluster Kubernetes default (state Secrets in the matrix
-# namespace) — no backendConfig needed. Drift detection stays on (default).
+# namespace) — no backendConfig needed.
 # Outputs: client_id + client_secret land in `tuwunel-sso-outputs`
 # (sensitive); the `tuwunel-sso-client` ExternalSecret consumes BOTH from
 # that Secret through the in-cluster `tuwunel-k8s` SecretStore
@@ -65,7 +65,7 @@ spec:
         serviceAccount:
           name: eso-zitadel-handoff-reader
 ---
-# Zero-UI vars mirror: provider auth (`jwt_profile_json`) from the chart-kept
+# Vars mirror: provider auth (`jwt_profile_json`) from the chart-kept
 # `zitadel-bootstrap-credentials`, IDs (`org_id`, `admin_user_id`) from the
 # operator-created `zitadel-bootstrap-outputs` — no Proton Pass seeding, no
 # manual vault step. Keys land under the module var names so `varsFrom` below
@@ -105,11 +105,8 @@ metadata:
 spec:
   interval: 30m
   approvePlan: auto
-  # Upsert-only guard (tofu-controller 0.16.5): the v1alpha2 CRD has no
-  # preventDestroy/destroyPlan field — `destroy` (destroy plan on reconcile)
-  # and `destroyResourcesOnDeletion` (destroy plan on CR deletion) are the
-  # only destroy knobs, both default false. Stated explicitly so no `tofu
-  # destroy` path exists via Flux; drift detection stays on (default).
+  # Upsert-only guard: `destroy` and `destroyResourcesOnDeletion` stay
+  # false, so no `tofu destroy` path exists via Flux.
   destroy: false
   destroyResourcesOnDeletion: false
   # Shared reusable SSO root: the infra/zitadel OCI artifact (namespace

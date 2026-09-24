@@ -5,7 +5,7 @@
 # initialDelay 2s / period 3s, liveness initialDelay 10s / period 10s —
 # upstream example values).
 #
-# Upstream image layout (verified at authoring against apps/web/Dockerfile):
+# Upstream image layout:
 # /app <- built webapp, ELEMENT_WEB_PORT=80, HEALTHCHECK GET /config.json.
 # The nginx template serves /config* from the entrypoint-copied staging dir
 # (/tmp/element-web-config), BUT the container entrypoint copies

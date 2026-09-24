@@ -22,8 +22,7 @@
 # host DNS (dnsPolicy Default, Talos ResolverConfig 1.1.1.1/8.8.8.8, so
 # ghcr.io/quay.io pulls work); post-Cilium the Job keeps host DNS while
 # Flux reconciles CoreDNS as a tenant with no ordering dependency on the Job.
-# Adding CoreDNS here would duplicate a second component for no bootstrap
-# need (the Job never does in-cluster DNS before CoreDNS lands).
+# CoreDNS stays out: the Job never does in-cluster DNS before CoreDNS lands.
 #
 # SINGLE SOURCE (versions + values): this module reads the SAME files that
 # Flux reconciles after bootstrap — no version or values may be duplicated
@@ -51,13 +50,12 @@
 # the FluxInstance; Terraform only re-runs the Job on input change or when
 # bootstrap_revision is bumped.
 #
-# FIRST BOOTSTRAP ORDER (the `stable` chicken-and-egg): the prd FluxInstance
-# syncs ref `stable`, which does not exist until the first flux-fleet-vX.Y.Z
-# release is tagged. Bootstrap the DEV cluster first (syncs ref `dev`,
-# published from every main commit — no tag needed), validate end to end,
-# then tag the release (publishing + cosigning `stable`) and bootstrap prd
-# pinned to it. See README.md "First bootstrap order". The Job itself is
-# ref-agnostic (consumes local files, never pulls the OCI tag).
+# FIRST BOOTSTRAP ORDER: the prd FluxInstance syncs ref `stable`, which
+# does not exist until the first flux-fleet-vX.Y.Z release is tagged.
+# Bootstrap the DEV cluster first (syncs ref `dev`, published from every
+# main commit), validate end to end, then tag the release and bootstrap
+# prd pinned to it. See README.md "First bootstrap order". The Job itself
+# is ref-agnostic (consumes local files, never pulls the OCI tag).
 terraform {
   required_version = ">= 1.11"
 

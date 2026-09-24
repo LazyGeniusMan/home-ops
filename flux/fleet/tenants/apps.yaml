@@ -14,10 +14,8 @@ metadata:
   annotations:
     fluxcd.controlplane.io/reconcileEvery: "5m"
 spec:
-  # Convergence gate: the whole apps layer reconciles only after
-  # infra readiness — no app races its platform dependency. Each entry blocks
-  # with a clear dependsOn (missing dep = waiting Kustomization, never a
-  # CrashLoop). Per-app consumption:
+  # Convergence gate: the whole apps layer reconciles only after infra
+  # readiness. Per-app consumption:
   # - Zitadel FirstInstance (controllers/zitadel): clickstack, coder,
   #   flux-operator-ui, headlamp, hubble-ui (SSO Terraform CRs read the
   #   zitadel-bootstrap-outputs handoff) + matrix/tuwunel (tuwunel-sso CR).

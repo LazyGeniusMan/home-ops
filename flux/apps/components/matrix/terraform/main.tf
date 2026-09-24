@@ -23,16 +23,12 @@ provider "matrix" {
 #
 # Power-level semantics (provider wholesale-map): a declared `users` map
 # REPLACES the whole map homeserver-side, so this root always merges the
-# caller's var.power_levels with the provider account at 100. Self-lockout
-# rules enforced here:
+# caller's var.power_levels with the provider account at 100:
 #   1. bot (data.matrix_whoami.me.user_id) is always present at 100 —
-#      omitting it would drop the bot to users_default, below state_default,
-#      after which it can no longer change power levels (destroy undoes
-#      nothing: power levels cannot be deleted);
+#      omitting it would drop the bot below state_default;
 #   2. room version 12+ caveat: the room CREATOR keeps power without a users
-#      entry and the homeserver REJECTS a power event listing a creator. The
-#      bot creates these rooms, so on a v12 homeserver the pinned entry may be
-#      rejected at plan/apply time — drop the pin only then (see README).
+#      entry and the homeserver rejects a power event listing a creator —
+#      drop the pin only then (see README).
 
 data "matrix_whoami" "me" {}
 
@@ -46,8 +42,7 @@ resource "matrix_room" "this" {
   encryption_enabled = var.encryption_enabled
 
   lifecycle {
-    # Encryption is irreversible: a flip from true to false must fail closed
-    # instead of silently drifting. Name/alias renames stay allowed.
+    # Encryption is irreversible: a flip from true to false must fail closed.
     prevent_destroy = false
   }
 }

@@ -15,10 +15,9 @@ secrets, RBAC, wildcard certificate, HTTPRoute); env overlays
 
 OCI `oci://chartproxy.container-registry.com/kubernetes-sigs.github.io/headlamp/headlamp`,
 tag **0.45.0** (classic `https://kubernetes-sigs.github.io/headlamp/`
-upstream, chart `headlamp`, proxied to OCI via chartproxy —
-delivery-mechanism-only switch; `helm template` + `helm lint` pass
-locally). No cosign `verify` block: proxied tarballs are live-translated
-by chartproxy, so no upstream signature applies.
+upstream, chart `headlamp`, proxied to OCI via chartproxy).
+No cosign `verify` block: proxied tarballs are live-translated by
+chartproxy, so no upstream signature applies.
 
 - Chart↔app lockstep (NOT the §11.1 Zitadel divergence): chart **0.45.0**
   carries app **0.45.0**. `image.tag` is pinned explicitly to `v0.45.0` with
@@ -27,8 +26,8 @@ by chartproxy, so no upstream signature applies.
 
 ## OIDC (direct — NO oauth2-proxy)
 
-Headlamp speaks OIDC natively (docs: `installation/in-cluster/oidc.md` in
-the bounded sources). The HelmRelease wires the chart's `externalSecret`
+Headlamp speaks OIDC natively (docs: `installation/in-cluster/oidc.md`).
+The HelmRelease wires the chart's `externalSecret`
 contract: the ESO-synced `headlamp-oidc` Secret provides `OIDC_CLIENT_ID`,
 `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`, `OIDC_SCOPES` (with
 `hasScopes: true` so `-oidc-scopes` is passed). No chart-managed Secret
@@ -57,7 +56,7 @@ provider: `eso-k8s-reader` SA + in-namespace Role/RoleBinding,
 No `headlamp/oidc-client-*` vault entries exist or are needed; rotation is
 automatic on the next `headlamp-sso` reconcile (refreshInterval 1h).
 
-Zero-UI prerequisite: the chart setup Job mints the IAM_OWNER machine key
+Prerequisite: the chart setup Job mints the IAM_OWNER machine key
 and ESO mirrors both handoff Secrets (`zitadel-bootstrap-credentials` for
 provider auth, `zitadel-bootstrap-outputs` for org_id + admin_user_id) into
 `headlamp-terraform-vars` — no vault seeding, no console step, no pass://
@@ -132,7 +131,7 @@ the DNS-01 secret exists in this namespace too.
 | `dev` | `replicaCount` 1 (single-instance) | hostnames, vault refs, OIDC issuer + `replicaCount` → 1 |
 | `prd` | `replicaCount` 2 (recommended production) | hostnames, vault refs, OIDC issuer + `replicaCount` → 2 |
 
-Plugin set rides the same per-env patches once it diverges.
+Plugin set rides the same per-env patches.
 
 Upstream reference (read-only): `/tmp/home-ops-docs/headlamp-docs/charts/headlamp`.
 

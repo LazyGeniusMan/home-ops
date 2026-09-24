@@ -1,7 +1,7 @@
 # Live room provisioning: flux-notifications + tofu-runs + coder-notifications
 # (tofu-controller).
 #
-# Decision: these CRs ship in THIS tenant's base (not a team namespace) —
+# These CRs ship in THIS tenant's base (not a team namespace) —
 # the flux/tofu fallback legs
 # (matrixs://.../%23flux-notifications?tag=flux,
 #  matrixs://.../%23tofu-runs?tag=tofu in apprise-go-api-secrets.yaml) plus
@@ -19,8 +19,8 @@
 # resolves every entry as kind Terraform), so NO dependsOn entry here — the
 # fleet ordering above is the mechanism.
 # Notification-only power lock: events_default 50 — the bot (100) posts, the
-# on-call lead (50) moderates, normal members CANNOT post (see NOTIFICATIONS
-# decision in this base/). Plaintext: encryption_enabled false — the
+# on-call lead (50) moderates, normal members CANNOT post (see NOTIFICATIONS.md).
+# Plaintext: encryption_enabled false — the
 # stateless apprise notifier has no Olm persistence, so E2EE rooms are
 # unreadable to it (irreversible at creation; E2EE stays for human/opt-in
 # rooms only).
@@ -34,14 +34,13 @@
 # no varsKeys renames. NO token literal in git, NO manual per-env fill, NO
 # vault hop for room provisioning.
 # Backend: in-cluster Kubernetes default (state Secrets in the matrix
-# namespace) — no backendConfig needed. Drift detection stays on (default).
+# namespace) — no backendConfig needed.
 # Outputs: room_id + canonical_alias + bot_user_id land in
 # `<room>-outputs`; notifiers read room IDs from those Secrets through the
 # in-cluster store — never Git, never Proton Pass.
-# First-run prerequisite: the bootstrap Job ran once per env (it registers
-# the bot via the Synapse-compat admin API + mints the token server-side).
-# Without the kept Secret the CRs retry on interval. Room auth flows from
-# kept Secret matrix-bot-bootstrap-outputs; there is no vault-direct mirror.
+# Prerequisite: the bootstrap Job ran per env (it registers the bot via
+# the Synapse-compat admin API + mints the token server-side). Without the
+# kept Secret the CRs retry on interval.
 # POSITIONAL: the dev/prd overlays patch /spec/vars/8 (members) +
 # /spec/vars/9 (power_levels) by index in EACH CR (flux-notifications,
 # tofu-runs, coder-notifications), so this var order must
@@ -58,11 +57,8 @@ metadata:
 spec:
   interval: 30m
   approvePlan: auto
-  # Upsert-only guard (tofu-controller 0.16.5): the v1alpha2 CRD has no
-  # preventDestroy/destroyPlan field — `destroy` (destroy plan on reconcile)
-  # and `destroyResourcesOnDeletion` (destroy plan on CR deletion) are the
-  # only destroy knobs, both default false. Stated explicitly so no `tofu
-  # destroy` path exists via Flux; drift detection stays on (default).
+  # Upsert-only guard: `destroy` and `destroyResourcesOnDeletion` stay
+  # false, so no `tofu destroy` path exists via Flux.
   destroy: false
   destroyResourcesOnDeletion: false
   # Shared reusable rooms root: the apps/matrix OCI artifact (namespace

@@ -11,11 +11,10 @@
 # Ownership note: the Role + RoleBinding below carry explicit
 # `metadata.namespace: matrix` but are OWNED BY the coder component — they
 # ship in the coder base dir so they reconcile (and prune) with the app.
-# Same zitadel-consumer pattern as `zitadel-handoff-rbac.yaml` (coder ->
-# zitadel handoff). One bot = one token (@apprise-dev dev / @apprise prd
-# delivers to every room; only rooms differ), consumed from the bootstrap
-# kept Secret — no second rotation surface, no manual seeding. Sink base
-# URL literals stay decentralized in the `matrix-notify` ESO template
+# Same zitadel-consumer pattern as `zitadel-handoff-rbac.yaml`. One bot =
+# one token (@apprise-dev dev / @apprise prd delivers to every room; only
+# rooms differ), consumed from the bootstrap kept Secret. Sink base URL
+# literals stay decentralized in the `matrix-notify` ESO template
 # (base/coder-secrets.yaml); only the credential half centralizes.
 ---
 apiVersion: rbac.authorization.k8s.io/v1

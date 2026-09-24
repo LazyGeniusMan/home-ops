@@ -8,9 +8,7 @@
 # kubernetes.default), kube-root-ca.crt supplies the API CA. The
 # tuwunel-s3 ExternalSecret below uses GJSON `property`
 # (BucketInfo.spec.bucketName + BucketInfo.spec.secretS3.accessKeyID/
-# accessSecretKey) — verified against the COSI driver README shape
-# (BucketInfo JSON: spec.secretS3.endpoint/region/accessKeyID/
-# accessSecretKey) and the ESO v2.10.0 kubernetes provider getFromSecretData.
+# accessSecretKey).
 ---
 apiVersion: external-secrets.io/v1
 kind: SecretStore

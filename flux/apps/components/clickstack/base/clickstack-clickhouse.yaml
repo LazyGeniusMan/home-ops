@@ -11,11 +11,9 @@
 # - Backup: S3 backups go to SeaweedFS (§12, DNS name only, no file
 #   dependency) under s3://.../clickhouse/clickstack/. Credentials come from
 #   the clickhouse-s3-backup Secret synced by clickstack-secrets.yaml.
-# - Users: NONE — mirrors the §10.2 base (operator defaults: the `default`
-#   user, empty password, intra-cluster only). Committing placeholder
-#   passwords would put real credentials in Git, violating the ESO-only
-#   posture, so app + collector authenticate as `default` until the hardening
-#   follow-up (dedicated app/otel users with ESO-managed passwords) lands.
+# - Users: NONE — mirrors the §10.2 base (operator default: the `default`
+#   user, empty password, intra-cluster only). App + collector authenticate
+#   as `default`.
 # - Per-table replication: create tables with ReplicatedMergeTree +
 #   ON CLUSTER DDL (same rule as §10.2); keeper path defaults to
 #   /clickhouse/backups.

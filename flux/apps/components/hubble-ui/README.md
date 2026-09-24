@@ -59,7 +59,7 @@ for OIDC creds). The Zitadel `hubble` client is owned by this app's
 mirrors from the FirstInstance handoff via the ESO-synced
 `hubble-ui-terraform-vars` Secret, no `org_id` literal in git, no email
 lookups; provider auth mirrors from the chart-kept handoff the same way).
-Zero-UI: no pass:// SSO dependency remains.
+No pass:// SSO dependency remains.
 
 ## Routing
 
@@ -73,13 +73,10 @@ Secrets are namespace-local).
 ## Telemetry-off / monitoring / updates
 
 - Telemetry evidence: the Cilium v1.20.2 chart exposes no usage-reporting
-  keys (checked at authoring: non-comment values lines matching
-  `telemetry|usageReporting|phoneHome|analytics` are empty), so there is
-  nothing to switch off. No analytics env/args are set on either container.
+  keys, so there is nothing to switch off. No analytics env/args are set
+  on either container.
 - Unguarded monitors OFF: no `ServiceMonitor` objects are shipped until
-  `monitoring.coreos.com` CRDs land (same §9 deviation). Flip: add
-  `ServiceMonitor`s for the relay metrics port (9966, §8.2 exposes it with
-  `prometheus.enabled: true`) and the UI once the monitoring stack exists.
+  `monitoring.coreos.com` CRDs land (same §9 deviation).
 - Updates flow through `flux/apps/update-policies/hubble-ui.yaml`
   (ImageRepository + ImagePolicy, `$imagepolicy` markers on all three
   images; the UI floor `>=0.13.6` tracks the UI image line).

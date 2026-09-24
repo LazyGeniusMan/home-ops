@@ -7,8 +7,7 @@
 # server.url omitted (defaults to kubernetes.default),
 # kube-root-ca.crt supplies the API CA. The cnpg-s3-credentials
 # ExternalSecret (in mautrix-discord-db.yaml) uses GJSON `property`
-# (BucketInfo.spec.secretS3.accessKeyID/accessSecretKey) — verified against
-# ESO v2.10.0 providers/v1/kubernetes/client.go getFromSecretData.
+# (BucketInfo.spec.secretS3.accessKeyID/accessSecretKey).
 ---
 apiVersion: external-secrets.io/v1
 kind: SecretStore

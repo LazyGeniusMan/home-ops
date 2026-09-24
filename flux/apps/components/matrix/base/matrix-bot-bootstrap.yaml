@@ -1,9 +1,6 @@
 # Matrix bot bootstrap (zitadel-style setup-Job-keeps-Secret).
 #
-# Chain (mirrors zitadel/controllers/base/zitadel.yaml FirstInstance stanza
-# L116-130 -> zitadel/configs/base/zitadel-bootstrap-handoff.yaml ->
-# coder/base/{terraform.yaml,zitadel-handoff-rbac.yaml,coder-secrets.yaml},
-# MINUS the cross-namespace hop — the kept Secret lives in THIS namespace,
+# Chain (setup-Job-keeps-Secret; the kept Secret lives in THIS namespace,
 # so consumers read it directly):
 #   setup-Job-keeps-Secret (this file's Job, chart-Job analogue)
 #     -> rooms.yaml Terraform CRs read it via same-namespace `varsFrom`
@@ -19,10 +16,10 @@
 #      `tuwunel-registration-secret` Secret (SAME Secret the tuwunel
 #      Deployment mounts server-side via
 #      TUWUNEL_REGISTRATION_SHARED_SECRET_FILE — one source, no dual-write).
-#   2. Runs the Synapse-compat register flow against the IN-CLUSTER tuwunel
-#      Service (http://tuwunel.matrix.svc:8008 — trusted network path, no
-#      Gateway, no TLS): GET /_synapse/admin/v1/register -> nonce; HMAC-SHA1
-#      over `nonce\0user\0password\0notadmin` keyed by the shared secret;
+#   2. Runs the Synapse-compat register flow against the in-cluster tuwunel
+#      Service (http://tuwunel.matrix.svc:8008): GET /_synapse/admin/v1/register
+#      -> nonce; HMAC-SHA1 over `nonce\0user\0password\0notadmin` keyed by
+#      the shared secret;
 #      POST /_synapse/admin/v1/register (admin=false — the bot needs no
 #      server admin). Idempotent: a 400 M_USER_IN_USE means the bot already
 #      exists — the Job proceeds to token minting instead of failing.
@@ -53,17 +50,15 @@
 # Secret read — the Job env secretKeyRef needs no RBAC; the Role covers the
 # k8s-API write path + a defensive get on the kept Secret).
 #
-# First-seed ordering: the tuwunel Deployment (registration secret MOUNTED)
+# Ordering: the tuwunel Deployment (registration secret MOUNTED)
 # must be Ready before this Job's register call succeeds; the Job retries
 # with backoff (backoffLimit 12, ~5min spacing via sleep) so cold-start
 # ordering needs NO dependsOn (fleet `apps` dependsOn `infra-configs` is
 # the only ordering; Terraform `dependsOn` is Terraform-CR-only upstream).
-# Re-run semantics: Job reruns (manual `kubectl delete job` + reconcile, or
-# suspend toggle) REUSE the existing bot (M_USER_IN_USE path) and ROTATE the
-# token (new login -> kept Secret patched -> ESO/varsFrom propagate within
-# refreshInterval). Deleting the kept Secret does NOT delete the bot
-# server-side — re-register hits M_USER_IN_USE and mints a fresh token for
-# the same mxid (documented, not destructive).
+# Re-run semantics: Job reruns (delete Job + reconcile) reuse the existing
+# bot (M_USER_IN_USE path) and rotate the token (new login -> kept Secret
+# patched -> ESO/varsFrom propagate within refreshInterval). Deleting the
+# kept Secret does NOT delete the bot server-side.
 #
 # Per-env overlays patch: HOMESERVER_URL + HOMESERVER_HOST + BOT_USER_ID
 # (dev: apprise-dev mxid on home-ops-dev host; prd: apprise mxid on home-ops
@@ -119,7 +114,7 @@ spec:
   # Keep the completed Job (zitadel cleanupJob.enabled=false analogue) so
   # the kept Secret's provenance stays auditable; rerun = delete Job + Flux
   # reconcile (backoffLimit covers cold-start races, NOT operator reruns).
-  ttlSecondsAfterFinished: 2592000 # 30d — history, then GC (Secret is kept: no ownerRef)
+  ttlSecondsAfterFinished: 2592000 # 30d, then GC (Secret is kept: no ownerRef)
   backoffLimit: 12
   template:
     metadata:

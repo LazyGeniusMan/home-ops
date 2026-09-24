@@ -1,8 +1,7 @@
 # S3 -> Proton Drive backups of the `ferretdb` + `clickstack` COSI buckets
 # (colocated with the consuming component — land in the `clickstack` tenant
 # namespace via the Fleet `apps` Kustomization's `targetNamespace`). One
-# HelmRelease per bucket, per the colocated-backup rule (centralized backup
-# is out of scope).
+# HelmRelease per bucket, per the colocated-backup rule.
 #
 # What each syncs (SeaweedFS buckets provisioned by bucketclaims.yaml; the
 # bucket prefix in each source path must exist before the first workload

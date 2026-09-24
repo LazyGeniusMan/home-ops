@@ -7,7 +7,7 @@
 # Terraform), so NO dependsOn entry here — the fleet ordering above is the
 # mechanism. Notification-only power lock: events_default 50 — the bot (100)
 # posts, the on-call lead (50) moderates, normal members CANNOT post (see
-# NOTIFICATIONS decision in flux/apps/components/matrix/base/).
+# NOTIFICATIONS.md).
 # Plaintext: encryption_enabled false — the stateless apprise notifier has
 # no Olm persistence, so E2EE rooms are unreadable to it (irreversible at
 # creation; E2EE stays for human/opt-in rooms only).
@@ -19,14 +19,14 @@
 # bootstrap (same Job pattern as matrix base/matrix-bot-bootstrap.yaml) or
 # a vault-direct mirror — either way, NEVER the matrix tenant's kept Secret (same-namespace
 # `varsFrom` CANNOT cross namespaces). NO token literal in git, NO manual
-# per-env fill beyond the team's own first-seed.
+# per-env fill beyond the team's own seed.
 # Backend: in-cluster Kubernetes default (state Secrets in the consumer
-# team's namespace) — no backendConfig needed. Drift detection stays on (default).
+# team's namespace) — no backendConfig needed.
 # Outputs: room_id + canonical_alias land in `flux-notifications-outputs`;
 # notifiers read the room ID from that Secret through the in-cluster store —
 # never Git, never Proton Pass.
-# First-run prerequisite: the bootstrap runbook (../README.md)
-# minted the bot + token once per env. Without the
+# Prerequisite: the bootstrap runbook (../README.md)
+# minted the bot + token per env. Without the
 # `matrix-rooms-terraform-vars` Secret the CR retries on interval.
 ---
 # Vars mirror: bot token + homeserver URL from the vault — no vault seeding
@@ -66,11 +66,8 @@ metadata:
 spec:
   interval: 30m
   approvePlan: auto
-  # Upsert-only guard (tofu-controller 0.16.5): the v1alpha2 CRD has no
-  # preventDestroy/destroyPlan field — `destroy` (destroy plan on reconcile)
-  # and `destroyResourcesOnDeletion` (destroy plan on CR deletion) are the
-  # only destroy knobs, both default false. Stated explicitly so no `tofu
-  # destroy` path exists via Flux; drift detection stays on (default).
+  # Upsert-only guard: `destroy` and `destroyResourcesOnDeletion` stay
+  # false, so no `tofu destroy` path exists via Flux.
   destroy: false
   destroyResourcesOnDeletion: false
   # Shared reusable rooms root: the apps/matrix OCI artifact (namespace

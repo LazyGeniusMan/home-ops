@@ -38,8 +38,7 @@
 #   assert-off keys; m.federate pin documented in README (rooms freeze the
 #   setting at creation).
 # - No HPA (singleton) — VPA owns sizing (tuwunel-vpa.yaml).
-# - Image pinned to the docs-snapshot version (Cargo.toml 1.9.2,
-#   ghcr.io/matrix-construct/tuwunel) tracked by
+# - Image pinned (ghcr.io/matrix-construct/tuwunel) tracked by
 #   update-policies/tuwunel.yaml via the $imagepolicy marker on the image
 #   (apps:tuwunel:tag).
 ---
@@ -125,7 +124,7 @@ spec:
               value: "true"
             # Admin-register shared secret (server side of the
             # matrix-bot-bootstrap Job flow): read-only file mount from the
-            # ESO `tuwunel-registration-secret` Secret (vault-seeded ONCE per
+            # ESO `tuwunel-registration-secret` Secret (vault-seeded per
             # env — matrix/tuwunel-registration-secret). Upstream file-option
             # contract: `registration_shared_secret_file` enables the
             # Synapse-compat POST /_synapse/admin/v1/register endpoint the

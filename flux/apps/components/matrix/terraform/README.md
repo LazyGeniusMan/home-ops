@@ -1,7 +1,7 @@
 # Matrix rooms Terraform — bootstrap + reconcile
 
 Machine-applied by Tofu Controller. Owns ONLY per-team rooms/spaces on the
-tuwunel homeserver (`tuwunel.matrix.home-ops.yansyah.my.id`, sibling task):
+tuwunel homeserver (`tuwunel.matrix.home-ops.yansyah.my.id`):
 the flat root here (`main.tf` + `variables.tf` + `outputs.tf`) plus one consumer Terraform CR
 per room. Live ops rooms ship in `../base/rooms.yaml`
 (`flux-notifications` + `tofu-runs` + `coder-notifications`); the `./examples/` files
@@ -11,11 +11,11 @@ per room. Live ops rooms ship in `../base/rooms.yaml`
 Upstream reference (read-only): `/tmp/home-ops-docs/matrix-terraform-provider-docs`.
 
 The provider (`raspbeguy/matrix ~> 0.5`) has **no user/token resources**, so
-the bot + token are bootstrapped ONCE outside Terraform — by the
+the bot + token are bootstrapped outside Terraform — by the
 `matrix-bot-bootstrap` Job (`../base/matrix-bot-bootstrap.yaml`, kept Secret
-`matrix-bot-bootstrap-outputs`), NOT by hand (runbook below is first-seed-only).
-Terraform then manages rooms, members, power levels, join rules, spaces,
-aliases, and the bot profile — never the token.
+`matrix-bot-bootstrap-outputs`). Terraform then manages rooms, members,
+power levels, join rules, spaces, aliases, and the bot profile — never the
+token.
 
 Ordering: the consumer CR ships in the app Kustomization (fleet `apps`
 dependsOn `infra-configs`), so it reconciles after the tuwunel HelmRelease
@@ -32,18 +32,17 @@ consumer team's namespace) — no backendConfig needed. Drift detection stays
 on (default). Outputs (`room_id`, `canonical_alias`, `bot_user_id`) land in
 `<room>-outputs` via `writeOutputsToSecret`.
 
-First-run prerequisite: the bootstrap Job ran once per env (vault first-seed
-`matrix/tuwunel-registration-secret` ONLY — the runbook below). Without the
-kept Secret the CR retries on interval — no bot vault seeding, no console step.
+Prerequisite: the bootstrap Job ran per env (vault seed
+`matrix/tuwunel-registration-secret` only — the runbook below). Without the
+kept Secret the CR retries on interval.
 
-## Bootstrap runbook (first-seed ONLY — bot creation is automated)
+## Bootstrap runbook (bot creation is automated)
 
 The `matrix-bot-bootstrap` Job (`../base/matrix-bot-bootstrap.yaml`) owns
 bot creation end-to-end: it registers the bot via the Synapse-compat admin
 API + mints the token + writes the KEPT Secret
-`matrix-bot-bootstrap-outputs` the room CRs read. The ONLY manual step left
-is seeding the registration secret ONCE per env (the Job handles
-nonce/HMAC/register/login/token minting):
+`matrix-bot-bootstrap-outputs` the room CRs read. The only manual step is
+seeding the registration secret once per env:
 
 ```shell
 pass-cli item create login --vault-name 'acme-<env>-bdo1-talos-apps-01' --title 'matrix/tuwunel-registration-secret'  # 32+ random bytes
@@ -57,16 +56,12 @@ kubectl -n matrix get secret matrix-bot-bootstrap-outputs -o jsonpath='{.data}' 
 ```
 
 Rerun/rotation: `kubectl -n matrix delete job matrix-bot-bootstrap` +
-Flux reconcile — the Job re-registers (M_USER_IN_USE path fails LOUD with
-the server-side delete recovery step; see matrix-bot-bootstrap.yaml) and
-rotates the token (kept Secret patched -> ESO/varsFrom propagate within
-`refreshInterval`).
+Flux reconcile — the Job re-registers (M_USER_IN_USE path fails loud;
+see matrix-bot-bootstrap.yaml) and rotates the token (kept Secret patched
+-> ESO/varsFrom propagate within `refreshInterval`).
 
-Per-env bots (no shared prod/dev bot): dev `@apprise-dev:<server>`,
-prd `@apprise:<server>` — the Job mints the SAME identities (ONE bot per
-env shared by all 3 rooms). The Job registers via the Synapse-compatible
-admin API + mints the token server-side; there is no manual HMAC/nonce/vault
-path.
+Per-env bots: dev `@apprise-dev:<server>`, prd `@apprise:<server>` — ONE
+bot per env shared by all 3 rooms.
 
 ## Token strategy
 
@@ -176,7 +171,5 @@ deleted server-side — `destroy` only makes the bot leave; the room lingers.
 ## Room version 12 caveat
 
 The creator keeps power without a `users` entry on v12+ rooms, and the
-homeserver *rejects* a power event listing a creator. The bot creates these
-rooms, so if the homeserver is v12 and the pinned bot entry is rejected at
-plan/apply time, that is the cause — drop the pin only then (and keep the
-bot's power via creator status).
+homeserver rejects a power event listing a creator — drop the pin only
+then (and keep the bot's power via creator status).

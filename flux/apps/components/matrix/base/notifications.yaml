@@ -1,13 +1,10 @@
 # Flux notification wiring: every Flux-native event source emits via
 # apprise-go-api into per-purpose Matrix rooms. Full contract (room -> source
-# -> tag matrix, payload mapping, E2EE decision, test plan, deferred items):
-# base/NOTIFICATIONS.md. Tenant/workflow onboarding (flux/fleet/tenants/apps.yaml
-# + the flux-apps image-update workflow) is a SEPARATE task — this base only.
+# -> tag matrix, payload mapping, E2EE posture): base/NOTIFICATIONS.md.
 #
 # Provider type is generic (NOT generic-hmac): apprise-go-api has no HMAC
 # verification path (SECRET_KEY is internal-callback auth only), so an
-# X-Signature header would be silently ignored. Revisit only if apprise
-# gains signature verification.
+# X-Signature header would be silently ignored.
 #
 # Addressing: Providers post to the infra apprise-go-api tenant
 # (http://apprise-go-api.apprise-go-api.svc:80/notify — workload lives in
@@ -31,7 +28,7 @@
 # - `tag=`: selects the fallback-URL leg (flux|tofu|team server tags).
 #   Mismatch -> the whole request 204s (selection lost), so every Provider
 #   tag below MUST equal a tag baked into a STATELESS_URLS entry. `coder`
-#   is NOT a fallback tag anymore: coder owns its credential and posts
+#   is NOT a fallback tag: coder owns its credential and posts
 #   per-request `urls` in the POST body (see the Coder section below) — no
 #   matrix-tenant fallback leg, no apprise-coder Provider.
 ---
@@ -99,12 +96,12 @@ spec:
 # carries top-level `title` + `body`, which ARE apprise field names, so the
 # sink binds them with zero remapping. `format=text` (Coder renders
 # plain-text bodies), `type=info` pinned (Coder has no severity the sink
-# could trust). Verified against the sink contract
+# could trust). Sink contract
 # (projects/apprise-go-api/internal/server/notify.go): `urls` is body-only
 # (JSON `urls` key or form field — NO `?urls=` query fallback exists; query
 # fallbacks cover tag/tags/format/type/title only), and the remap engine
 # cannot constant-assign onto `urls` (constant rules assign onto the SOURCE
-# name), so body injection from the coder-owned Secret is the ONLY decoupled
+# name), so body injection from the coder-owned Secret is the decoupled
 # path for a fixed-payload caller. Fallback-leg ownership: flux/tofu/team
 # legs stay matrix-owned (those rooms are matrix-tenant-owned); coder is
 # coder-owned (see NOTIFICATIONS.md ownership table).

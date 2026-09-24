@@ -1,12 +1,9 @@
 # Coder HPA (autoscaling/v2 over the chart-rendered Deployment `coder`).
-# Chart 2.37.3 has NO autoscaling knob (evidence: coder-docs/helm/coder/
-# values.yaml carries only `coder.replicaCount`, default 1; `helm show values
-# coder/coder --version 2.37.3` confirms — replicaCount only), so the HPA
-# lives here and static `coder.replicaCount` stays at the env min (dev 1 /
-# prd 2 via overlay patches). Dev min 1/max 2, prd min 2/max 4 via overlay
-# patches. CPU-only (no memory metric): coderd requests 2000m/4096Mi by chart
-# default, and memory-driven churn on stateful-ish coderd pods is expensive.
-# CPU requests exist by chart default, so HPA works.
+# The chart has no autoscaling knob (only `coder.replicaCount`, default 1),
+# so the HPA lives here and `coder.replicaCount` stays at the env min
+# (dev 1 / prd 2 via overlay patches). Dev min 1/max 2, prd min 2/max 4.
+# CPU-only (no memory metric): memory-driven churn on coderd pods is
+# expensive. CPU requests exist by chart default, so HPA works.
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

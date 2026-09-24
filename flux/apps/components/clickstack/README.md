@@ -97,7 +97,7 @@ owned by this app's `clickstack-sso` Terraform CR (upstream identity — org_id
 + admin ID — mirrors from the FirstInstance handoff via the ESO-synced
 `clickstack-terraform-vars` Secret, no `org_id` literal in git, no email
 lookups; provider auth mirrors from the chart-kept handoff the same way).
-Zero-UI: no pass:// SSO dependency remains.
+No pass:// SSO dependency remains.
 
 ## Routing
 
@@ -110,7 +110,7 @@ Secrets are namespace-local).
 
 ## Telemetry-off / monitoring / updates
 
-- Telemetry evidence: the pulled hdx-oss-v2 0.8.4 chart exposes exactly one
+- Telemetry evidence: the hdx-oss-v2 0.8.4 chart exposes one
   usage-reporting knob (`hyperdx.usageStatsEnabled`, defaults true); the
   vendored app Deployment sets `USAGE_STATS_ENABLED=false` explicitly, no
   Sentry/Segment/Mixpanel envs are set anywhere, and the app's

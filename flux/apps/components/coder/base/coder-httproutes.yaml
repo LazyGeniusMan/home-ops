@@ -1,7 +1,7 @@
 # Coder HTTPRoutes (§13.6): attach to the shared §8.1 Gateway (listeners
 # accept routes from all namespaces — cross-namespace parentRef, no
 # targetNamespace override needed). Chart-native httproute templating stays
-# OFF (we own the §8.1 pattern explicitly rather than through chart values).
+# OFF (we own the §8.1 pattern explicitly).
 # - Dashboard route (hostname __SERVICE_HOST__, path /) → the
 #   coder Service (port 80 → coderd 8080). Covers the UI, API, and the OIDC
 #   callback /api/v2/users/oidc/callback.

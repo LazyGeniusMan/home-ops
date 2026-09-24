@@ -69,8 +69,6 @@ spec:
             # External ClickHouse connection: operator default user (empty
             # password, intra-cluster only — matches the CHI's no-users
             # stance) in an ESO-templated connections.json (never in Git).
-            # Hardening follow-up replaces `default` with a dedicated app
-            # user once ESO-managed ClickHouse passwords land.
             - name: DEFAULT_CONNECTIONS
               valueFrom:
                 secretKeyRef:
@@ -174,7 +172,7 @@ spec:
                   name: clickstack-hyperdx
                   key: api-key
             # Operator default user (empty password; same no-users stance as
-            # the CHI — hardening follow-up adds a dedicated otel user).
+            # the CHI).
             - name: CLICKHOUSE_USER
               value: "default"
             - name: CLICKHOUSE_PASSWORD
