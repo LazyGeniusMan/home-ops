@@ -35,12 +35,11 @@
 # ESO target ui-auth-credentials untouched); existingSecret +
 # proxyVarsAsSecrets: false keep credential ownership in ESO (chart renders
 # no Secret); no-config mode (forceLegacyConfig: false, no configFile) keeps
-# every flag in extraArgs flag-for-flag with the previous args list;
-# metrics/ServiceMonitor off (no telemetry); ServiceAccount, autoscaling, and
-# PDB off (no SA token, create-time seed replica, external HPA/VPA own
-# scaling — same as before). Probes: liveness stays /ping with the previous
-# 10s delay; readiness is the chart default /ready (deep check, 5s delay) —
-# the one intended delta, same binary.
+# every flag in extraArgs; metrics/ServiceMonitor off (no telemetry);
+# ServiceAccount, autoscaling, and PDB off (no SA token, create-time seed
+# replica, external HPA/VPA own scaling). Probes: liveness /ping (10s
+# delay); readiness is the chart default /ready (deep check, 5s delay),
+# same binary.
 # The chart tag auto-tracks flux/infra/update-policies/seaweedfs.yaml via the
 # $imagepolicy marker (chart marker infra:seaweedfs-ui-auth-chart; image
 # marker infra:seaweedfs-ui-auth — per-copy own policy, see

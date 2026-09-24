@@ -1,8 +1,7 @@
 # COSI central controller (tag v0.2.2, v1alpha1 API) + CRDs.
 # Vendored from kubernetes-sigs/container-object-storage-interface @ tag
-# v0.2.2 (commit f75d47509dae3e4ed0fd18ce0a60474b78e8d29b, 2025-12-03 —
-# the release-0.2 branch tip, now tagged; CRDs byte-identical to the tag,
-# verified 2026-09-24) — do NOT track main (v1alpha2, incompatible).
+# v0.2.2 (commit f75d47509dae3e4ed0fd18ce0a60474b78e8d29b, 2025-12-03;
+# CRDs match the tag) — do NOT track main (v1alpha2, incompatible).
 # CRDs: group objectstorage.k8s.io, version v1alpha1 (BucketClass,
 # BucketClaim, Bucket, BucketAccessClass, BucketAccess), generated via
 # controller-gen v0.17.3; the 5 files live in crds/base (fleet prune:false
