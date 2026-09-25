@@ -7,7 +7,11 @@ spec:
   distribution:
     version: "2.x"
     registry: "ghcr.io/fluxcd"
-    artifact: "oci://ghcr.io/controlplaneio-fluxcd/flux-operator-manifests:latest"
+    # Pinned to the operator 0.60.0 lineage (flux/fleet/terraform/versions.yaml
+    # operator_chart_version); keeps bootstrap and steady-state on the same
+    # Flux distribution instead of floating :latest (adopt-then-flap).
+    # v0.60.0 digest sha256:5757dc8cb5a83a496421e9b2686d710c70dc0300521641c03a8970f7cd3f4522.
+    artifact: "oci://ghcr.io/controlplaneio-fluxcd/flux-operator-manifests:v0.60.0"
   components:
     - source-controller
     - source-watcher

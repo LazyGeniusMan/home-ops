@@ -59,6 +59,36 @@ run "operator_versions_match_gitops" {
     condition     = var.bootstrap_revision == 1
     error_message = "bootstrap_revision default stays 1; bump it to trigger a new bootstrap run."
   }
+
+  # distribution.artifact pinned to the versions.yaml operator lineage
+  # (no :latest float — stops bootstrap/steady-state adopt-then-flap).
+  assert {
+    condition = strcontains(
+      file("${path.root}/../clusters/acme-dev-bdo1-talos-apps-01/flux-system/flux-instance.yaml"),
+      "flux-operator-manifests:v${yamldecode(file("${path.root}/versions.yaml"))["operator_chart_version"]}"
+      ) && !strcontains(
+      file("${path.root}/../clusters/acme-dev-bdo1-talos-apps-01/flux-system/flux-instance.yaml"),
+      "flux-operator-manifests:latest"
+    )
+    error_message = "dev FluxInstance distribution.artifact must pin flux-operator-manifests to the versions.yaml operator_chart_version lineage, never :latest."
+  }
+
+  assert {
+    condition = strcontains(
+      file("${path.root}/../clusters/acme-prd-bdo1-talos-apps-01/flux-system/flux-instance.yaml"),
+      "flux-operator-manifests:v${yamldecode(file("${path.root}/versions.yaml"))["operator_chart_version"]}"
+      ) && !strcontains(
+      file("${path.root}/../clusters/acme-prd-bdo1-talos-apps-01/flux-system/flux-instance.yaml"),
+      "flux-operator-manifests:latest"
+    )
+    error_message = "prd FluxInstance distribution.artifact must pin flux-operator-manifests to the versions.yaml operator_chart_version lineage, never :latest."
+  }
+
+  # update cluster stays artifact-free (automation only, no distribution).
+  assert {
+    condition     = !strcontains(file("${path.root}/../clusters/update/flux-system/flux-instance.yaml"), "artifact: \"oci://")
+    error_message = "update FluxInstance must keep no distribution.artifact (automation cluster)."
+  }
 }
 
 # Instance + values stay single-sourced per cluster directory.
