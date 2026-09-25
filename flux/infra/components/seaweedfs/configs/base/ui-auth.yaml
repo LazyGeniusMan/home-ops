@@ -168,7 +168,10 @@ spec:
     service:
       portNumber: 4180
       targetPort: http
-    # No telemetry: metrics endpoint + ServiceMonitor stay off.
+    # No telemetry: metrics endpoint stays off (no ServiceMonitor key exists while
+    # the endpoint is off; flip waits for monitoring CRDs via the otel pipeline —
+    # see the ESO `renderMode: skipIfMissing` template in
+    # external-secrets/controllers/base/externalsecrets.yaml).
     metrics:
       enabled: false
     serviceAccount:
@@ -181,10 +184,16 @@ spec:
       enabled: false
     podDisruptionBudget:
       enabled: false
+    # Slow-start: ui-auth reverse-proxies the filer with OIDC discovery
+    # against Zitadel — cold Zitadel means slow first readiness. The chart
+    # (10.7.0) has no startupProbe knob, so readiness carries a generous
+    # initial delay (60s) instead of the thin 5s default; liveness keeps a
+    # 30s delay so slow starts are never restart-killed.
     livenessProbe:
-      initialDelaySeconds: 10
+      initialDelaySeconds: 30
     readinessProbe:
-      initialDelaySeconds: 5
+      initialDelaySeconds: 60
+      periodSeconds: 10
     resources:
       requests:
         cpu: 50m

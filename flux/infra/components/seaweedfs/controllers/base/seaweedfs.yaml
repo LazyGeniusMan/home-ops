@@ -1,5 +1,8 @@
 # SeaweedFS operator (0.1.40) + CSI driver (0.2.36) via chartproxy OCI (proxy of https://seaweedfs.github.io/seaweedfs-operator/); chart versions pinned, images track update-policies/seaweedfs.yaml.
 # Operator CRDs Helm-managed (crds.create); COSI CRDs vendored in cosi/crds/base (prune:false); driver classes hand-vendored in configs/base (chart cosi.enabled off).
+# serviceMonitor stays `enabled: false`: the chart renders monitoring.coreos.com resources unconditionally (no skipIfMissing guard),
+# so the flip waits for monitoring CRDs via the otel pipeline (see the ESO `renderMode: skipIfMissing` template in
+# external-secrets/controllers/base/externalsecrets.yaml).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

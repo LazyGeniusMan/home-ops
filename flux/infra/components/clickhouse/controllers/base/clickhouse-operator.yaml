@@ -1,5 +1,7 @@
 # ClickHouse operator 0.27.3. Chart oci://registry-1.docker.io/altinity/clickhouse-operator.
-# ServiceMonitor disabled until monitoring.coreos.com CRDs land.
+# ServiceMonitors stay `enabled: false`: the chart renders monitoring.coreos.com resources unconditionally (no skipIfMissing guard),
+# so flips wait for monitoring CRDs via the otel pipeline (see the ESO `renderMode: skipIfMissing` template in
+# external-secrets/controllers/base/externalsecrets.yaml). Telemetry endpoint (`metrics.enabled: true`) stays as-is.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

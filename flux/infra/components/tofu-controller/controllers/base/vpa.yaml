@@ -1,6 +1,7 @@
 # VPA applier for the tofu-controller Deployment (singleton reconciler, no
-# HPA): updateMode Recreate (modern Auto) — the controller is stateless
-# (work queue in etcd) so evict-and-recreate is safe. minReplicas 1: the
+# HPA): updateMode Initial — recommendations apply at pod (re)start only,
+# never evicting the running singleton mid-reconcile (a Recreate eviction
+# would stall every Terraform CR until the pod restarts). minReplicas 1: the
 # updater default --min-replicas=2 (flags.md) never evicts single-replica
 # targets, and no PDB exists here — without this the CR would
 # recommend-but-never-apply. Release name `tofu-controller` renders the
@@ -16,5 +17,5 @@ spec:
     kind: Deployment
     name: tofu-controller
   updatePolicy:
-    updateMode: Recreate
+    updateMode: Initial
     minReplicas: 1

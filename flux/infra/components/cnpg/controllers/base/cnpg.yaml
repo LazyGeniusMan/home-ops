@@ -1,5 +1,7 @@
 # CNPG operator 1.30.0 via chart 0.29.1 (chart embeds operator; see README mapping). Chart oci://ghcr.io/cloudnative-pg/charts/cloudnative-pg.
-# podMonitorEnabled false until monitoring.coreos.com CRDs land.
+# podMonitorEnabled stays false: the chart renders monitoring.coreos.com resources unconditionally (no skipIfMissing guard),
+# so the flip waits for monitoring CRDs via the otel pipeline (see the ESO `renderMode: skipIfMissing` template in
+# external-secrets/controllers/base/externalsecrets.yaml).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

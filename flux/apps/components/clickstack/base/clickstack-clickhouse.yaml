@@ -50,8 +50,9 @@ spec:
         spec:
           containers:
             - name: clickhouse-pod
-              # Server line owned by the infra policy (`infra:clickhouse-server:tag`).
-              image: clickhouse/clickhouse-server:25.9.7.56 # {"$imagepolicy": "infra:clickhouse-server:tag"}
+              # Server line owned by the infra policy (`infra:clickhouse-server:tag`),
+              # 26.8 LTS lockstep with installation-base.yaml + backup-cronjob.yaml.
+              image: clickhouse/clickhouse-server:26.8.10.6 # {"$imagepolicy": "infra:clickhouse-server:tag"}
               env:
                 - name: CLICKHOUSE_S3_ACCESS_KEY_ID
                   valueFrom:

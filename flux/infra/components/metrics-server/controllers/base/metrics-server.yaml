@@ -1,4 +1,6 @@
-# Metrics Server app v0.9.0 (chart 3.14.0 == app). Chart mirror oci://ghcr.io/controlplaneio-fluxcd/charts/metrics-server. /metrics exposed; ServiceMonitor disabled until monitoring.coreos.com CRDs land.
+# Metrics Server app v0.9.0 (chart 3.14.0 == app). Chart mirror oci://ghcr.io/controlplaneio-fluxcd/charts/metrics-server. /metrics exposed; ServiceMonitor stays disabled:
+# the chart renders monitoring.coreos.com resources unconditionally (no skipIfMissing guard), so the flip waits for monitoring CRDs via the otel
+# pipeline (see the ESO `renderMode: skipIfMissing` template in external-secrets/controllers/base/externalsecrets.yaml).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

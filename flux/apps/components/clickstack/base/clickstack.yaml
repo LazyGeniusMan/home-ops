@@ -3,8 +3,11 @@
 # are secretKeyRefs to ESO-synced Secrets. Images track the hdx-oss-v2
 # appVersion line (`apps:hyperdx(-otel-collector):tag` markers). Telemetry off
 # (`USAGE_STATS_ENABLED=false`; app OTLP points at the in-namespace collector).
-# No ServiceMonitor until monitoring CRDs land. `__SERVICE_HOST__` is an
-# overlay-replaced placeholder.
+# No ServiceMonitor: the Deployments expose no scrape endpoint yet, and the flip
+# waits for monitoring CRDs via the otel pipeline (see the ESO
+# `renderMode: skipIfMissing` template in
+# external-secrets/controllers/base/externalsecrets.yaml). `__SERVICE_HOST__`
+# is an overlay-replaced placeholder.
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -77,12 +80,15 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 3
+          # Readiness checks twice as often as liveness (period 10 vs 30) so
+          # the Service drops unready pods fast; liveness stays slow (period
+          # 30) to ride out GC pauses without restarts.
           readinessProbe:
             httpGet:
               path: /health
               port: api
             initialDelaySeconds: 10
-            periodSeconds: 30
+            periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
           resources:
@@ -182,12 +188,15 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 3
+          # Readiness checks twice as often as liveness (period 10 vs 30) so
+          # the Service drops unready pods fast; liveness stays slow (period
+          # 30) to ride out reloads without restarts.
           readinessProbe:
             httpGet:
               path: /
               port: health
             initialDelaySeconds: 10
-            periodSeconds: 30
+            periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
           resources:

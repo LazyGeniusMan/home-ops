@@ -1,5 +1,7 @@
 # Dragonfly operator v1.6.1 (chart == app). Chart oci://ghcr.io/dragonflydb/dragonfly-operator/helm/dragonfly-operator.
-# ServiceMonitor + Grafana dashboard disabled until monitoring.coreos.com CRDs land.
+# ServiceMonitor + Grafana dashboard stay disabled: the chart renders monitoring.coreos.com resources unconditionally (no skipIfMissing guard),
+# so flips wait for monitoring CRDs via the otel pipeline (see the ESO `renderMode: skipIfMissing` template in
+# external-secrets/controllers/base/externalsecrets.yaml).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

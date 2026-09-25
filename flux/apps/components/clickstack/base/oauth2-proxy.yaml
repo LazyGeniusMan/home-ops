@@ -90,7 +90,10 @@ spec:
     service:
       portNumber: 4180
       targetPort: 4180
-    # No telemetry: metrics endpoint + ServiceMonitor stay off.
+    # No telemetry: metrics endpoint stays off (no ServiceMonitor key exists while
+    # the endpoint is off; flip waits for monitoring CRDs via the otel pipeline —
+    # see the ESO `renderMode: skipIfMissing` template in
+    # external-secrets/controllers/base/externalsecrets.yaml).
     metrics:
       enabled: false
     serviceAccount:

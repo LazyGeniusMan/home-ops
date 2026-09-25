@@ -57,6 +57,13 @@ spec:
         repository: ghcr.io/zitadel/zitadel-login
         tag: v4.18.0
         pullPolicy: IfNotPresent
+      # Slow-start: cold Zitadel + S3-backed login assets are slow on first
+      # render — gate liveness/readiness behind a startupProbe (period 1 x
+      # threshold 60 = 60s budget) instead of the chart default (disabled).
+      startupProbe:
+        enabled: true
+        periodSeconds: 1
+        failureThreshold: 60
       ingress:
         enabled: false
       gateway:
@@ -132,6 +139,14 @@ spec:
     # No chart-managed routing or bundled Postgres: HTTPRoutes are hand-written
     # in configs/base/zitadel-httproute.yaml (own the §8.1 pattern explicitly)
     # and the database is the §10.1 CNPG instance in configs/base/zitadel-db.yaml.
+    # Slow-start: chart default liveness/readiness (period 5, no initial delay)
+    # is gated by the default startupProbe (period 1 x failureThreshold 30 =
+    # 30s budget) while Zitadel runs CNPG migrations + OIDC discovery warmup;
+    # bumped to 60s below. Login enables its own startupProbe (see login block).
+    startupProbe:
+      enabled: true
+      periodSeconds: 1
+      failureThreshold: 60
     ingress:
       enabled: false
     gateway:
@@ -141,6 +156,10 @@ spec:
         enabled: false
     postgresql:
       enabled: false
+    # Metrics + ServiceMonitor stay off (keep-off decision): `enabled: false` means no endpoint exists to scrape,
+    # and the chart renders monitoring.coreos.com resources unconditionally (no skipIfMissing guard). Revisit only after
+    # monitoring CRDs land via the otel pipeline AND `metrics.enabled` is turned on first (see the ESO `renderMode: skipIfMissing`
+    # template in external-secrets/controllers/base/externalsecrets.yaml).
     metrics:
       enabled: false
       serviceMonitor:

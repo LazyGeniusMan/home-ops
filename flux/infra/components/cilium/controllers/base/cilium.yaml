@@ -1,5 +1,8 @@
 # Cilium 1.20.2: eBPF dataplane, kube-proxy replacement, Gateway API, Hubble, single-IP LB pool. Chart oci://quay.io/cilium/charts/cilium.
 # Single release identity with the Terraform bootstrap Job: targetNamespace + storageNamespace force render + store in kube-system (else a second conflicting CNI copy).
+# Monitors stay `enabled: false`: the cilium chart renders monitoring.coreos.com resources unconditionally (no Capabilities guard),
+# so flips wait for monitoring CRDs via the otel pipeline (see the ESO `renderMode: skipIfMissing` template in
+# external-secrets/controllers/base/externalsecrets.yaml). Telemetry endpoints (`prometheus.enabled`) stay as-is.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -101,6 +104,9 @@ spec:
           cpu: 50m
           memory: 64Mi
     # Agent prometheus + ServiceMonitor disabled until the monitoring stack lands.
+    # The chart renders monitoring.coreos.com resources unconditionally (no
+    # skipIfMissing guard like ESO), so the flip waits for monitoring CRDs via
+    # the otel pipeline (see external-secrets/controllers/base/externalsecrets.yaml).
     prometheus:
       enabled: false
       serviceMonitor:

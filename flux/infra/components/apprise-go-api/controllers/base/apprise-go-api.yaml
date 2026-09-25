@@ -48,14 +48,24 @@ spec:
               value: "*"
             - name: APPRISE_ATTACH_REJECT_URL
               value: "127.0.* localhost* internal"
+          # Probes: /healthz (live) + /readyz (ready) on :8080; tuned like
+          # the COSI controller (/healthz period 30, /readyz period 10).
           livenessProbe:
             httpGet:
               path: /healthz
               port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /readyz
               port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           resources:
             requests:
               cpu: 50m

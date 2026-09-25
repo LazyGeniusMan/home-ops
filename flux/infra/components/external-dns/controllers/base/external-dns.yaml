@@ -1,5 +1,8 @@
 # ExternalDNS chart 1.22.0 (app v0.22.0) + NetBird webhook sidecar (projects/external-dns-netbird, :dev, PAT via NETBIRD_PAT_FILE).
 # Gateway routes are the only sync source (no Cloudflare provider, no Record/DNSEndpoint CRs); wildcard A from the Gateway LB target (__LB_VIP__).
+# serviceMonitor stays `enabled: false`: the chart renders monitoring.coreos.com resources unconditionally (no skipIfMissing guard),
+# so the flip waits for monitoring CRDs via the otel pipeline (see the ESO `renderMode: skipIfMissing` template in
+# external-secrets/controllers/base/externalsecrets.yaml).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -72,6 +75,10 @@ spec:
             value: ":8080"
           - name: LOG_LEVEL
             value: info
+        # Probes hit the sidecar ops listener: `http-webhook` renders (helm
+        # template, chart 1.22.0) to containerPort 8080 (METRICS_ADDR), which
+        # serves /healthz + /readyz (projects/external-dns-netbird
+        # internal/server/ops.go) — NOT the :8888 webhook API (no /healthz).
         livenessProbe:
           httpGet:
             path: /healthz

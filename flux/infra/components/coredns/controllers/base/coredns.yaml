@@ -1,5 +1,7 @@
 # CoreDNS chart 1.47.1 (app pinned to 1.14.7). Chart oci://ghcr.io/coredns/charts/coredns.
-# Deployed at bootstrap alongside Cilium. ServiceMonitor disabled until monitoring.coreos.com CRDs land.
+# Deployed at bootstrap alongside Cilium. Monitor stays `enabled: false`: the chart renders monitoring.coreos.com resources unconditionally
+# (no skipIfMissing guard), so the flip waits for monitoring CRDs via the otel pipeline (see the ESO `renderMode: skipIfMissing` template in
+# external-secrets/controllers/base/externalsecrets.yaml). Telemetry endpoint (`prometheus.service.enabled: true`) stays as-is.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
