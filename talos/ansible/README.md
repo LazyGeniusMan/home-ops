@@ -30,41 +30,19 @@ ansible/
 
 ## Variables (group_vars/all.yml)
 
-- `pass-cli login` session gate — Ansible NEVER logs in. The ESO webhook PAT value
-  never flows through the shell: day-0 renders it via `pass-cli inject` from
-  `talos/clusters/<cluster>/pat.yml.template`
-  (`pass://<own-vault>/eso-proton-pass/pat`) into `build/<cluster>/proton-pass-pat`
-  (`0600`; `talos_pat_filename` keeps render/store/apply in sync); day-2 reads/renews
-  it there. Every play probes via `pass-cli info -o json` and fails fast; day-2 checks
-  even on read-only runs.
-- NetBird PAT + Terraform-minted setup key (see `RUNBOOK.md` §1.0b).
-  Proton Pass supplies only the NetBird PAT (`talos` item, `netbird-pat`
-  field, own cluster vault), resolved via `pass-cli item view` (`no_log`,
-  never on disk) and passed to `community.general.terraform` only as the
-  `NB_PAT` env. The module applies the dedicated Talos root
-  (`roles/talos_render/files/netbird/`, staged at
-  `build/<cluster>/netbird-tf/`, persistent state so re-applies upsert) and
-  mints `netbird_setup_key.talos` (reusable, no expiry, unlimited uses,
-  `auto_groups = [<cluster>-nodes]`); Ansible rewrites
-  `__TALOS_NETBIRD_SETUP_KEY__` from the sensitive output (`0600`,
-  `no_log`, UUID shape-gated). The setup key never lives in the vault.
-  Ansible generates a fresh `PROTON_PASS_AGENT_REASON` per exec
-  (`<prefix>-<cluster>[-<node>]-exec-<16 hex>`).
-- `talos_cluster` — active cluster (default `acme-dev-bdo1-talos-apps-01`).
-- `talos_clusters.<name>` — per-cluster map: `vault`, `endpoint` (VIP URL),
-  `nodes: [{name, ip, role}]`. Single source of truth for node IPs (data for
-  `talosctl -n/-e` flags only, never connection targets). `talos_machine_roles` maps
-  `role` to the `gen config -t` machine type.
-- `talos_talosconfig` — explicit `--talosconfig` path (`build/<cluster>/talosconfig`)
-  on every bootstrap/operate call (never ambient `TALOSCONFIG`). `talosconfig` /
-  `kubeconfig` stay under `build/<cluster>/` (gitignored, never `talos/clusters/`).
-- Secrets are only ever resolved through
-  `pass-cli item view "pass://<vault>/talos/<field>"`
-  or `pass-cli inject` on double-brace templates. The day-0 `pass-cli
-  inject` / `talosctl gen secrets` tasks intentionally carry NO `no_log`:
-  in `--out-file` mode neither tool prints secret values, so keeping output
-  visible means failures name the unresolved `pass://` ref instead of
-  showing "censored".
+- `talos_cluster` (default `acme-dev-bdo1-talos-apps-01`) + `talos_clusters.<name>`
+  (`vault`, `endpoint`, `nodes: [{name, ip, role}]`) — node IPs only feed
+  `talosctl -n/-e` flags; `talos_machine_roles` maps `role` to the
+  `gen config -t` machine type.
+- `talos_talosconfig` — explicit `--talosconfig` path on every call (never ambient
+  `TALOSCONFIG`); `talosconfig` / `kubeconfig` stay under `build/<cluster>/`.
+- Auth + secrets (procedures: `RUNBOOK.md` §0.3, §1.0b, §2.1b): `pass-cli login`
+  session gate (Ansible never logs in; every play probes via `pass-cli info -o json`);
+  ESO PAT renders via `pass-cli inject` to `build/<cluster>/proton-pass-pat`
+  (`0600`, pinned by `talos_pat_filename`); NetBird PAT resolves via
+  `pass-cli item view` into `NB_PAT` env only, and the Terraform-minted setup key
+  rewrites `__TALOS_NETBIRD_SETUP_KEY__`. Inject tasks carry no `no_log` in
+  `--out-file` mode so failures name the unresolved `pass://` ref.
 
 ## Schematics (Image Factory upload + --install-image)
 
@@ -98,13 +76,10 @@ its role:
 - every node file validated (`talosctl validate -c <node file> -m metal`); day-1
   `apply-config` is role-aware.
 
-`build/` outputs per cluster (all gitignored): `secrets.bundle.yml`, `talosconfig`,
-`kubeconfig`, `proton-pass-pat` (backup guide: `RUNBOOK.md` §6), `patches.yml`
-(§1.0b NetBird rewrite), `nodes-<node>-patches.yml`, `nodes/<node>/*.yaml`,
-`schematics-<node>.yml`, `schematic-<node>.id`, `schematic-<node>.sha256`. The staged
-`netbird-tf/` dir (working copy + persistent state, so re-applies upsert) is KEPT —
-never backed up, committed, or deleted between runs (recovery is `tofu import` per
-resource — see `roles/talos_render/files/netbird/README.md`).
+`build/` outputs per cluster (all gitignored) — see the canonical table
+(`RUNBOOK.md` §5.2); backup rules in §6. The staged `netbird-tf/` dir keeps
+persistent state so re-applies upsert — never backed up, committed, or deleted
+between runs (see `RUNBOOK.md` §1.0b).
 
 NFS server stack per node: `siderolabs/nfsd` + `nfs-utils` + `nfs-server` in the node
 schematic, `EtcFileConfig` `exports` (three LAN-only `192.168.1.0/24` `all_squash`

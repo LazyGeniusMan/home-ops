@@ -99,35 +99,19 @@ The rendered cluster patch carries `NB_SETUP_KEY=<reusable key>` for the netbird
 system extension, minted by Terraform:
 
 1. **Proton Pass supplies the PAT only** — `talos` item, `netbird-pat` field, own
-   cluster vault (`pass://<cluster-vault>/talos/netbird-pat`). Resolved via
-   `pass-cli item view` (`no_log`, never on disk), passed only as `NB_PAT` env on the
-   `community.general.terraform` call (never `-var`).
-2. **Terraform mints the setup key** — module (`state: present`, `force_init: true`,
-   only `cluster_name` var) applies the dedicated root
-   (`roles/talos_render/files/netbird/`, Ansible-managed, never Flux) staged at
-   `build/<cluster>/netbird-tf/` (gitignored; local state kept ACROSS runs so
-   re-applies upsert; `prevent_destroy` on every resource). Never delete that dir
-   between runs (fresh dir = empty state = duplicate-CREATE failures; recovery is
-   `tofu import` per resource — see `roles/talos_render/files/netbird/README.md`).
-   Fabric: groups `admin-users` / `guest-users` / `<cluster>-nodes` /
-   `admin-users-resources` / `guest-users-resources`, network `<cluster-name>`,
-   `netbird_network_router` peer routing to the nodes group, `LAN CIDR`
-   `192.168.1.0/24` resource → `admin-users-resources`, policies
-   `admin-users-access` (peer chain) + `admin-users-lan-access` (LAN forward chain;
-   one rule per policy) + `guest-users-access` (TCP 80+443). Key:
-   `type = reusable`, `expiry_seconds = 0`, `usage_limit = 0`,
+   cluster vault. Resolved via `pass-cli item view` (`no_log`, never on disk),
+   passed only as `NB_PAT` env on the `community.general.terraform` call.
+2. **Terraform mints the setup key** — dedicated root
+   (`roles/talos_render/files/netbird/`, staged at `build/<cluster>/netbird-tf/`
+   with persistent state so re-applies upsert; `prevent_destroy` on every
+   resource). Fabric shape (groups, network, router, policies) is documented in
+   `roles/talos_render/files/netbird/README.md`. Key is reusable, no expiry,
    `auto_groups = [<cluster>-nodes]`; returned as sensitive `talos_setup_key`
-   output (never `tofu output -raw`).
+   output (never `tofu output -raw`). Never delete `netbird-tf/` between runs
+   (see §6.3); never run raw `tofu apply` on this plane.
 3. **Ansible rewrites the placeholder** — `NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__`
-   → resolved key (`ansible.builtin.replace`, `no_log`, `0600`), UUID shape-gated
-   (non-match fails naming the PAT source, never the value), baked into
-   `build/<cluster>/nodes/*/*.yaml` by `gen config`.
-
-No raw `tofu apply` shell on this plane. Day-2 re-apply (`-e reapply_configs=true`)
-reuses it via `include_role` (forced re-render restores the placeholder first).
-Provider schema entrypoints: `index.md` (auth `NB_PAT`), `group.md`, `network.md`,
-`setup_key.md`, `network_router.md`, `network_resource.md`, `policy.md`
-(`scripts/fetch-references.sh` → `/tmp/home-ops-docs/netbird-terraform-provider-docs/`).
+   → resolved key (`ansible.builtin.replace`, `no_log`, `0600`), UUID shape-gated,
+   baked into `build/<cluster>/nodes/*/*.yaml` by `gen config`.
 
 Rotation: replace `netbird_setup_key.talos`, then re-run day-0
 (`rm build/<c>/patches.yml` first) or day-2 `-e reapply_configs=true`.
@@ -155,31 +139,10 @@ Expected: `failed=0`; `validate` tasks report `ok`.
 
 ### 1.3 What it produces
 
-Per cluster, under `build/<cluster>/` (see Reference for the full file
-table):
-
-- `patches.yml` — cluster patch with secrets injected via `pass-cli inject`
-  **plus** the NetBird placeholder rewritten from the Terraform
-  `talos_setup_key` output (§1.0b; `NB_SETUP_KEY=<reusable key>`, `0600`).
-- `nodes-<node>-patches.yml` — per-node patch, injected, then rewritten so
-  `PLACEHOLDER_SCHEMATIC_ID` becomes the real factory ID for that node.
-- `proton-pass-pat` (`0600`) — ESO webhook PAT, rendered via
-  `pass-cli inject` from `talos/clusters/<cluster>/pat.yml.template`
-  (double-brace `pass://<own-vault>/eso-proton-pass/pat`). Guarded by
-  `creates:` — re-renders only when the file is missing.
-- `schematics-<node>.yml` — staged deep-merged schematic (`_base` → cluster → node,
-  recursive `combine` with dedup list-union; node files hold node-only entries).
-  Changed bytes → new factory ID next day-0.
-- `schematic-<node>.id` + `.sha256` — factory ID + content hash; upload
-  (`POST https://factory.talos.dev/schematics`) runs only on content change.
-- `secrets.bundle.yml` (`0600`) — `talosctl gen secrets` output, created **once**
-  (see Re-run/reset).
-- `talosconfig` — `gen config -t talosconfig` (base + cluster patches, cluster endpoint).
-- `nodes/<node>/<type>.yaml` — one machine config per node, `-t <type>` per
-  `talos_machine_roles`; base + cluster patches via `--config-patch`, only that
-  node's patch via `--config-patch-control-plane` / `--config-patch-worker`;
-  `--install-image factory.talos.dev/metal-installer/<that-node-ID>:v1.15.0-alpha.0`.
-  Validated (`talosctl validate -c <file> -m metal`).
+Per cluster, under `build/<cluster>/` — see the canonical file table (§5.2)
+for every path, producer, and purpose. Install images resolve per node as
+`--install-image factory.talos.dev/metal-installer/<that-node-ID>:v1.15.0-alpha.0`,
+and every node file is validated (`talosctl validate -c <file> -m metal`).
 
 ### 1.4 How to verify outputs
 
@@ -218,29 +181,11 @@ talosctl --talosconfig build/$C/talosconfig -n $N list /var/mnt/nvme-data      #
 ### 1.7 Re-run / reset
 
 Day-0 `creates:` guards skip inject/secrets steps when renders exist; `gen config`
-always regenerates + revalidates. An mtime preflight fails fast naming the `rm`
-below when a source is newer than its render (vault rotations are invisible to it —
-still delete + re-run after a rotation). Force re-render after editing a source:
+always regenerates + revalidates. When a source changes, delete the stale render
+and re-run — see the canonical guard/recovery table (§4.3).
 
-```bash
-# Working dir: talos/ansible/
-# Re-render injected patches after editing source patches.yml or rotating vault values:
-C=<cluster>
-rm build/$C/patches.yml build/$C/nodes-*-patches.yml
-ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=$C
-```
-
-```bash
-# Working dir: talos/ansible/
-# Full day-0 reset for one cluster:
-C=<cluster>
-rm -rf build/$C
-ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=$C
-```
-
-> Deleting `secrets.bundle.yml` mints a **new** cluster PKI bundle. Safe before first
-> install; after day-1 it orphans the installed cluster. Never reset the bundle on a
-> live cluster.
+> Deleting `secrets.bundle.yml` mints a **new** cluster PKI bundle — safe before
+> first install, orphans a live cluster. See §6.3.
 
 ---
 
@@ -253,10 +198,7 @@ same cluster.
 Role order (`talos_bootstrap`): session check → `apply-config --insecure` per node →
 TCP 50000 wait per node → authenticated `talosctl version` poll on **every** node →
 control-plane assert on `nodes[0]` → `bootstrap` on `nodes[0]` (retried) →
-`kubeconfig` fetch (retried) → markers. The PAT value comes from the day-0 render
-(`proton-pass-pat`); day-1 only gates on the login session. Pre-Flux (no
-`external-secrets` namespace yet): the PAT stays in `build/<cluster>/`, never seeded
-back into the vault it unlocks.
+`kubeconfig` fetch (retried) → markers.
 
 ### 2.1 Command
 
@@ -269,11 +211,9 @@ ansible-playbook playbooks/day1.yml -i localhost, -e talos_cluster=<cluster> -e 
 
 ### 2.1b PAT source (day-0 render) + one-time interactive `agent create`
 
-Day-1 probes the `pass-cli` session FIRST (fail-fast login gate, same §0.3 login as
-day-0). The PAT value is the day-0 render (`build/<cluster>/proton-pass-pat`, `0600`)
-from `pat.yml.template` (`eso-proton-pass`/`pat` in the own vault).
-
-If no token exists yet, mint one **interactively** first (one-time; `pass-cli` cannot
+Day-1 probes the `pass-cli` session first (§0.3), then reads the day-0 render
+(`build/<cluster>/proton-pass-pat`, `0600`; never seeded back into the vault).
+If no token exists yet, mint one interactively (one-time; `pass-cli` cannot
 create agent tokens inside a PAT/agent session):
 
 ```bash
@@ -282,11 +222,6 @@ pass-cli agent create home-ops-eso --expiration 1y --vault <cluster>
 # Save the printed PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_... token, then:
 export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_...
 pass-cli login
-```
-
-```bash
-pass-cli agent access grant home-ops-eso --vault-name <cluster> --role viewer   # if needed
-pass-cli agent delete home-ops-eso                                              # when retiring
 ```
 
 Expiration enum: `1h, 1d, 1w, 1m, 3m, 6m, 1y` (default `1y`).
@@ -519,7 +454,7 @@ the `rm` below (vault rotations stay invisible — still delete + re-run after o
 
 | Guard file (`build/<cluster>/...`) | Goes stale when… | Recovery |
 | --- | --- | --- |
-| `patches.yml` | source cluster patch, vault values, or setup key rotates | `rm build/<c>/patches.yml`, re-run day-0 (or day-2 `-e reapply_configs=true`). NetBird plane has NO `creates:` guard — re-applies every run (needs vault PAT + `api.netbird.io`); never `rm -rf build/<c>/netbird-tf` alone (recovery is `tofu import` per resource). |
+| `patches.yml` | source cluster patch, vault values, or setup key rotates | `rm build/<c>/patches.yml`, re-run day-0 (or day-2 `-e reapply_configs=true`). NetBird plane has NO `creates:` guard — re-applies every run; never delete `netbird-tf/` (see §1.0b). |
 | `nodes-<node>-patches.yml` | source node patch, vault values, or schematic changes | `rm build/<c>/nodes-*-patches.yml`, re-run day-0 |
 | `proton-pass-pat` | vault `eso-proton-pass`/`pat` rotated | `rm build/<c>/proton-pass-pat`, re-run day-0 (or day-2 `-e reapply_configs=true`) |
 | `schematic-<node>.id` / `.sha256` | re-uploads on content change | none needed. Hash-match with missing/empty `.id` fails fast naming the `rm` + re-run day-0 recovery |
@@ -531,22 +466,17 @@ the `rm` below (vault rotations stay invisible — still delete + re-run after o
 
 ### 4.4 Re-apply after a patch change (installed cluster)
 
-Day-0 re-render does **not** push to nodes; day-1 apply is insecure-only (skipped once
-installed). For an installed node:
+Day-0 re-render does **not** push to nodes; day-1 apply is insecure-only. Manual
+equivalent of the §3.6 automation:
 
 ```bash
 # Working dir: talos/ansible/
 C=<cluster>; N=<node-ip>; NODE=<node-name>
-# 1. Re-render:
 rm build/$C/patches.yml build/$C/nodes-*-patches.yml
 ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=$C
-# 2. Push with authenticated API (manual, or automated via §3.6):
 talosctl apply-config --talosconfig build/$C/talosconfig -n $N \
   -f build/$C/nodes/$NODE/controlplane.yaml --mode auto
 ```
-
-Automated equivalent (default mode `staged`): `ansible-playbook playbooks/day2.yml
--i localhost, -e talos_cluster=$C -e reapply_configs=true` (§3.6).
 
 ### 4.5 Multi-node notes
 
@@ -626,7 +556,7 @@ bundle cannot be re-created — back up off-machine (encrypted) after every day-
 
 Regenerable (no backup needed): rendered patches, staged schematics + `.id`/`.sha256`
 (same bytes → same ID), node `*.yaml`, markers (`.installed-*`, `.bootstrapped` —
-see §6.4 caveat).
+see §6.3 caveat).
 
 ```bash
 # Working dir: talos/ansible/
@@ -637,45 +567,27 @@ tar -czf - build/$C/secrets.bundle.yml build/$C/talosconfig \
 # Store OFF this machine. Verify: gpg -d ~/talos-$C-backup.tgz.gpg | tar -tz
 ```
 
-### 6.2 Fresh-clone restore — day-1 (pre-install cluster)
+### 6.2 Fresh-clone restore
 
-Day-1 needs the day-0 machine configs + `talosconfig`:
-
-| Need | Source |
-| --- | --- |
-| `build/<cluster>/talosconfig` | Restore from backup, or restore the bundle first then `-e regen_talosconfig=true` (§3.5) |
-| `build/<cluster>/nodes/<node>/<type>.yaml` | Re-render: needs `secrets.bundle.yml` (restore from backup; pre-install a fresh bundle is fine) + repo sources + vault login + factory reachability |
-
-```bash
-# Working dir: talos/ansible/
-C=<cluster>
-gpg -d ~/talos-$C-backup.tgz.gpg | tar -xzf -   # restores bundle + talosconfig + kubeconfig + PAT
-ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=$C   # re-renders patches, schematics, node yamls
-ansible-playbook playbooks/day1.yml -i localhost, -e talos_cluster=$C   # apply + bootstrap + kubeconfig
-```
-
-### 6.3 Fresh-clone restore — day-2 (installed cluster)
-
-| Need | Source |
-| --- | --- |
-| `build/<cluster>/talosconfig` | Restore, or `-e regen_talosconfig=true` (never mints new PKI) |
-| `build/<cluster>/kubeconfig` | Restore, or `-e regen_kubeconfig=true` |
-| `build/<cluster>/schematic-<node>.id` | **Required** unless `-e upgrade_image=...`: day-2 reads the `.id` per node (never re-uploads). Re-creatable via day-0 re-run (needs factory); restore when offline. |
-| `build/<cluster>/secrets.bundle.yml` | Restore. Then `-e reapply_configs=true` re-renders patches (reuses the bundle, never rotates). |
-| Rendered `patches.yml` + `nodes-<node>-patches.yml` | Re-render via day-0 or day-2 `-e reapply_configs=true` (forced; needs vault login + NetBird PAT). |
-| `build/<cluster>/nodes/<node>/*.yaml` | Re-render via day-0; diff against live config before re-apply. |
-| `build/<cluster>/proton-pass-pat` | Re-render via day-0 inject, or restore — `pat_apply` only reads the file. |
+Restore the backup, re-render the rest with day-0, then continue with day-1
+(pre-install) or day-2 (installed, health check first):
 
 ```bash
 # Working dir: talos/ansible/
 C=<cluster>
 gpg -d ~/talos-$C-backup.tgz.gpg | tar -xzf -   # restores bundle + talosconfig + kubeconfig + PAT
 ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=$C   # re-renders patches, .id files, node yamls
-ansible-playbook playbooks/day2.yml -i localhost, -e talos_cluster=$C   # read-only health check first
-# Then opt in: -e reapply_configs=true / -e pat_apply=true / upgrades (§3.2)
+ansible-playbook playbooks/day1.yml -i localhost, -e talos_cluster=$C   # pre-install: apply + bootstrap + kubeconfig
+ansible-playbook playbooks/day2.yml -i localhost, -e talos_cluster=$C   # installed: read-only health first, then opt in (§3.2)
 ```
 
-### 6.4 What NEVER to do
+Sources after restore: `talosconfig` (or `-e regen_talosconfig=true`, never new
+PKI), `kubeconfig` (or `-e regen_kubeconfig=true`), `schematic-<node>.id`
+(day-2 needs it unless `-e upgrade_image=...`; re-creatable via day-0),
+`secrets.bundle.yml` (day-2 reuses it on `-e reapply_configs=true`), rendered
+patches + node `*.yaml` + PAT (re-render via day-0 or forced reapply).
+
+### 6.3 What NEVER to do
 
 - **Never commit `build/`** — live PKI, admin configs, vault PAT. Gitignored by design.
 - **Never re-bootstrap a live cluster** — `rm .bootstrapped` + re-run day-1 would

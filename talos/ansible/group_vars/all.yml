@@ -21,12 +21,11 @@ talos_machine_roles:
 # Explicit talosctl auth: bootstrap/operate pass this via --talosconfig
 # instead of relying on an ambient TALOSCONFIG or ~/.talos/config.
 talos_talosconfig: "{{ talos_build_dir }}/{{ talos_cluster }}/talosconfig"
-# NetBird wiring (RUNBOOK §1.0b): vault PAT (pass://<cluster-vault>/talos/netbird-pat)
-# reaches Terraform only as NB_PAT env (never -var, never on disk). The reusable
-# setup key (netbird_setup_key.talos: reusable, expiry/usage 0, auto_groups
-# [<cluster>-nodes]) leaves only via the sensitive talos_setup_key output into
-# __TALOS_NETBIRD_SETUP_KEY__ (0600, no_log, never committed). Root staged at
-# build/<cluster>/netbird-tf/ with persistent state (re-applies upsert).
+# NetBird wiring (RUNBOOK §1.0b): vault PAT reaches Terraform only as
+# NB_PAT env.
+# The reusable setup key leaves only via the sensitive talos_setup_key output
+# into __TALOS_NETBIRD_SETUP_KEY__ (0600, no_log, never committed). Root staged
+# at build/<cluster>/netbird-tf/ with persistent state (re-applies upsert).
 talos_netbird_terraform_dir: "{{ playbook_dir }}/../build/{{ talos_cluster }}/netbird-tf"
 talos_netbird_placeholder: __TALOS_NETBIRD_SETUP_KEY__
 talos_netbird_setup_key_pattern: "^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}$"
