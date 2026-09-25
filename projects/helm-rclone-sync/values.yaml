@@ -24,8 +24,7 @@ schedule: "0 2 * * *"
 timeZone: ""
 # -- When true, the CronJob is suspended (no new Jobs are started).
 suspend: false
-# -- CronJob concurrency policy. Keep Forbid so overlapping runs never fight
-# over the same destination (see README "Overlap safety").
+# -- CronJob concurrency policy: keep Forbid (see README "Overlap safety").
 concurrencyPolicy: Forbid
 # -- Job retry budget and history pruning.
 backoffLimit: 3
@@ -39,8 +38,7 @@ activeDeadlineSeconds: null
 restartPolicy: OnFailure
 
 # Endpoints share one shape; direction is source.type/destination.type.
-# Every uri/credential field is a literal or one of value|secretRef|
-# configMapRef|esoRef (chart creates no Secrets).
+# uri/credential fields: literal or value|secretRef|configMapRef|esoRef.
 source:
   type: pvc-rwo
   remoteName: ""
@@ -66,12 +64,9 @@ destination:
       value: us-east-1
 
 # -- Co-locate sync Pods with the owning workload (recommended for pvc-rwo).
-# Renders a required podAffinity term (default topologyKey
-# kubernetes.io/hostname) merged with .affinity. Empty = none.
-# E.g. coLocateWith: {matchLabels: {app: my-db}}
+# Renders a required podAffinity term merged with .affinity; empty = none.
 coLocateWith: {}
-# -- Scheduling helpers. Useful for pvc-rwo: pin the Job Pod to the node that
-# holds the RWO volume (the claim's own access mode still governs attach).
+# -- Scheduling helpers (nodeSelector/affinity/tolerations pass through).
 nodeSelector: {}
 affinity: {}
 tolerations: []

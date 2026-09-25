@@ -72,18 +72,10 @@ Lifecycle: `docker stop` (SIGTERM) drains both listeners gracefully
 (`signal.NotifyContext` + `http.Server.Shutdown(10s)`); logs show
 `shutting down` then `drained`.
 
-K8s probes (ops listener on `:8080` via `METRICS_ADDR`; webhook API stays
-localhost-only on `127.0.0.1:8888` via `WEBHOOK_ADDR`):
-
-```yaml
-livenessProbe:
-  httpGet: {path: /healthz, port: 8080}
-readinessProbe:
-  httpGet: {path: /readyz, port: 8080}
-```
-
-Sample PromQL: `external_dns_netbird_build_info`,
-`rate(external_dns_netbird_records_errors_total[5m])`.
+Probes: `/healthz` / `/readyz` on the ops listener (`:8080` via
+`METRICS_ADDR`); the webhook API stays localhost-only
+(`127.0.0.1:8888` via `WEBHOOK_ADDR`). Exact metric names live in the
+server package.
 
 Consumed in Flux via `{"$imagepolicy": "infra:external-dns-netbird:tag"}`
 in `flux/infra/components/external-dns/controllers/base/external-dns.yaml`
@@ -102,9 +94,7 @@ gofmt -s -l .
 docker build --build-arg VERSION=1.2.3 -t external-dns-netbird:dev .
 ```
 
-The Docker `ARG VERSION` is wired into
-`-ldflags "-X .../internal/version.Version=$VERSION"` and surfaces via
-`GET /version` and `external_dns_netbird_build_info{version="..."}`.
+`ARG VERSION` surfaces via `GET /version` and the `build_info` metric.
 
 Image: `ghcr.io/lazygeniusman/home-ops/projects/external-dns-netbird` (`:dev`
 + `:dev-<sha>` on `main` branch push, `:stable` + version on

@@ -47,9 +47,7 @@ type Server struct {
 	adjustErrs  prometheus.Counter
 }
 
-// buildInfo reports the ldflags-injected release version as
-// external_dns_netbird_build_info{version="..."} == 1.
-// PromQL: external_dns_netbird_build_info
+// buildInfo reports the ldflags-injected release version.
 var buildInfo = prometheus.NewGaugeVec(
 	prometheus.GaugeOpts{
 		Namespace: "external_dns_netbird",
@@ -66,8 +64,7 @@ func init() {
 // registerDefaultCollectorsOnce registers Go/process collectors exactly once.
 var registerDefaultCollectorsOnce sync.Once
 
-// registerCollector tolerates AlreadyRegisteredError so New() stays safe when
-// the default registry already carries the collector (shared test process).
+// registerCollector tolerates AlreadyRegisteredError (shared test process).
 func registerCollector(c prometheus.Collector) {
 	if err := prometheus.Register(c); err != nil {
 		if _, ok := err.(prometheus.AlreadyRegisteredError); !ok {

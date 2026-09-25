@@ -1,5 +1,4 @@
-{{- /* One generic CronJob for every sync direction (source/destination type drives rendering; no per-direction manifests). Env-only: RCLONE_CONFIG_* vars + RCLONE_CONFIG=/dev/null — never an rclone.conf ConfigMap/Secret/volume/mount/--config flag. */ -}}
-{{- /* Absent endpoints fail the render (hasKey guards; no usable bare-defaults render). */ -}}
+{{- /* One generic CronJob for all sync directions (env-only; absent endpoints fail the render). */ -}}
 {{- if not (hasKey .Values "source") }}{{ fail "source is required: set source.type/uri (destination likewise)" }}{{ end -}}
 {{- if not (hasKey .Values "destination") }}{{ fail "destination is required: set destination.type/uri (source likewise)" }}{{ end -}}
 {{- $src := .Values.source -}}

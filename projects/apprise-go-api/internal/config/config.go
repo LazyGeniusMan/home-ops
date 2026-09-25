@@ -190,9 +190,7 @@ func MaxUploadMemoryBytes() int64 { return maxUploadMemoryBytes }
 func (c Config) AttachSizeBytes() int64 { return c.AttachSizeMB * 1024 * 1024 }
 
 // UploadMaxMemoryBytes returns the multipart/JSON body budget in bytes
-// (APPRISE_UPLOAD_MAX_MEMORY_SIZE in MiB). Python applies abs() to the env
-// value; Load stores the raw value and this normalizes the sign so gates
-// and tests share one conversion.
+// (APPRISE_UPLOAD_MAX_MEMORY_SIZE in MiB, negative values use magnitude).
 func (c Config) UploadMaxMemoryBytes() int64 {
 	if c.UploadMaxMemorySizeMB < 0 {
 		return -c.UploadMaxMemorySizeMB * 1024 * 1024
@@ -200,11 +198,11 @@ func (c Config) UploadMaxMemoryBytes() int64 {
 	return c.UploadMaxMemorySizeMB * 1024 * 1024
 }
 
-// DefaultAttachAllowURL is Python's APPRISE_ATTACH_ALLOW_URL default.
+// DefaultAttachAllowURL is the APPRISE_ATTACH_ALLOW_URL default.
 const DefaultAttachAllowURL = "*"
 
-// DefaultAttachRejectURL is Python's APPRISE_ATTACH_REJECT_URL default
-// (APPRISE_ATTACH_REJECT_URL env, "127.0.* localhost*" when unset).
+// DefaultAttachRejectURL is the out-of-box APPRISE_ATTACH_REJECT_URL
+// default (unset env means this; empty env disables denials).
 const DefaultAttachRejectURL = "127.0.* localhost*"
 
 // AttachAllowURLOrDefault returns the configured SSRF allowlist or "*".
@@ -215,10 +213,8 @@ func (c Config) AttachAllowURLOrDefault() string {
 	return c.AttachAllowURL
 }
 
-// AttachRejectURLOrDefault returns the configured SSRF denylist. An empty
-// configured value disables denials (no Python-style default is applied at
-// load because the env may intentionally clear it); callers wanting the
-// Python out-of-box default use DefaultAttachRejectURL.
+// AttachRejectURLOrDefault returns the configured SSRF denylist; empty
+// disables denials (callers wanting the default use DefaultAttachRejectURL).
 func (c Config) AttachRejectURLOrDefault() string { return c.AttachRejectURL }
 
 func addrFromPort(port string) string {

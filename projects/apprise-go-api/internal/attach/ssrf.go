@@ -12,17 +12,14 @@ import (
 	"time"
 )
 
-// InternalToken is the reserved SSRF deny-list token. It resolves each
-// attachment host and blocks non-public IPs (DNS/alternate encodings
-// included). Opt-in, never default.
+// InternalToken is the reserved SSRF deny-list token: it DNS-resolves each
+// attachment host and blocks non-public IPs. Opt-in, never default.
 const InternalToken = "internal"
 
-// resolveTimeout bounds a single attachment-host DNS resolution, mirroring
-// Python's _RESOLVE_TIMEOUT_SEC.
+// resolveTimeout bounds a single attachment-host DNS resolution.
 const resolveTimeout = 5 * time.Second
 
-// resolveHost resolves host to IP addresses. It is a variable so tests can
-// stub DNS without network access.
+// resolveHost resolves host to IP addresses (variable so tests stub DNS).
 var resolveHost = func(host string) ([]netip.Addr, error) {
 	if addr, err := parseIPLiteral(host); err == nil {
 		return []netip.Addr{addr}, nil
@@ -49,8 +46,7 @@ var resolveHost = func(host string) ([]netip.Addr, error) {
 // which netip.Addr.IsPrivate does not cover.
 var cgnSharedV4 = netip.MustParsePrefix("100.64.0.0/10")
 
-// reservedNets mirrors Python ipaddress is_reserved for the common
-// documentation/benchmark/relay ranges beyond the
+// reservedNets covers documentation/benchmark/relay ranges beyond the
 // IsPrivate/IsLoopback/link-local/multicast/unspecified predicates.
 var reservedNets = []netip.Prefix{
 	netip.MustParsePrefix("0.0.0.0/8"),
@@ -170,10 +166,9 @@ func parseIPv4Alt(s string) (netip.Addr, bool) {
 	return netip.AddrFrom4(b), true
 }
 
-// isInternalTarget resolves host and reports whether any resulting address
-// is blocked. A host that cannot be resolved (including on timeout) is
-// treated as internal/blocked since a destination that cannot be
-// classified cannot be proven safe.
+// isInternalTarget reports whether any resolved address is blocked.
+// Unresolvable hosts count as blocked: an unclassifiable destination is
+// never proven safe.
 func isInternalTarget(host string) bool {
 	addrs, err := resolveHost(host)
 	if err != nil || len(addrs) == 0 {
@@ -199,9 +194,8 @@ const (
 	ruleHost
 )
 
-// rule is one compiled allow/reject entry. URL rules without a port pin
-// additionally record noPort so matching can reject URLs carrying a port
-// (Go's regexp has no lookahead).
+// rule is one compiled allow/reject entry; noPort records URL rules
+// without a port pin so matching rejects URLs carrying a port.
 type rule struct {
 	re     *regexp.Regexp
 	kind   ruleKind

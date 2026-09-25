@@ -7,9 +7,6 @@ creates **no `rclone.conf` file** (no ConfigMap, Secret, volume, mount, or
 `RCLONE_CONFIG=/dev/null`, the documented equivalent of
 `rclone --config /dev/null`, so no config file can be read or auto-created.
 
-> Guard var: every rendered container sets `RCLONE_CONFIG=/dev/null`, the
-> environment-variable form of rclone's `--config` flag.
-
 One generic CronJob template serves **all 10 sync directions** — each direction
 is expressed purely via `source.type` / `destination.type`. Shared logic
 lives in `templates/_helpers.tpl` behind the `helm-rclone-sync.*` prefix.
@@ -147,12 +144,10 @@ rclone:
   extraArgs: []           # e.g. ["--transfers=4", "--stats-one-line"]
 ```
 
-Job behaviour: `concurrencyPolicy: Forbid` (default), `restartPolicy:
-OnFailure` (or `Never`), `backoffLimit`, success/failure history limits,
-`ttlSecondsAfterFinished`, and optional `activeDeadlineSeconds` are all
-configurable in `values.yaml`. Only `sync`/`copy` are allowed — anything else
-fails the render, so the chart can never become a Deployment-like long-lived
-workload.
+Job knobs (`concurrencyPolicy`, `restartPolicy`, `backoffLimit`,
+history limits, `ttlSecondsAfterFinished`, `activeDeadlineSeconds`)
+are configurable in `values.yaml`. Only `sync`/`copy` render; anything
+else fails fast.
 
 ## Proton obscure step
 
@@ -173,15 +168,12 @@ rclone listremotes -vv
 rclone about DST: -vv            # or SRC:, or your remoteName: prefix
 ```
 
-If `about` reports the quota, the env-only remote (including obscured secrets)
-is correctly assembled.
-
 ## Overlap safety
 
 - `concurrencyPolicy: Forbid` (default) — a new Job is skipped while the
   previous sync still runs.
-- `rclone bisync` is **not** offered: it needs persistent listing state a
-  stock CronJob does not provide. Keep `sync`/`copy` one-shot semantics.
+- `rclone bisync` is **not** offered: it needs persistent listing state
+  a stock CronJob does not provide.
 
 ## RWO same-node caveat
 
@@ -206,42 +198,16 @@ both types identically and the claim's access mode governs attach.
 
 ## Snapshot staging (optional, external)
 
-Point-in-time reads beat live reads. Syncing a live claim means rclone can
-copy files mid-write (torn reads); syncing a restored snapshot means rclone
-reads a frozen, crash-consistent point-in-time copy. A restored staging
-volume also has no owning workload attached, so there is no multi-attach
-contender — drop `coLocateWith` and let the sync Pod schedule anywhere.
-
-The chart creates **no** `VolumeSnapshot` objects (per-tick snapshots need
-an external lifecycle, not static Helm objects). An external scheduler
-maintains the staging claim; the chart points at it via `source.uri.value`.
-See `examples/snapshot-staging.yaml`.
+The chart creates **no** `VolumeSnapshot` objects. An external scheduler
+snapshots the live claim and restores to a staging claim; the chart syncs
+from staging (`source: {type: pvc-rwx, uri: {value: my-db-snap-staging}}`,
+no `coLocateWith`). See `examples/snapshot-staging.yaml`.
 
 Prerequisites (external): snapshot-capable CSI + external-snapshotter +
-`VolumeSnapshotClass` for that driver. **Not** `local-ssd-nvme`
-(local-path-provisioner hostPath, not snapshottable) — those stay on the
-live-claim + `coLocateWith` path.
-
-Pattern: before each tick, snapshot the live claim, restore to a staging
-PVC (same namespace, size >= source, RWX preferred), and sync from it:
-
-```yaml
-source:
-  type: pvc-rwx            # staging claim; no coLocateWith needed
-  uri: {value: my-db-snap-staging}
-```
-
-Caveats:
-
-- Snapshots are crash-consistent only, unless you quiesce first
-  (`pg_start_backup` / `fsfreeze` / app quiet, or a native
-  dump-to-PVC taken before the snapshot for app-consistency).
-- Budget ~2x transient storage plus snapshot/restore latency against the
-  `concurrencyPolicy: Forbid` window — a restore that overruns the schedule
-  blocks the next tick.
-- Snapshot/restore/cleanup lifecycle and orphan cleanup are the external
-  scheduler's responsibility, not the chart's. Restores must land in the
-  same namespace as the snapshot's source rules allow.
+`VolumeSnapshotClass`. **Not** `local-ssd-nvme` (not snapshottable) —
+those stay on the live-claim + `coLocateWith` path. Snapshots are
+crash-consistent only unless quiesced; budget ~2x transient storage; the
+external scheduler owns the snapshot/restore/cleanup lifecycle.
 
 ## values.schema.json
 
@@ -250,16 +216,10 @@ No `values.schema.json`: validation is fail-fast template guards
 
 ## Helm merge semantics (read before `--set`)
 
-Helm deep-merges maps **at the field level** — never whole-map replace:
-
-- Demo defaults shine through omitted keys: replace **whole endpoints** via
-  `--set-json`, never single nested keys. "Missing key" proofs null the key;
-  a bare omit inherits the demo default (Helm semantics, not a chart bug).
-- A ref-sourced uri merged over the default `{value: …}` yields both keys;
-  the explicit ref wins, and a ref key on `pvc-*` fails fast (`claimName`
-  cannot use `valueFrom`).
-
-Prefer whole-file `-f` values (like the `ci/` fixtures) over `--set`.
+Helm deep-merges maps at the field level: replace **whole endpoints**
+via `--set-json` (a bare omit inherits the demo default), and prefer
+whole-file `-f` values (like the `ci/` fixtures) over `--set`. See
+`ci/verify.sh` for the merge-semantics proofs.
 
 ## Verifying
 

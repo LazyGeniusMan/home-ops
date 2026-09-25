@@ -7,27 +7,22 @@ import (
 	"strings"
 )
 
-// userinfoRe matches URL userinfo (user[:pass]@) so stored error messages
-// never carry credentials embedded in attachment URLs.
+// userinfoRe matches URL userinfo so stored errors never carry credentials.
 var userinfoRe = regexp.MustCompile(`(?i)([a-z][a-z0-9+.-]*://)[^/@\s?#]+@`)
 
-// redactURL strips URL userinfo (user[:pass]@ → ***@). Non-URL text passes
-// through unchanged.
+// redactURL strips URL userinfo (user[:pass]@ → ***@).
 func redactURL(s string) string {
 	return userinfoRe.ReplaceAllString(s, `${1}***@`)
 }
 
-// HTTP status codes mirroring the Python apprise-api ResponseCode values
-// used by the attachment and notify paths.
+// HTTP status codes for the attachment and notify paths.
 const (
-	// StatusBadRequest is returned for malformed attachments, SSRF denials,
-	// oversized staged files, and disabled-attachment misuse.
+	// StatusBadRequest: malformed attachments, SSRF denials, oversized
+	// staged files, disabled-attachment misuse.
 	StatusBadRequest = 400
-	// StatusFailedDependency is returned when staged attachments cannot be
-	// delivered (e.g. a target without attachment support).
+	// StatusFailedDependency: staged attachments a target cannot deliver.
 	StatusFailedDependency = 424
-	// StatusFieldsTooLarge is returned when the request body exceeds
-	// APPRISE_UPLOAD_MAX_MEMORY_SIZE.
+	// StatusFieldsTooLarge: request body over APPRISE_UPLOAD_MAX_MEMORY_SIZE.
 	StatusFieldsTooLarge = 431
 )
 
@@ -70,14 +65,12 @@ func (e *StatusError) StatusCode() int {
 }
 
 // Disabled reports attachments-disabled misuse (APPRISE_ATTACH_SIZE <= 0
-// with attachment content present). Python: "Attachment support has been
-// disabled" -> 400.
+// with attachment content present).
 func Disabled() error {
 	return &StatusError{Code: StatusBadRequest, Msg: "attach: attachment support has been disabled"}
 }
 
-// TooMany reports an over-limit attachment count. Python: "There is a
-// maximum of N attachments" -> 400.
+// TooMany reports an over-limit attachment count.
 func TooMany(got, max int) error {
 	return &StatusError{
 		Code: StatusBadRequest,
@@ -85,9 +78,7 @@ func TooMany(got, max int) error {
 	}
 }
 
-// TooLargeFile reports a staged file exceeding the per-file limit
-// (APPRISE_ATTACH_SIZE). Python maps this to ValueError -> 400 (431 is
-// reserved for the request body/memory cap).
+// TooLargeFile reports a staged file exceeding APPRISE_ATTACH_SIZE.
 func TooLargeFile(name string, limitBytes int64) error {
 	return &StatusError{
 		Code: StatusBadRequest,
@@ -95,31 +86,25 @@ func TooLargeFile(name string, limitBytes int64) error {
 	}
 }
 
-// BadAttachment reports a malformed attachment entry: bad filename, bad
-// base64, non-URL string, dict without base64/url, or undeliverable type.
-// Python: ValueError -> 400.
+// BadAttachment reports a malformed attachment entry.
 func BadAttachment(format string, args ...any) error {
 	return &StatusError{Code: StatusBadRequest, Msg: fmt.Sprintf("attach: "+format, args...)}
 }
 
-// Denied reports an SSRF-policy rejection of a remote attachment URL.
-// Python: ValueError (blocked web request) -> 400. The URL is stored
-// redacted in Msg (userinfo stripped) so logs and %-suffixes never carry
-// secrets; the domain stays so operators can diagnose policy misses.
+// Denied reports an SSRF-policy rejection. The URL is stored redacted
+// (userinfo stripped) so logs never carry secrets.
 func Denied(rawURL string) error {
 	return &StatusError{Code: StatusBadRequest, Msg: fmt.Sprintf("attach: denied attachment (blocked web request): %s", redactURL(rawURL))}
 }
 
-// FetchFailed reports a remote attachment download failure (network error
-// or non-2xx status). Python: ValueError (failed to retrieve) -> 400. The
-// URL is stored redacted; wrap with %w (never %v) so errors.Is/As see the
-// cause.
+// FetchFailed reports a remote attachment download failure. The URL is
+// stored redacted; wrap with %w (never %v) so errors.Is/As see the cause.
 func FetchFailed(rawURL string, err error) error {
 	return &StatusError{Code: StatusBadRequest, Msg: fmt.Sprintf("attach: failed to retrieve attachment: %s", redactURL(rawURL)), Err: err}
 }
 
 // BodyTooLarge reports a request body exceeding
-// APPRISE_UPLOAD_MAX_MEMORY_SIZE. Python: RequestDataTooBig -> 431.
+// APPRISE_UPLOAD_MAX_MEMORY_SIZE.
 func BodyTooLarge(limitBytes int64) error {
 	return &StatusError{
 		Code: StatusFieldsTooLarge,
@@ -127,10 +112,8 @@ func BodyTooLarge(limitBytes int64) error {
 	}
 }
 
-// unsupportedMarker matches apprise-go's internal
-// notify.ErrAttachmentsUnsupported ("attachments unsupported by target"),
-// which is not exported outside its module. Matching on the message keeps
-// the API layer decoupled while still surfacing the exact condition.
+// unsupportedMarker matches apprise-go's unexported
+// ErrAttachmentsUnsupported ("attachments unsupported by target").
 const unsupportedMarker = "attachments unsupported by target"
 
 // IsUnsupportedAttachments reports whether err (possibly wrapped, e.g. in

@@ -4,9 +4,7 @@ description: >-
   Env-only rclone periodic sync (CronJob). Remotes are built exclusively from
   RCLONE_CONFIG_* environment variables; no rclone.conf file exists anywhere.
 type: application
-# Bump: version + OCI tag (helm-rclone-sync-v<version>) + pinned tag in all
-# six consumers (flux/{apps,infra} rclone-sync*.yaml) atomically. Exact pin,
-# no $imagepolicy (OCIRepositories untracked). appVersion tracks image.tag.
+# Bump version + OCI tag (helm-rclone-sync-v<version>) + all six consumer pins atomically; appVersion tracks image.tag.
 version: 0.1.0
 appVersion: "1.75.0"
 keywords:

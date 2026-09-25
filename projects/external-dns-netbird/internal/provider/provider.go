@@ -19,11 +19,11 @@ import (
 // SupportedTypes are the DNS record types accepted by the NetBird records API.
 var SupportedTypes = map[string]bool{"A": true, "AAAA": true, "CNAME": true}
 
-// ErrNoMatchingZone marks permanent zone-resolution failures (%w-wrapped;
-// server maps to HTTP 422, no retry).
+// ErrNoMatchingZone marks permanent zone-resolution failures (server
+// maps to HTTP 422, no retry).
 var ErrNoMatchingZone = errors.New("netbird: no matching zone")
 
-// API is the subset of the NetBird client used by the Provider (mockable).
+// API is the NetBird client subset used by the Provider (mockable).
 type API interface {
 	ListZones(ctx context.Context) ([]netbird.Zone, error)
 	CreateZone(ctx context.Context, req netbird.CreateZoneRequest) (*netbird.Zone, error)
@@ -43,8 +43,7 @@ type Provider struct {
 
 var _ provider.Provider = (*Provider)(nil)
 
-// New builds a Provider. domainFilters restricts the served zones by domain
-// suffix; an empty list serves all zones.
+// New builds a Provider; empty domainFilters serves all zones.
 func New(api API, domainFilters []string, defaultTTL int64) *Provider {
 	return &Provider{
 		api:        api,
@@ -64,9 +63,8 @@ type recordRef struct {
 	recordID string
 }
 
-// Records lists one endpoint per (DNSName, RecordType) pair found in the
-// filtered NetBird zones, grouping entries with the same name and type and
-// merging their contents into targets.
+// Records lists one endpoint per (DNSName, RecordType) pair, grouping
+// same-name/type entries and merging their contents into targets.
 func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 	zones, err := p.api.ListZones(ctx)
 	if err != nil {
@@ -110,10 +108,9 @@ func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 	return endpoints, nil
 }
 
-// AdjustEndpoints normalizes candidate endpoints for NetBird parity with
-// Records: it drops unsupported record types, lower-cases names, upper-cases
-// types, and fills missing TTLs with the configured default so the planner
-// does not produce spurious updates.
+// AdjustEndpoints normalizes candidates for parity with Records: drops
+// unsupported types, lower-cases names, upper-cases types, fills missing
+// TTLs so the planner sees no spurious diffs.
 func (p *Provider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*endpoint.Endpoint, error) {
 	adjusted := make([]*endpoint.Endpoint, 0, len(endpoints))
 	for _, ep := range endpoints {
@@ -133,9 +130,8 @@ func (p *Provider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*endpoint.
 	return adjusted, nil
 }
 
-// ApplyChanges creates, updates, and deletes NetBird record entries to match
-// the planned changes. Updates are applied as delete + create when the
-// NetBird update call cannot resolve the backing record.
+// ApplyChanges creates, updates, and deletes record entries to match the
+// plan (update falls back to delete + create when unresolvable).
 func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) error {
 	index, err := p.buildIndex(ctx)
 	if err != nil {
@@ -224,11 +220,9 @@ func (p *Provider) zoneForName(ctx context.Context, dnsName string) (string, err
 	if candidate == "" {
 		return "", fmt.Errorf("%w for %q", ErrNoMatchingZone, dnsName)
 	}
-	// Re-check the just-read zone list before creating.
+	// Re-check before creating; a zone outside the filter is a permanent miss.
 	for _, z := range zones {
 		if strings.EqualFold(strings.TrimSuffix(z.Domain, "."), candidate) {
-			// Zone exists but is outside DOMAIN_FILTER: do not reuse it,
-			// report the miss as permanent.
 			if !p.filter.Match(z.Domain) {
 				return "", fmt.Errorf("%w for %q (zone %q outside domain filter)", ErrNoMatchingZone, dnsName, z.Domain)
 			}

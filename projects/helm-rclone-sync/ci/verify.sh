@@ -162,9 +162,7 @@ expect_fail() { # desc, values-file-or-empty, expected-msg-fragment, [helm args.
     bad "$desc failed without expected message [$want]"; sed 's/^/  /' "$OUT/fail.err"
   fi
 }
-# NOTE: --set-json merges at field level, so whole endpoints need complete
-# maps and "missing key" proofs null the key (a bare omit inherits the demo
-# default — Helm semantics).
+# NOTE: Helm merges at field level; see README "Helm merge semantics".
 expect_fail "missing s3 secretAccessKey" \
   "" "secretAccessKey is required" \
   --set-json 'source={"type":"pvc-rwo","uri":{"value":"d"}}' \

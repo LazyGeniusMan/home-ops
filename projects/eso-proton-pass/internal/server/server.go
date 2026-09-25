@@ -27,9 +27,7 @@ import (
 )
 
 // httpRequestsTotal counts webhook requests by method, route pattern, and
-// status code. Route is the registered pattern (never the raw path) so
-// label cardinality stays bounded.
-// PromQL: sum by (route) (rate(eso_proton_pass_http_requests_total[5m]))
+// status code (registered pattern, never raw path).
 var httpRequestsTotal = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
 		Namespace: "eso_proton_pass",
@@ -40,8 +38,7 @@ var httpRequestsTotal = prometheus.NewCounterVec(
 )
 
 // httpRequestDurationSeconds observes webhook request latency by method and
-// route pattern (DefBuckets keep bucket cardinality small).
-// PromQL: histogram_quantile(0.95, sum by (le, route) (rate(eso_proton_pass_http_request_duration_seconds_bucket[5m])))
+// route pattern.
 var httpRequestDurationSeconds = prometheus.NewHistogramVec(
 	prometheus.HistogramOpts{
 		Namespace: "eso_proton_pass",
@@ -53,16 +50,13 @@ var httpRequestDurationSeconds = prometheus.NewHistogramVec(
 )
 
 // up is 1 while the process serves traffic.
-// PromQL: eso_proton_pass_up
 var up = prometheus.NewGauge(prometheus.GaugeOpts{
 	Namespace: "eso_proton_pass",
 	Name:      "up",
 	Help:      "1 while the process is serving traffic.",
 })
 
-// buildInfo reports the ldflags-injected release version as
-// eso_proton_pass_build_info{version="..."} == 1.
-// PromQL: eso_proton_pass_build_info
+// buildInfo reports the ldflags-injected release version.
 var buildInfo = prometheus.NewGaugeVec(
 	prometheus.GaugeOpts{
 		Namespace: "eso_proton_pass",
@@ -191,7 +185,6 @@ func (h *httpProvider) Ready(ctx context.Context) error {
 }
 
 // NewWithProvider builds a Server over a custom Provider (tests).
-// Metrics (incl. up/build_info) reuse the shared registry collectors.
 func NewWithProvider(p Provider, logger *slog.Logger) *Server {
 	registerDefaultCollectorsOnce.Do(func() {
 		registerCollector(collectors.NewGoCollector())
@@ -210,13 +203,10 @@ func NewWithProvider(p Provider, logger *slog.Logger) *Server {
 	}
 }
 
-// Handler returns the mux with all routes. Tracing wraps each domain route
-// with a span named from the literal route pattern (bounded cardinality);
-// /metrics and /healthz bypass tracing entirely.
+// Handler returns the mux with all routes (spans and metrics use the
+// literal route pattern, never the raw path).
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
-	// Routes omit methods and dispatch on r.Method; metrics use literal
-	// patterns (never raw paths) to bound cardinality.
 	mux.HandleFunc("/get", s.withTracing("/get", s.withMetrics("/get", s.handleGetDispatch)))
 	mux.HandleFunc("/", s.withTracing("/", s.withMetrics("/", s.handleValidate)))
 	mux.HandleFunc("/healthz", s.withMetrics("/healthz", s.handleHealthz))
@@ -226,8 +216,7 @@ func (s *Server) Handler() http.Handler {
 	return s.withLogging(mux)
 }
 
-// withTracing starts one server span named from the literal route pattern
-// (never the raw path) and extracts the inbound W3C trace context.
+// withTracing starts one server span per route (W3C context extracted).
 func (s *Server) withTracing(route string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := otel.Tracer("eso-proton-pass").Start(
@@ -330,20 +319,15 @@ func (s *Server) handleValidate(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleHealthz is the liveness probe: static JSON, zero downstream calls.
-// It never touches the provider, so kubelet liveness checks cannot wedge on
-// pass-cli.
 func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// readyzTimeout bounds the pass-cli reachability probe so readiness checks
-// fail fast instead of hanging a full exec timeout.
+// readyzTimeout bounds the pass-cli reachability probe.
 const readyzTimeout = 5 * time.Second
 
-// handleReadyz probes pass-cli reachability without resolving a secret (no
-// key material leaves the process). Reachable → 200 {"status":"ok"};
-// otherwise 503 {"status":"not_ready","failing":"pass-cli"}. The underlying
-// error is debug-logged server-side and never exposed.
+// handleReadyz probes pass-cli reachability (no secrets): 200
+// {"status":"ok"} or 503 {"status":"not_ready","failing":"pass-cli"}.
 func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), readyzTimeout)
 	defer cancel()
@@ -367,9 +351,7 @@ func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
 	s.writeError(w, r, provider.ErrPushUnimplemented)
 }
 
-// withMetrics records per-request counters and latency. Route is the
-// registered mux pattern passed by Handler (never the raw path), so label
-// cardinality stays bounded.
+// withMetrics records per-request counters and latency by route pattern.
 func (s *Server) withMetrics(route string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -380,8 +362,7 @@ func (s *Server) withMetrics(route string, next http.HandlerFunc) http.HandlerFu
 	}
 }
 
-// withLogging logs one line per request with the matched mux pattern as
-// route.
+// withLogging logs one line per request.
 func (s *Server) withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -402,7 +383,7 @@ func (s *Server) withLogging(next http.Handler) http.Handler {
 	})
 }
 
-// statusRecorder captures the status code for request logging and metrics.
+// statusRecorder captures the status code for logging and metrics.
 type statusRecorder struct {
 	http.ResponseWriter
 	status int

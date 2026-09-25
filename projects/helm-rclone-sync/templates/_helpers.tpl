@@ -135,10 +135,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{ include "helm-rclone-sync.renderEnv" (dict "name" .name "field" $f "ctx" $ctx) }}
 {{- end -}}
 
-{{/*
-Optional credential field: skip when absent/null/empty-literal, else render.
-Expects dict {name, creds, key, ctx}.
-*/}}
+{{/* Optional credential field: skip when absent/null/empty-literal, else render. Expects dict {name, creds, key, ctx}. */}}
 {{- define "helm-rclone-sync.renderOptional" -}}
 {{- if hasKey .creds .key -}}
 {{- $f := index .creds .key -}}
@@ -159,7 +156,7 @@ Expects dict {name, creds, key, ctx}.
 {{- if kindIs "invalid" $uri }}{{ fail (printf "%s.uri is required (got null): set the claim name (pvc-*), bucket/path (s3), or path (proton-drive) via one of value, secretRef, configMapRef, esoRef" .role) }}{{ end -}}
 {{- end -}}
 
-{{/* "1" when a uri uses a ref source (needs <PREFIX>_PATH indirection): any ref key present means "ref" (explicit ref wins over the deep-merged default value key). */}}
+{{/* "1" when a uri uses a ref source (needs <PREFIX>_PATH indirection). */}}
 {{- define "helm-rclone-sync.uriIsRef" -}}
 {{- $uri := .uri -}}
 {{- if kindIs "map" $uri -}}
@@ -246,7 +243,7 @@ Expects dict {name, creds, key, ctx}.
 {{ include "helm-rclone-sync.renderOptional" (dict "name" (printf "RCLONE_CONFIG_%s_CLIENT_REFRESH_TOKEN" $remote) "creds" $creds "key" "clientRefreshToken" "ctx" $ctx) }}
 {{- end -}}
 {{- if eq (include "helm-rclone-sync.uriIsRef" (dict "uri" $ep.uri) | trim) "1" }}
-{{- /* Strip any deep-merged default {value: …​} key so renderEnv sees exactly one source. */}}
+{{- /* Drop the deep-merged default value key so renderEnv sees exactly one source. */}}
 {{- $pathField := dict -}}
 {{- range $k := list "secretRef" "configMapRef" "esoRef" "existingSecret" -}}
 {{- if hasKey $ep.uri $k }}{{ $pathField = set $pathField $k (index $ep.uri $k) }}{{ end -}}

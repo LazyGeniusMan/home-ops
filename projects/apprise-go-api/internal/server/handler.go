@@ -24,12 +24,11 @@ import (
 )
 
 var (
-	// mimeIsJSON mirrors Python MIME_IS_JSON (api/utils.py:55).
+	// mimeIsJSON matches JSON content types for payload/response negotiation.
 	mimeIsJSON = regexp.MustCompile(`(?i)(text|application)/(x-)?json`)
-	// acceptAll mirrors Python ACCEPT_ALL (api/utils.py:59).
+	// acceptAll matches empty/wildcard Accept headers.
 	acceptAll = regexp.MustCompile(`(?i)^\s*([*]/[*]|)\s*$`)
-	// htmlAccept mirrors the success content-type selection
-	// (views.py:2190): text/* or text/html in Accept → HTML logs.
+	// htmlAccept matches text/* or text/html in Accept → HTML logs.
 	htmlAccept = regexp.MustCompile(`(?i)text/(\*|html)`)
 )
 
@@ -244,15 +243,11 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if attach.IsUnsupportedAttachments(sendErr) && len(urls) > 0 {
-			// Wrap with attachment context (%w chain preserved); the
-			// user-facing body stays the fixed literal below.
 			sendErr = attach.WrapSendError(urls[0], strings.Join(stagedNames, ", "), sendErr)
 		}
-		// Log once (redacted: strips user:pass@ userinfo); the 424 body
-		// carries only the fixed message, never the raw chain.
+		// Log once (redacted); the 424 body carries only the fixed message.
 		s.log.Warn("notify: delivery failed", "remote", remoteAddr(r), "err", redactCredentials(sendErr.Error()))
 		respondNotify(w, r, http.StatusFailedDependency, "One or more notifications could not be sent", sendErr, true)
-		// Webhook output is sanitized inside fireWebhook (redactCredentials).
 		fireWebhook(s, r, false, sendErr)
 		return
 	}
@@ -330,9 +325,7 @@ func fireWebhook(s *Server, r *http.Request, ok bool, sendErr error) {
 	}
 	output := ""
 	if sendErr != nil {
-		// Send errors are pre-redacted at construction (attach Denied /
-		// FetchFailed store userinfo-stripped URLs); redact once more on
-		// the joined chain so the outbound hook never carries secrets.
+		// Redact once more so the outbound hook never carries secrets.
 		output = redactCredentials(sendErr.Error())
 	}
 	body, _ := json.Marshal(map[string]any{
@@ -357,9 +350,8 @@ func fireWebhook(s *Server, r *http.Request, ok bool, sendErr error) {
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
 }
 
-// isNoTargets reports whether err is the zero-survivors condition (kept for
-// the message-suffix match; serveNotify also checks errors.Is against
-// notify.ErrNoTargets first).
+// isNoTargets reports the zero-survivors condition (message-suffix match;
+// serveNotify also checks errors.Is against notify.ErrNoTargets first).
 func isNoTargets(err error) bool {
 	if err == nil {
 		return false

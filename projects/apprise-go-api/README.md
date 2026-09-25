@@ -44,14 +44,7 @@ curl -X POST http://localhost:8080/notify \
 # {"error":null,"details":[["INFO","2026-09-21 07:00:00","Delivered Stateless Notification(s)"]]}
 ```
 
-```sh
-# Same thing as a form post (curl -d defaults to urlencoded)
-curl -X POST http://localhost:8080/notify \
-  -d 'urls=json://localhost' \
-  -d 'body=Backup finished' \
-  -d 'title=Nightly job' \
-  -d 'type=success'
-```
+Form posts (`curl -d`, urlencoded) work the same way.
 
 ## Endpoint reference
 
@@ -110,38 +103,17 @@ Validation failures use the same negotiation with a plain error message
 
 ### `GET /status`
 
-Health plus attach/config-lock flags. Always JSON.
-
-```json
-{
-  "status": "ok",
-  "version": "0.1.0",
-  "stateful_mode": "disabled",
-  "stateless_storage": "no",
-  "attach_dir": "/tmp",
-  "can_write_attach": true,
-  "config_lock": false
-}
-```
-
-`attach_dir` resolves `APPRISE_ATTACH_DIR` (default OS temp dir).
-Writability probe is TTL-cached (30s, shared with `/readyz`/`/metrics`);
-failure sets `can_write_attach: false` + `attach_permission_issue`. Non-GET → `405`.
+Health plus attach/config-lock flags (`status`, `version`,
+`stateful_mode`, `stateless_storage`, `attach_dir`, `can_write_attach`;
+see the status handler). Always JSON. `attach_dir` resolves
+`APPRISE_ATTACH_DIR` (default OS temp dir); the writability probe is
+TTL-cached (30s, shared with `/readyz`/`/metrics`) and failure sets
+`can_write_attach: false` + `attach_permission_issue`. Non-GET → `405`.
 
 ### `GET /details`
 
-Service catalog: notification schemas supported by apprise-go plus the
-stateless route table. Always JSON. Non-GET → `405`.
-
-```json
-{
-  "version": "0.1.0",
-  "stateful_mode": "disabled",
-  "stateless_storage": "no",
-  "service_count": 214,
-  "services": ["discord", "json", "slack", "..."],
-  "routes": ["POST /notify", "GET /status", "GET /details", "GET /metrics", "GET /healthz", "GET /readyz"]
-}
+Service catalog (`version`, `service_count`, `services`, `routes`;
+see the details handler). Always JSON. Non-GET → `405`.
 ```
 
 ### `GET /healthz` and `GET /readyz`
@@ -166,23 +138,16 @@ Lifecycle: `docker stop` (SIGTERM) drains the listener gracefully
 ### `GET /metrics`
 
 Prometheus exposition via `client_golang` on the default registry
-(includes `go_*` / `process_*` runtime series):
-
-```text
-apprise_go_api_up 1
-apprise_go_api_build_info{version="1.2.3"} 1
-apprise_go_api_attach_writable 1
-apprise_go_api_supported_services 214
-apprise_go_api_http_requests_total{method="GET",route="/healthz",status="200"} 1
-apprise_go_api_http_request_duration_seconds_bucket{method="GET",route="/healthz",le="0.005"} 1
-```
-
-Every request is observed as `apprise_go_api_http_requests_total` /
+(includes `go_*` / `process_*`): `apprise_go_api_up`,
+`apprise_go_api_build_info{version}`, `apprise_go_api_attach_writable`,
+`apprise_go_api_supported_services`, plus per-request
+`apprise_go_api_http_requests_total` /
 `apprise_go_api_http_request_duration_seconds_bucket` by
-`method`/`route`/`status` (`route` = matched mux pattern, never raw path),
-plus one slog line. Version is `internal/version.Version` (`dev` locally;
-release images inject via `ARG VERSION` ldflags). The attach probe is
-TTL-cached (30s), shared by `/status`, `/readyz`, `/metrics`.
+`method`/`route`/`status` (`route` = matched mux pattern, never raw
+path) and one slog line; exact names live in the metrics handler.
+Version is `internal/version.Version` (`dev` locally; release images
+inject via `ARG VERSION` ldflags). The attach probe is TTL-cached
+(30s), shared by `/status`, `/readyz`, `/metrics`.
 
 ## Attachments
 
@@ -279,14 +244,9 @@ curl -X POST 'http://localhost:8080/notify/?:subject=title&:payload=body' \
 ### Outbound result hook (`APPRISE_WEBHOOK_URL`)
 
 After every notify, the result is POSTed (best-effort; transport errors
-are logged, never surfaced to the notify caller) as JSON:
-
-```json
-{"source": "10.0.0.5", "status": 0, "output": "..."}
-```
-
-`source` is the notifying client's address, `status` is `0` on success /
-`1` on any delivery failure, `output` is the notify response detail.
+are logged, never surfaced to the notify caller) as JSON
+`{source, status, output}` (`source` = client address, `status` = `0`
+success / `1` delivery failure, `output` = notify response detail).
 `User-Agent: Apprise-API`, `Content-Type: application/json`.
 
 The URL must be `http(s)` with a usable host. Embedded `user[:pass]`
@@ -372,9 +332,7 @@ golangci-lint run ./...
 gofmt -s -l .
 ```
 
-Sample PromQL: `sum by (route)
-(rate(apprise_go_api_http_requests_total[5m]))`,
-`apprise_go_api_build_info`.
+Metric names are defined in code (see the metrics handler).
 
 Image `ghcr.io/lazygeniusman/home-ops/projects/apprise-go-api`: `main`
 push → `:dev` (+ `:dev-<sha>`), tag `apprise-go-api-v*` → `:stable` +

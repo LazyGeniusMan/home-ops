@@ -17,12 +17,11 @@ import (
 	"time"
 )
 
-// ErrNotFound marks CLI-reported missing secrets (%w-wrapped; provider
-// maps it to HTTP 404).
+// ErrNotFound marks CLI-reported missing secrets (provider maps to 404).
 var ErrNotFound = errors.New("pass-cli: secret not found")
 
-// ExecError is a pass-cli invocation failure. Stderr is retained for
-// operator logs only (never in Error), so secrets cannot leak into envelopes.
+// ExecError is a pass-cli invocation failure. Stderr stays in operator
+// logs only (never in Error), so secrets cannot leak into envelopes.
 type ExecError struct {
 	// Op is the subcommand, e.g. "inject".
 	Op string
@@ -32,9 +31,8 @@ type ExecError struct {
 	Err error
 }
 
-// Error implements error. It carries only the subcommand: no stderr, no
-// paths, no tokens. Messages stay lowercase with no punctuation per the
-// error contract (see internal/server/errors.go).
+// Error carries only the subcommand: no stderr, paths, or tokens
+// (lowercase, no punctuation, per the server error contract).
 func (e *ExecError) Error() string {
 	if e == nil {
 		return "pass-cli: <nil>"
@@ -50,7 +48,7 @@ func (e *ExecError) Unwrap() error {
 	return e.Err
 }
 
-// reasonMaxLen is the pass-cli limit for PROTON_PASS_AGENT_REASON (300 chars).
+// reasonMaxLen is the PROTON_PASS_AGENT_REASON limit (300 chars).
 const reasonMaxLen = 300
 
 // Options configures a Client.
@@ -92,8 +90,7 @@ func New(o Options) *Client {
 	}
 }
 
-// ReadPATFile reads the PAT from the file at path, trimming trailing
-// whitespace. The file must exist and be non-empty.
+// ReadPATFile reads the PAT from a file (must exist, non-empty).
 func ReadPATFile(path string) (string, error) {
 	if path == "" {
 		return "", fmt.Errorf("PAT file path is empty (set PROTON_PASS_PAT_FILE)")
@@ -109,9 +106,8 @@ func ReadPATFile(path string) (string, error) {
 	return pat, nil
 }
 
-// NewAgentReason generates a fresh, unique PROTON_PASS_AGENT_REASON value for
-// a single pass-cli invocation. The prefix identifies the caller for audit
-// logs; the random suffix keeps every invocation distinct.
+// NewAgentReason generates a fresh PROTON_PASS_AGENT_REASON per invocation
+// (caller prefix for audit + random suffix).
 func NewAgentReason(prefix string) string {
 	var suffix [8]byte
 	if _, err := rand.Read(suffix[:]); err != nil {
@@ -124,14 +120,12 @@ func NewAgentReason(prefix string) string {
 	return reason
 }
 
-// baseEnv returns the hardened environment applied to every pass-cli exec:
-// telemetry off, CLI logs off, container-safe key/session storage.
+// baseEnv returns the hardened env for every pass-cli exec: telemetry
+// off, CLI logs off, filesystem key storage (no kernel keyring).
 func (c *Client) baseEnv() []string {
 	env := []string{
 		"PROTON_PASS_DISABLE_TELEMETRY=1",
 		"PASS_LOG_LEVEL=off",
-		// Containers cannot access the kernel keyring; use filesystem key
-		// storage scoped to the session dir.
 		"PROTON_PASS_KEY_PROVIDER=fs",
 		"PROTON_PASS_LINUX_KEYRING=kernel",
 	}
@@ -142,7 +136,7 @@ func (c *Client) baseEnv() []string {
 }
 
 // run executes pass-cli, returning trimmed stdout. Stderr is logged once
-// here; callers wrap with %w (never %v), lowercase, so secrets never leak.
+// here; callers wrap with %w (never %v) so secrets never leak.
 func (c *Client) run(ctx context.Context, args []string, stdin string, extraEnv []string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
@@ -229,9 +223,7 @@ func (c *Client) ResolveSecret(ctx context.Context, uri, reasonPrefix string) (s
 	return out, nil
 }
 
-// Ping checks pass-cli reachability without touching secrets: it runs a
-// metadata-only subcommand whose stdout carries no secret material. The
-// caller (readiness probe) cares only about success vs failure.
+// Ping checks pass-cli reachability (metadata-only, no secrets).
 func (c *Client) Ping(ctx context.Context) error {
 	if _, err := c.run(ctx, []string{"info"}, "", nil); err != nil {
 		return fmt.Errorf("ping: %w", err)
@@ -239,10 +231,8 @@ func (c *Client) Ping(ctx context.Context) error {
 	return nil
 }
 
-// isNotFoundOutput classifies CLI stderr at the boundary. This is the ONLY
-// substring match in the codebase: the CLI exposes no typed errors, so the
-// boundary converts its free-text stderr into the ErrNotFound sentinel once,
-// and every layer above matches with errors.Is.
+// isNotFoundOutput converts the CLI's free-text stderr into the
+// ErrNotFound sentinel once at the boundary; layers above use errors.Is.
 func isNotFoundOutput(stderr string) bool {
 	msg := strings.ToLower(stderr)
 	for _, marker := range []string{"not found", "no such", "does not exist", "not exist", "404"} {
@@ -253,8 +243,7 @@ func isNotFoundOutput(stderr string) bool {
 	return false
 }
 
-// redactURI keeps vault/item structure for diagnostics without exposing the
-// field name (which can be sensitive, e.g. a custom secret label).
+// redactURI keeps vault/item for diagnostics, hiding the field name.
 func redactURI(uri string) string {
 	rest := strings.TrimPrefix(uri, "pass://")
 	parts := strings.Split(rest, "/")

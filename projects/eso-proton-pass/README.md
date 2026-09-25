@@ -27,22 +27,7 @@ Routes (see `internal/server/server.go`):
 | POST   | `/push`   | → 501 (pull-only, not implemented)                   |
 
 All pull responses use the `{"value": "…"}` envelope, so ESO extracts the
-secret with `result.jsonPath: "$.value"`. Templated ESO usage:
-
-```yaml
-provider:
-  webhook:
-    url: http://eso-proton-pass:8080
-    result:
-      jsonPath: $.value
-    secrets:
-      - name: db-password
-        remoteRef:
-          key: pass://prod-vault/postgres/password
-```
-
-which the provider serves as `GET /get?key=pass://prod-vault/postgres/password`
-→ `200 {"value": "<secret>"}`.
+secret with `result.jsonPath: "$.value"`.
 
 Errors are non-2xx with a `{"error": "…"}` body: 400 invalid key /
 malformed body, 404 not found (lets ESO apply the deletionPolicy), 422
@@ -66,7 +51,7 @@ URIs redact to `pass://vault/item/<field>`.
   `ARG VERSION` through exactly this flag).
 - Standard `go_*` / `process_*` runtime series.
 
-Sample PromQL: request rate and p95 latency by route, `eso_proton_pass_build_info`.
+Exact metric names live in `internal/server/server.go`.
 
 ## Develop
 
@@ -102,24 +87,13 @@ stdlib (`net/http`, `os/exec`, `crypto/rand`, `log/slog`, …).
 Startup fails fast with `missing required env PROTON_PASS_PAT_FILE …` when the
 required `*_FILE` secret is absent — no default secrets.
 
-K8s probes (single listener on `:8080`, configurable via `LISTEN_ADDR`):
-
-```yaml
-livenessProbe:
-  httpGet: {path: /healthz, port: 8080}
-readinessProbe:
-  httpGet: {path: /readyz, port: 8080}
-```
-
-Shutdown: `signal.NotifyContext` (SIGINT/SIGTERM) + `http.Server.Shutdown`
-bounded at 10s, draining in-flight requests (`shutting down` / `drained`
-logs).
+Probes: `/healthz` (liveness) and `/readyz` (readiness) on `:8080`
+(`LISTEN_ADDR`). Shutdown drains in-flight requests (10s bound).
 
 ## Telemetry-off evidence
 
-`PROTON_PASS_DISABLE_TELEMETRY=1` on every exec (`baseEnv`), as image
-`ENV`, and asserted in tests — plus `PASS_LOG_LEVEL=off` and
-`PROTON_PASS_KEY_PROVIDER=fs` on both layers.
+Telemetry off on every exec, as image `ENV`, and asserted in tests
+(`PASS_LOG_LEVEL=off`, `PROTON_PASS_KEY_PROVIDER=fs` on both layers).
 
 ## Image
 
@@ -132,6 +106,6 @@ Consumed in Flux via `{"$imagepolicy": "infra:eso-proton-pass:tag"}` in
 `flux/infra/components/external-secrets/configs/base/eso-proton-pass-webhook.yaml`
 (policy `flux/infra/update-policies/external-secrets.yaml`).
 
-Multi-stage build: `golang:1.26.7` (digest-pinned, `CGO_ENABLED=0`) +
-`pass-cli` 2.3.3 (per-arch SHA-256 verified) → `distroless/base-debian13`
-(digest-pinned, no shell) as `nonroot:nonroot` (65532), exposing 8080.
+Multi-stage build: `golang:1.26.7` + `pass-cli` 2.3.3 →
+`distroless/base-debian13` (nonroot 65532), exposing 8080; see the
+Dockerfile for pins.
