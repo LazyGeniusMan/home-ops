@@ -1,9 +1,10 @@
 # Flux Operator UI: standalone Web UI (serverOnly) from the same chart line
 # as bootstrap (this tag MUST match operator_chart_version in
 # flux/fleet/terraform/versions.yaml).
-# installCRDs: false (CRDs owned by bootstrap); fullnameOverride pins Service
-# flux-operator-ui (port 9080) for the oauth2-proxy upstream. No telemetry
-# flags, no ServiceMonitor.
+# Guardrail: the UI must never own CRDs or the fleet sync path — serverOnly
+# stays true and installCRDs stays false; the bootstrap flux-operator owns
+# CRDs and sync. fullnameOverride pins Service flux-operator-ui (port 9080)
+# for the oauth2-proxy upstream. No telemetry flags, no ServiceMonitor.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -22,6 +23,10 @@ apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
   name: flux-operator-ui
+  annotations:
+    # Validation-visible sync-path guardrail: this release must never own
+    # CRDs or fleet sync (bootstrap flux-operator owns CRDs and sync).
+    home-ops.yansyah.my.id/sync-path-guardrail: "serverOnly + installCRDs:false - UI must never own CRDs or fleet sync"
 spec:
   interval: 1h
   releaseName: flux-operator-ui
@@ -40,6 +45,8 @@ spec:
   # https://github.com/controlplaneio-fluxcd/flux-operator (docs/web/web-standalone.md)
   values:
     fullnameOverride: flux-operator-ui
+    # Guardrail value: CRDs owned by the bootstrap flux-operator; flipping
+    # this to true would duplicate CRD ownership and risk the fleet sync path.
     installCRDs: false
     # Resources pinned explicit; CPU requests required for the HPA denominator.
     resources:
@@ -50,6 +57,8 @@ spec:
         cpu: 2000m
         memory: 1Gi
     web:
+      # Guardrail value: serverOnly keeps this release off the fleet sync
+      # path (UI only); the bootstrap release keeps web.enabled: false.
       serverOnly: true
       # Chart schema `web.serverReplicas` (default 1; only applies with serverOnly).
       serverReplicas: 1 # placeholder - overridden by dev/prd

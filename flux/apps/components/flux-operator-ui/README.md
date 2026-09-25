@@ -22,6 +22,14 @@ UI chart `oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator` tag
 flux-operator-ui` (Service `flux-operator-ui`, port 9080). Bootstrap keeps
 `web.enabled: false` so the two releases never overlap.
 
+## Sync-path guardrail
+
+The UI must never own CRDs or the fleet sync path — the bootstrap
+`flux-operator` owns both. Enforced in `base/flux-operator-ui.yaml` via
+`web.serverOnly: true`, `installCRDs: false`, and the
+`home-ops.yansyah.my.id/sync-path-guardrail` HelmRelease annotation
+(validation-visible marker of the same rule).
+
 ## RBAC
 
 The UI backend impersonates the authenticated user, so end users need READ
