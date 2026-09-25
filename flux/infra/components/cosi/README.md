@@ -27,7 +27,8 @@ placeholder — driver lives in the seaweedfs component). Dev/prd inherit
   `kubernetes-sigs/container-object-storage-interface` tag `v0.2.2`. Re-vendor
   all 5 CRD files together to bump (never hand-edit); pins + caps move together
   (`update-policies/cosi.yaml` + `seaweedfs.yaml`, all `<0.3.0`). Namespace
-  adapted `system`->`cosi`, subjects `default`->`cosi`.
+  adapted `system`->`cosi` (including the lease `RoleBinding`), subjects
+  `default`->`cosi`.
 - Driver + classes in the seaweedfs component mirror the upstream seaweedfs
   chart `templates/cosi/` (plain in-cluster gRPC, no auth/TLS branches).
   Driver image `ghcr.io/seaweedfs/seaweedfs-cosi-driver:v0.3.1`; sidecar
