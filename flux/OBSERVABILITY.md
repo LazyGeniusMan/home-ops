@@ -1,9 +1,40 @@
 # Observability (ClickHouse-native)
 
 ClickHouse is the only telemetry store; HyperDX is the only telemetry UI. There is no Prometheus or
-Grafana in any cluster. Logs, metrics, and traces flow through OTel collectors into namespace-local
+Grafana in any cluster. Logs, metrics, and traces flow through the OTel pipeline
+(`infra/components/otel-operator`, `infra/components/otel-collectors`) into namespace-local
 ClickHouse and are read back in HyperDX. See `apps/components/clickstack/README.md` for the
 ClickStack deployment itself.
+
+## OTel pipeline (landed)
+
+- **Operator** (`infra/components/otel-operator/`): `crds/base` vendors ServiceMonitor + PodMonitor
+  CRDs (prometheus-operator v0.93.1, monitoring scope only) and renders through the fleet's
+  `prune:false` infra-crds Kustomization (`tenants/infra.yaml`, like gateway-api + cosi);
+  `controllers/{base,dev,prd}` run the operator chart (0.123.1/app 0.159.0) with
+  `infra:otel-operator:tag` update policy (`update-policies/otel-operator.yaml`).
+- **Collectors** (`infra/components/otel-collectors/`): `controllers/{base,dev,prd}` hold operator-managed
+  `OpenTelemetryCollector` CRs — `otel-agent` DaemonSet (kubeletstats + filelog → gateway OTLP) and
+  `otel-gateway` StatefulSet (dev 1 / prd 2, `otel_dev` / `otel_prd`) with
+  `infra:otel-collector:tag` update policy (`update-policies/otel-collectors.yaml`).
+- **Discovery:** the gateway's TargetAllocator (consistent-hashing, `prometheusCR.enabled`) scrapes only
+  monitors + namespaces labeled `otel-scrape: "true"`; ESO's guarded-on `skipIfMissing` block is the
+  sanctioned flip of that label's consumer side. The agent uses static targets.
+- **ClickHouse export:** gateway `clickhouse` exporter points at the shared infra CHI
+  (`tcp://clickhouse-clickhouse.clickhouse.svc:9000`, `create_schema: true`), `ttl: 0s` (DBA-managed
+  table TTLs, default 30d) and exporter-internal `sending_queue.batch` 5000/10s; no custom TTLs in git
+  (see ClickHouse retention below).
+- **Auth:** `configs/base/clickhouse-credentials.yaml` `ExternalSecret/otel-clickhouse` reads
+  `pass://<cluster>/otel-collectors/clickhouse-password` (`default` user, empty password against the
+  shared infra CHI). Seed per env before first install:
+
+  ```shell
+  pass-cli item create 'acme-dev-bdo1-talos-apps-01/otel-collectors/clickhouse-password'
+  pass-cli item create 'acme-prd-bdo1-talos-apps-01/otel-collectors/clickhouse-password'
+  ```
+
+  Secret gate not run from this workspace (`pass-cli info` is agent-blocked); run it by hand before
+  seeding — it must succeed (logged in) or ESO pending Secrets are expected.
 
 ## Per-signal guide
 

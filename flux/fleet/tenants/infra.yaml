@@ -1,7 +1,7 @@
 # Infra tenants: one input per component dir under flux/infra/components.
 # Onboard: add the input tenant here + the components matrix in
 # .github/workflows/flux-infra-push.yaml so its OCI artifact is published.
-# CRD delivery (gateway-api + cosi only): CRDs render through a dedicated
+# CRD delivery (gateway-api + cosi + otel-operator only): CRDs render through a dedicated
 # prune:false infra-crds Kustomization (a removed CRD must never
 # cascade-delete CRs); the infra-controllers Kustomization gates on it via a
 # conditional dependsOn. This file is a Go template rendered by the Flux
@@ -122,6 +122,16 @@ spec:
       environment: "${ENVIRONMENT}"
       artifactSubjectWorkflow: "flux-infra-release"
       artifactSubjectGitRef: 'refs/tags/flux-infra-v\d+\.\d+\.\d+'
+    - tenant: "otel-operator"
+      tag: "${ARTIFACT_TAG}"
+      environment: "${ENVIRONMENT}"
+      artifactSubjectWorkflow: "flux-infra-release"
+      artifactSubjectGitRef: 'refs/tags/flux-infra-v\d+\.\d+\.\d+'
+    - tenant: "otel-collectors"
+      tag: "${ARTIFACT_TAG}"
+      environment: "${ENVIRONMENT}"
+      artifactSubjectWorkflow: "flux-infra-release"
+      artifactSubjectGitRef: 'refs/tags/flux-infra-v\d+\.\d+\.\d+'
   resources:
     - apiVersion: v1
       kind: Namespace
@@ -181,16 +191,16 @@ spec:
           matchOIDCIdentity:
           - issuer: ^https://token\.actions\.githubusercontent\.com$
             subject: ^https://github\.com/LazyGeniusMan/home-ops/\.github/workflows/<< inputs.artifactSubjectWorkflow >>\.yaml@<< inputs.artifactSubjectGitRef >>$
-    # infra-crds: vendored-CRD delivery (gateway-api + cosi only; disabled
-    # for other tenants). prune:false so removed CRDs never delete CRs;
-    # healthChecks gate dependents on Established.
+    # infra-crds: vendored-CRD delivery (gateway-api + cosi + otel-operator
+    # only; disabled for other tenants). prune:false so removed CRDs never
+    # delete CRs; healthChecks gate dependents on Established.
     - apiVersion: kustomize.toolkit.fluxcd.io/v1
       kind: Kustomization
       metadata:
         name: infra-crds
         namespace: << inputs.tenant >>
         annotations:
-          fluxcd.controlplane.io/reconcile: << if or (eq inputs.tenant "gateway-api") (eq inputs.tenant "cosi") >>enabled<< else >>disabled<< end >>
+          fluxcd.controlplane.io/reconcile: << if or (eq inputs.tenant "gateway-api") (eq inputs.tenant "cosi") (eq inputs.tenant "otel-operator") >>enabled<< else >>disabled<< end >>
       spec:
         targetNamespace: << inputs.tenant >>
         serviceAccountName: flux
@@ -214,13 +224,20 @@ spec:
           - apiVersion: apiextensions.k8s.io/v1
             kind: CustomResourceDefinition
             name: httproutes.gateway.networking.k8s.io
-          # (<< else >> COSI Established gates):
+          # (<< else if eq inputs.tenant "cosi" >> COSI Established gates):
           - apiVersion: apiextensions.k8s.io/v1
             kind: CustomResourceDefinition
             name: bucketclasses.objectstorage.k8s.io
           - apiVersion: apiextensions.k8s.io/v1
             kind: CustomResourceDefinition
-            name: bucketclaims.objectstorage.k8s.io # << end >>
+            name: bucketclaims.objectstorage.k8s.io
+          # (<< else >> otel-operator ServiceMonitor/PodMonitor Established gates):
+          - apiVersion: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: servicemonitors.monitoring.coreos.com
+          - apiVersion: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: podmonitors.monitoring.coreos.com # << end >>
         postBuild:
           substituteFrom:
             - kind: ConfigMap
@@ -231,7 +248,7 @@ spec:
         name: infra-controllers
         namespace: << inputs.tenant >>
       spec:
-        # << if or (eq inputs.tenant "gateway-api") (eq inputs.tenant "cosi") >>
+        # << if or (eq inputs.tenant "gateway-api") (eq inputs.tenant "cosi") (eq inputs.tenant "otel-operator") >>
         dependsOn:
           - name: infra-crds
         # << end >>

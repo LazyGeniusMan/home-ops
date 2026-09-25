@@ -40,6 +40,8 @@ jobs:
           - vpa
           - netbird
           - apprise-go-api
+          - otel-operator
+          - otel-collectors
     runs-on: ubuntu-latest
     permissions:
       contents: read
