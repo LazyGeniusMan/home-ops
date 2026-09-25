@@ -23,6 +23,7 @@ spec:
           oci://ghcr.io/flux-iac/
           oci://ghcr.io/stefanprodan/charts/
           oci://quay.io/jetstack/charts/
+          oci://quay.io/cilium/charts/
           oci://registry-1.docker.io/bitnamicharts/
           oci://chartproxy.container-registry.com/
     - apiVersion: admissionregistration.k8s.io/v1
