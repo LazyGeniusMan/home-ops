@@ -21,10 +21,12 @@ A `Gateway` listener only references a Secret in its own namespace, so the
 cert-manager-namespace `wildcard-home-ops-tls` Secret cannot feed this
 Gateway. `configs/base/wildcard-certificate.yaml` mints a duplicate
 `Certificate/wildcard-home-ops` here -- same `ClusterIssuer/letsencrypt`,
-same `dnsNames`, same `secretName: wildcard-home-ops-tls` -- plus its own
-copy of the `cloudflare-api-token` ExternalSecret (same Proton Pass
-remoteRef, `pass://<cluster>/cert-manager/cloudflare-api-token`, Zone:Read
-+ DNS:Edit).
+same `secretName: wildcard-home-ops-tls` -- with SANs `*.<base>` +
+`*.zitadel.<base>` (NetBird login host) + `*.coder.<base>` (coder
+workspaces; wildcards match one label only, so each nested shape needs its
+own SAN) -- plus its own copy of the `cloudflare-api-token` ExternalSecret
+(same Proton Pass remoteRef,
+`pass://<cluster>/cert-manager/cloudflare-api-token`, Zone:Read + DNS:Edit).
 
 ## HTTP->HTTPS
 

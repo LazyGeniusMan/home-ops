@@ -26,7 +26,7 @@ Hand-written HTTPRoutes on the shared `main` Gateway (cross-namespace parentRef;
 
 ## TLS + DNS
 
-Two in-namespace Certificates (cert-manager Secrets are namespace-local): `coder-root` (`coder.home-ops.yansyah.my.id` → `coder-tls`) and `coder-wildcard` (`*.coder.home-ops.yansyah.my.id` → `coder-wildcard-tls`), both via `ClusterIssuer/letsencrypt` DNS-01 (two certs: one wildcard covers a single label only). Issuance uses DNS-01 TXT; A records ride external-dns. Workspace hostnames need an additional `https` Gateway listener with the `coder-wildcard-tls` certificateRef before they terminate correctly.
+Two in-namespace Certificates (cert-manager Secrets are namespace-local): `coder-root` (`coder.home-ops.yansyah.my.id` → `coder-tls`) and `coder-wildcard` (`*.coder.home-ops.yansyah.my.id` → `coder-wildcard-tls`), both via `ClusterIssuer/letsencrypt` DNS-01 (two certs: one wildcard covers a single label only). Issuance uses DNS-01 TXT; A records ride external-dns. Both routes terminate on the existing `https` listener of the shared `main` Gateway — no extra listener: Gateway listeners only reference Secrets in the `gateway-api` namespace, whose wildcard Certificate carries the `*.coder.<base>` SAN.
 
 ## Database
 
