@@ -21,13 +21,12 @@ patches:
       kind: HelmRelease
       name: cilium
   # TA discovery: the otel-gateway TargetAllocator object + namespace
-  # selectors both match `otel-scrape: "true"` (tenant namespace carries it
-  # from the fleet tenants/infra.yaml template). The chart renders one
+  # selectors both match `otel-scrape: "true"` (kube-system carries it
+  # from base/kube-system.yaml — the fleet tenants/infra.yaml template
+  # only stamps per-tenant namespaces). The chart renders one
   # ServiceMonitor per prometheus block (relay/metrics/operator/agent), each
   # with its own `labels` knob, so all four land via this overlay patch —
-  # base values stay untouched. The agent monitor is gated on
-  # `prometheus.enabled` (currently false), so its labels are dormant there
-  # until that knob flips.
+  # base values stay untouched.
   - patch: |
       - op: add
         path: /spec/values/hubble/relay/prometheus/serviceMonitor/labels

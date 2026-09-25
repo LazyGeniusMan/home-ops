@@ -3,7 +3,7 @@
 # Monitors `enabled: true`: monitoring CRDs land first via the prune:false infra-crds tenant (fleet/tenants/infra.yaml gates
 # dependents on Established); the otel gateway TA discovers ServiceMonitors via the `otel-scrape: "true"` label. The cilium chart
 # renders monitoring.coreos.com resources unconditionally (no skipIfMissing guard like ESO
-# external-secrets/controllers/base/externalsecrets.yaml). Telemetry endpoints (`prometheus.enabled`) stay as-is.
+# external-secrets/controllers/base/externalsecrets.yaml). All four telemetry endpoints (`prometheus.enabled`) stay on.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -104,9 +104,10 @@ spec:
         requests:
           cpu: 50m
           memory: 64Mi
-    # Agent ServiceMonitor on (CRDs via infra-crds, discovery via the otel-scrape label); the agent metrics
-    # endpoint (`prometheus.enabled: false`) stays as-is.
+    # Agent ServiceMonitor on (CRDs via infra-crds, discovery via the otel-scrape label); agent metrics
+    # endpoint (`prometheus.enabled: true`, port :9962 hostPort per node, 10s scrape, full metric
+    # list — chart 1.20.2 has no allow-list knob, gateway ClickHouse sizing owns cardinality).
     prometheus:
-      enabled: false
+      enabled: true
       serviceMonitor:
         enabled: true

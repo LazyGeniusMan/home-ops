@@ -20,7 +20,11 @@ pre-flight DaemonSet Ready, then delete it before landing the chart bump.
 - `k8sServiceHost`/`k8sServicePort`: Talos K8s API VIP (placeholder
   `__TALOS_API_VIP__`, 6443) -- not the LB VIP.
 - `gatewayAPI.enabled: true`; Hubble relay on with prometheus metrics;
-  hubble/agent `ServiceMonitor` off.
+  all four `ServiceMonitor`s on (hubble relay/metrics, operator, agent —
+  agent endpoint :9962 hostPort per node) with the `otel-scrape: "true"`
+  label via the dev/prd overlay patches; `kube-system` carries the same
+  label from `controllers/base/kube-system.yaml` (prune-disabled holder
+  for the pre-existing Talos namespace).
 - Single release identity with the Terraform bootstrap Job: release
   `cilium` in `kube-system` (`targetNamespace` + `storageNamespace`).
 
@@ -43,7 +47,7 @@ announces LB IPs on Talos NIC `enp45s0`.
 
 ## Telemetry / monitoring / updates
 
-Chart has no usage-reporting keys. All `serviceMonitor.enabled: false`.
+Chart has no usage-reporting keys. All four `serviceMonitor.enabled: true`.
 Chart bumps: `update-policies/cilium.yaml` (>=1.20.2, marker
 `infra:cilium:tag`) -> PR automation. Ships in the initial tenant wave
 before workloads.

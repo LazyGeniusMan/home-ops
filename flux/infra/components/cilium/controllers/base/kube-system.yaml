@@ -1,0 +1,14 @@
+# kube-system label holder for TA discovery: the pre-existing Talos namespace
+# (never created here — Helm install createNamespace: false) carries
+# `otel-scrape: "true"` so the gateway TargetAllocator namespaceSelector
+# matches cilium/coredns ServiceMonitors; prune-disabled so removal from git
+# never cascades a namespace delete.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kube-system
+  labels:
+    otel-scrape: "true"
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
