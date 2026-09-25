@@ -21,3 +21,16 @@ patches:
     target:
       kind: HorizontalPodAutoscaler
       name: coredns
+  # TA discovery: the otel-gateway TargetAllocator object + namespace
+  # selectors both match `otel-scrape: "true"` (tenant namespace carries it
+  # from the fleet tenants/infra.yaml template). The chart supports
+  # prometheus.monitor.additionalLabels, so the label lands via this overlay
+  # patch — base values stay untouched.
+  - patch: |
+      - op: add
+        path: /spec/values/prometheus/monitor/additionalLabels
+        value:
+          otel-scrape: "true"
+    target:
+      kind: HelmRelease
+      name: coredns
