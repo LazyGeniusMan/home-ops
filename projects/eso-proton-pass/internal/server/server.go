@@ -1,16 +1,6 @@
-// Package server exposes the HTTP surface consumed by the ESO generic
-// webhook provider:
-//
-//	GET  /get?key=pass://vault/item/field  pull path → 200 {"value": "..."}
-//	POST /get {"remoteRef":{"key":"..."}}   pull path (JSON body variant)
-//	HEAD /  | GET /                         validate path → 200
-//	GET  /healthz                            liveness → 200 {"status":"ok"}
-//	GET  /readyz                             readiness → 200 / 503
-//	GET  /metrics                            Prometheus metrics (text)
-//	POST /push                               → 501 (pull-only, not implemented)
-//
-// All pull responses use the {"value": ...} envelope so ESO can extract the
-// secret with result.jsonPath "$.value".
+// Package server exposes the ESO webhook HTTP surface: GET|POST /get
+// (pull → 200 {"value"}), HEAD|GET / (validate), /healthz, /readyz,
+// /metrics, POST /push (→ 501).
 package server
 
 import (

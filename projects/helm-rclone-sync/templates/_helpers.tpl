@@ -1,10 +1,4 @@
-{{/*
-Shared helpers for helm-rclone-sync. All helper names carry the
-"helm-rclone-sync." prefix. Every bit of per-backend env/volume logic lives
-here; templates/cronjob.yaml only includes these helpers, so all 10 sync
-directions (pvc-rwo | pvc-rwx | s3 | proton-drive on either side) render from
-one generic template with no per-direction duplication.
-*/}}
+{{/* Shared helpers (helm-rclone-sync.* prefix). All per-backend env/volume logic lives here; cronjob.yaml only includes helpers, so all 10 directions render from one generic template. */}}
 
 {{/* Full name: <release>-<chart>, honouring nameOverride/fullnameOverride. */}}
 {{- define "helm-rclone-sync.fullname" -}}
@@ -75,11 +69,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 {{- end -}}
 
-{{/*
-Remote name for the RCLONE_CONFIG_<REMOTE>_* prefix. Expects
-dict {endpoint, default}. An explicit remoteName wins (uppercased, validated
-so the resulting env vars are legal); otherwise the side default (SRC/DST).
-*/}}
+{{/* Remote name for RCLONE_CONFIG_<REMOTE>_*. Expects dict {endpoint, default}: explicit remoteName (uppercased, validated) wins, else the side default. */}}
 {{- define "helm-rclone-sync.remoteName" -}}
 {{- $override := .endpoint.remoteName | default "" | toString -}}
 {{- if $override -}}
@@ -93,16 +83,7 @@ so the resulting env vars are legal); otherwise the side default (SRC/DST).
 {{- end -}}
 {{- end -}}
 
-{{/*
-Render one env entry from any of the four value sources.
-Expects dict {name, field, ctx} where ctx names the values location for errors.
-  value:        literal, e.g. {value: "my-bucket/backups"}
-  secretRef:    {name, key} -> valueFrom.secretKeyRef
-  configMapRef: {name, key} -> valueFrom.configMapKeyRef
-  esoRef / existingSecret: {name, key} -> valueFrom.secretKeyRef against the
-    Secret that External Secrets Operator already synced (consume, not create).
-A plain string field is shorthand for {value: <string>}.
-*/}}
+{{/* One env entry from any of the four value sources (value | secretRef | configMapRef | esoRef/existingSecret; plain string = {value}). Expects dict {name, field, ctx}. */}}
 {{- define "helm-rclone-sync.renderEnv" -}}
 {{- $name := .name -}}
 {{- $field := .field -}}
@@ -143,17 +124,7 @@ A plain string field is shorthand for {value: <string>}.
   {{- end -}}
 {{- end -}}
 
-{{/*
-Required credential field: fail fast on absent/null/empty, else render the env entry.
-Expects dict {name, creds, key, ctx, desc}.
-
-Merge note: Helm deep-merges user maps over the chart defaults at the FIELD
-level, so a key the user omits would otherwise be silently inherited from the
-demo defaults. Required keys therefore carry NO usable default — the demo
-credentials they would inherit (e.g. CHANGEME accessKeyId) are called out in
-values.yaml and any key that must truly be absent to prove fail-fast is
-nulled by the caller. hasKey/null/empty checks below reject all three states.
-*/}}
+{{/* Required credential field: fail fast on absent/null/empty, else render. Expects dict {name, creds, key, ctx, desc}. */}}
 {{- define "helm-rclone-sync.renderRequired" -}}
 {{- $ctx := printf "%s: %s" .ctx .desc -}}
 {{- if not (hasKey .creds .key) }}{{ fail (printf "%s is required" $ctx) }}{{ end -}}
@@ -181,27 +152,14 @@ Expects dict {name, creds, key, ctx}.
 {{- end -}}
 {{- end -}}
 
-{{/*
-Uri presence guard. Helm deep-merges a user-supplied uri map over the chart's
-default uri map, so an empty-string/experimental default could otherwise leak
-into a ref-sourced uri (e.g. {value: ""} shadow-merging with {secretRef: …​}).
-This guard fails the render when the uri key is absent or null, forcing each
-fixture / invocation to spell the uri it means.
-Expects dict {endpoint, role}.
-*/}}
+{{/* Uri presence guard: fails when the uri key is absent or null. Expects dict {endpoint, role}. */}}
 {{- define "helm-rclone-sync.requireUri" -}}
 {{- if not (hasKey .endpoint "uri") }}{{ fail (printf "%s.uri is required: set the claim name (pvc-*), bucket/path (s3), or path (proton-drive) via one of value, secretRef, configMapRef, esoRef" .role) }}{{ end -}}
 {{- $uri := .endpoint.uri -}}
 {{- if kindIs "invalid" $uri }}{{ fail (printf "%s.uri is required (got null): set the claim name (pvc-*), bucket/path (s3), or path (proton-drive) via one of value, secretRef, configMapRef, esoRef" .role) }}{{ end -}}
 {{- end -}}
 
-{{/*
-True ("1") when a uri uses a ref source (needs the <PREFIX>_PATH env
-indirection). Helm deep-merges the chart default uri map ({value: …​}) with a
-user-supplied ref map ({secretRef: …​}), yielding BOTH keys present; the
-explicitly-set ref key must win, so any of secretRef/configMapRef/esoRef/
-existingSecret present means "ref".
-*/}}
+{{/* "1" when a uri uses a ref source (needs <PREFIX>_PATH indirection): any ref key present means "ref" (explicit ref wins over the deep-merged default value key). */}}
 {{- define "helm-rclone-sync.uriIsRef" -}}
 {{- $uri := .uri -}}
 {{- if kindIs "map" $uri -}}
@@ -218,14 +176,7 @@ existingSecret present means "ref".
 {{- end -}}
 {{- end -}}
 
-{{/*
-Existing claim name for a pvc-* endpoint. claimName cannot use valueFrom, so
-ref sources fail fast here with a clear message. Expects dict {endpoint, role}.
-
-Merge note: a ref key (secretRef/…) anywhere in the merged uri map means the
-caller asked for a ref — the deep-merged default {value: …​} key must NOT
-shadow it (Helm merges maps at field level, so both keys can be present).
-*/}}
+{{/* Existing claim name for a pvc-* endpoint (claimName cannot use valueFrom: ref sources fail fast). Expects dict {endpoint, role}. */}}
 {{- define "helm-rclone-sync.claimName" -}}
 {{- $ctx := printf "%s.uri (PVC claim name)" .role -}}
 {{- $uri := .endpoint.uri -}}
@@ -246,12 +197,7 @@ shadow it (Helm merges maps at field level, so both keys can be present).
 {{- end -}}
 {{- end -}}
 
-{{/*
-Rclone path argument for one endpoint. pvc-* endpoints resolve to their mount
-path; remotes resolve to REMOTE:path, or REMOTE:$(<PREFIX>_PATH) when the uri
-comes from a ref source (Kubernetes $(VAR) expansion fills it in at runtime).
-Expects dict {endpoint, role, prefix, slot} where slot is "src"/"dst".
-*/}}
+{{/* Rclone path arg: pvc-* → mount path; remotes → REMOTE:path (or REMOTE:$(<PREFIX>_PATH) for ref uris). Expects dict {endpoint, role, prefix, slot}. */}}
 {{- define "helm-rclone-sync.endpointArg" -}}
 {{- $ep := .endpoint -}}
 {{- include "helm-rclone-sync.validateType" (dict "type" $ep.type "role" .role) -}}
@@ -268,11 +214,7 @@ Expects dict {endpoint, role, prefix, slot} where slot is "src"/"dst".
 {{- end -}}
 {{- end -}}
 
-{{/*
-Full env list for one endpoint (remote type vars via the four value sources,
-plus <PREFIX>_PATH when the remote uri itself is a ref). pvc-* endpoints emit
-nothing. Expects dict {endpoint, role, prefix}.
-*/}}
+{{/* Full env list for one endpoint (pvc-* emits nothing). Expects dict {endpoint, role, prefix}. */}}
 {{- define "helm-rclone-sync.endpointEnv" -}}
 {{- $ep := .endpoint -}}
 {{- $role := .role -}}
@@ -325,11 +267,7 @@ nothing. Expects dict {endpoint, role, prefix}.
 {{- end -}}
 {{- end -}}
 
-{{/*
-One volumeMount item for a pvc-* endpoint, else "". The source mount is
-readOnly (sync/copy never writes to the source); the destination mount is
-writable. Expects dict {endpoint, role, vol, slot, readOnly}.
-*/}}
+{{/* One volumeMount for a pvc-* endpoint, else "". Expects dict {endpoint, role, vol, slot, readOnly}. */}}
 {{- define "helm-rclone-sync.endpointVolumeMount" -}}
 {{- $ep := .endpoint -}}
 {{- include "helm-rclone-sync.validateType" (dict "type" $ep.type "role" .role) -}}
@@ -355,15 +293,7 @@ volumes:
 {{- end -}}
 {{- end -}}
 
-{{/*
-Merged pod `affinity:` block (YAML, or "" when neither source is set).
-User-supplied .Values.affinity is the base; when .Values.coLocateWith selects
-the owning workload's pods ({matchLabels, matchExpressions, optional
-topologyKey, optional namespaces}), a required podAffinity term (topologyKey
-kubernetes.io/hostname by default) is appended to any user-supplied
-requiredDuringScheduling terms — merged, never replacing them. Expects the
-root context.
-*/}}
+{{/* Merged pod affinity: user .Values.affinity base + required coLocateWith podAffinity term appended (merged, never replaced). Expects root context. */}}
 {{- define "helm-rclone-sync.affinity" -}}
 {{- $user := .Values.affinity | default dict -}}
 {{- $sel := .Values.coLocateWith | default dict -}}

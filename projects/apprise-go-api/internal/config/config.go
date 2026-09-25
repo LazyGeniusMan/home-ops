@@ -1,12 +1,5 @@
-// Package config loads the apprise-go-api runtime configuration from the
-// environment. The service is stateless-only: APPRISE_STATELESS_STORAGE is
-// always "no", there is no persistent storage, and stateful-only knobs are
-// deliberately absent.
-//
-// Secrets are never taken from the environment directly: sensitive values
-// are read from the file whose path is given in the corresponding *_FILE
-// variable (suitable for Kubernetes projected volumes, ESO secret mounts,
-// etc.).
+// Package config loads the runtime configuration from the environment
+// (stateless-only; secrets via *_FILE, never env values directly).
 package config
 
 import (

@@ -1,7 +1,5 @@
-// Payload decoding for POST /notify: content-type detection, JSON and form
-// parsing, ':' remap application, and attachment staging. serveNotify
-// (handler.go) calls decodePayload, then validates the decoded
-// notifyRequest (validation.go) before sending.
+// Payload decoding for POST /notify: content-type detection, JSON/form
+// parsing, ':' remap, attachment staging.
 package server
 
 import (
@@ -125,11 +123,9 @@ func decodeJSONPayload(r *http.Request, maxBytes int64) (*notifyRequest, bool, m
 	return out, true, doc, nil
 }
 
-// decodeFormPayload parses urlencoded and multipart forms. Django semantics:
-// every value arrives as a string list; first value wins for scalars; the
-// winning attach alias collects all its values (blanks dropped). Unknown or
-// empty forms yield nil (→ 400 "Bad FORM Payload"). FORM urls over
-// urlsMaxLen chars are dropped before validation (→ 204 downstream).
+// decodeFormPayload parses urlencoded and multipart forms: first value
+// wins for scalars; the winning attach alias keeps all values. Unknown or
+// empty forms yield nil (→ 400); over-long FORM urls are dropped (→ 204).
 func decodeFormPayload(r *http.Request) (*notifyRequest, bool, map[string]any, error) {
 	ct := r.Header.Get("Content-Type")
 	if strings.Contains(strings.ToLower(ct), "multipart/form-data") {
@@ -281,12 +277,9 @@ func rawFieldsForRemap(payload *notifyRequest, rawFields map[string]any, isJSON 
 	return map[string]any{}
 }
 
-// syncRemappedFields writes remapped values back into the decoded request so
-// Apply mutations are observable downstream (validation, send). Keys absent
-// from fields were deleted by rules (or never present) and clear the
-// corresponding struct field. Attachment aliases resolve with the same
-// attach > attachment > attachments priority as decoding; uploaded file parts
-// (FileCount) still count as attachments.
+// syncRemappedFields writes remapped values back into the decoded request.
+// Absent keys clear the struct field; attach aliases keep decode priority;
+// uploaded file parts still count as attachments.
 func syncRemappedFields(payload *notifyRequest, fields map[string]any, isJSON bool) {
 	if payload == nil {
 		return

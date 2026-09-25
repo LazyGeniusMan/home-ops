@@ -9,16 +9,8 @@ import (
 	"strings"
 )
 
-// BodyLimit caps the request body via http.MaxBytesReader before parsing,
-// enforcing APPRISE_UPLOAD_MAX_MEMORY_SIZE. Over-cap reads fail with a
-// *http.MaxBytesError, which BodyTooLarge maps to the 431 StatusError.
-// Call at the top of the notify handler; pass the same cap to
-// ParseMultipart so the spill-to-disk budget matches. Bodies are not
-// required when an attachment is present — call HasAttachment on the
-// result to apply the body-required rule.
-//
-// The returned body is the (possibly capped) request body for downstream
-// JSON decoding.
+// BodyLimit caps the request body (over-cap → 431). Call at the top of the
+// notify handler; bodies are not required when attachments are present.
 func BodyLimit(w http.ResponseWriter, r *http.Request, maxBytes int64) io.Reader {
 	if maxBytes <= 0 {
 		return r.Body
@@ -53,17 +45,9 @@ func MapBodyError(err error, maxBytes int64) error {
 	return err
 }
 
-// ParseMultipart parses a multipart form under the memory budget,
-// streaming large parts to tempfile: maxMemory bytes stay in RAM, the rest
-// spills to os.TempDir (Go runtime), not the attach dir. Staging under the
-// per-file APPRISE_ATTACH_SIZE cap happens separately in stageStream, so a
-// 200MB attach dir and a 3MB memory budget coexist: ParseMultipartForm
-// spills to disk, and only the staged copy lands in the attach dir. A
-// *http.MaxBytesError from an over-cap body maps to the 431 StatusError.
-//
-// Returned Incomings preserve arrival order across all field names,
-// mirroring Python's request.FILES iteration. Spill files are removed by
-// r.MultipartForm.RemoveAll, which the caller defers.
+// ParseMultipart parses a multipart form: maxMemory bytes stay in RAM, the
+// rest spills to disk. Incomings preserve arrival order; the caller defers
+// r.MultipartForm.RemoveAll.
 func ParseMultipart(r *http.Request, maxMemoryBytes int64) ([]Incoming, error) {
 	if maxMemoryBytes <= 0 {
 		return nil, BadAttachment("max memory bytes must be positive, got %d", maxMemoryBytes)

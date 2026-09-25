@@ -1,21 +1,5 @@
-{{- /*
-One generic CronJob for every sync direction. The shape of .Values.source and
-.Values.destination (pvc-rwo | pvc-rwx | s3 | proton-drive on either side)
-drives all rendering through the helm-rclone-sync.* helpers; there are no
-per-direction manifests.
-
-Env-only contract: the ONLY rclone configuration mechanism is
-RCLONE_CONFIG_* environment variables, and RCLONE_CONFIG=/dev/null guarantees
-no config file is read or auto-created. This template must never gain an
-rclone.conf ConfigMap/Secret, volume, mount, or --config flag.
-*/ -}}
-{{- /*
-Null (or absent) endpoints must fail the render, so there is no usable
-bare-defaults render: every invocation supplies full source/destination maps.
-The guards below use hasKey on .Values (not `required`, which only rejects
-missing/null — a chart default of {} would slip through) so a map-typed
-default can never silently satisfy them.
-*/ -}}
+{{- /* One generic CronJob for every sync direction (source/destination type drives rendering; no per-direction manifests). Env-only: RCLONE_CONFIG_* vars + RCLONE_CONFIG=/dev/null — never an rclone.conf ConfigMap/Secret/volume/mount/--config flag. */ -}}
+{{- /* Absent endpoints fail the render (hasKey guards; no usable bare-defaults render). */ -}}
 {{- if not (hasKey .Values "source") }}{{ fail "source is required: set source.type/uri (destination likewise)" }}{{ end -}}
 {{- if not (hasKey .Values "destination") }}{{ fail "destination is required: set destination.type/uri (source likewise)" }}{{ end -}}
 {{- $src := .Values.source -}}
@@ -88,10 +72,8 @@ spec:
                 - {{ $srcArg | quote }}
                 - {{ $dstArg | quote }}
               env:
-                # Guard: no config file is ever read or auto-created; remotes
-                # come exclusively from RCLONE_CONFIG_* variables below.
-                # (RCLONE_CONFIG overrides the config file path entirely, so
-                # pointing it at /dev/null disables the file.)
+                # Guard: remotes come only from RCLONE_CONFIG_* vars below;
+                # RCLONE_CONFIG=/dev/null disables the config file.
                 - name: RCLONE_CONFIG
                   value: /dev/null
                 {{- $srcEnv := include "helm-rclone-sync.endpointEnv" (dict "endpoint" $src "role" "source" "prefix" "SRC") | trim }}

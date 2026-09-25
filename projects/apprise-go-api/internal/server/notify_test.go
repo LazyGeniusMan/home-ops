@@ -1,8 +1,5 @@
-// Table + golden tests for POST /notify, mirroring Python
-// test_stateless_notify.py. The sender is a fake: upstream delivery is never
-// attempted in these tests — the fake records the validated request and
-// returns scripted outcomes so status codes and response shapes are asserted
-// exactly.
+// Table + golden tests for POST /notify. The sender is a fake returning
+// scripted outcomes; upstream delivery is never attempted.
 package server
 
 import (

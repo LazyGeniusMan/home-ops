@@ -1,13 +1,5 @@
-// Package provider implements the ESO webhook provider pull/push contract
-// backed by Proton Pass (pass-cli).
-//
-// ESO generic webhook provider contract (see README.md):
-//
-//   - Pull (GetSecret): GET /get?key=pass://vault/item/field (also POST with a
-//     JSON body {"remoteRef": {"key": ...}}) → 200 {"value": "<secret>"}.
-//     Unknown keys → 404 so ESO applies the ExternalSecret deletionPolicy.
-//   - Validate: HEAD / (also GET /) → 200.
-//   - Push: not implemented; POST /push → 501 (pull-only provider).
+// Package provider implements the ESO webhook pull/push contract backed by
+// Proton Pass: pull → 200 {"value"}, unknown keys → 404, push → 501.
 package provider
 
 import (
@@ -58,12 +50,8 @@ func New(resolver Resolver, logger *slog.Logger) *Provider {
 	return &Provider{resolver: resolver, logger: logger}
 }
 
-// ValidateKey parses and validates a remote key. Expected form:
-//
-//	pass://{vault}/{item}/{field}
-//
-// Failures report only the expected shape; the key never enters error
-// strings.
+// ValidateKey validates pass://{vault}/{item}/{field}; the key never
+// enters error strings.
 func ValidateKey(key string) (vault, item, field string, err error) {
 	const prefix = "pass://"
 	if !strings.HasPrefix(key, prefix) {

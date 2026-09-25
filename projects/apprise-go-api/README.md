@@ -1,12 +1,6 @@
 # apprise-go-api
 
-Stateless-only Go port of Python `apprise-api`, backed by
-[`apprise-go`](https://github.com/unraid/apprise-go).
-
-Upstream references (read-only): `/tmp/home-ops-docs/apprise-go-docs`
-(library contract), `/tmp/home-ops-docs/apprise-api-py-docs` (Python API
-parity), `/tmp/home-ops-docs/apprise-docs` (notification-schema syntax).
-
+Stateless-only Go port of Python `apprise-api`, backed by `apprise-go`.
 Send notifications to dozens of services with a single HTTP call — no
 accounts, no database, no persistent state. Every request carries its own
 target URLs; nothing is stored between requests.
@@ -85,13 +79,11 @@ Both paths behave identically (POST-only; any other method → `405` with
 | `tag` / `tags` | string or list | `?tag=` / `?tags=` fallback | `tag` wins over `tags`. See tag grammar below |
 | `attach` / `attachment` / `attachments` | string, list, or dict | — | `attach` wins; see [Attachments](#attachments) |
 
-Tag grammar (string form): `,` and `|` separate **OR** groups;
-whitespace, `&`, `+` separate **AND** tokens within a group. Tokens are
-`[priority:]name[:retry]`, validated against `^[a-z0-9\s|, _:+&-]+$`
-(`400 "Unsupported characters found in tag definition"` on mismatch).
-List-form tags skip grammar validation — each entry becomes its own
-single-token OR group. The special token `all` matches every target; a
-target URL's own `?tag=` query values count as its server tags.
+Tag grammar (string form): `,`/`|` separate **OR** groups; whitespace,
+`&`, `+` separate **AND** tokens. Tokens are `[priority:]name[:retry]`
+(`400` on mismatch). List-form tags skip validation — one single-token OR
+group each. `all` matches every target; a URL's own `?tag=` values count
+as its server tags.
 
 #### Headers
 
@@ -132,11 +124,9 @@ Health plus attach/config-lock flags. Always JSON.
 }
 ```
 
-`attach_dir` resolves `APPRISE_ATTACH_DIR`, defaulting to the OS temp dir.
-A writability probe (create + remove a temp file) is TTL-cached (30s, shared
-with `/readyz` and `/metrics`); failure adds
-`"attach_permission_issue": "ATTACH_PERMISSION_ISSUE"` and sets
-`can_write_attach: false`. Non-GET → `405`.
+`attach_dir` resolves `APPRISE_ATTACH_DIR` (default OS temp dir).
+Writability probe is TTL-cached (30s, shared with `/readyz`/`/metrics`);
+failure sets `can_write_attach: false` + `attach_permission_issue`. Non-GET → `405`.
 
 ### `GET /details`
 
@@ -156,12 +146,9 @@ stateless route table. Always JSON. Non-GET → `405`.
 
 ### `GET /healthz` and `GET /readyz`
 
-`GET /healthz` is the liveness probe: static `{"status":"ok"}`, zero
-downstream calls, under 50ms. `GET /readyz` is the readiness probe: it
-checks attach-dir writability (TTL-cached) and returns `{"status":"ok"}`,
-or `503 {"status":"not_ready","failing":"attach-dir"}` when the staging
-dir is not writable. `/details` stays a domain endpoint (service catalog),
-never a probe.
+`GET /healthz`: static `{"status":"ok"}`, zero downstream calls.
+`GET /readyz`: attach-dir writability (TTL-cached) → `{"status":"ok"}` or
+`503 {"status":"not_ready","failing":"attach-dir"}`.
 
 K8s probes (single listener on `:8080`):
 
@@ -192,14 +179,10 @@ apprise_go_api_http_request_duration_seconds_bucket{method="GET",route="/healthz
 
 Every request is observed as `apprise_go_api_http_requests_total` /
 `apprise_go_api_http_request_duration_seconds_bucket` by
-`method`/`route`/`status`, where `route` is the matched mux pattern (never
-the raw path), plus one slog line (`method`, `route`, `status`,
-`duration`). The version comes from `internal/version.Version`
-(`dev` for local builds; release images inject it with
-`-X .../internal/version.Version=$VERSION` via `ARG VERSION` in the
-Dockerfile, e.g. `docker build --build-arg VERSION=1.2.3`). The attach
-writability probe (`MkdirAll` + `CreateTemp`) is TTL-cached (30s) and shared
-by `/status`, `/readyz`, and `/metrics` — never per scrape.
+`method`/`route`/`status` (`route` = matched mux pattern, never raw path),
+plus one slog line. Version is `internal/version.Version` (`dev` locally;
+release images inject via `ARG VERSION` ldflags). The attach probe is
+TTL-cached (30s), shared by `/status`, `/readyz`, `/metrics`.
 
 ## Attachments
 
@@ -252,20 +235,16 @@ plain hostname/IP, or a wildcard (`*` prefix match, `?` single char).
 | `APPRISE_ATTACH_ALLOW_URL` | `*` (allow all) | Empty means `*` |
 | `APPRISE_ATTACH_REJECT_URL` | `127.0.* localhost*` | Empty disables denials |
 
-The reserved token **`internal`** (opt-in, never default) resolves each
-attachment host via DNS and blocks loopback, private, link-local,
-reserved, unspecified, multicast, and CGN (`100.64.0.0/10`) addresses —
-including ones reached via DNS or alternate IP encodings
-(decimal/octal/hex/short IPv4 forms). A host that cannot be resolved is
-treated as internal (blocked), since an unclassifiable destination cannot
-be proven safe.
+The reserved token **`internal`** (opt-in, never default) DNS-resolves each
+host and blocks loopback, private, link-local, reserved, unspecified,
+multicast, and CGN addresses (incl. alternate IP encodings). Unresolvable
+hosts are blocked.
 
 ### Zero-persistence guarantee
 
-Staged files live under `APPRISE_ATTACH_DIR` (or `os.TempDir()` when
-unset) as `apprise-attach-*` temp files. They are removed via a deferred
-`CleanupAll` at request end — never GC-dependent — and partial staging
-failures clean up already-staged files before returning the error.
+Staged files live under `APPRISE_ATTACH_DIR` (default `os.TempDir()`) as
+`apprise-attach-*` temp files, removed via deferred `CleanupAll` at
+request end; partial failures clean up already-staged files first.
 
 ## Webhooks
 
@@ -287,30 +266,14 @@ Mappable targets (exact, case-sensitive): `format`, `type`, `title`,
 | Constant | `?:type=info` | Target assigned verbatim when the source names an expected field or a present payload key |
 
 Sources may be nested paths with dot-walk and `[N]` array indexing,
-bounded by `APPRISE_WEBHOOK_MAPPING_MAX_DEPTH` (default `5`; each key
-lookup and each index counts as one step; over-depth → `400`).
-Nested sources with an empty or non-mappable target are silent no-ops.
+bounded by `APPRISE_WEBHOOK_MAPPING_MAX_DEPTH` (default `5`; over-depth →
+`400`). Nested sources with an empty/non-mappable target are silent no-ops.
 
-Documented examples:
+Example (flat rename `{subject, payload}` → `{title, body}`):
 
 ```sh
-# 1. Flat rename: third-party {subject, payload} -> {title, body}
 curl -X POST 'http://localhost:8080/notify/?:subject=title&:payload=body' \
   -d 'urls=json://localhost' -d 'subject=Deploy' -d 'payload=Done'
-
-# 2. Nested source: {event: {title: ...}} -> title
-curl -X POST 'http://localhost:8080/notify/?:event.title=title' \
-  -H 'Content-Type: application/json' \
-  -d '{"urls":"json://localhost","event":{"title":"Alert"}}'
-
-# 3. Array source: first item's text -> body
-curl -X POST 'http://localhost:8080/notify/?:items[0].text=body' \
-  -H 'Content-Type: application/json' \
-  -d '{"urls":"json://localhost","items":[{"text":"Hello"}]}'
-
-# 4. Constant + delete: pin type, drop noisy key
-curl -X POST 'http://localhost:8080/notify/?:type=info&:debug=' \
-  -d 'urls=json://localhost' -d 'body=Hi' -d 'debug=verbose'
 ```
 
 ### Outbound result hook (`APPRISE_WEBHOOK_URL`)
@@ -358,7 +321,7 @@ accepted as a fallback.
 | `APPRISE_MAX_ATTACHMENTS` | `6` | Per-request cap; `0` = unlimited |
 | `APPRISE_UPLOAD_MAX_MEMORY_SIZE` | `3` | JSON/form body budget in MiB (negative values use their magnitude); oversize → `431` |
 | `APPRISE_ATTACH_ALLOW_URL` | `*` | SSRF allowlist (empty = `*`) |
-| `APPRISE_ATTACH_REJECT_URL` | — (empty disables denials) | Python out-of-box `127.0.* localhost*` is available as `DefaultAttachRejectURL` but is not applied at load |
+| `APPRISE_ATTACH_REJECT_URL` | — (empty disables denials) | `127.0.* localhost*` available as `DefaultAttachRejectURL`, not applied at load |
 | `APPRISE_WEBHOOK_MAPPING_MAX_DEPTH` | `5` | `:` remap depth cap (must be positive) |
 | `APPRISE_WEBHOOK_URL` | — | Outbound result callback (empty = disabled) |
 | `APPRISE_PLUGIN_PATHS` | — | **Documented no-op**: accepted but unsupported — Go has no dynamic plugin loading |
@@ -368,12 +331,9 @@ accepted as a fallback.
 | `APPRISE_INTERPRET_EMOJIS` | `false` | Emoji shortcode expansion |
 | `APPRISE_HTTP_REDIRECTS` | `true` | Follow HTTP redirects |
 
-**Explicitly absent (stateful-only):** upstream persistence knobs —
-per-key config storage, config-cache/database settings, and any other
-`APPRISE_STATEFUL_*` / storage variables from Python apprise-api — are
-not read. If you set `APPRISE_STATEFUL_MODE` to anything but `disabled`
-or `APPRISE_STATELESS_STORAGE` to anything but `no`, the service refuses
-to start rather than silently ignoring them.
+**Explicitly absent (stateful-only):** upstream persistence knobs are
+not read; non-`disabled` `APPRISE_STATEFUL_MODE` or non-`no`
+`APPRISE_STATELESS_STORAGE` fails startup.
 
 ## Error / status-code table
 
@@ -381,11 +341,11 @@ to start rather than silently ignoring them.
 |---|---|---|
 | `200` | All targets accepted | Body negotiated (JSON / HTML / text) |
 | `204` | No valid target URLs survived validation/policy | `"There was no valid URLs provided to notify"` (upstream wording preserved) |
-| `400` | Invalid JSON (`"Invalid JSON Payload provided"`); empty/unknown form (`"Bad FORM Payload provided"`); remap failure (`"Payload field mapping failed"`); bad tag (`"Unsupported characters found in tag definition"`); bad attachment/SSRF/oversize file (`"Bad Attachment"`); minimum-requirements failure (`"Payload lacks minimum requirements"`); bad format (`"An invalid body input format was specified"`); bad recursion (`"An invalid recursion value was specified"`) | Minimum-requirements check bundles body/attach + type validation into one message, per `views.py:2016`. Bundled type defaulting (`info`) also matches upstream |
+| `400` | Invalid JSON; empty/unknown form; remap failure; bad tag; bad attachment/SSRF/oversize file; minimum-requirements failure; bad format; bad recursion | Bodies use the fixed upstream literals |
 | `405` | Non-POST on `/notify{,/}`; non-GET on `/status`, `/details` | `Allow` header set |
-| `406` | `X-Apprise-Recursion-Count` over `APPRISE_RECURSION_MAX` (`"The recursion limit has been reached"`) | **406, not 405** — preserves the upstream quirk |
-| `424` | At least one target failed delivery (`"One or more notifications could not be sent"` + cause) | Partial failures surface as errors, not partial 200s |
-| `431` | JSON body over `APPRISE_UPLOAD_MAX_MEMORY_SIZE` (`"JSON Payload provided is to large"`) | Upstream typo (`to large`) preserved verbatim |
+| `406` | Recursion count over max | Upstream quirk (406, not 405) |
+| `424` | At least one target failed delivery | Partial failures surface as errors, not partial 200s |
+| `431` | JSON body over `APPRISE_UPLOAD_MAX_MEMORY_SIZE` | Upstream `to large` typo preserved verbatim |
 | `404` | Any other path (keyed `/notify/{KEY}`, `/add/`, `/cfg/`, …) | Stateless-only: no per-key storage routes exist |
 
 ## Layout
@@ -416,27 +376,26 @@ Sample PromQL: `sum by (route)
 (rate(apprise_go_api_http_requests_total[5m]))`,
 `apprise_go_api_build_info`.
 
-CI (`.github/workflows/apprise-go-api.yml`) runs vet + build + test +
-golangci-lint on pushes to `main` touching `projects/apprise-go-api/**`,
-and publishes `dev` / `stable` image tags (`apprise-go-api-v<semver>`)
-to GHCR. The Dockerfile serves on port `8080` as distroless `nonroot`
-with no volumes. `ARG VERSION` is wired into
-`-ldflags "-X .../internal/version.Version=$VERSION"` and surfaces via
-`apprise_go_api_build_info{version="..."}` (no separate `/version`
-endpoint).
+Image `ghcr.io/lazygeniusman/home-ops/projects/apprise-go-api`: `main`
+push → `:dev` (+ `:dev-<sha>`), tag `apprise-go-api-v*` → `:stable` +
+version; no `:latest`. Consumed in Flux via
+`{"$imagepolicy": "infra:apprise-go-api:tag"}` in
+`flux/infra/components/apprise-go-api/controllers/base/apprise-go-api.yaml`
+(policy `flux/infra/update-policies/apprise-go-api.yaml`). Distroless
+`nonroot` on `:8080`, no volumes; `ARG VERSION` surfaces via
+`apprise_go_api_build_info{version="..."}` (no `/version` endpoint).
 
 ## Divergence from upstream
 
-Intentional differences from Python `caronc/apprise-api`. New
-differences must be recorded here.
+Intentional differences from Python `apprise-api`:
 
-| Area | Upstream behavior | This project behavior | Reason |
-|---|---|---|---|
-| Scope | Stateful keyed routes (`/notify/{KEY}`, `/cfg/`, …) with persistent storage | Stateless-only; those paths are `404`, storage knobs rejected at startup | No persistent storage in this deployment model |
-| Recursion limit | `406` on recursion over max (quirk: not `405`) | Same `406` preserved | Bug-for-bug parity |
-| Oversize body message | `"JSON Payload provided is to large"` (typo) | Same message preserved verbatim | Bug-for-bug parity |
-| Response logs | Django `LogCapture` records from apprise internals | Records synthesized server-side as `[level, date, message]` | apprise-go exposes no log-capture hook |
-| Tag matching | Servers carry configured tags; full `is_exclusive_match` | Stateless servers carry no tags; `all` matches everything, other tokens match only URL `?tag=` values | Stateless URLs have no configured tags by construction |
-| Form `urls` length | `URLS_MAX_LEN` (1024) form cap | Same 1024-char cap; JSON path bypasses it | Parity |
-| `APPRISE_PLUGIN_PATHS` | Loads custom Python plugins at runtime | Accepted, documented no-op | Go has no dynamic plugin loading |
-| Outbound webhook | `send_webhook` via requests with full template-arg handling | Best-effort POST of `{source, status, output}`; failures logged only | Keep notify path dependency-free (stdlib only) |
+| Area | This project behavior |
+|---|---|
+| Scope | Stateless-only; stateful paths are `404`, storage knobs rejected at startup |
+| Recursion limit | Same `406` preserved (upstream quirk) |
+| Oversize body message | Same `to large` typo preserved verbatim |
+| Response logs | Records synthesized server-side as `[level, date, message]` |
+| Tag matching | `all` matches everything; other tokens match only URL `?tag=` values |
+| Form `urls` length | Same 1024-char cap; JSON path bypasses it |
+| `APPRISE_PLUGIN_PATHS` | Accepted no-op (no dynamic plugin loading in Go) |
+| Outbound webhook | Best-effort POST of `{source, status, output}`; failures logged only |

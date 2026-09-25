@@ -1,16 +1,6 @@
-// Health and readiness probes plus the build version endpoint.
-//
-// GET /healthz is the liveness probe: it returns {"status":"ok"} with zero
-// downstream calls (no NetBird API traffic).
-//
-// GET /readyz probes NetBird API reachability with a bounded Records call
-// and returns {"status":"ok"} when reachable, or 503
-// {"status":"not_ready","failing":"netbird-api"} when not. The underlying
-// error is logged server-side at debug level and never exposed, so probe
-// responses carry no traces, tokens, or paths.
-//
-// GET /version reports the ldflags-injected release version
-// (internal/version.Version; "dev" for local builds).
+// Health probes plus the build version endpoint. /healthz: static ok;
+// /readyz: bounded NetBird API probe (503 when unreachable); /version:
+// ldflags-injected release version.
 package server
 
 import (

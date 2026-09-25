@@ -1,15 +1,5 @@
-// Package config loads the provider configuration from the environment.
-//
-// All knobs are environment variables so the container can be configured
-// without rebuilding the image:
-//
-//	PROTON_PASS_PAT_FILE     (required) path to a file whose content is the
-//	                         Proton Pass personal access token. The token is
-//	                         never taken from an env value directly.
-//	LISTEN_ADDR              (default ":8080") HTTP listen address.
-//	PASS_CLI_BIN             (default "pass-cli") path to the pass-cli binary.
-//	PROTON_PASS_SESSION_DIR  (default per-OS pass-cli default) session dir.
-//	PASS_CLI_TIMEOUT         (default "60s") per-invocation timeout.
+// Package config loads the provider configuration from the environment
+// (PAT from PROTON_PASS_PAT_FILE, never an env value directly).
 package config
 
 import (

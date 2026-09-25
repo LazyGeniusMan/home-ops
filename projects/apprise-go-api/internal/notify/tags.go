@@ -1,24 +1,6 @@
-// Package notify tag routing: parse and match stateless tag filters.
-//
-// The grammar mirrors Python apprise-api parse_tag_expression
-// (views.py:88) and upstream is_exclusive_match (apprise 1.13.1,
-// utils/logic.py), verified empirically against the pinned library:
-//
-//   - ',' and '|' separate OR groups; whitespace, '&', '+' separate AND
-//     tokens within a group.
-//   - Tokens use [priority:]name[:retry]; validation is
-//     ^[a-z0-9][a-z0-9_-]*$ per component (case-insensitive).
-//   - A nil filter means "no filter": every target is notified.
-//   - The filter token "all" matches every server (match_all shortcut);
-//     an empty filter never matches (returns false unless the server is
-//     also untagged — which cannot happen here since our servers carry
-//     no tags, so empty means no match).
-//
-// Stateless servers arrive with no configured tags (Python instantiate()
-// sets results["tag"] = set(parse_list(tag)) with tag=None for stateless
-// URLs), so matching reduces to: filter token "all" (case-insensitive,
-// without priority prefix) matches; any other token does not. A URL's own
-// ?tag= query parameter counts as server tags (parsed the same way).
+// Package notify tag routing: parse and match stateless tag filters
+// (','/'|' OR groups; whitespace/'&'/'+' AND tokens; tokens use
+// [priority:]name[:retry]; nil matches everything; "?tag=" counts).
 package notify
 
 import (
@@ -87,10 +69,7 @@ func (e *TagError) Error() string {
 }
 
 // MatchTags reports whether parsed filter groups match server tags.
-// Nil groups mean no filter (match everything). Otherwise each OR group is
-// tried in order: a group matches when every token matches per
-// matchTagToken. This mirrors is_exclusive_match with match_always='always'
-// folded into the "all" shortcut below.
+// Nil groups mean no filter (match everything).
 func MatchTags(groups []TagGroup, serverTags map[string]struct{}) bool {
 	if groups == nil {
 		return true
@@ -116,12 +95,9 @@ func matchTagGroup(group TagGroup, serverTags map[string]struct{}) bool {
 	return true
 }
 
-// matchTagToken mirrors _token_matches_data (verified empirically): the
-// token "all" (match_all, case-insensitive, no priority prefix) matches
-// every server. A name-only token matches any server tag with the same
-// name regardless of stored priority. A priority-prefixed token matches
-// AppriseTag server entries only on exact name+priority; plain-string
-// server entries fall back to name-only matching.
+// matchTagToken: "all" (no priority prefix) matches every server;
+// name-only tokens match by name; priority-prefixed tokens need exact
+// name+priority on tagged entries.
 func matchTagToken(token string, serverTags map[string]struct{}) bool {
 	name, priority, hasPriority := splitTagToken(token)
 	if !hasPriority && strings.EqualFold(name, "all") {

@@ -1,15 +1,4 @@
-// Table tests for the notify error contract: sentinel/wrapped errors map to
-// HTTP codes via statusCodeOf, with a 500 fallback for anything unmapped.
-//
-// Covered mapping (see errors.go):
-//   - validation sentinels → 400 (tag, format, recursion, remap)
-//   - errRecursionLimit → 406 (upstream 406 quirk, not 405)
-//   - errPayloadTooLarge → 431 (upstream "to large" wording)
-//   - notify.ErrNoTargets → 204 (zero surviving targets)
-//   - attach *StatusError (incl. %w-wrapped) → its Code (400 bad attachment,
-//     431 body overflow)
-//   - attach *SendFailure (incl. %w-wrapped) → 424
-//   - anything else (incl. wrapped delivery failures) → 500
+// Table tests for the notify error contract (see errors.go).
 package server
 
 import (

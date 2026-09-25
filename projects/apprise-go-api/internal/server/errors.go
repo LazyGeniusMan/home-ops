@@ -1,28 +1,6 @@
-// Error contract for the notify API.
-//
-// Mapping (statusCodeOf mirrors the attach.StatusCodeOf shape: typed match
-// first, 500 fallback):
-//
-//	validation sentinels (bad tag/format/recursion, remap failure) -> 400 Bad Request
-//	errRecursionLimit                                  -> 406 Not Acceptable (upstream quirk)
-//	errPayloadTooLarge                                 -> 431 (upstream "to large" wording)
-//	notify.ErrNoTargets                                -> 204 No Content (zero surviving targets)
-//	attach *StatusError / *SendFailure (via errors.As) -> their StatusCode (400/431/424)
-//	delivery failures (any other send error)           -> 424 (surfaced by the caller, never statusCodeOf)
-//	anything unmapped                                  -> 500 Internal Server Error (statusCodeOf fallback)
-//
-// There is no 404/422/502 mapping in this service: unknown paths are 404 by
-// mux default (stateless-only, no per-key routes), and upstream apprise-api
-// surfaces partial delivery failures as 424, never 502.
-//
-// Single-handling rule: handlers log the error once (s.log with the redacted
-// chain for operators) and return only a fixed user-facing string to the
-// caller — never the raw error. respondNotify's failure details carry the
-// fixed "one or more notifications could not be sent" message with no cause
-// suffix; redactCredentials strips URL userinfo (user:pass@) from anything
-// that reaches logs or the outbound webhook so user-facing strings carry no
-// traces, SQL, PATs, or paths. All Msg/Err constructors use %w (never %v)
-// and lowercase messages.
+// Error contract: sentinels → 400, recursion → 406 (quirk), too-large →
+// 431, no-targets → 204, attach → its code, delivery → 424, else 500.
+// Log once redacted, return fixed string; %w, lowercase.
 package server
 
 import (

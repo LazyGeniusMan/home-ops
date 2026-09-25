@@ -1,14 +1,6 @@
-# EXAMPLE ONLY — not applied by the helm-rclone-sync chart.
-#
-# Illustrates the external snapshot-staging pattern from README
-# "Snapshot staging (optional, external)": an external scheduler snapshots
-# the live claim per tick and restores it to a staging PVC; the chart then
-# syncs from the staging claim (no coLocateWith needed).
-#
-# Requires: snapshot-capable CSI + external-snapshotter + a
-# VolumeSnapshotClass for that driver. The default local-ssd-nvme class
-# (rancher local-path-provisioner, hostPath) is NOT snapshottable and can
-# never participate. Replace the placeholder class/driver names below.
+# EXAMPLE ONLY — not applied by the chart. External scheduler snapshots the
+# live claim and restores to staging; the chart syncs from staging. Needs
+# snapshot-capable CSI + VolumeSnapshotClass (not local-ssd-nvme).
 ---
 apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshot
@@ -36,12 +28,7 @@ spec:
     kind: VolumeSnapshot
     apiGroup: snapshot.storage.k8s.io
 ---
-# Chart values snippet (my-sync-values.yaml): point the chart at the
-# staging claim. Zero chart changes needed — any claim name works.
-# source:
-#   type: pvc-rwx            # staging claim; drop coLocateWith
-#   uri: {value: my-db-snap-staging}
-# destination:
-#   type: s3
-#   uri: {value: my-bucket/backups}
-#   credentials: {...}
+# Values snippet: point source at the staging claim (pvc-rwx, no
+# coLocateWith); destination unchanged.
+# source: {type: pvc-rwx, uri: {value: my-db-snap-staging}}
+# destination: {type: s3, uri: {value: my-bucket/backups}, credentials: {...}}

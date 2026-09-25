@@ -85,6 +85,10 @@ readinessProbe:
 Sample PromQL: `external_dns_netbird_build_info`,
 `rate(external_dns_netbird_records_errors_total[5m])`.
 
+Consumed in Flux via `{"$imagepolicy": "infra:external-dns-netbird:tag"}`
+in `flux/infra/components/external-dns/controllers/base/external-dns.yaml`
+(policy `flux/infra/update-policies/external-dns.yaml`).
+
 ## Develop
 
 ```sh

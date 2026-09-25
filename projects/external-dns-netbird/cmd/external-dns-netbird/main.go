@@ -1,15 +1,6 @@
 // Command external-dns-netbird is an ExternalDNS webhook provider backed by
-// NetBird DNS Custom Zones. It is intended to run as a localhost-only sidecar
-// next to ExternalDNS (--provider=webhook).
-//
-// Configuration is taken from the environment; see internal/config. The
-// NetBird personal access token is read from the file named by
-// NETBIRD_PAT_FILE and never from a bare environment value.
-//
-// No telemetry is collected or transmitted: the binary performs no
-// phone-home, update checks, or usage reporting of any kind. The only
-// network traffic is NetBird Public API calls and the local webhook,
-// health, and metrics listeners.
+// NetBird DNS Custom Zones (localhost-only sidecar, --provider=webhook).
+// Config from the environment (PAT via NETBIRD_PAT_FILE); no telemetry.
 package main
 
 import (

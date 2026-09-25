@@ -1,14 +1,7 @@
 // Package notify wraps the apprise-go notification engine with a
 // request-scoped, timeout-bounded sender. This file adds the outbound
-// result hook: after every notify, POST {"source","status":0|1,"output"} to
-// APPRISE_WEBHOOK_URL (best-effort; transport errors are logged, never
-// surfaced to the notify caller).
-//
-// The semantics mirror apprise-api api/utils.py send_webhook: http/https
-// only, embedded user[:pass] as basic auth, '?verify=' controlling TLS
-// verification, remaining query keys forwarded as params, '?cto='/'?rto='
-// connect/read timeouts defaulting to (4.0, 4.0), and 'User-Agent:
-// Apprise-API' with a JSON body.
+// result hook: best-effort POST {"source","status":0|1,"output"} to
+// APPRISE_WEBHOOK_URL (http/https only; failures logged, never surfaced).
 package notify
 
 import (

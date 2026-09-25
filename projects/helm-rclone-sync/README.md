@@ -11,14 +11,13 @@ creates **no `rclone.conf` file** (no ConfigMap, Secret, volume, mount, or
 > environment-variable form of rclone's `--config` flag.
 
 One generic CronJob template serves **all 10 sync directions** — each direction
-is expressed purely via `source.type` / `destination.type`. There are no
-per-direction manifests; all shared logic lives in `templates/_helpers.tpl`
-behind the `helm-rclone-sync.*` prefix and is invoked with
-`include` (+`nindent`). Chart-authoring reference:
-`/tmp/home-ops-docs/helm-docs` (template/include/nindent semantics).
+is expressed purely via `source.type` / `destination.type`. Shared logic
+lives in `templates/_helpers.tpl` behind the `helm-rclone-sync.*` prefix.
 
-Upstream reference (read-only): `/tmp/home-ops-docs/flux-docs` (HelmRelease
-chart delivery contract).
+Consumed in Flux by six wrappers pinning the exact chart version (no
+`$imagepolicy` marker — Helm OCIRepositories are untracked):
+`flux/apps/components/{coder,clickstack}/base/rclone-sync-*.yaml`,
+`flux/infra/components/{zitadel,clickhouse,cnpg,dragonfly}/configs/base/rclone-sync*.yaml`.
 
 ## Install / upgrade
 
@@ -83,10 +82,9 @@ source:                       # same shape for destination
   credentials: {}             # per-backend map, ignored for pvc-*
 ```
 
-PVC endpoints mount the **existing** claim by name only
-(`persistentVolumeClaim.claimName`); the chart never creates, resizes, or
-evicts PVCs or their owning workloads. The source mount is `readOnly: true`
-(sync/copy never writes to the source); the destination mount is writable.
+PVC endpoints mount the **existing** claim by name only; the chart never
+creates, resizes, or evicts PVCs. The source mount is `readOnly: true`;
+the destination mount is writable.
 
 Remote endpoints render as `REMOTE:path` args (e.g. `DST:my-bucket/backups`)
 with one `RCLONE_CONFIG_<REMOTE>_<KEY>` env var per backend option:
@@ -180,24 +178,17 @@ is correctly assembled.
 
 ## Overlap safety
 
-The chart never modifies or evicts the owning workload or PVC — it mounts the
-existing claim by name only. Two mechanisms keep concurrent access safe:
-
 - `concurrencyPolicy: Forbid` (default) — a new Job is skipped while the
-  previous sync still runs, so two syncs never fight over one destination.
-- `rclone bisync` is deliberately **not** offered: bisync needs persistent
-  listing state between runs (a work dir), which a stock CronJob does not
-  provide. Keep `sync`/`copy` one-shot semantics.
+  previous sync still runs.
+- `rclone bisync` is **not** offered: it needs persistent listing state a
+  stock CronJob does not provide. Keep `sync`/`copy` one-shot semantics.
 
 ## RWO same-node caveat
 
-For `pvc-rwo`, the claim can attach to only one node at a time. If the volume
-is already mounted by its owning workload on node A, the sync Pod must land on
-node A too, or it will stay `Pending` (FailedAttachVolume/multi-attach);
-with the default `concurrencyPolicy: Forbid`, a stuck Pending run then blocks
-later schedules and syncs are missed. Prefer `coLocateWith` over a static
-hostname pin: it selects the owning workload's pods, so the scheduler follows
-the owner when it moves instead of going stale:
+For `pvc-rwo`, the claim attaches to one node at a time: the sync Pod must
+land on the owner's node or it stays `Pending`, blocking later schedules
+under `Forbid`. Prefer `coLocateWith` (follows the owner) over a static
+hostname pin:
 
 ```yaml
 coLocateWith:
@@ -206,20 +197,12 @@ coLocateWith:
                               # (default kubernetes.io/hostname) + namespaces
 ```
 
-This renders a required `podAffinity` term (`topologyKey:
-kubernetes.io/hostname` by default) that is **merged** with any user-supplied
-`affinity` — your `nodeAffinity`/etc. is kept, the generated term is
-appended. When `coLocateWith` is empty (default) no affinity is generated;
-fall back to manual pinning (`nodeSelector:
-{kubernetes.io/hostname: worker-1}`, `affinity: {nodeAffinity: {...}}`,
-`tolerations: [...]`), which works but goes stale when the owner moves.
-
-`pvc-rwx` has no such constraint (multi-node attach is the point of RWX), but
-the same knobs work if you want locality. Either way, the `pvc-rwo` vs
-`pvc-rwx` distinction is honoured in values and documented here; the chart
-mounts both identically and lets the claim's own access mode govern attach.
-The chart never creates, resizes, force-detaches, or evicts PVCs or their
-owning workloads — it only mounts the existing claim by name.
+This renders a required `podAffinity` term (default
+`topologyKey: kubernetes.io/hostname`) **merged** with any user-supplied
+`affinity`. Empty `coLocateWith` (default) generates nothing; fall back to
+manual pinning (`nodeSelector`/`affinity`/`tolerations`), which goes stale
+when the owner moves. `pvc-rwx` has no such constraint; the chart mounts
+both types identically and the claim's access mode governs attach.
 
 ## Snapshot staging (optional, external)
 
@@ -229,29 +212,18 @@ reads a frozen, crash-consistent point-in-time copy. A restored staging
 volume also has no owning workload attached, so there is no multi-attach
 contender — drop `coLocateWith` and let the sync Pod schedule anywhere.
 
-The chart creates **no** `VolumeSnapshot` objects: Helm templates static
-objects (a snapshot would freeze at install/upgrade, not per tick), and a
-true per-run snapshot lifecycle (create, poll-until-ready, restore, clean
-up) would need initContainers plus snapshot RBAC, breaking the chart's
-zero-RBAC single-container contract. The pattern below needs **zero chart
-changes** — an external snapshot scheduler maintains the staging claim, and
-the chart just points at it via `source.uri.value` (any claim name works).
-See `examples/snapshot-staging.yaml` for a static, non-chart illustration.
+The chart creates **no** `VolumeSnapshot` objects (per-tick snapshots need
+an external lifecycle, not static Helm objects). An external scheduler
+maintains the staging claim; the chart points at it via `source.uri.value`.
+See `examples/snapshot-staging.yaml`.
 
-Prerequisites (all external to the chart):
+Prerequisites (external): snapshot-capable CSI + external-snapshotter +
+`VolumeSnapshotClass` for that driver. **Not** `local-ssd-nvme`
+(local-path-provisioner hostPath, not snapshottable) — those stay on the
+live-claim + `coLocateWith` path.
 
-- A snapshot-capable CSI driver with the external-snapshotter sidecars
-  deployed and a `VolumeSnapshotClass` for that driver.
-- **Not** the default `local-ssd-nvme` class (rancher
-  local-path-provisioner, hostPath): hostPath volumes are explicitly not
-  snapshottable, so local-path claims can never participate. Those syncs
-  stay on the live-claim + `coLocateWith` path above. Verify your driver's
-  snapshot support before relying on this pattern.
-
-Pattern: before each tick, the external scheduler creates a `VolumeSnapshot`
-of the live claim, restores it to a staging PVC (same namespace as the
-restore rules require; size >= source; RWX preferred so no co-location is
-ever needed), and lets the CronJob sync from the staging claim:
+Pattern: before each tick, snapshot the live claim, restore to a staging
+PVC (same namespace, size >= source, RWX preferred), and sync from it:
 
 ```yaml
 source:
@@ -278,24 +250,16 @@ No `values.schema.json`: validation is fail-fast template guards
 
 ## Helm merge semantics (read before `--set`)
 
-Helm deep-merges user-supplied maps over the chart defaults **at the field
-level** — it never replaces a whole map. Two consequences are designed for:
+Helm deep-merges maps **at the field level** — never whole-map replace:
 
-- The demo defaults in `values.yaml` (pvc-rwo → s3 with `CHANGEME`
-  placeholders) always shine through any key you omit. `--set` overrides
-  therefore replace **whole endpoints** via `--set-json`, e.g.
-  `--set-json 'source={"type":"s3",…​}'`, never single nested keys. A
-  "missing key" fail-fast proof nulls the key
-  (`--set-json '…​"secretAccessKey":null…​'`); a bare omit would inherit the
-  demo default, which is Helm semantics, not a chart bug.
-- A ref-sourced uri (`{secretRef: …​}`) deep-merged over the default
-  `{value: …​}` yields both keys present. The templates treat **any ref key
-  present as a ref** (the explicit ref wins; the stale `value` key is
-  stripped before rendering), and a ref key on a `pvc-*` uri fails fast
-  because `claimName` cannot use `valueFrom`.
+- Demo defaults shine through omitted keys: replace **whole endpoints** via
+  `--set-json`, never single nested keys. "Missing key" proofs null the key;
+  a bare omit inherits the demo default (Helm semantics, not a chart bug).
+- A ref-sourced uri merged over the default `{value: …}` yields both keys;
+  the explicit ref wins, and a ref key on `pvc-*` fails fast (`claimName`
+  cannot use `valueFrom`).
 
-Prefer whole-file `-f` values (like the `ci/` fixtures) over `--set` for the
-same reason: files replace at the granularity you write.
+Prefer whole-file `-f` values (like the `ci/` fixtures) over `--set`.
 
 ## Verifying
 

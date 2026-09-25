@@ -12,11 +12,9 @@ import (
 	"time"
 )
 
-// InternalToken is the reserved SSRF deny-list token. When present in the
-// reject list it resolves each attachment host and blocks loopback,
-// private, link-local, reserved, unspecified, multicast, and CGN
-// addresses — including ones reached via DNS or alternate IP encodings,
-// not just literal matches. Opt-in, never part of the default list.
+// InternalToken is the reserved SSRF deny-list token. It resolves each
+// attachment host and blocks non-public IPs (DNS/alternate encodings
+// included). Opt-in, never default.
 const InternalToken = "internal"
 
 // resolveTimeout bounds a single attachment-host DNS resolution, mirroring
@@ -224,21 +222,17 @@ func (r rule) matchURL(rawURL string) bool {
 	return true
 }
 
-// Policy is the SSRF allow/reject filter for remote attachment URLs,
-// mirroring Python's AppriseURLFilter. Deny rules are always processed
-// before allow rules; a URL matching a deny rule is rejected; otherwise it
-// is allowed only when it matches an allow rule.
+// Policy is the SSRF allow/reject filter for remote attachment URLs.
+// Deny rules run first; otherwise a URL is allowed only on an allow match.
 type Policy struct {
 	allow []rule
 	deny  []rule
 }
 
-// NewPolicy compiles allow/reject lists. Entries are separated by commas
-// and/or whitespace. Each entry may be a full URL (http:// or https://,
-// pinning the scheme), a URL without scheme (matches both), a plain
-// hostname or IP, or the reserved "internal" token. '*' matches anything,
-// '?' matches a single host char ([A-Za-z0-9_-]) or path char (any
-// non-slash). A trailing '*' is implied so rules operate as prefix matches.
+// NewPolicy compiles allow/reject lists (comma/whitespace separated).
+// Each entry: full URL (scheme-pinned), schemeless URL (both schemes),
+// hostname/IP, or the "internal" token. '*' matches anything, '?' one
+// char; trailing '*' is implied (prefix match).
 func NewPolicy(allowList, denyList string) *Policy {
 	return &Policy{allow: parseRuleList(allowList), deny: parseRuleList(denyList)}
 }
@@ -332,11 +326,8 @@ func compileHostToken(token string) *regexp.Regexp {
 	return regexp.MustCompile("(?i)^" + wildcardToRegex(token, true) + "$")
 }
 
-// compileURLToken compiles a URL token with an explicit scheme, or an
-// implicit token prefixed with "https?://" (matching both schemes). It
-// reports noPort=true when the rule carries no port, in which case the
-// caller must reject URLs with an explicit port (Go regexp lacks the
-// negative lookahead Python uses).
+// compileURLToken compiles a URL token; noPort=true when the rule carries
+// no port, so the caller rejects URLs with an explicit port.
 func compileURLToken(token string) (*regexp.Regexp, bool) {
 	scheme := "https?"
 	switch {

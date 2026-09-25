@@ -1,19 +1,6 @@
-// Command eso-proton-pass is the External Secrets Operator (ESO) webhook
-// provider for Proton Pass.
-//
-// It is a pull-only HTTP service: ESO's generic webhook provider pulls
-// secrets with GET /get?key=... (or POST /get with a JSON remoteRef body;
-// HEAD / and GET / for Validate) and resolves them with the pass-cli
-// backend. Push operations are not implemented and return 501.
-//
-// Secret addressing (see README.md):
-//
-//	pass://{vault}/{item}/{field}
-//
-// Authentication:
-//
-//	PROTON_PASS_PAT_FILE  path to a file whose content is the Proton Pass
-//	                      personal access token (PAT)
+// Command eso-proton-pass is the ESO webhook provider for Proton Pass
+// (pull-only; push returns 501). Secrets: pass://{vault}/{item}/{field};
+// PAT from PROTON_PASS_PAT_FILE.
 package main
 
 import (

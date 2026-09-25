@@ -1,16 +1,6 @@
-// Command apprise-go-api is a stateless-only Go port of Python apprise-api.
-//
-// Supported features: stateless POST /notify, request-scoped attachments,
-// and third-party webhook remap/callback. There is no persistent storage.
-//
-// Configuration is taken from the environment; see internal/config. Secrets
-// are read from files named by *_FILE variables, never from bare
-// environment values.
-//
-// No telemetry is collected or transmitted: the binary performs no
-// phone-home, update checks, or usage reporting of any kind. The only
-// network traffic is outbound notification delivery, the optional result
-// webhook, and the local HTTP listener.
+// Command apprise-go-api is a stateless-only Go port of Python apprise-api:
+// POST /notify, request-scoped attachments, webhook remap/callback. Config
+// from the environment (secrets via *_FILE); no telemetry of any kind.
 package main
 
 import (

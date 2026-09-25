@@ -1,8 +1,5 @@
-// Package attach stages stateless notification attachments into
-// request-scoped temp files.
-//
-// Attachments never persist: staged files live under APPRISE_ATTACH_DIR (or
-// os.TempDir) and are removed when the request ends.
+// Package attach stages notification attachments into request-scoped temp
+// files (never persisted; removed when the request ends).
 package attach
 
 import (

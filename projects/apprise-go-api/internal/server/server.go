@@ -1,8 +1,4 @@
 // Package server wires the stdlib net/http mux and registers routes.
-// handler.go serves POST /notify parity, sender.go decodes payloads,
-// validation.go validates fields, errors.go holds the error contract,
-// health.go serves liveness/readiness probes, metrics.go holds the
-// Prometheus collectors, and middleware.go observes requests.
 package server
 
 import (
@@ -105,11 +101,8 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, body)
 }
 
-// handleDetails returns the stateless service catalog: the notification
-// service schemas supported by apprise-go plus the stateless-only route
-// table. It carries no persistence key by design (stateless-only). This is
-// a domain endpoint, not a health probe — use /healthz and /readyz for
-// probes.
+// handleDetails returns the service catalog (apprise-go schemas + route
+// table). Domain endpoint, not a probe.
 func (s *Server) handleDetails(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)

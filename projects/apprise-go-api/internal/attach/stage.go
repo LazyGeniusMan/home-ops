@@ -80,14 +80,9 @@ func NewStager(lim Limits) *Stager {
 	return &Stager{limits: lim, policy: policy, client: client}
 }
 
-// StageRequest stages a request's attachments: payload holds the decoded
-// "attachment" value (string URL, base64/url dict, or list thereof;
-// blank strings ignored), files holds multipart parts in arrival order.
-// Numbering (attachment.NNN) follows Python: payload positions are 1-based
-// over the payload list, file parts continue from len(staged payload)+1.
-//
-// Limits: disabled (SizeMB<=0) with any attachment content is a 400;
-// over MaxCount (when >0) is a 400; per-file over-size is a 400.
+// StageRequest stages a request's attachments (payload entries + multipart
+// parts in order; 1-based attachment.NNN numbering). Disabled/over-count/
+// over-size content is a 400.
 func (s *Stager) StageRequest(payload any, files []Incoming) ([]Staged, error) {
 	entries, scalar := normalizePayload(payload)
 	count := len(entries) + len(files)
@@ -177,8 +172,7 @@ func normalizePayload(payload any) ([]entry, bool) {
 		}
 		return out, false
 	default:
-		// Garbage handling: integers, floats, objects are invalid as list
-		// entries but ignored as a top-level payload (Python parity).
+		// Invalid as list entries but ignored as a top-level payload.
 		return nil, true
 	}
 }
@@ -246,9 +240,8 @@ func (s *Stager) stageDict(m map[string]any, fallback string, no int) (Staged, b
 	return Staged{}, false, BadAttachment("invalid filetype was provided for attachment %q", name)
 }
 
-// stageRemote validates, SSRF-checks, downloads, and stages a remote URL.
-// explicit carries a dict filename that wins over URL-derived names;
-// fallback is the attachment.NNN name.
+// stageRemote validates, SSRF-checks, downloads, and stages a remote URL
+// (explicit dict filename wins; fallback is attachment.NNN).
 func (s *Stager) stageRemote(rawURL, explicit, fallback string) (Staged, bool, error) {
 	trimmed := strings.TrimSpace(rawURL)
 	if !isWebURL(trimmed) {
@@ -277,8 +270,7 @@ func (s *Stager) stageRemote(rawURL, explicit, fallback string) (Staged, bool, e
 	return st, false, err
 }
 
-// stageFile stages one multipart part, streaming to tempfile under the
-// per-file cap.
+// stageFile stages one multipart part under the per-file cap.
 func (s *Stager) stageFile(f Incoming, no int) (Staged, error) {
 	fallback := fmt.Sprintf("attachment.%03d", no)
 	name := strings.TrimSpace(f.Filename)
@@ -293,12 +285,10 @@ func (s *Stager) stageFile(f Incoming, no int) (Staged, error) {
 	}
 	wire := strings.ToLower(strings.TrimSpace(f.ContentType))
 	if wire == "application/octet-stream" {
-		// Nulled so the type is guessed from the filename on send.
 		wire = ""
 	}
 	rc, err := f.Open()
 	if err != nil {
-		// %w (never %v) so errors.Is/As see the open failure.
 		return Staged{}, BadAttachment("could not read attachment %q: %w", name, err)
 	}
 	defer func() { _ = rc.Close() }()
@@ -306,8 +296,7 @@ func (s *Stager) stageFile(f Incoming, no int) (Staged, error) {
 	return s.stageStream(name, resolveMIME(wire, name), rc, maxBytes)
 }
 
-// stageBytes stages small inline content (base64/raw payloads) with the
-// per-file cap enforced.
+// stageBytes stages small inline content under the per-file cap.
 func (s *Stager) stageBytes(name string, data []byte) (Staged, bool, error) {
 	if len(name) > maxFilenameLen {
 		return Staged{}, false, BadAttachment("attachment name too long: %q", name)
@@ -344,8 +333,6 @@ func (s *Stager) stageStream(name, mimeType string, r io.Reader, maxBytes int64)
 		return Staged{}, BadAttachment("could not prepare %s attachment in %s", name, dir)
 	}
 	tmp := f.Name()
-	// Streaming-to-tempfile keeps large ATTACH_SIZE files off the heap:
-	// at most maxBytes+1 bytes are read, never buffered in full.
 	n, err := io.Copy(f, io.LimitReader(r, maxBytes+1))
 	if closeErr := f.Close(); closeErr != nil && err == nil {
 		err = closeErr

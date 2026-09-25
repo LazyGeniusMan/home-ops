@@ -4,17 +4,9 @@ description: >-
   Env-only rclone periodic sync (CronJob). Remotes are built exclusively from
   RCLONE_CONFIG_* environment variables; no rclone.conf file exists anywhere.
 type: application
-# Version bump procedure (single source of truth — no silent skew): bump
-# `version` here, publish the matching OCI artifact via
-# .github/workflows/helm-rclone-sync.yml (tag helm-rclone-sync-v<version>),
-# and update the pinned `ref.tag` in ALL SIX consumers in the SAME commit:
-# flux/apps/components/{coder,clickstack}/base/rclone-sync-*.yaml,
-# flux/infra/components/{zitadel,clickhouse,cnpg,dragonfly}/configs/base/rclone-sync*.yaml
-# (each carries a "Version skew guard" comment pointing back here). Consumers
-# pin the exact chart version — no floating `dev`/`stable` alias, no
-# $imagepolicy marker (Helm OCIRepositories cannot be tracked by image
-# automation), so Chart.yaml + CI artifact + every consumer tag move together.
-# appVersion tracks the bundled rclone image (values.yaml image.tag).
+# Bump: version + OCI tag (helm-rclone-sync-v<version>) + pinned tag in all
+# six consumers (flux/{apps,infra} rclone-sync*.yaml) atomically. Exact pin,
+# no $imagepolicy (OCIRepositories untracked). appVersion tracks image.tag.
 version: 0.1.0
 appVersion: "1.75.0"
 keywords:

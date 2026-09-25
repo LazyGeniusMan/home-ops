@@ -1,15 +1,5 @@
-// Package remap implements the ':' third-party webhook payload mapper.
-//
-// Inbound remap rules arrive as '?:src=dst' query parameters on stateless
-// POST /notify (see FromRawQuery and FromQuery). Apply remaps the decoded
-// payload before validation; any mapping failure is returned as an error so
-// the caller can surface HTTP 400 "Payload field mapping failed".
-//
-// The semantics mirror apprise-api payload_mapper.py: flat rename (the
-// source wins when it is not itself an expected field, swapping when both
-// sides already hold expected values), top-level delete on an empty target,
-// constant assignment, and nested/array sources via dot-walk plus [N]
-// indexing subject to a caller-supplied depth cap.
+// Package remap implements the ':' webhook payload mapper: '?:src=dst'
+// params remap the decoded payload before validation (failures → 400).
 package remap
 
 import (
@@ -53,16 +43,15 @@ func Parse(raw string) (Rule, error) {
 	return Rule{Source: src, Target: strings.TrimSpace(dst)}, nil
 }
 
-// IsMappableTarget reports whether name is a legal remap destination. The
-// comparison is lenient (case-insensitive); Apply itself resolves targets
-// with exact matching to mirror Python's expected_keys set.
+// IsMappableTarget reports whether name is a legal remap destination
+// (case-insensitive; Apply resolves targets with exact matching).
 func IsMappableTarget(name string) bool {
 	_, ok := mappableTargets[strings.ToLower(strings.TrimSpace(name))]
 	return ok
 }
 
-// isExpected reports whether name is an expected form field with exact,
-// case-sensitive matching, mirroring Python's `value in expected_keys`.
+// isExpected reports whether name is an expected form field (exact,
+// case-sensitive).
 func isExpected(name string) bool {
 	_, ok := mappableTargets[name]
 	return ok
@@ -79,12 +68,9 @@ type Step struct {
 	IsIndex bool
 }
 
-// FromRawQuery extracts ordered ':' remap rules from a raw URL query string.
-// Only keys starting with ':' participate; the prefix is stripped to form
-// the source and the value becomes the target (a missing '=' yields an
-// empty target, i.e. a delete rule). Non-':' parameters (plain
-// ?tag/?format/?title fallbacks) are ignored. Rule order follows first
-// appearance in the raw query.
+// FromRawQuery extracts ordered ':' remap rules from a raw query string.
+// Only ':' keys participate (missing '=' is a delete rule); rule order
+// follows first appearance.
 func FromRawQuery(rawQuery string) ([]Rule, error) {
 	if rawQuery == "" {
 		return nil, nil
@@ -116,22 +102,9 @@ func FromRawQuery(rawQuery string) ([]Rule, error) {
 	return rules, nil
 }
 
-// Apply applies rules to fields, mutating it in place, and returns nil when
-// all rules resolved or an error describing the first failure (callers map
-// any error to HTTP 400 "Payload field mapping failed"). A WARNING is
-// logged for resolution failures so misconfigured rules are visible.
-//
-// maxDepth must be positive; each dict-key lookup and each array-index
-// dereference in a path source counts as one step toward it.
-//
-// Path sources (containing '.', '[', or ']') resolve into the payload and,
-// when the target is a mappable field, assign the resolved value. Any other
-// target combination for a path source (empty target, non-mappable target)
-// is a silent no-op. Flat sources follow the original behaviour: an empty
-// target deletes the top-level key; a present source with a mappable target
-// renames into it (swapping when both sides already hold expected values,
-// otherwise the source value wins); otherwise the source key is assigned
-// the target verbatim as a constant.
+// Apply applies rules to fields in place (errors → 400). Path sources
+// with empty/non-mappable targets are silent no-ops; flat sources
+// delete/rename/swap, else assign verbatim as a constant.
 func Apply(fields map[string]any, rules []Rule, maxDepth int) error {
 	if maxDepth <= 0 {
 		return fmt.Errorf("remap: max depth must be positive, got %d", maxDepth)
@@ -165,14 +138,10 @@ func Apply(fields map[string]any, rules []Rule, maxDepth int) error {
 			return fmt.Errorf("remap: rule with empty source")
 		}
 		if r.Target == "" {
-			// Delete top-level key; deleting a missing key is a no-op,
-			// mirroring 'if key in payload: del payload[key]'.
 			delete(fields, r.Source)
 			continue
 		}
-		// Target matching is exact (case-sensitive), mirroring
-		// Python's `value in expected_keys`. IsMappableTarget stays
-		// lenient for callers that probe legality without applying rules.
+		// Target matching is exact (case-sensitive).
 		if isExpected(r.Target) {
 			target := r.Target
 			srcVal, srcOK := fields[r.Source]
@@ -187,7 +156,6 @@ func Apply(fields map[string]any, rules []Rule, maxDepth int) error {
 				continue
 			}
 			if !isExpected(r.Source) {
-				// Replace: source wins, the target's old value is dropped.
 				fields[target] = srcVal
 				delete(fields, r.Source)
 				continue
@@ -196,10 +164,7 @@ func Apply(fields map[string]any, rules []Rule, maxDepth int) error {
 			fields[target], fields[r.Source] = fields[r.Source], fields[target]
 			continue
 		}
-		// Constant assignment ('?:expected=fixed string'): when the source
-		// names an expected field or a present payload key, assign the
-		// target verbatim. Otherwise (unknown key, unknown target) no-op,
-		// mirroring the Python fallthrough.
+		// Constant assignment: source names an expected field or present key.
 		if isExpected(r.Source) || hasKey(fields, r.Source) {
 			fields[r.Source] = r.Target
 			continue
@@ -214,9 +179,8 @@ func isPathSource(src string) bool {
 	return strings.ContainsAny(src, ".[]")
 }
 
-// ParsePath parses a mapping source into ordered traversal steps, mirroring
-// Python _parse_path: "title" -> [key title], "event.title" -> [key event,
-// key title], "items[0]" -> [key items, index 0], "a[0][1].b[2]" mixes both.
+// ParsePath parses a mapping source into ordered traversal steps
+// ("event.title" → [key event, key title], "items[0]" → [key items, index 0]).
 func ParsePath(key string) ([]Step, error) {
 	var steps []Step
 	for _, segment := range strings.Split(key, ".") {
@@ -260,10 +224,8 @@ func ParsePath(key string) ([]Step, error) {
 	return steps, nil
 }
 
-// GetNested walks payload along steps, mirroring Python _get_nested (steps
-// as produced by ParsePath). It returns the resolved value, or logs a
-// WARNING and returns false when a key is missing, a node is not indexable,
-// or an index is out of range.
+// GetNested walks payload along steps; missing keys, non-indexable nodes,
+// or out-of-range indexes log a WARNING and return false.
 func GetNested(payload any, steps []Step, source string) (any, bool) {
 	current := payload
 	for _, s := range steps {
@@ -303,15 +265,13 @@ func GetNested(payload any, steps []Step, source string) (any, bool) {
 	return current, true
 }
 
-// hasKey reports whether fields holds key (exact, case-sensitive top-level
-// check, mirroring the Python payload dict lookup).
+// hasKey reports whether fields holds key (exact, case-sensitive).
 func hasKey(fields map[string]any, key string) bool {
 	_, ok := fields[key]
 	return ok
 }
 
-// isDigits reports whether s is one or more ASCII digits (no sign,
-// whitespace, or leading/trailing decoration).
+// isDigits reports whether s is one or more ASCII digits.
 func isDigits(s string) bool {
 	if s == "" {
 		return false

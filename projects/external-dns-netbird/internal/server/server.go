@@ -1,12 +1,6 @@
-// Package server implements the ExternalDNS webhook provider HTTP API:
-//   - GET  /                negotiate: returns the domain filter
-//   - GET  /records         Records: current endpoints
-//   - POST /records         ApplyChanges: apply planned changes
-//   - POST /adjustendpoints AdjustEndpoints: provider-specific adjustment
-//
-// Media type: application/external.dns.webhook+json;version=1
-// (see upstream api/webhook.yaml). Only 2xx is success; 5xx is retried by
-// ExternalDNS, 4xx is a permanent failure.
+// Package server implements the ExternalDNS webhook provider HTTP API
+// (media type application/external.dns.webhook+json;version=1): 2xx is
+// success, 5xx retried, 4xx permanent.
 package server
 
 import (

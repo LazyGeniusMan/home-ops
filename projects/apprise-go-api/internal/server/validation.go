@@ -1,6 +1,4 @@
-// Field validation and coercion for POST /notify payloads: tag grammar,
-// type/format allowlists, URL splitting, attach-alias flattening, remap
-// string coercion, and the X-Apprise-Log-Level allowlist.
+// Field validation and coercion for POST /notify payloads.
 package server
 
 import (
@@ -10,11 +8,10 @@ import (
 	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/notify"
 )
 
-// urlsMaxLen mirrors Python URLS_MAX_LEN (api/forms.py:56): the form-path
-// urls field is capped at 1024 chars; the JSON path bypasses it.
+// urlsMaxLen caps the form-path urls field (JSON path bypasses it).
 const urlsMaxLen = 1024
 
-// logLevels mirrors the X-Apprise-Log-Level allowlist (views.py:2212).
+// logLevels is the X-Apprise-Log-Level allowlist.
 var logLevels = map[string]struct{}{
 	"CRITICAL": {}, "ERROR": {}, "WARNING": {}, "INFO": {}, "DEBUG": {}, "TRACE": {},
 }

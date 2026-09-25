@@ -1,14 +1,6 @@
-// Prometheus request metrics and service health gauges on the default
-// registry.
-//
-// The default registry carries the Go runtime and process collectors
-// (registered once via registerDefaultCollectorsOnce) so GET /metrics
-// exposes go_* and process_* series alongside the domain gauges.
-//
-// Metrics are observed by the withMetrics middleware (middleware.go):
-// method/route/status/duration where route is the matched ServeMux pattern
-// (r.Pattern, never the raw path), so no label carries user IDs, URLs, or
-// unbounded values.
+// Prometheus metrics on the default registry (incl. go_*/process_*).
+// Observed by the withMetrics middleware; route is the matched mux pattern,
+// never the raw path.
 package server
 
 import (
@@ -90,11 +82,9 @@ var (
 	registerMetricsOnce sync.Once
 )
 
-// registerDefaultCollectorsOnce ensures the standard Go runtime and process
-// collectors are registered on the default registry exactly once, regardless
-// of how many Server instances are constructed (e.g. one per test).
-// Duplicate registration is tolerated because tests may share the process
-// default registry with collectors registered elsewhere.
+// registerDefaultCollectorsOnce registers stdlib runtime/process
+// collectors exactly once (tolerates AlreadyRegistered in shared test
+// processes).
 var registerDefaultCollectorsOnce sync.Once
 
 // registerCollector tolerates AlreadyRegisteredError so New() stays safe when

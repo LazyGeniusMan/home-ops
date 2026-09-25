@@ -1,10 +1,5 @@
-// Package netbird implements a minimal NetBird Public API client for the
-// DNS Custom Zone endpoints used by the ExternalDNS webhook provider.
-//
-// API docs: NetBird Public API, resources "DNS Zones"
-// (GET/POST /api/dns/zones, GET/POST /api/dns/zones/{zoneId}/records,
-// PUT/DELETE /api/dns/zones/{zoneId}/records/{recordId}).
-// Auth: "Authorization: Token <PAT>".
+// Package netbird is a minimal NetBird Public API client for DNS Custom
+// Zones (auth: "Authorization: Token <PAT>").
 package netbird
 
 import (
@@ -27,10 +22,8 @@ const (
 	maxBodyBytes   = 8 << 20 // 8 MiB safety cap on API response bodies
 )
 
-// Zone is a NetBird custom DNS zone. Only ID, Name, Domain, and Records
-// drive provider behavior; the remaining fields are decode-only/reserved —
-// populated from API responses but never read — and are kept so list
-// responses decode without loss.
+// Zone is a NetBird custom DNS zone (remaining fields decode-only, kept
+// so list responses decode without loss).
 type Zone struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`

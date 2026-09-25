@@ -1,24 +1,7 @@
-// Error contract for the webhook API.
-//
-// Mapping:
-//
-//	invalid key / malformed request body        -> 400 Bad Request
-//	secret not found (backend miss, empty value)-> 404 Not Found (lets ESO
-//	                                               apply the ExternalSecret
-//	                                               deletionPolicy)
-//	unprocessable reference (permanent reject)  -> 422 Unprocessable Entity
-//	transient backend failure (CLI exec)        -> 502 Bad Gateway
-//	push attempt (pull-only provider)           -> 501 Not Implemented
-//	anything unmapped                           -> 500 Internal Server Error
-//
-// Single-handling rule: writeError logs the error once (full chain, for
-// operators) and returns only a sanitized {"error"} envelope to the caller.
-// publicError strips internals so user-facing strings carry no traces,
-// tokens, SQL, PATs, or file paths: upstream failures become a stable
-// generic string, sentinel failures keep their short lowercase reason.
-//
-// Callers must wrap errors with %w (never %v) and keep messages lowercase
-// with no trailing punctuation.
+// Error contract: 400 invalid key/malformed body, 404 not found (lets ESO
+// apply the deletionPolicy), 422 unprocessable, 502 transient backend, 501
+// push, else 500. Single-handling rule: log once, return a sanitized
+// envelope; %w (never %v), lowercase.
 package server
 
 import (

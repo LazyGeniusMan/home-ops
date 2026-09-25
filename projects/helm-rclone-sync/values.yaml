@@ -1,9 +1,6 @@
-# Default values for helm-rclone-sync.
-#
-# Env-only rclone periodic sync. Every remote is built exclusively from
-# RCLONE_CONFIG_* environment variables. This chart never creates an
-# rclone.conf file (no ConfigMap/Secret/volume/mount for one) and sets
-# RCLONE_CONFIG=/dev/null so no config file can be read or auto-created.
+# Default values for helm-rclone-sync: env-only periodic sync. Remotes are
+# built exclusively from RCLONE_CONFIG_* env; no rclone.conf exists anywhere
+# (RCLONE_CONFIG=/dev/null blocks file read/auto-create).
 
 # -- Container image for the sync job. Tag must be an exact pin, never "latest".
 image:
@@ -41,42 +38,9 @@ activeDeadlineSeconds: null
 # -- Pod restartPolicy for the Job. Must be OnFailure or Never (Jobs requirement).
 restartPolicy: OnFailure
 
-# ---------------------------------------------------------------------------
-# Endpoints.
-#
-# source and destination share one shape; every sync direction is expressed
-# purely via source.type / destination.type (no per-direction manifests):
-#
-#   type:  pvc-rwo | pvc-rwx | s3 | proton-drive
-#   remoteName:  override for the RCLONE_CONFIG_<REMOTE>_* prefix (uppercased).
-#     Empty defaults to SRC (source) / DST (destination).
-#   uri:  meaning depends on type:
-#     pvc-rwo/pvc-rwx -> PersistentVolumeClaim name (must be a literal;
-#                        claimName cannot use valueFrom, so ref sources fail fast).
-#     s3              -> bucket/path appended as REMOTE:bucket/path ("" = remote root).
-#     proton-drive    -> path appended as REMOTE:path ("" = remote root).
-#   credentials: per-type secret material (ignored for pvc-*):
-#     s3:           provider, accessKeyId, secretAccessKey, region (required);
-#                   endpoint, envAuth (optional).
-#     proton-drive: username, password (required); mailboxPassword, otpSecretKey,
-#                   twoFa, clientUid, clientAccessToken, clientRefreshToken (optional).
-#
-# Four value sources for EVERY uri + credential field. Each field accepts either
-# a plain-string literal shorthand, or a map with exactly one of:
-#   value:         literal, e.g. {value: "my-bucket/backups"}
-#   secretRef:     {name: some-secret, key: some-key}          -> secretKeyRef
-#   configMapRef:  {name: some-configmap, key: some-key}       -> configMapKeyRef
-#   esoRef:        {name: eso-synced-secret, key: some-key}    -> secretKeyRef
-#                  (consumes a Secret that External Secrets Operator already
-#                  synced; the chart creates NO ExternalSecret objects).
-#                  `existingSecret` is an accepted alias for `esoRef`.
-# ---------------------------------------------------------------------------
-# Demo endpoints (pvc-rwo -> s3). MUST be overridden for real use — every
-# sync direction is expressed by replacing source/destination with one of the
-# ci/values-direction-*.yaml fixtures or equivalent --set invocations.
-# (Lint-safe placeholder defaults are required because `helm lint` renders
-# with bare defaults; fail-fast guards in the templates still reject missing
-# or ref-sourced PVC uris and missing required credentials.)
+# Endpoints share one shape; direction is source.type/destination.type.
+# Every uri/credential field is a literal or one of value|secretRef|
+# configMapRef|esoRef (chart creates no Secrets).
 source:
   type: pvc-rwo
   remoteName: ""
@@ -102,13 +66,9 @@ destination:
       value: us-east-1
 
 # -- Co-locate sync Pods with the owning workload (recommended for pvc-rwo).
-# When matchLabels/matchExpressions select the owning workload's pods, the
-# CronJob renders a required podAffinity term (topologyKey
-# kubernetes.io/hostname by default) so sync Pods schedule onto the owner's
-# node instead of Pending on multi-attach. The generated term merges with
-# .affinity below, never replacing it. Empty (default) = no generated
-# affinity; for pvc-rwo, pin the node manually (see README "RWO same-node
-# caveat"). E.g. coLocateWith: {matchLabels: {app: my-db}}
+# Renders a required podAffinity term (default topologyKey
+# kubernetes.io/hostname) merged with .affinity. Empty = none.
+# E.g. coLocateWith: {matchLabels: {app: my-db}}
 coLocateWith: {}
 # -- Scheduling helpers. Useful for pvc-rwo: pin the Job Pod to the node that
 # holds the RWO volume (the claim's own access mode still governs attach).

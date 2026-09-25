@@ -1,14 +1,6 @@
-// Package provider implements the ExternalDNS provider.Provider interface
-// backed by NetBird DNS Custom Zones.
-//
-// Mapping:
-//   - each NetBird zone (filtered by domain) contributes one record per
-//     DNS record entry it holds;
-//   - one ExternalDNS endpoint (DNSName + RecordType) maps to one or more
-//     NetBird record entries (one entry per target), because the NetBird
-//     records API stores a single content value per entry;
-//   - record identity is tracked by NetBird record ID; lookups resolve
-//     (zoneID, recordID) pairs before update/delete.
+// Package provider implements the ExternalDNS provider backed by NetBird
+// DNS Custom Zones: one endpoint (DNSName + type) maps to one NetBird entry
+// per target; identity tracked by NetBird record ID.
 package provider
 
 import (
@@ -27,11 +19,8 @@ import (
 // SupportedTypes are the DNS record types accepted by the NetBird records API.
 var SupportedTypes = map[string]bool{"A": true, "AAAA": true, "CNAME": true}
 
-// ErrNoMatchingZone marks permanent zone-resolution failures: the endpoint
-// name matches no NetBird zone and no DOMAIN_FILTER candidate may be
-// auto-created. It is wrapped with %w so errors.Is finds it through any
-// chain; the server maps it to HTTP 422 (hard error, ExternalDNS must not
-// retry). Messages stay lowercase per the error contract.
+// ErrNoMatchingZone marks permanent zone-resolution failures (%w-wrapped;
+// server maps to HTTP 422, no retry).
 var ErrNoMatchingZone = errors.New("netbird: no matching zone")
 
 // API is the subset of the NetBird client used by the Provider (mockable).
@@ -264,11 +253,9 @@ func (p *Provider) zoneForName(ctx context.Context, dnsName string) (string, err
 	return created.ID, nil
 }
 
-// longestFilterSuffix picks the zone domain to auto-create for dnsName:
-// the longest configured filter entry that is an exact match or a parent
-// suffix of dnsName. With no usable filter entry it falls back to the
-// immediate parent domain (dnsName minus its left-most label); a bare
-// single-label name yields "" (no candidate).
+// longestFilterSuffix picks the auto-create zone domain for dnsName: the
+// longest matching filter entry, else the immediate parent domain ("" for
+// single-label names).
 func longestFilterSuffix(filter *endpoint.DomainFilter, dnsName string) string {
 	best := ""
 	if filter != nil {

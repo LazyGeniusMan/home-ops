@@ -1,9 +1,5 @@
-// Stateless POST /notify handler: Go port of Python apprise-api
-// StatelessNotifyView (api/views.py:1724).
-//
-// serveNotify orchestrates the request: decode (sender.go) → validate
-// (validation.go) → send via notify.Sender → negotiated response
-// (JSON details | HTML logs | plain text) → outbound webhook.
+// Stateless POST /notify handler: decode → validate → send → negotiated
+// response (JSON | HTML | text) → outbound webhook.
 package server
 
 import (
@@ -65,8 +61,7 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Apply ':' remap rules from query keys with a ':' prefix (?:src=dst);
-	// they remap the decoded payload map before validation.
+	// Apply ':' remap rules before validation.
 	rules, err := parseRemapRules(r)
 	if err != nil {
 		s.log.Warn("notify: remap rules invalid", "remote", remoteAddr(r), "err", redactCredentials(err.Error()))
@@ -75,9 +70,7 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(rules) > 0 {
 		fields := rawFieldsForRemap(payload, rawFields, isJSON)
-		// Any Apply error means the mapping failed
-		// (→ HTTP 400 "Payload field mapping failed"). Wrap in the
-		// errRemapFailed sentinel (%w) so statusCodeOf stays authoritative.
+		// Any Apply error → 400 "Payload field mapping failed".
 		if err := remap.Apply(fields, rules, s.cfg.WebhookMappingMaxDepth); err != nil {
 			mapped := fmt.Errorf("%w: %v", errRemapFailed, err)
 			s.log.Warn("notify: remap apply failed", "remote", remoteAddr(r), "err", redactCredentials(mapped.Error()))
@@ -92,7 +85,7 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Stateless URL fallback (views.py:1869).
+	// Stateless URL fallback.
 	urlsRaw := payload.URLs
 	if isEmptyURLs(urlsRaw) && s.cfg.StatelessURLs != "" {
 		urlsRaw = s.cfg.StatelessURLs
@@ -121,9 +114,8 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 		title = r.URL.Query().Get("title")
 	}
 
-	// Tag grammar validation. Lists pass straight through (Python: list
-	// payloads skip parse_tag_expression); strings are parsed to OR/AND
-	// structure; anything else is a 400.
+	// Tag validation: lists pass straight through, strings are parsed,
+	// anything else is a 400.
 	var tagFilter []notify.TagGroup
 	switch tag := tagRaw.(type) {
 	case nil:
@@ -132,9 +124,6 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 		if tag != "" {
 			groups, err := notify.ParseTagExpression(tag)
 			if err != nil {
-				// Wrap in errInvalidTag (%w) so statusCodeOf stays
-				// authoritative; the user-facing body stays the fixed
-				// Python-parity literal below.
 				tagErr := fmt.Errorf("%w: %v", errInvalidTag, err)
 				s.log.Warn("notify: invalid tag", "remote", remoteAddr(r), "err", redactCredentials(tagErr.Error()))
 				fail(http.StatusBadRequest, "Unsupported characters found in tag definition")
@@ -162,20 +151,14 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Stage the winning attach alias value plus multipart file parts to
-	// request-scoped temp files; any staging failure is a 400 "Bad
-	// Attachment" via attach.StatusCodeOf.
+	// Stage attachments; any staging failure is a 400 "Bad Attachment".
 	var attachPaths []string
 	var stagedNames []string
 	if payload.HasAttach && len(payload.Attach) == 0 && payload.FileCount == 0 {
-		// Alias declared but empty (e.g. attach= with blank value):
-		// Python parse_attachments decrements blank entries and yields no
-		// attach — body-required rule then applies.
+		// Empty alias: body-required rule applies.
 	} else if payload.HasAttach {
 		staged, err := s.stageAttachments(payload)
 		if err != nil {
-			// Log once (redacted: no paths/userinfo); the caller sees
-			// only the fixed "Bad Attachment" literal.
 			s.log.Warn("notify: bad attachment", "remote", remoteAddr(r), "err", redactCredentials(err.Error()))
 			fail(attach.StatusCodeOf(err), "Bad Attachment")
 			return
@@ -187,9 +170,7 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 		payload.HasAttach = attach.HasAttachment(staged, payload.AttachRaw)
 	}
 
-	// Minimum requirements: body or attach, and a valid type
-	// (views.py:2016). Default type is info; anything outside
-	// info|success|warning|failure is a 400.
+	// Minimum requirements: body or attach, valid type (default info).
 	body := payload.Body
 	ntype := strings.ToLower(strings.TrimSpace(notifyType))
 	if ntype == "" {
@@ -201,34 +182,28 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Body format: empty/missing means "ignore" (passes); otherwise it must
-	// be text|markdown|html (views.py:2040).
+	// Body format must be text|markdown|html (empty defaults to text).
 	bodyFormat := strings.ToLower(strings.TrimSpace(format))
 	if bodyFormat == "" {
 		bodyFormat = "text"
 	} else if !validInputFormat(bodyFormat) {
-		// Wrap in errInvalidFormat (%w) so statusCodeOf stays authoritative.
 		formatErr := fmt.Errorf("%w: %q", errInvalidFormat, format)
 		s.log.Warn("notify: invalid format", "remote", remoteAddr(r), "err", redactCredentials(formatErr.Error()))
 		fail(http.StatusBadRequest, "An invalid body input format was specified")
 		return
 	}
 
-	// Recursion header (views.py:2089): missing → 0; negative or
-	// unparseable → 400; over APPRISE_RECURSION_MAX → 406 (not 405).
+	// Recursion header: missing → 0; negative/unparseable → 400; over max → 406.
 	recursion := 0
 	if raw := strings.TrimSpace(r.Header.Get("X-Apprise-Recursion-Count")); raw != "" {
 		v, err := strconv.Atoi(raw)
 		if err != nil || v < 0 {
-			// Wrap in errInvalidRecursion (%w) so statusCodeOf stays
-			// authoritative.
 			recErr := fmt.Errorf("%w: %q", errInvalidRecursion, raw)
 			s.log.Warn("notify: invalid recursion", "remote", remoteAddr(r), "err", recErr.Error())
 			fail(http.StatusBadRequest, "An invalid recursion value was specified")
 			return
 		}
 		if v > s.cfg.RecursionMax {
-			// Wrap in errRecursionLimit (%w); the 406 quirk is preserved.
 			limitErr := fmt.Errorf("%w: got %d", errRecursionLimit, v)
 			s.log.Warn("notify: recursion limit", "remote", remoteAddr(r), "err", limitErr.Error())
 			fail(http.StatusNotAcceptable, "The recursion limit has been reached")
@@ -237,20 +212,14 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 		recursion = v
 	}
 
-	// X-Apprise-ID is accepted and logged only; the delivery engine carries
-	// no per-send identity.
+	// X-Apprise-ID is accepted and logged only.
 	if uid := strings.TrimSpace(r.Header.Get("X-Apprise-ID")); uid != "" {
 		s.log.Debug("notify: request id", "uid", uid)
 	}
 
-	// X-Apprise-Log-Level is validated against the allowlist; unknown values
-	// fall back to the service default. The level only gates debug output here.
 	_ = validatedLogLevel(r.Header.Get("X-Apprise-Log-Level"), s.cfg.LogLevel)
 
-	// Send via the engine. Zero surviving targets → 204; any delivery
-	// error → 424 with negotiated logs/details. A target that cannot
-	// carry attachments fails the send with the staged filename attached
-	// so the failure is never silent.
+	// Zero surviving targets → 204; delivery errors → 424.
 	req := notify.Request{
 		URLs:               urls,
 		Body:               body,
@@ -291,9 +260,8 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 	fireWebhook(s, r, true, nil)
 }
 
-// isJSONResponse mirrors Python is_json_response (api/utils.py:63): Accept:
-// application/json forces JSON; missing/wildcard Accept falls back to the
-// request Content-Type.
+// isJSONResponse: Accept application/json forces JSON; missing/wildcard
+// Accept falls back to the request Content-Type.
 func isJSONResponse(r *http.Request) bool {
 	accept := r.Header.Get("Accept")
 	ct := r.Header.Get("Content-Type")
@@ -301,12 +269,8 @@ func isJSONResponse(r *http.Request) bool {
 		(acceptAll.MatchString(accept) && mimeIsJSON.MatchString(ct))
 }
 
-// respondNotify writes the negotiated success/failure body:
-// JSON {"error","details"} | HTML <ul class="logs"> | plain text lines.
-// Log records are synthesized server-side as [level, date, message] entries
-// mirroring Python's LogCapture JSON shape. Failure details carry only the
-// fixed errMsg (never the raw sendErr chain), so user-facing strings carry
-// no traces, tokens, or paths.
+// respondNotify writes the negotiated body (JSON | HTML | text).
+// Failure details carry only the fixed errMsg, never the raw chain.
 func respondNotify(w http.ResponseWriter, r *http.Request, status int, errMsg string, _ error, failed bool) {
 	accept := r.Header.Get("Accept")
 	if accept == "" {
@@ -345,11 +309,8 @@ func respondNotify(w http.ResponseWriter, r *http.Request, status int, errMsg st
 	}
 }
 
-// fireWebhook is the outbound result-hook: it POSTs
-// {"source","status":0|1,"output"} to APPRISE_WEBHOOK_URL before the response
-// in the caller, logging transport errors only. Non-http(s) URLs are skipped
-// with a warning. The output is redacted (no URL userinfo/secrets); X-Apprise
-// log/wrap fields reuse the shared validation/sender helpers.
+// fireWebhook POSTs {"source","status":0|1,"output"} to APPRISE_WEBHOOK_URL
+// (transport errors logged only; output redacted).
 func fireWebhook(s *Server, r *http.Request, ok bool, sendErr error) {
 	url := strings.TrimSpace(s.cfg.WebhookURL)
 	if url == "" {

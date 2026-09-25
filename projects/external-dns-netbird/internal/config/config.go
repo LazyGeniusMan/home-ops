@@ -1,8 +1,5 @@
-// Package config loads the webhook provider configuration from the
-// environment. Secrets are never taken from the environment directly:
-// the NetBird personal access token is read from the file whose path is
-// given in NETBIRD_PAT_FILE (suitable for Kubernetes projected volumes,
-// ESO secret mounts, etc.).
+// Package config loads the provider configuration from the environment
+// (PAT from NETBIRD_PAT_FILE, never an env value directly).
 package config
 
 import (

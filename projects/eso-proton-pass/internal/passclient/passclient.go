@@ -1,20 +1,6 @@
-// Package passclient shells out to the pass-cli binary to resolve Proton Pass
-// secrets.
-//
-// Design notes:
-//
-//   - The client never takes the PAT as an env value: it reads the token from
-//     the PROTON_PASS_PAT_FILE file content at startup and passes it to
-//     `pass-cli login` via the PROTON_PASS_PERSONAL_ACCESS_TOKEN env var on a
-//     per-process environment.
-//   - A fresh PROTON_PASS_AGENT_REASON is generated for every pass-cli exec so
-//     agent audit logs attribute each read uniquely.
-//   - Telemetry is disabled via PROTON_PASS_DISABLE_TELEMETRY=1 and
-//     PASS_LOG_LEVEL=off on every invocation.
-//   - Resolution uses `pass-cli inject` over stdin: the template
-//     `{{ pass://vault/item/field }}` is resolved from the vault and the
-//     substituted stdout is the secret value. URIs are never interpolated
-//     into a shell command (no shell is used; exec argv only).
+// Package passclient resolves Proton Pass secrets via the pass-cli binary
+// (`pass-cli inject` over stdin; PAT from file via child-process env;
+// fresh agent reason per exec; telemetry off on every invocation).
 package passclient
 
 import (
@@ -31,17 +17,12 @@ import (
 	"time"
 )
 
-// ErrNotFound marks CLI-reported missing secrets. It is produced only by
-// ResolveSecret after classifying CLI stderr at the boundary (see
-// isNotFoundOutput) and is wrapped with %w so errors.Is finds it through
-// any chain; the provider maps it to its own ErrNotFound (HTTP 404).
+// ErrNotFound marks CLI-reported missing secrets (%w-wrapped; provider
+// maps it to HTTP 404).
 var ErrNotFound = errors.New("pass-cli: secret not found")
 
 // ExecError is a pass-cli invocation failure. Stderr is retained for
-// operator debugging (logged once by run, never returned in Error) so
-// secret-adjacent CLI output cannot leak through error strings into API
-// envelopes. Use errors.As to inspect it; use errors.Is(err,
-// ErrNotFound) for missing-secret classification.
+// operator logs only (never in Error), so secrets cannot leak into envelopes.
 type ExecError struct {
 	// Op is the subcommand, e.g. "inject".
 	Op string
@@ -160,11 +141,8 @@ func (c *Client) baseEnv() []string {
 	return env
 }
 
-// run executes pass-cli with args, stdin, and extra env entries. It returns
-// trimmed stdout or an *ExecError carrying stderr for operator debugging.
-// Stderr is logged once here (single-handling rule); callers must wrap with
-// %w (never %v) and keep messages lowercase so secret material cannot leak
-// through error strings into API envelopes.
+// run executes pass-cli, returning trimmed stdout. Stderr is logged once
+// here; callers wrap with %w (never %v), lowercase, so secrets never leak.
 func (c *Client) run(ctx context.Context, args []string, stdin string, extraEnv []string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
@@ -230,11 +208,8 @@ func (c *Client) Login(ctx context.Context, pat string) error {
 	return nil
 }
 
-// ResolveSecret resolves a pass://vault/item/field URI to its secret value
-// via `pass-cli inject`. A fresh audit reason is generated per call.
-// Missing-secret CLI output maps to ErrNotFound (wrapped with %w); other
-// failures wrap with %w. The URI is redacted to vault/item/<field> so field
-// names never enter error strings.
+// ResolveSecret resolves a pass:// URI via `pass-cli inject` (fresh audit
+// reason per call; URIs redacted to vault/item/<field> in errors).
 func (c *Client) ResolveSecret(ctx context.Context, uri, reasonPrefix string) (string, error) {
 	if !strings.HasPrefix(uri, "pass://") {
 		return "", fmt.Errorf("resolve: invalid uri: must start with pass://")

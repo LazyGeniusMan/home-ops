@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
-# Verification for helm-rclone-sync: lint, render all 10 sync
-# directions + the four-value-source fixture, assert the env-only contract
-# (no rclone.conf anywhere), assert volume/env shape, and prove fail-fast
-# errors. Runs in CI (.github/workflows/helm-rclone-sync.yml); run by hand
-# from the repo root:
-#   bash projects/helm-rclone-sync/ci/verify.sh
+# Verification: lint, render all 10 directions + fixtures, assert env-only
+# (no rclone.conf), volume/env shape, and fail-fast errors.
+# Run from the repo root: bash projects/helm-rclone-sync/ci/verify.sh
 set -euo pipefail
 
 CHART=projects/helm-rclone-sync
@@ -165,12 +162,9 @@ expect_fail() { # desc, values-file-or-empty, expected-msg-fragment, [helm args.
     bad "$desc failed without expected message [$want]"; sed 's/^/  /' "$OUT/fail.err"
   fi
 }
-# NOTE: --set/--set-json merge INTO the demo defaults at the FIELD level, so
-# whole-endpoint replacement must pass a complete endpoint map via --set-json:
-# a partial map would deep-merge with the demo default's sibling keys.
-# --set-json merges too, so "missing key" must be proven by nulling the key
-# out of the merged map (a bare omit would inherit the demo default — that is
-# Helm semantics, not a chart bug).
+# NOTE: --set-json merges at field level, so whole endpoints need complete
+# maps and "missing key" proofs null the key (a bare omit inherits the demo
+# default — Helm semantics).
 expect_fail "missing s3 secretAccessKey" \
   "" "secretAccessKey is required" \
   --set-json 'source={"type":"pvc-rwo","uri":{"value":"d"}}' \

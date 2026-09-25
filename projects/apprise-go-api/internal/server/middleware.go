@@ -1,12 +1,6 @@
-// Request middleware: metrics observation plus per-request slog logging.
-//
-// withMetrics wraps the mux: after dispatch it records method/route/status
-// on httpRequestsTotal, observes duration on httpRequestDurationSeconds,
-// and emits one JSON log line (method, route, status, duration), except
-// for the /metrics scrape path which bypasses observation entirely. Route
-// labels come from r.Pattern (the matched ServeMux pattern), falling back
-// to the bounded literal "notfound" for unmatched requests — never the raw
-// path, so no label carries user IDs, URLs, or unbounded values.
+// Request middleware: per-request metrics + one slog line. Route labels
+// come from r.Pattern ("notfound" for unmatched), never the raw path.
+// /metrics bypasses observation.
 package server
 
 import (

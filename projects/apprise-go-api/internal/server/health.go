@@ -1,19 +1,6 @@
-// Health and readiness probes plus the attach-dir writability cache.
-//
-// GET /healthz is the liveness probe: it returns {"status":"ok"} with zero
-// downstream calls (no sender, no filesystem, no attach probe) in <50ms.
-//
-// GET /readyz is the readiness probe: it checks the attach staging dir via
-// the TTL cache and returns {"status":"ok"} when writable, or 503
-// {"status":"not_ready","failing":"attach-dir"} when not. Probe failures are
-// logged server-side and never expose traces or paths.
-//
-// /details stays a domain endpoint (service catalog), never a probe.
-//
-// The attach writability probe (MkdirAll + CreateTemp) has a side effect per
-// call, so it must never run per scrape: cachedAttachProbe serves the
-// result from a TTL cache (attachProbeTTL), and /metrics reads the same
-// cached gauge.
+// Health probes plus the TTL-cached attach-dir writability check.
+// /healthz: static {"status":"ok"}; /readyz: 503 when the staging dir is
+// not writable. The probe has side effects, so it never runs per scrape.
 package server
 
 import (

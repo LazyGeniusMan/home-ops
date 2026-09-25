@@ -1,21 +1,6 @@
-// Error contract for the webhook API.
-//
-// Soft errors are transient NetBird failures; callers must wrap with %w.
-//
-// Mapping:
-//
-//	soft (transient NetBird/API failure) -> 502 Bad Gateway, ExternalDNS retries
-//	hard (permanent: no matching zone, bad input) -> 422 Unprocessable Entity
-//	decode failures in handlers -> 400 Bad Request
-//	anything unmapped -> 500 Internal Server Error (statusCodeOf fallback)
-//
-// Single-handling rule: handlers log the error once (s.log with the full
-// chain for operators) and return only a sanitized {"error"} envelope to
-// the caller. publicError strips provider internals so user-facing strings
-// carry no traces, tokens, or file paths: soft errors become
-// "netbird api temporarily unavailable", hard errors keep their short
-// lowercase reason (zone-miss messages only name the DNS name, never paths
-// or secrets).
+// Error contract: soft (transient) → 502 (ExternalDNS retries), hard
+// (permanent) → 422, decode failures → 400, else 500. Single-handling rule:
+// log once, return a sanitized envelope; %w, lowercase.
 package server
 
 import (
