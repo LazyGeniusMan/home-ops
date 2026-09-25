@@ -46,7 +46,7 @@ Flux never manages user RBAC here.
 | Issuer | `https://admin.zitadel.home-ops.yansyah.my.id` |
 | Client | `flux-operator-ui` (owned by the `flux-operator-ui-sso` Terraform CR) |
 | Scopes | `openid profile email groups` (`flux-operator-ui-admin` group only) |
-| Secrets (ESO) | `oauth2-proxy-oidc` syncs client-id + client-secret from `flux-operator-ui-sso-outputs` via the in-cluster `flux-operator-ui-k8s` SecretStore (no pass:// seeding for OIDC creds); `oauth2-proxy-cookie` syncs the cookie-secret from `pass://acme-prd-bdo1-talos-apps-01/flux-operator-ui/oauth2-proxy-cookie-secret` |
+| Secrets (ESO) | `oauth2-proxy-oidc` syncs client-id + client-secret from `flux-operator-ui-sso-outputs` via the in-cluster `flux-operator-ui-k8s` SecretStore (no pass:// seeding for OIDC creds); `oauth2-proxy-cookie` syncs the cookie-secret from `pass://acme-<env>-bdo1-talos-apps-01/flux-operator-ui/oauth2-proxy-cookie-secret` |
 | Upstream | `http://flux-operator-ui.<ns>.svc:9080` (namespace-agnostic via `POD_NAMESPACE` env) |
 | Callback | `https://flux-operator.home-ops.yansyah.my.id/oauth2/callback` (covered by the shared wildcard redirect) |
 

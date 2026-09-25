@@ -1,15 +1,14 @@
 # matrix tenant — vault seed checklist
 
-One-time `pass-cli item create` per env BEFORE first install. Git holds
+One-time `pass-cli item create login` per env BEFORE first install. Git holds
 `remoteRef` keys only, never values. Overlays patch every `remoteRef.key`
 from the `__PROTON_PASS_BASE__` placeholder to the per-env vault path;
 workloads pend until ESO syncs the Secrets.
 
 Vault naming: `pass://acme-<env>-bdo1-talos-apps-01/<path>` (`dev`/`prd`).
-The create shape drops the `pass://` scheme:
 
 ```shell
-pass-cli item create 'acme-<env>-bdo1-talos-apps-01/<path>'
+pass-cli item create login --vault-name 'acme-<env>-bdo1-talos-apps-01' --title '<path>'
 ```
 
 **12** fields per env (1 cert-manager + 1 registration-secret +
@@ -39,18 +38,18 @@ Same 12 rows for `dev` and `prd`; only values differ per env.
 Seed commands (dev shown; repeat with `acme-prd-bdo1-talos-apps-01` for prd):
 
 ```shell
-pass-cli item create 'acme-dev-bdo1-talos-apps-01/cert-manager/cloudflare-api-token'
-pass-cli item create 'acme-dev-bdo1-talos-apps-01/matrix/tuwunel-registration-secret'
-pass-cli item create 'acme-dev-bdo1-talos-apps-01/mautrix-discord/bot-token'
-pass-cli item create 'acme-dev-bdo1-talos-apps-01/mautrix-discord/as-token'
-pass-cli item create 'acme-dev-bdo1-talos-apps-01/mautrix-discord/hs-token'
-pass-cli item create 'acme-dev-bdo1-talos-apps-01/mautrix-discord/avatar-proxy-key'
-pass-cli item create 'acme-dev-bdo1-talos-apps-01/mautrix-discord/direct-media-server-key'
-pass-cli item create 'acme-dev-bdo1-talos-apps-01/mautrix-discord/provisioning-shared-secret'
-pass-cli item create 'acme-dev-bdo1-talos-apps-01/mautrix-discord/double-puppet-shared-secret'
-pass-cli item create 'acme-dev-bdo1-talos-apps-01/mautrix-discord/db-password'
-pass-cli item create 'acme-dev-bdo1-talos-apps-01/element-web/netbird-pat'
-pass-cli item create 'acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-token'
+pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'cert-manager/cloudflare-api-token'
+pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'matrix/tuwunel-registration-secret'
+pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'mautrix-discord/bot-token'
+pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'mautrix-discord/as-token'
+pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'mautrix-discord/hs-token'
+pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'mautrix-discord/avatar-proxy-key'
+pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'mautrix-discord/direct-media-server-key'
+pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'mautrix-discord/provisioning-shared-secret'
+pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'mautrix-discord/double-puppet-shared-secret'
+pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'mautrix-discord/db-password'
+pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'element-web/netbird-pat'
+pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'element-web/cloudflare-api-token'
 ```
 
 ## Not vault-seeded (in-cluster minted — DO NOT `pass-cli item create`)

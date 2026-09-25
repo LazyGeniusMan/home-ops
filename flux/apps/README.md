@@ -1,10 +1,8 @@
 # Apps (tenant workloads)
 
-D2 apps layer for the home-ops monorepo, adapted from upstream
-[d2-apps](https://github.com/controlplaneio-fluxcd/d2-apps). Holds tenant
-workloads delivered per-namespace with least-privilege RoleBindings. Current
-applications (8): clickstack, coder, flux-operator-ui, headlamp, hubble-ui,
-matrix, talos-vm, win11-vm.
+Tenant workloads delivered per-namespace with least-privilege RoleBindings.
+Current applications (8): clickstack, coder, flux-operator-ui, headlamp,
+hubble-ui, matrix, talos-vm, win11-vm.
 
 ## Layout
 

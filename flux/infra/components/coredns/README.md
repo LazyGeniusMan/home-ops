@@ -31,8 +31,8 @@ each overlay replaces the LAN zone block with its domain + VIP.
 | `dev` | 1 | Corefile LAN zone `home-ops-dev.yansyah.my.id` -> `.249` |
 | `prd` | 2 | Corefile LAN zone `home-ops.yansyah.my.id` -> `.199` |
 
-Replica seeds pinned in `controllers/{dev,prd}`; the out-of-band HPA owns
-the runtime count (base min 2 / max 4, dev 1 / 2).
+Dev seeds 1 replica, prd seeds 2. The out-of-band HPA owns the runtime
+count (dev min 1 / max 2, prd min 2 / max 4).
 
 ## kube-dns Service IP
 

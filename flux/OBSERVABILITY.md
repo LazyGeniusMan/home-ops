@@ -116,9 +116,7 @@ recommendations apply at pod (re)start only, never mid-run eviction.
 
 ## ClickHouse retention
 
-No custom TTLs in git; table retention follows the ClickHouse/HyperDX chart
-defaults and HyperDX manages its own tables. Explicit TTLs are a future change,
-not current state.
+Table retention follows the ClickHouse/HyperDX chart defaults.
 
 ## HyperDX route / Gateway pattern
 

@@ -1,4 +1,5 @@
 # S3 to ProtonDrive backups for zitadel-db, zitadel-cache, zitadel-assets (one helm-rclone-sync CronJob per bucket, direction 05; chart 0.1.0).
+# Chart source: projects/helm-rclone-sync.
 # Source is the live bc-<uuid> bucket via BucketInfo.spec.bucketName (assets sync reads the account root with --include "zitadel-assets*/**"). Destination /home-ops/backups/<cluster>/zitadel/<bucket>. Schedules db 01:15, cache 02:15, assets 03:15 UTC; sync, Forbid.
 ---
 apiVersion: external-secrets.io/v1
