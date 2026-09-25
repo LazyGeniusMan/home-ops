@@ -13,18 +13,16 @@ overlays `{dev,prd}/` patch hostnames, vault refs, and proxy values via
 
 ## Relay backend (by DNS name)
 
-The `backend` container points at the Relay Service by DNS name:
-
-- `FLOWS_API_ADDR=hubble-relay.cilium.svc:80` — port 80 = relay server TLS OFF.
-- Images pinned to the Cilium v1.20.2 chart defaults: frontend
-  `quay.io/cilium/hubble-ui:v0.13.6`, backend
-  `quay.io/cilium/hubble-ui-backend:v0.13.6`.
-- Nginx front door (`hubble-ui-nginx` ConfigMap) rendered from the chart's
-  `hubble-ui/_nginx.tpl` with baseUrl `/` (`:80 → 8081`,
-  `/api → 127.0.0.1:8090`).
-- RBAC: the chart ships a ClusterRole for cluster-wide listing; the
-  apps-tenant Flux SA cannot manage cluster-scoped RBAC, so this grants a
-  namespaced Role (pods/services/endpoints read in-namespace) instead.
+The `backend` container points at the Relay Service by DNS name
+(`FLOWS_API_ADDR=hubble-relay.cilium.svc:80` — port 80 = relay server TLS OFF).
+Images pin to the Cilium v1.20.2 chart defaults: frontend
+`quay.io/cilium/hubble-ui:v0.13.6`, backend
+`quay.io/cilium/hubble-ui-backend:v0.13.6` (move together on every Cilium
+minor; Changelog: https://github.com/cilium/cilium/releases — the UI ships
+with Cilium). Nginx front door (`hubble-ui-nginx` ConfigMap) renders from the
+chart's `hubble-ui/_nginx.tpl` (baseUrl `/`). RBAC: the apps-tenant Flux SA
+cannot manage cluster-scoped RBAC, so this grants a namespaced Role
+(pods/services/endpoints read in-namespace) instead of the chart's ClusterRole.
 
 ## Auth
 
@@ -46,9 +44,8 @@ upstreams to `http://hubble-ui.hubble-ui.svc:80`:
 Secrets: `ExternalSecret/oauth2-proxy` syncs `client-id` + `client-secret` +
 `cookie-secret` from `hubble-ui-sso-outputs` via the in-cluster
 `hubble-ui-k8s` SecretStore (stored outputs — no pass:// seeding). The
-`hubble` client is owned by this app's `hubble-ui-sso` Terraform CR
-(upstream identity mirrors from the FirstInstance handoff via
-`hubble-ui-terraform-vars`, no `org_id` literal in git).
+`hubble` client is owned by this app's `hubble-ui-sso` Terraform CR (no
+`org_id` literal in git).
 
 ## Routing
 
@@ -63,20 +60,8 @@ at the Gateway via the in-namespace wildcard `Certificate`
 - No usage-reporting keys; no analytics env/args on either container.
 - No `ServiceMonitor`.
 - Updates via `flux/apps/update-policies/hubble-ui.yaml` (`$imagepolicy`
-  markers on all three images; UI floor `>=0.13.6`).
-
-## Upgrade runbook
-
-- Version source: frontend + backend image tags in `base/hubble-ui.yaml`
-  (v0.13.6 — must match the Cilium v1.20.2 chart defaults).
-- Changelog: https://github.com/cilium/cilium/releases (the UI ships with
-  Cilium — no separate UI release line).
-- Bump: on every Cilium minor, check the new chart's hubble-ui defaults,
-  then move frontend + backend together via the ImagePolicy PRs (markers
-  `apps:hubble-ui:tag` + `apps:hubble-ui-backend:tag`). The oauth2-proxy
+  markers on all three images; UI floor `>=0.13.6`). The oauth2-proxy
   markers are shared with clickstack + flux-operator-ui — bump together.
-- Verify: the service map renders live flows via
-  `hubble-relay.cilium.svc:80` and OIDC login still gates the UI.
 
 ## Environments
 

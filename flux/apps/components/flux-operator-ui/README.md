@@ -25,25 +25,11 @@ flux-operator-ui` (Service `flux-operator-ui`, port 9080). Bootstrap keeps
 ## RBAC
 
 The UI backend impersonates the authenticated user, so end users need READ
-access to the Flux CRs they should see. Least-privilege read-only viewer
-(illustrative — apply out-of-band; the UI's own SA is chart-managed):
-
-```yaml
-# Read-only Flux CR viewer for UI users.
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: flux-ui-viewer
-rules:
-  - apiGroups: ["kustomize.toolkit.fluxcd.io", "helm.toolkit.fluxcd.io",
-      "source.toolkit.fluxcd.io", "notification.toolkit.fluxcd.io",
-      "image.toolkit.fluxcd.io", "fluxcd.controlplane.io"]
-    resources: ["*"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["namespaces", "pods", "events"]
-    verbs: ["get", "list", "watch"]
-```
+access to the Flux CRs they should see. The UI's own SA is chart-managed;
+grant users a read-only ClusterRole (`get`/`list`/`watch` on the Flux CRD
+groups `kustomize/helm/source/notification/image.toolkit.fluxcd.io` +
+`fluxcd.controlplane.io`, plus `namespaces`/`pods`/`events`) out-of-band —
+Flux never manages user RBAC here.
 
 ## Auth
 
@@ -71,18 +57,9 @@ operator release line via `update-policies/flux-operator-ui.yaml` (UI marker
 `apps:flux-operator-ui:tag`, floor `>=0.60.0`; proxy markers
 `apps:oauth2-proxy-chart` + `apps:oauth2-proxy` shared with clickstack +
 hubble-ui). Never touches fleet sync (`serverOnly` + `installCRDs: false`).
-
-## Upgrade runbook
-
-- Version source: chart tag in `base/flux-operator-ui.yaml` (UI 0.60.0) in
-  lockstep with `operator_chart_version` in
-  `flux/fleet/terraform/versions.yaml`.
-- Changelog:
-  https://github.com/controlplaneio-fluxcd/flux-operator/releases.
-- Bump: let the ImagePolicy PR land (marker `apps:flux-operator-ui:tag`),
-  then set the chart tag here AND `operator_chart_version` together.
-- Verify: the UI lists Kustomizations/HelmReleases read-only and the fleet
-  `FluxInstance` still reconciles `Ready=True`.
+Version source: chart tag in `base/flux-operator-ui.yaml` (UI 0.60.0) in
+lockstep with `operator_chart_version` in `flux/fleet/terraform/versions.yaml`.
+Changelog: https://github.com/controlplaneio-fluxcd/flux-operator/releases.
 
 ## Environments
 

@@ -12,120 +12,29 @@ cross-namespace `sourceRef` + their own vars.
   Zero `module` blocks.
 - `variables.tf` — full contract (project, credentials, roles, users, URIs,
   cookie secret). No `app_host`/`ui_host` vars: callers pass fully-rendered
-  `redirect_uris` / `post_logout_redirect_uris`.
+  `redirect_uris` / `post_logout_redirect_uris`. See `variables.tf` for the
+  variable table.
 - `outputs.tf` — `client_id`, `client_secret` (sensitive), `project_id`,
   `cookie_secret` (sensitive, `""` when disabled), `admin_role_key`,
-  `user_role_key`. Names match what consumer `writeOutputsToSecret`
-  expects (`client_id`/`client_secret`[`/cookie_secret`]).
+  `user_role_key`. Names match what consumer `writeOutputsToSecret` expects
+  (`client_id`/`client_secret`[`/cookie_secret`]). See `outputs.tf` for the
+  output table.
 - `versions.tf` — `required_version >= 1.11`, `zitadel/zitadel ~> 3.3`,
   `hashicorp/random ~> 3.7`.
 
 ## Consumer usage (cross-namespace sourceRef)
 
-```yaml
-apiVersion: infra.contrib.fluxcd.io/v1alpha2
-kind: Terraform
-metadata:
-  name: <app>-sso
-spec:
-  # Shared reusable SSO root: the infra/zitadel OCI artifact (per-tenant
-  # OCIRepository `infra` in ns `zitadel`) packs
-  # flux/infra/components/zitadel/terraform/ at ./terraform.
-  sourceRef:
-    kind: OCIRepository
-    name: infra
-    namespace: zitadel
-  path: ./terraform # this reusable root
-  vars:
-    - name: domain
-      value: admin.zitadel.home-ops.yansyah.my.id
-    - name: project_name
-      value: <app>
-    - name: redirect_uris
-      value:
-        - https://<app-host>/oauth2/callback
-    - name: post_logout_redirect_uris
-      value:
-        - https://<app-host>/
-    - name: create_cookie_secret
-      value: "true" # oauth2-proxy pattern; omit for direct-OIDC apps
-  varsFrom:
-    - kind: Secret
-      name: <app>-terraform-vars # jwt_profile_json, org_id, admin_user_id
-  writeOutputsToSecret:
-    name: <app>-sso-outputs
-    outputs:
-      - client_id
-      - client_secret
-      - cookie_secret # only when create_cookie_secret is true
-```
-
-User-capable apps add `create_user_role: "true"` + `user_emails` (+ optional
-`user_initial_password` via `varsFrom`). Extra admins go in `admin_emails`.
-Provider auth (`jwt_profile_json`) and handoff IDs (`org_id`,
-`admin_user_id`) flow from the FirstInstance handoff Secrets via the
-ESO-synced `<app>-terraform-vars` Secret.
-
-## Variables
-
-| Name | Type | Required | Default | Description |
-| ---- | ---- | -------- | ------- | ----------- |
-| `project_name` | `string` | yes | — | Zitadel project name; fallback for `group_name`, `oidc_name`, role keys |
-| `group_name` | `string` | no | `project_name` | Group claim value on the project roles (oauth2-proxy `--allowed-group` / app group gates) |
-| `oidc_name` | `string` | no | `project_name` | Display name of the OIDC application |
-| `domain` | `string` | no | `admin.zitadel.home-ops.yansyah.my.id` | Zitadel external domain (admin/issuer host, no scheme) |
-| `login_base_uri` | `string` | no | `null` | End-user login UI base URI (e.g. `https://login.zitadel.home-ops.yansyah.my.id/ui/v2/login`) — per-app `login_version.login_v2.base_uri` + shared `zitadel_instance_trusted_domain` registration |
-| `jwt_profile_json` | `string` (sensitive) | no | `null` | JWT profile key JSON for the FirstInstance IAM_OWNER machine user (controller injects via `varsFrom`; manual runs pass `-var`, never commit) |
-| `org_id` | `string` | no | `null` | Home-ops org ID from the FirstInstance handoff (`zitadel-bootstrap-outputs` Secret via ESO mirror) |
-| `admin_user_id` | `string` (sensitive) | no | `null` | Bootstrap admin user ID from the FirstInstance handoff — always granted the admin project role |
-| `admin_emails` | `list(string)` | no | `[]` | Extra OIDC admins beyond the bootstrap admin (created as human users + granted the admin role) |
-| `redirect_uris` | `list(string)` | yes | — | Fully-rendered OIDC redirect URIs — callers render hosts; the root takes no `app_host`/`ui_host` vars |
-| `post_logout_redirect_uris` | `list(string)` | yes | — | Fully-rendered post-logout redirect URIs |
-| `admin_role_key` | `string` | no | `${project_name}-admin` | Project role key granted to the bootstrap admin |
-| `create_user_role` | `bool` | no | `false` | Create the non-admin project role (coder/headlamp pattern) |
-| `user_role_key` | `string` | no | `${project_name}-user` | Project role key granted to normal users |
-| `user_emails` | `list(string)` | no | `[]` | Normal users to create + grant the user role (empty = admin-only) |
-| `user_initial_password` | `string` (sensitive) | no | `null` | Initial password for normal users (rotate after first login) |
-| `create_cookie_secret` | `bool` | no | `false` | Generate a 32-byte oauth2-proxy cookie secret (base64 output) |
-
-`group_name`, `oidc_name`, `admin_role_key`, and `user_role_key` default to
-`null`; `main.tf` resolves them with `coalesce` to the values shown above.
-
-## Examples
-
-Admin-only behind oauth2-proxy (hubble-ui / seaweedfs pattern — exact
-callback URI, generated cookie secret):
-
-```hcl
-# consumer Terraform CR vars (path: ./terraform):
-project_name              = "seaweedfs"
-redirect_uris             = ["https://<ui-host>/oauth2/callback"]
-post_logout_redirect_uris = ["https://<ui-host>/"]
-create_cookie_secret      = true
-```
-
-User-capable app (coder / headlamp pattern — wildcard redirect, user role +
-user creation):
-
-```hcl
-# consumer Terraform CR vars (path: ./terraform):
-project_name              = "coder"
-redirect_uris             = ["https://<app-host>/*"]
-post_logout_redirect_uris = ["https://<app-host>/"]
-create_user_role          = true
-user_emails               = var.user_emails
-```
-
-## Outputs
-
-| Name | Sensitive | Description |
-| ---- | --------- | ----------- |
-| `client_id` | yes | Generated OIDC `client_id` (into `<app>-sso-outputs` via `writeOutputsToSecret`) |
-| `client_secret` | yes | Generated OIDC `client_secret` (same Secret, never Git) |
-| `project_id` | no | ID of the Zitadel project owned by this slice |
-| `cookie_secret` | yes | Generated cookie secret, base64 — `""` when `create_cookie_secret` is `false` |
-| `admin_role_key` | no | Effective admin role key |
-| `user_role_key` | no | Effective user role key |
+Consumer Terraform CR: `sourceRef` the `infra` OCIRepository in namespace
+`zitadel` at `path: ./terraform`, plain `vars` for `domain` / `project_name` /
+`redirect_uris` / `post_logout_redirect_uris` (+ `create_cookie_secret: "true"`
+for the oauth2-proxy pattern), `varsFrom` the `<app>-terraform-vars` Secret
+(`jwt_profile_json`, `org_id`, `admin_user_id` from the FirstInstance handoff
+via ESO), `writeOutputsToSecret` to `<app>-sso-outputs` (`client_id` /
+`client_secret` [/ `cookie_secret`]). User-capable apps add
+`create_user_role: "true"` + `user_emails`; extra admins go in `admin_emails`.
+Two shapes: admin-only behind oauth2-proxy (exact callback URI, generated
+cookie secret — hubble-ui / seaweedfs pattern) and user-capable app (wildcard
+redirect, user role + user creation — coder / headlamp pattern).
 
 ## Secure defaults
 
@@ -141,4 +50,3 @@ user_emails               = var.user_emails
   assertions on.
 - No secrets in git: JWT profile, org/admin IDs, and generated
   client/cookie secrets flow through ESO mirrors and the CR outputs Secret.
-

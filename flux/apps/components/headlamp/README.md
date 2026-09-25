@@ -42,27 +42,19 @@ via `headlamp-terraform-vars` — no `org_id` literal in git. Normal users via
 ## Plugins (pluginsManager sidecar, all pinned)
 
 `config.watchPlugins: true` hot-reloads updates without pod recreation.
-
-| Plugin | Version | Source URL |
-| --- | --- | --- |
-| ai-assistant (`headlamp_ai_assistant`) | `0.4.1-alpha` | `https://artifacthub.io/packages/headlamp/headlamp-plugins/headlamp_ai_assistant` |
-| flux (`headlamp_flux`) | `0.7.0` | `https://artifacthub.io/packages/headlamp/headlamp-plugins/headlamp_flux` |
-| kubevirt (`headlamp_kubevirt`) | `0.3.1` | `https://artifacthub.io/packages/headlamp/headlamp-kubevirt/headlamp_kubevirt` |
-
-Plugin pins are hand-bumped in the `configContent` block in the same PR as
-the image bump.
+Pinned set (see `base/headlamp.yaml` `configContent`): ai-assistant
+(`headlamp_ai_assistant` 0.4.1-alpha), flux (`headlamp_flux` 0.7.0), kubevirt
+(`headlamp_kubevirt` 0.3.1). Plugin pins hand-bump in the same PR as the
+image bump.
 
 ## RBAC mapping
 
 Headlamp forwards the user's OIDC token (no claims-mapping knob), so the
 mapping is explicit bindings in `base/headlamp-rbac.yaml` against the
-`groups` claim:
-
-- `admin` group → `cluster-admin` (`headlamp-admins`).
-- `users` group → `view` (`headlamp-users-view`) + `headlamp-basic`
-  (self-review + namespace list so the UI enumerates contexts).
-
-Subject names must match the API server's OIDC userClaim/groupsClaim.
+`groups` claim: `admin` group → `cluster-admin` (`headlamp-admins`);
+`users` group → `view` + `headlamp-basic` (self-review + namespace list so the
+UI enumerates contexts). Subject names must match the API server's OIDC
+userClaim/groupsClaim.
 
 ## Routing / TLS
 
@@ -85,15 +77,8 @@ Upstream reference (read-only): `/tmp/home-ops-docs/headlamp-docs/charts/headlam
 
 No telemetry knobs; `ServiceMonitor: off`. Auto-tracks via
 `update-policies/headlamp.yaml` (marker + chart floor); plugin pins ride
-along in the same PR by hand.
-
-## Upgrade runbook
-
-- Version source: OCIRepository `ref.tag` + `image.tag` in
-  `base/headlamp.yaml` (chart 0.45.0 == app 0.45.0) plus plugin pins in
-  `configContent`.
-- Changelog: https://github.com/headlamp-k8s/headlamp/releases
-  (plugins via the ArtifactHub links above).
-- Bump: let the ImagePolicy PR land (marker `apps:headlamp:tag`), then set
-  `ref.tag` to match AND hand-bump plugin pins in the SAME PR.
-- Verify: OIDC login succeeds and the plugin list renders in the UI.
+along in the same PR by hand. Version source: OCIRepository `ref.tag` +
+`image.tag` in `base/headlamp.yaml` (chart 0.45.0 == app 0.45.0) plus plugin
+pins in `configContent`.
+Changelog: https://github.com/headlamp-k8s/headlamp/releases (plugins via the
+ArtifactHub links in `base/headlamp.yaml`).

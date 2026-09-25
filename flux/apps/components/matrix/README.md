@@ -10,7 +10,7 @@ infra `apprise-go-api` tenant as shared credential-free platform plumbing).
 
 | Workload | Role | Image | Scaling |
 |---|---|---|---|
-| `apprise-go-api` (consumer only) | NO workload here — sink lives in the infra tenant (`flux/infra/components/apprise-go-api`). This tenant keeps the `apprise-stateless-urls` fallback ES + Provider/Alert wiring, posting to `http://apprise-go-api.apprise-go-api.svc:80/notify` | n/a (policy `infra:apprise-go-api:tag`) | n/a (infra HPA 1–2 dev / 2–4 prd, VPA Off) |
+| `apprise-go-api` (consumer only) | NO workload here — sink lives in the infra tenant. This tenant keeps the `apprise-stateless-urls` fallback ES + Provider/Alert wiring, posting to `http://apprise-go-api.apprise-go-api.svc:80/notify` | n/a (policy `infra:apprise-go-api:tag`) | n/a (infra HPA 1–2 dev / 2–4 prd, VPA Off) |
 | `tuwunel` | Matrix homeserver (`server_name == tuwunel.matrix.<env>`, Zitadel SSO, federation off, RocksDB on S3-backed media) | `ghcr.io/matrix-construct/tuwunel` (`$imagepolicy` → `apps:tuwunel:tag`) | Singleton (no HPA), VPA Auto |
 | `mautrix-discord` | Discord puppeting bridge (`@discordbot:<server>`) + colocated `mautrix-discord-db` CNPG Cluster | `dock.mau.dev/mautrix/discord:v0.7.7` (pinned, no policy) | Both singleton (bridge 1, DB 1 dev / 3 prd), VPA Initial |
 | `element-web` | Public stateless SPA speaking to tuwunel (Gateway + NetBird) | `vectorim/element-web` (`$imagepolicy` → `apps:element-web:tag`) | HPA 1–2 dev / 2–4 prd, VPA Off |
@@ -52,24 +52,20 @@ no policy: upstream is `dock.mau.dev` (manual bumps, see
 `projects/apprise-go-api/README.md`, `base/NOTIFICATIONS.md`
 (Flux→apprise→Matrix wiring + tag/matrix contract).
 
-## Upgrade runbook
+## Updates
 
-- Version source: image tags in `base/tuwunel.yaml` (tuwunel, auto via
-  `apps:tuwunel:tag`), `base/element-web.yaml` (element-web, auto via
-  `apps:element-web:tag`), and `base/mautrix-discord.yaml` (bridge
-  v0.7.7, PINNED — no policy, upstream is `dock.mau.dev`).
-- Changelog (tuwunel): https://github.com/matrix-construct/tuwunel/releases.
-  Changelog (element): https://github.com/element-hq/element-web/releases.
-  Changelog (bridge): https://github.com/mautrix/discord/releases.
-- Bump: let the tuwunel/element-web ImagePolicy PRs land
-  (`update-policies/tuwunel.yaml`, `update-policies/element-web.yaml`);
-  move the bridge pin by hand after reading its release notes (config
-  shape is authored from `example-config.yaml` — re-diff on bumps).
-- Migrate: tuwunel is a singleton on a single RWO PVC (RocksDB
-  single-writer, `Recreate`) and `server_name` is IMMUTABLE — export
-  media + snapshot the `mautrix-discord-db` CNPG cluster BEFORE major
-  bumps. Verify: send a message end-to-end (Element → tuwunel →
-  bridged Discord room) in each env.
+Version sources: image tags in `base/tuwunel.yaml` (auto via
+`apps:tuwunel:tag`), `base/element-web.yaml` (auto via
+`apps:element-web:tag`), and `base/mautrix-discord.yaml` (bridge
+v0.7.7, PINNED — no policy, upstream is `dock.mau.dev`). ImagePolicy PRs land
+for tuwunel/element-web; the bridge pin moves by hand after reading its release
+notes (config shape is authored from `example-config.yaml` — re-diff on
+bumps). tuwunel is a singleton on a single RWO PVC (RocksDB single-writer,
+`Recreate`) and `server_name` is IMMUTABLE — export media + snapshot the
+`mautrix-discord-db` CNPG cluster before major bumps.
+Changelogs: tuwunel https://github.com/matrix-construct/tuwunel/releases ·
+element https://github.com/element-hq/element-web/releases · bridge
+https://github.com/mautrix/discord/releases.
 
 ## Environments
 
