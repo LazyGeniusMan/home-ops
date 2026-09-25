@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2015  # `grep -q ... && ok ... || bad ...` assertion idiom used throughout: ok/bad only echo and bump counters and cannot fail, so the A&&B||C pitfall cannot trigger; if/else would triple the line count.
 # Verification: lint, render all 10 directions + fixtures, assert env-only
 # (no rclone.conf), volume/env shape, and fail-fast errors.
 # Run from the repo root: bash projects/helm-rclone-sync/ci/verify.sh
@@ -28,10 +29,10 @@ render() { # name, [values-file...]
   RENDERED+=("$OUT/$name.yaml")
 }
 for i in 01 02 03 04 05 06 07 08 09 10; do
-  f="$CI"/values-direction-$i-*.yaml
-  # shellcheck disable=SC2086
-  if render "dir-$i" -f $f; then ok "render direction $i ($(basename $f))"; else
-    bad "render direction $i ($(basename $f))"
+  matches=("$CI"/values-direction-"$i"-*.yaml)
+  f="${matches[0]}"
+  if render "dir-$i" -f "$f"; then ok "render direction $i ($(basename "$f"))"; else
+    bad "render direction $i ($(basename "$f"))"
   fi
 done
 if render sources-all-four -f "$CI/values-sources-all-four.yaml"; then
@@ -51,22 +52,19 @@ else
 fi
 
 # -- 3. env-only: no rclone.conf in ANY rendered manifest -------------------
-# shellcheck disable=SC2068
-if grep -ri 'rclone\.conf' ${RENDERED[@]}; then
+if grep -ri 'rclone\.conf' "${RENDERED[@]}"; then
   bad "rendered manifests mention rclone.conf"
 else
   ok "no rclone.conf in any rendered manifest"
 fi
-# shellcheck disable=SC2068
-if grep -rw -- '--config' ${RENDERED[@]}; then
+if grep -rw -- '--config' "${RENDERED[@]}"; then
   bad "rendered manifests carry a --config flag"
 else
   ok "no --config file ref in any rendered manifest"
 fi
 
 # -- 4. guard + shape assertions --------------------------------------------
-# shellcheck disable=SC2068
-for f in ${RENDERED[@]}; do
+for f in "${RENDERED[@]}"; do
   grep -q 'name: RCLONE_CONFIG' "$f" && grep -q 'value: /dev/null' "$f" \
     && ok "$(basename "$f") sets RCLONE_CONFIG=/dev/null guard" \
     || bad "$(basename "$f") sets RCLONE_CONFIG=/dev/null guard"
@@ -128,8 +126,10 @@ grep -q 'DST:bucket1/nightly' "$OUT/dir-01.yaml" \
   && ok "dir-01 destination arg DST:bucket1/nightly" || bad "dir-01 destination arg DST:bucket1/nightly"
 grep -q 'BACKUPPROTON:/media' "$OUT/dir-04.yaml" \
   && ok "dir-04 remoteName uppercased to BACKUPPROTON" || bad "dir-04 remoteName uppercased to BACKUPPROTON"
+# shellcheck disable=SC2016  # single quotes intentional: asserting the literal $(...) indirection marker in rendered YAML, not a shell expansion.
 grep -q 'SRC:$(SRC_PATH)' "$OUT/dir-08.yaml" \
   && ok "dir-08 ref uri renders SRC:\$(SRC_PATH) indirection" || bad "dir-08 ref uri renders SRC:\$(SRC_PATH) indirection"
+# shellcheck disable=SC2016  # single quotes intentional: asserting the literal $(...) indirection marker in rendered YAML, not a shell expansion.
 grep -q 'DST:$(DST_PATH)' "$OUT/dir-10.yaml" \
   && ok "dir-10 ref uri renders DST:\$(DST_PATH) indirection" || bad "dir-10 ref uri renders DST:\$(DST_PATH) indirection"
 
@@ -152,9 +152,8 @@ grep -q 'schedule: "45 3' "$OUT/dir-07.yaml" \
 # -- 5. fail-fast proofs -----------------------------------------------------
 expect_fail() { # desc, values-file-or-empty, expected-msg-fragment, [helm args...]
   local desc="$1" values="$2" want="$3"; shift 3
-  # shellcheck disable=SC2068
-  if [ -n "$values" ]; then set -- -f "$values" $@; fi
-  if helm template fail "$CHART" $@ >"$OUT/fail.yaml" 2>"$OUT/fail.err"; then
+  if [ -n "$values" ]; then set -- -f "$values" "$@"; fi
+  if helm template fail "$CHART" "$@" >"$OUT/fail.yaml" 2>"$OUT/fail.err"; then
     bad "$desc rendered but must fail"
   elif grep -qF "$want" "$OUT/fail.err"; then
     ok "$desc fails fast: $want"

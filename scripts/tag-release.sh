@@ -205,10 +205,8 @@ while IFS= read -r tag; do
 done < <(git tag -l "${PREFIX}*")
 if [[ -n "$PREV_VERSION" ]]; then
   PREV_VERSION="$(printf '%s' "$PREV_VERSION" | sort -V | tail -n 1)"
-  FIRST_TAG=false
 else
   PREV_VERSION="0.0.0"
-  FIRST_TAG=true
   log "No previous tag for prefix '$PREFIX'; starting from base 0.0.0."
 fi
 log "Previous version: ${PREFIX}${PREV_VERSION}"

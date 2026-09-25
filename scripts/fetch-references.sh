@@ -34,6 +34,7 @@ record_fail() {
   FAILED_LIST+=" $1"
 }
 
+# shellcheck disable=SC2329  # invoked via `trap cleanup_tmps EXIT` below; shellcheck does not follow trap-string references.
 cleanup_tmps() {
   if ((${#_TMP_PATHS[@]})); then
     rm -rf "${_TMP_PATHS[@]}" 2>/dev/null || true
