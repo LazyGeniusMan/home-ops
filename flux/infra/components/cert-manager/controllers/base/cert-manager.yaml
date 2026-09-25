@@ -1,6 +1,7 @@
 # cert-manager v1.21.2: ACME DNS-01 via Cloudflare for the LAN wildcard. Chart oci://quay.io/jetstack/charts/cert-manager.
-# ServiceMonitor stays `enabled: false`: the chart renders monitoring.coreos.com resources unconditionally (no skipIfMissing guard),
-# so the flip waits for monitoring CRDs via the otel pipeline (see the ESO `renderMode: skipIfMissing` template in
+# ServiceMonitor `enabled: true`: monitoring CRDs land first via the prune:false infra-crds tenant (fleet/tenants/infra.yaml
+# gates dependents on Established); the otel gateway TA discovers ServiceMonitors via the `otel-scrape: "true"` label. The chart
+# renders monitoring.coreos.com resources unconditionally (no skipIfMissing guard like ESO
 # external-secrets/controllers/base/externalsecrets.yaml). Telemetry endpoint (`prometheus.enabled: true`) stays as-is.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -66,4 +67,4 @@ spec:
     prometheus:
       enabled: true
       servicemonitor:
-        enabled: false
+        enabled: true

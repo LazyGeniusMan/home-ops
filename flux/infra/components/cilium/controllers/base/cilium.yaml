@@ -1,7 +1,8 @@
 # Cilium 1.20.2: eBPF dataplane, kube-proxy replacement, Gateway API, Hubble, single-IP LB pool. Chart oci://quay.io/cilium/charts/cilium.
 # Single release identity with the Terraform bootstrap Job: targetNamespace + storageNamespace force render + store in kube-system (else a second conflicting CNI copy).
-# Monitors stay `enabled: false`: the cilium chart renders monitoring.coreos.com resources unconditionally (no Capabilities guard),
-# so flips wait for monitoring CRDs via the otel pipeline (see the ESO `renderMode: skipIfMissing` template in
+# Monitors `enabled: true`: monitoring CRDs land first via the prune:false infra-crds tenant (fleet/tenants/infra.yaml gates
+# dependents on Established); the otel gateway TA discovers ServiceMonitors via the `otel-scrape: "true"` label. The cilium chart
+# renders monitoring.coreos.com resources unconditionally (no skipIfMissing guard like ESO
 # external-secrets/controllers/base/externalsecrets.yaml). Telemetry endpoints (`prometheus.enabled`) stay as-is.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -69,7 +70,7 @@ spec:
         prometheus:
           enabled: true
           serviceMonitor:
-            enabled: false
+            enabled: true
       metrics:
         enabled:
           - dns
@@ -79,7 +80,7 @@ spec:
           - icmp
           - http
         serviceMonitor:
-          enabled: false
+          enabled: true
     operator:
       # Operator replica placeholder (dev/prd overlays). No HPA: chart has no operator autoscaling knob.
       replicas: 1 # placeholder - overridden by dev/prd overlays
@@ -91,7 +92,7 @@ spec:
       prometheus:
         enabled: true
         serviceMonitor:
-          enabled: false
+          enabled: true
     # Agent resources (top-level key): requests-only, no limits; the CNI agent must never throttle.
     resources:
       requests:
@@ -103,11 +104,9 @@ spec:
         requests:
           cpu: 50m
           memory: 64Mi
-    # Agent prometheus + ServiceMonitor disabled until the monitoring stack lands.
-    # The chart renders monitoring.coreos.com resources unconditionally (no
-    # skipIfMissing guard like ESO), so the flip waits for monitoring CRDs via
-    # the otel pipeline (see external-secrets/controllers/base/externalsecrets.yaml).
+    # Agent ServiceMonitor on (CRDs via infra-crds, discovery via the otel-scrape label); the agent metrics
+    # endpoint (`prometheus.enabled: false`) stays as-is.
     prometheus:
       enabled: false
       serviceMonitor:
-        enabled: false
+        enabled: true

@@ -1,7 +1,8 @@
 # ExternalDNS chart 1.22.0 (app v0.22.0) + NetBird webhook sidecar (projects/external-dns-netbird, :dev, PAT via NETBIRD_PAT_FILE).
 # Gateway routes are the only sync source (no Cloudflare provider, no Record/DNSEndpoint CRs); wildcard A from the Gateway LB target (__LB_VIP__).
-# serviceMonitor stays `enabled: false`: the chart renders monitoring.coreos.com resources unconditionally (no skipIfMissing guard),
-# so the flip waits for monitoring CRDs via the otel pipeline (see the ESO `renderMode: skipIfMissing` template in
+# serviceMonitor `enabled: true`: monitoring CRDs land first via the prune:false infra-crds tenant (fleet/tenants/infra.yaml gates
+# dependents on Established); the otel gateway TA discovers ServiceMonitors via the `otel-scrape: "true"` label. The chart renders
+# monitoring.coreos.com resources unconditionally (no skipIfMissing guard like ESO
 # external-secrets/controllers/base/externalsecrets.yaml).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -124,4 +125,4 @@ spec:
     domainFilters:
       - __BASE_DOMAIN__
     serviceMonitor:
-      enabled: false
+      enabled: true
