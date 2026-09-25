@@ -11,10 +11,3 @@ patches:
     target:
       kind: ExternalSecret
       name: otel-clickhouse
-  - patch: |
-      - op: replace
-        path: /spec/config/clickhouse/database
-        value: otel_prd
-    target:
-      kind: OpenTelemetryCollector
-      name: otel-gateway

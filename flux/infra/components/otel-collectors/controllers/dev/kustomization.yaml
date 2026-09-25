@@ -11,3 +11,21 @@ patches:
     target:
       kind: OpenTelemetryCollector
       name: otel-gateway
+  # Dev database: replaces the __OTEL_DATABASE__ shape in base collectors.yaml
+  # (real field /spec/config/exporters/clickhouse/database).
+  - patch: |
+      - op: replace
+        path: /spec/config/exporters/clickhouse/database
+        value: otel_dev
+    target:
+      kind: OpenTelemetryCollector
+      name: otel-gateway
+  # Dev drain-safety: single replica cannot tolerate maxUnavailable: 1, so pin
+  # maxUnavailable: 0 (eviction blocked while the only pod would go down).
+  - patch: |
+      - op: replace
+        path: /spec/podDisruptionBudget/maxUnavailable
+        value: 0
+    target:
+      kind: OpenTelemetryCollector
+      name: otel-gateway

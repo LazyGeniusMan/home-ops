@@ -1,5 +1,13 @@
+# S3 prereqs ship in infra-controllers (before infra-configs per the fleet
+# tenants/infra.yaml dependsOn chain): BucketClaim/BucketAccess (COSI mints
+# clickhouse-cosi-creds) + the cosi SecretStore bridge + the S3 ExternalSecret
+# must exist before the keeper/CHI in infra-configs reads them via
+# storage.xml from_env. The operator itself stays here too.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - clickhouse-operator.yaml
   - vpa.yaml
+  - bucketclaims.yaml
+  - cosi-keys.yaml
+  - s3-credentials.yaml
