@@ -20,8 +20,10 @@ ClickStack deployment itself.
 - **Discovery:** the gateway's TargetAllocator (consistent-hashing, `prometheusCR.enabled`) scrapes only
   monitors + namespaces labeled `otel-scrape: "true"` (object and namespace selectors must both
   match). Tenant namespaces carry the label from the fleet `tenants/infra.yaml` Namespace template;
-  each flipped monitor carries it via its chart label knob — ESO via `serviceMonitor.additionalLabels`
-  from the dev/prd overlay patches. The agent uses static targets.
+  each flipped monitor carries it via its chart label knob (per-chart knob name
+  in the overlay patch comment; seaweedfs-operator's `additionalLabels` value
+  is dead so its label lands via a base `postRenderers` kustomize patch) —
+  all from the dev/prd overlay patches. The agent uses static targets.
 - **ClickHouse export:** gateway `clickhouse` exporter points at the shared infra CHI
   (`tcp://clickhouse-clickhouse.clickhouse.svc:9000`, `create_schema: true`), `ttl: 0s` (DBA-managed
   table TTLs, default 30d) and exporter-internal `sending_queue.batch` 5000/10s; no custom TTLs in git
@@ -56,8 +58,10 @@ ClickStack deployment itself.
 2. The sanctioned on-state is `enabled: true` plus the `otel-scrape: "true"` label so the gateway TA
    scrapes it into ClickHouse — the namespace label comes from the fleet `tenants/infra.yaml`
    template; the monitor-object label comes via the chart's label knob (ESO:
-   `serviceMonitor.additionalLabels`, applied from the dev/prd overlay patches, never base-values
-   edits).
+   `serviceMonitor.additionalLabels`; knob names vary per chart — see the TA
+   comment in each dev/prd overlay; seaweedfs-operator uses a base
+   `postRenderers` patch because its knob is dead), applied from the dev/prd
+   overlay patches, never base-values edits.
 3. Guarded charts use a chart-native guard as the template — ESO's `renderMode: skipIfMissing`
    (`infra/components/external-secrets/controllers/base/externalsecrets.yaml` `serviceMonitor` block)
    renders only where monitor CRDs exist. `tofu-controller` and Zitadel flip in two steps
