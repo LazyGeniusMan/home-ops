@@ -1,13 +1,18 @@
 # Infra tenants: one input per component dir under flux/infra/components.
 # Onboard: add the input tenant here + the components matrix in
 # .github/workflows/flux-infra-push.yaml so its OCI artifact is published.
-# CRD delivery (gateway-api + cosi + otel-operator only): CRDs render through a dedicated
-# prune:false infra-crds Kustomization (a removed CRD must never
-# cascade-delete CRs); the infra-controllers Kustomization gates on it via a
-# conditional dependsOn. Tenants rendering monitoring.coreos.com objects gate
-# cross-namespace on the otel-operator infra-crds Established healthChecks;
+# Ordering (fresh Talos has no CNI/DNS): cilium is the bootstrap root;
+# coredns + multus serialize after cilium infra-controllers Ready; every
+# other tenant gates at minimum on the otel-operator infra-crds Established
+# healthChecks (CRDs are cluster-scoped, cross-namespace refs are valid);
 # otel-collectors additionally waits for the operator controllers + the
-# shared infra CHI configs. This file is a Go template rendered by the Flux
+# shared infra CHI configs. CRD delivery (gateway-api + cosi + otel-operator
+# only): CRDs render through a dedicated prune:false infra-crds Kustomization
+# (a removed CRD must never cascade-delete CRs) with per-tenant healthChecks
+# so one failing tenant cannot hold the others NotReady. Cilium/cert-manager
+# CRDs stay Helm-managed (CreateReplace / keep:true) outside the kustomize
+# prune inventory, so prune:true controllers cannot cascade-delete them.
+# This file is a Go template rendered by the Flux
 # Operator — `<< if ... >>` blocks are comments until rendered.
 apiVersion: fluxcd.controlplane.io/v1
 kind: ResourceSet
@@ -222,7 +227,9 @@ spec:
         path: "./crds/<< inputs.environment >>"
         prune: false
         healthChecks:
-          # Gateway gates (<< if eq inputs.tenant "gateway-api" >>):
+          # Scoped per-tenant: one failing CRD set must not hold the other
+          # tenants NotReady. Gateway gates (<< if eq inputs.tenant "gateway-api" >>):
+          # << if eq inputs.tenant "gateway-api" >>
           - apiVersion: apiextensions.k8s.io/v1
             kind: CustomResourceDefinition
             name: gatewayclasses.gateway.networking.k8s.io
@@ -232,20 +239,25 @@ spec:
           - apiVersion: apiextensions.k8s.io/v1
             kind: CustomResourceDefinition
             name: httproutes.gateway.networking.k8s.io
-          # (<< else if eq inputs.tenant "cosi" >> COSI Established gates):
+          # << end >>
+          # (<< if eq inputs.tenant "cosi" >> COSI Established gates):
+          # << if eq inputs.tenant "cosi" >>
           - apiVersion: apiextensions.k8s.io/v1
             kind: CustomResourceDefinition
             name: bucketclasses.objectstorage.k8s.io
           - apiVersion: apiextensions.k8s.io/v1
             kind: CustomResourceDefinition
             name: bucketclaims.objectstorage.k8s.io
-          # (<< else >> otel-operator ServiceMonitor/PodMonitor Established gates):
+          # << end >>
+          # (<< if eq inputs.tenant "otel-operator" >> otel-operator ServiceMonitor/PodMonitor Established gates):
+          # << if eq inputs.tenant "otel-operator" >>
           - apiVersion: apiextensions.k8s.io/v1
             kind: CustomResourceDefinition
             name: servicemonitors.monitoring.coreos.com
           - apiVersion: apiextensions.k8s.io/v1
             kind: CustomResourceDefinition
-            name: podmonitors.monitoring.coreos.com # << end >>
+            name: podmonitors.monitoring.coreos.com
+          # << end >>
         postBuild:
           substituteFrom:
             - kind: ConfigMap
@@ -257,21 +269,41 @@ spec:
         namespace: << inputs.tenant >>
       spec:
         # Single dependsOn (one key: template conditionals are comments until the
-        # operator renders them). Own-CRD tenants gate on local infra-crds;
-        # monitor-producing tenants (own crds/<env> disabled) gate on the
-        # otel-operator tenant's infra-crds Established healthChecks (CRDs are
-        # cluster-scoped, cross-namespace ref is valid); otel-collectors gates
-        # on the operator controllers (opentelemetry.io CRDs + collector RBAC)
-        # and the shared infra CHI configs (the gateway clickhouse exporter
-        # points at the infra clickhouse tenant).
-        # << if or (eq inputs.tenant "gateway-api") (eq inputs.tenant "cosi") (eq inputs.tenant "otel-operator") (eq inputs.tenant "cilium") (eq inputs.tenant "coredns") (eq inputs.tenant "metrics-server") (eq inputs.tenant "cert-manager") (eq inputs.tenant "external-secrets") (eq inputs.tenant "external-dns") (eq inputs.tenant "tofu-controller") (eq inputs.tenant "zitadel") (eq inputs.tenant "cnpg") (eq inputs.tenant "clickhouse") (eq inputs.tenant "dragonfly") (eq inputs.tenant "seaweedfs") (eq inputs.tenant "otel-collectors") >>
+        # operator renders them). Cilium is the bootstrap root: its only gate
+        # is the otel-operator infra-crds Established healthCheck (its chart
+        # renders ServiceMonitors unconditionally). coredns + multus serialize
+        # on cilium infra-controllers Ready so pods get DNS + node networking
+        # before the rest. Own-CRD tenants gate on local infra-crds; every other
+        # tenant gates at minimum on the otel-operator tenant's infra-crds
+        # Established healthChecks (CRDs are cluster-scoped, cross-namespace
+        # ref is valid) — including the 6 formerly-ungated tenants
+        # (local-path-provisioner/kubevirt/vpa/netbird/apprise-go-api render no
+        # monitors today yet keep the floor gate so a future monitor never
+        # races the CRDs); kubevirt additionally waits for multus
+        # infra-controllers (thick-plugin networking before VMs);
+        # otel-collectors gates on the operator controllers (opentelemetry.io
+        # CRDs + collector RBAC) and the shared infra CHI configs (the gateway
+        # clickhouse exporter points at the infra clickhouse tenant). No tenant
+        # is left with zero dependsOn.
         dependsOn:
+          # << if eq inputs.tenant "coredns" >>
+          - name: infra-controllers
+            namespace: cilium
+          # << end >>
+          # << if eq inputs.tenant "multus" >>
+          - name: infra-controllers
+            namespace: cilium
+          # << end >>
           # << if or (eq inputs.tenant "gateway-api") (eq inputs.tenant "cosi") (eq inputs.tenant "otel-operator") >>
           - name: infra-crds
           # << end >>
-          # << if or (eq inputs.tenant "cilium") (eq inputs.tenant "coredns") (eq inputs.tenant "metrics-server") (eq inputs.tenant "cert-manager") (eq inputs.tenant "external-secrets") (eq inputs.tenant "external-dns") (eq inputs.tenant "tofu-controller") (eq inputs.tenant "zitadel") (eq inputs.tenant "cnpg") (eq inputs.tenant "clickhouse") (eq inputs.tenant "dragonfly") (eq inputs.tenant "seaweedfs") >>
+          # << if or (eq inputs.tenant "cilium") (eq inputs.tenant "coredns") (eq inputs.tenant "metrics-server") (eq inputs.tenant "cert-manager") (eq inputs.tenant "external-secrets") (eq inputs.tenant "external-dns") (eq inputs.tenant "tofu-controller") (eq inputs.tenant "zitadel") (eq inputs.tenant "cnpg") (eq inputs.tenant "clickhouse") (eq inputs.tenant "dragonfly") (eq inputs.tenant "seaweedfs") (eq inputs.tenant "multus") (eq inputs.tenant "local-path-provisioner") (eq inputs.tenant "kubevirt") (eq inputs.tenant "vpa") (eq inputs.tenant "netbird") (eq inputs.tenant "apprise-go-api") >>
           - name: infra-crds
             namespace: otel-operator
+          # << end >>
+          # << if eq inputs.tenant "kubevirt" >>
+          - name: infra-controllers
+            namespace: multus
           # << end >>
           # << if eq inputs.tenant "otel-collectors" >>
           - name: infra-controllers
@@ -279,7 +311,6 @@ spec:
           - name: infra-configs
             namespace: clickhouse
           # << end >>
-        # << end >>
         targetNamespace: << inputs.tenant >>
         serviceAccountName: flux
         interval: 30m
@@ -291,6 +322,12 @@ spec:
           name: infra
         path: "./controllers/<< inputs.environment >>"
         prune: true
+        # Cilium/cert-manager CRDs are Helm-managed (cilium CreateReplace,
+        # cert-manager keep:true) and never enter the kustomize prune
+        # inventory, so a prune:true controllers delete cannot cascade-delete
+        # them; tenant deletion leaves the Helm-managed CRDs orphaned by
+        # design. Residual component-level work: none — nothing further is
+        # achievable purely from this ResourceSet.
         postBuild:
           substituteFrom:
             - kind: ConfigMap
