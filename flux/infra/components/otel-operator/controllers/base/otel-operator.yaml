@@ -1,0 +1,73 @@
+# OTel Operator chart 0.123.1 (app 0.159.0) via chartproxy OCI (proxy of https://open-telemetry.github.io/opentelemetry-helm-charts).
+# Reconciles OpenTelemetryCollector CRs; webhooks via cert-manager (admissionWebhooks.certManager.enabled).
+# Own ServiceMonitor stays off (no Prometheus server in this repo); the operator's manager ClusterRole
+# already watches monitoring.coreos.com servicemonitors/podmonitors for TargetAllocator discovery.
+# Telemetry off: no usage-reporting keys in chart values.
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: otel-operator-chart
+spec:
+  interval: 1h
+  url: oci://chartproxy.container-registry.com/open-telemetry.github.io/opentelemetry-helm-charts/opentelemetry-operator
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    semver: ">=0.123.1 <0.124.0" # {"$imagepolicy": "infra:otel-operator:tag"}
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: otel-operator
+spec:
+  interval: 1h
+  releaseName: otel-operator
+  serviceAccountName: flux
+  chartRef:
+    kind: OCIRepository
+    name: otel-operator-chart
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+    # Operator CRDs (OpenTelemetryCollector/TargetAllocator/Instrumentation) are
+    # chart-managed templates; monitoring.coreos.com CRDs ship separately via
+    # crds/base (vendored, prune:false).
+    crds: CreateReplace
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+    crds: CreateReplace
+  # https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-operator
+  values:
+    # Replica seed - the out-of-band HPA in hpa.yaml owns the count at runtime
+    # (the chart has no autoscaling knob). Dev seeds 1, prd seeds 2.
+    replicaCount: 1 # placeholder - overridden by dev/prd overlays
+    # Resources pinned explicit (chart defaults {}); operator sized with
+    # watch-cache headroom for collector + targetallocator CRs.
+    manager:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+      # Operator creates per-collector RBAC (ServiceAccount + Role/Binding for
+      # the collector and TargetAllocator pods) from each OpenTelemetryCollector
+      # CR instead of hand-maintained Roles.
+      createRbacPermissions: true
+      serviceMonitor:
+        enabled: false
+      prometheusRule:
+        enabled: false
+    # Webhook TLS via cert-manager (cert-manager ships before this tenant);
+    # Helm-generated fallback stays on for fresh-cluster ordering.
+    admissionWebhooks:
+      certManager:
+        enabled: true
+      autoGenerateCert:
+        enabled: true

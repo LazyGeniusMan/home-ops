@@ -1,0 +1,24 @@
+# Out-of-band HPA for the otel-operator Deployment (chart 0.123.1 exposes no
+# autoscaling knob — only static `replicaCount`). Min/max patched per env (dev
+# 1/2, prd 2/4); base carries the prd floor.
+# Release name `otel-operator` renders Deployment `otel-operator-opentelemetry-operator`
+# in the release namespace.
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: otel-operator-opentelemetry-operator
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: otel-operator-opentelemetry-operator
+  minReplicas: 2 # placeholder - overridden by dev/prd overlays
+  maxReplicas: 4 # placeholder - overridden by dev/prd overlays
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

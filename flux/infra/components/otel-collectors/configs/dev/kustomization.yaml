@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+patches:
+  # Dev Proton vault + database. The overlay replaces the full literal
+  # (base holds the __PROTON_PASS_BASE__/__OTEL_DATABASE__ shape).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/otel-collectors/clickhouse-password
+    target:
+      kind: ExternalSecret
+      name: otel-clickhouse
+  - patch: |
+      - op: replace
+        path: /spec/config/clickhouse/database
+        value: otel_dev
+    target:
+      kind: OpenTelemetryCollector
+      name: otel-gateway

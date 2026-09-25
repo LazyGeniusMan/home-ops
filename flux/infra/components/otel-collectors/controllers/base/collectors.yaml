@@ -1,0 +1,252 @@
+# OpenTelemetryCollector CRs (operator-managed, contrib-collector 0.159.0 image):
+# `otel-agent` DaemonSet (node-local kubeletstats + filelog) and `otel-gateway`
+# StatefulSet (cluster-wide k8s_cluster, tail-sampling, ClickHouse export).
+# TargetAllocator enabled on the gateway only (prometheusCR discovery of
+# monitoring.coreos.com ServiceMonitors/PodMonitors with the
+# `otel-scrape: "true"` selector); the agent uses static scrape targets.
+# Collector image tracks the contrib line (`infra:otel-collector:tag` marker).
+# API: opentelemetry.io/v1beta1 (v1alpha1 deprecated in operator 0.159.0).
+# Telemetry off: own metrics pipeline exports to debug only; no usage reporting.
+---
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel-agent
+spec:
+  mode: daemonset
+  managementState: managed
+  image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.159.0 # {"$imagepolicy": "infra:otel-collector:tag"}
+  serviceAccount: otel-collector
+  # Node-local pipeline: kubelet + host filelog -> batch -> gateway OTLP.
+  config:
+    receivers:
+      kubeletstats:
+        collection_interval: 30s
+        auth_type: serviceAccount
+        endpoint: ${env:K8S_NODE_NAME}:10250
+      filelog:
+        include:
+          - /var/log/pods/*/*/*.log
+        operators:
+          - type: container
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 512
+        spike_limit_mib: 128
+      k8sattributes:
+        auth_type: serviceAccount
+        passthrough: false
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.ip
+      batch: {}
+    exporters:
+      otlp:
+        endpoint: otel-gateway-collector.otel-collectors.svc:4317
+        tls:
+          insecure: true
+    service:
+      pipelines:
+        metrics:
+          receivers:
+            - kubeletstats
+          processors:
+            - memory_limiter
+            - k8sattributes
+            - batch
+          exporters:
+            - otlp
+        logs:
+          receivers:
+            - filelog
+          processors:
+            - memory_limiter
+            - k8sattributes
+            - batch
+          exporters:
+            - otlp
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  livenessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+  volumeMounts:
+    - name: varlogpods
+      mountPath: /var/log/pods
+      readOnly: true
+  volumes:
+    - name: varlogpods
+      hostPath:
+        path: /var/log/pods
+---
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel-gateway
+spec:
+  mode: statefulset
+  managementState: managed
+  replicas: 2 # placeholder - overridden by dev/prd overlays
+  image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.159.0 # {"$imagepolicy": "infra:otel-collector:tag"}
+  serviceAccount: otel-collector
+  # Scrape sharding: TargetAllocator (consistent-hashing, per-collector
+  # http_sd) discovers ServiceMonitors/PodMonitors labeled `otel-scrape:
+  # "true"` and drops stragglers via `denyNamespaces`. The prometheus
+  # receiver keeps only its job list — the operator rewrites discovery to
+  # the TA http_sd endpoint at reconcile.
+  targetAllocator:
+    enabled: true
+    allocationStrategy: consistent-hashing
+    serviceAccount: otel-targetallocator
+    prometheusCR:
+      enabled: true
+      scrapeInterval: 30s
+      serviceMonitorSelector:
+        matchLabels:
+          otel-scrape: "true"
+      podMonitorSelector:
+        matchLabels:
+          otel-scrape: "true"
+      podMonitorNamespaceSelector:
+        matchLabels:
+          otel-scrape: "true"
+      serviceMonitorNamespaceSelector:
+        matchLabels:
+          otel-scrape: "true"
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      k8s_cluster:
+        collection_interval: 30s
+        auth_type: serviceAccount
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: otel-collector
+              scrape_interval: 30s
+              static_configs:
+                - targets:
+                    - 0.0.0.0:8888
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 2048
+        spike_limit_mib: 512
+      k8sattributes:
+        auth_type: serviceAccount
+        passthrough: false
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.ip
+      filter:
+        metrics:
+          include:
+            match_type: regexp
+            metric_names:
+              - otelcol_.*
+      tail_sampling:
+        decision_wait: 10s
+        num_traces: 100000
+        policies:
+          - name: errors
+            type: status_code
+            status_code:
+              status_codes:
+                - ERROR
+          - name: slow
+            type: latency
+            latency:
+              threshold_ms: 1000
+    exporters:
+      # Shared infra ClickHouse (service `clickhouse-clickhouse` in the
+      # clickhouse tenant namespace). Auth via the ESO-synced Secret
+      # (otel-clickhouse, configs/base). `create_schema: true` lets the
+      # exporter create `__OTEL_DATABASE__` + otel_* tables on first insert;
+      # DBA-managed TTLs: exporter `ttl` stays 0 (tables default 30d).
+      # Batching is exporter-internal (`sending_queue.batch`, NOT a batch
+      # processor) per upstream recommendation; queue 5000/10s.
+      clickhouse:
+        endpoint: tcp://clickhouse-clickhouse.clickhouse.svc:9000?dial_timeout=10s
+        database: __OTEL_DATABASE__
+        username: default
+        password: ${env:CLICKHOUSE_PASSWORD}
+        create_schema: true
+        ttl: 0s
+        sending_queue:
+          enabled: true
+          num_consumers: 10
+          queue_size: 5000
+          batch:
+            min_size: 5000
+            flush_timeout: 10s
+    service:
+      pipelines:
+        traces:
+          receivers:
+            - otlp
+          processors:
+            - memory_limiter
+            - k8sattributes
+            - tail_sampling
+          exporters:
+            - clickhouse
+        metrics:
+          receivers:
+            - otlp
+            - k8s_cluster
+            - prometheus
+          processors:
+            - memory_limiter
+            - k8sattributes
+            - filter
+          exporters:
+            - clickhouse
+        logs:
+          receivers:
+            - otlp
+          processors:
+            - memory_limiter
+            - k8sattributes
+          exporters:
+            - clickhouse
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+  livenessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+  updateStrategy:
+    type: RollingUpdate
+  podDisruptionBudget:
+    maxUnavailable: 1

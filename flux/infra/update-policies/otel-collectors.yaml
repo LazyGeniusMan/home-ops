@@ -1,0 +1,24 @@
+# otel-collector contrib runtime image policy. Markers live on both
+# OpenTelemetryCollector CRs (otel-collectors/controllers/base/collectors.yaml).
+# Changelog: https://github.com/open-telemetry/opentelemetry-collector-releases/releases,
+# https://github.com/open-telemetry/opentelemetry-collector-contrib/releases.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: otel-collector
+spec:
+  image: "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: otel-collector
+spec:
+  imageRepositoryRef:
+    name: otel-collector
+  policy:
+    semver:
+      range: ">=0.159.0"

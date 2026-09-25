@@ -1,0 +1,55 @@
+# Scoped RBAC for the operator-provisioned collector + TargetAllocator pods
+# (the operator creates the ServiceAccounts `otel-collector` /
+# `otel-targetallocator` from each CR; these bindings scope what they can read).
+# Collectors read pods/nodes for k8sattributes + kubeletstats; TA lists
+# monitoring.coreos.com ServiceMonitors/PodMonitors for scrape discovery.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: otel-collector
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "nodes/metrics", "nodes/stats", "namespaces", "endpoints", "services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets", "daemonsets", "deployments", "statefulsets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: otel-collector
+subjects:
+  - kind: ServiceAccount
+    name: otel-collector
+    namespace: otel-collectors
+roleRef:
+  kind: ClusterRole
+  name: otel-collector
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: otel-targetallocator
+rules:
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["servicemonitors", "podmonitors"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "namespaces", "services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: otel-targetallocator
+subjects:
+  - kind: ServiceAccount
+    name: otel-targetallocator
+    namespace: otel-collectors
+roleRef:
+  kind: ClusterRole
+  name: otel-targetallocator
+  apiGroup: rbac.authorization.k8s.io

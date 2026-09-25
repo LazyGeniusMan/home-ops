@@ -1,0 +1,23 @@
+# otel-operator chart policy (chartproxy OCI proxy of the official OpenTelemetry chart).
+# Changelog: https://github.com/open-telemetry/opentelemetry-helm-charts/releases.
+# Coupled: otel-operator/controllers/base/otel-operator.yaml.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: otel-operator
+spec:
+  image: "chartproxy.container-registry.com/open-telemetry.github.io/opentelemetry-helm-charts/opentelemetry-operator"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: otel-operator
+spec:
+  imageRepositoryRef:
+    name: otel-operator
+  policy:
+    semver:
+      range: ">=0.123.1 <0.124.0"

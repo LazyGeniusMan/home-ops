@@ -1,0 +1,9 @@
+# ServiceMonitor + PodMonitor CRDs (vendored prometheus-operator v0.93.1, monitoring scope ONLY).
+# Rendered by the fleet through a prune:false infra-crds Kustomization — CRDs are never garbage-collected
+# (see flux/fleet/tenants/infra.yaml). No Prometheus/PrometheusRule/Alertmanager/Grafana objects.
+# Bump: re-vendor both files from the tag together and update the annotation below.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - monitoring.coreos.com_servicemonitors.yaml
+  - monitoring.coreos.com_podmonitors.yaml
