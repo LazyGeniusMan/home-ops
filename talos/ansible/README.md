@@ -30,18 +30,13 @@ ansible/
 
 ## Variables (group_vars/all.yml)
 
-- `pass-cli login` session gate. Run `pass-cli login` before any play,
-  because Ansible NEVER logs in. The PAT *value* used by the ESO webhook
-  never flows through the shell: day-0 renders it via `pass-cli inject`
-  from the cluster's own `talos/clusters/<cluster>/pat.yml.template`
-  (double-brace ref to `pass://<own-vault>/eso-proton-pass/pat`) into
-  `build/<cluster>/proton-pass-pat` (`0600`, `talos_pat_filename` shared
-  var keeps render/store/apply in sync), and day-2 reads/renews it there.
-  Every play probes the session via `pass-cli info -o json` (`rc==0` +
-  JSON mapping stdout = logged in; logged-out gives `rc=1` + a non-JSON
-  error) and fails fast telling you to run `pass-cli login`. Day-2
-  checks unconditionally (even read-only runs); day-1 checks before
-  `apply-config --insecure`.
+- `pass-cli login` session gate — Ansible NEVER logs in. The ESO webhook PAT value
+  never flows through the shell: day-0 renders it via `pass-cli inject` from
+  `talos/clusters/<cluster>/pat.yml.template`
+  (`pass://<own-vault>/eso-proton-pass/pat`) into `build/<cluster>/proton-pass-pat`
+  (`0600`; `talos_pat_filename` keeps render/store/apply in sync); day-2 reads/renews
+  it there. Every play probes via `pass-cli info -o json` and fails fast; day-2 checks
+  even on read-only runs.
 - NetBird PAT + Terraform-minted setup key (see `RUNBOOK.md` §1.0b).
   Proton Pass supplies only the NetBird PAT (`talos` item, `netbird-pat`
   field, own cluster vault), resolved via `pass-cli item view` (`no_log`,
@@ -53,20 +48,16 @@ ansible/
   `auto_groups = [<cluster>-nodes]`); Ansible rewrites
   `__TALOS_NETBIRD_SETUP_KEY__` from the sensitive output (`0600`,
   `no_log`, UUID shape-gated). The setup key never lives in the vault.
-  Ansible auto-generates a fresh `PROTON_PASS_AGENT_REASON` per
-  `pass-cli` exec (`<prefix>-<cluster>[-<node>]-exec-<16 hex>`).
-- `talos_cluster` — active cluster name (default `acme-dev-bdo1-talos-apps-01`; override with `-e talos_cluster=...`).
-- `talos_clusters.<name>` — per-cluster map: `vault` (Proton Pass vault),
-  `endpoint` (VIP URL), `nodes: [{name, ip, role}]`. This map is the single
-  source of truth for node IPs — they are data for `talosctl -n/-e` flags
-  only, never Ansible connection targets. `role` is `controlplane` or
-  `worker`; `talos_machine_roles` maps it to the `talosctl gen config -t`
-  machine type of the same name.
-- `talos_talosconfig` — explicit `--talosconfig` path
-  (`build/<cluster>/talosconfig`) passed on every bootstrap/operate
-  `talosctl` call instead of an ambient `TALOSCONFIG` or `~/.talos/config`.
-  `talosconfig`/`kubeconfig` stay under `build/<cluster>/` (gitignored,
-  existing convention) — they are NOT written into `talos/clusters/`.
+  Ansible generates a fresh `PROTON_PASS_AGENT_REASON` per exec
+  (`<prefix>-<cluster>[-<node>]-exec-<16 hex>`).
+- `talos_cluster` — active cluster (default `acme-dev-bdo1-talos-apps-01`).
+- `talos_clusters.<name>` — per-cluster map: `vault`, `endpoint` (VIP URL),
+  `nodes: [{name, ip, role}]`. Single source of truth for node IPs (data for
+  `talosctl -n/-e` flags only, never connection targets). `talos_machine_roles` maps
+  `role` to the `gen config -t` machine type.
+- `talos_talosconfig` — explicit `--talosconfig` path (`build/<cluster>/talosconfig`)
+  on every bootstrap/operate call (never ambient `TALOSCONFIG`). `talosconfig` /
+  `kubeconfig` stay under `build/<cluster>/` (gitignored, never `talos/clusters/`).
 - Secrets are only ever resolved through
   `pass-cli item view "pass://<vault>/talos/<field>"`
   or `pass-cli inject` on double-brace templates. The day-0 `pass-cli
@@ -77,84 +68,59 @@ ansible/
 
 ## Schematics (Image Factory upload + --install-image)
 
-Day-0 resolves each node's installer schematic before `gen config` by
-deep-merging all three layers (base → cluster → node, recursive
-`combine` with dedup list-union — node holds node-only entries, never
-copies of inherited ones):
+Day-0 deep-merges three layers per node (base → cluster → node, recursive `combine`
+with dedup list-union; node files hold node-only entries):
 
-1. `talos/clusters/_base/schematics.yml` (shared; vanilla on its own)
+1. `talos/clusters/_base/schematics.yml` (shared; vanilla)
 2. `talos/clusters/<cluster>/schematics.yml` (env-wide, e.g. netbird)
-3. `talos/clusters/<cluster>/nodes/<node>/schematics.yml` (node-only,
-   e.g. qemu-guest-agent / intel-ucode + kernel args / nfsd stack)
+3. `talos/clusters/<cluster>/nodes/<node>/schematics.yml` (node-only)
 
-For each node the role (`roles/talos_render/tasks/schematic.yml`) slurps
-all three levels, merges them, stages a reference copy at
-`build/<cluster>/schematics-<node>.yml`, uploads it via
+The role stages `build/<cluster>/schematics-<node>.yml`, uploads it via
 `POST https://factory.talos.dev/schematics`, and persists
-`schematic-<node>.id` + `schematic-<node>.sha256` (hash-gated: upload runs
-only on content change). A hash-match with a missing/empty `.id`, or an
-upload with no parseable ID, fails fast naming the `rm` + re-run day-0
-recovery. The rendered `nodes-<node>-patches.yml` copies get
-`PLACEHOLDER_SCHEMATIC_ID` rewritten to the resolved per-node ID.
-
-Each node's `talosctl gen config` receives
+`schematic-<node>.id` + `.sha256` (upload only on content change; missing/empty `.id`
+or unparseable upload fails fast naming the `rm` + re-run day-0 recovery).
+`PLACEHOLDER_SCHEMATIC_ID` in `nodes-<node>-patches.yml` is rewritten to the per-node
+ID. `gen config` receives
 `--install-image factory.talos.dev/metal-installer/<that-node-ID>:<talos_version>`
-(`talos_version` already carries the leading `v`, e.g. `v1.15.0-alpha.0`, so the
-ref has exactly one `v`).
-Schematic IDs are not secrets but task output is kept tidy.
+(`talos_version` carries the leading `v`, e.g. `v1.15.0-alpha.0`).
 
 ## Machine configs (per-node, role-based)
 
-Day-0 runs ONE `gen config` per node (plus one `-t talosconfig` run per
-cluster), so each node gets only its own patches, scoped to its role:
+One `gen config` per node (plus one `-t talosconfig` per cluster), each node scoped to
+its role:
 
-- output: `build/<cluster>/nodes/<node>/<type>.yaml` where `<type>` is the
-  `talos_machine_roles` mapping of the node's `role`
-  (`controlplane` -> `controlplane.yaml`, `worker` -> `worker.yaml`).
-- invocation: `-t <type> -o build/<cluster>/nodes/<node>/<type>.yaml` with
-  base + cluster patches via generic `--config-patch` and ONLY that node's
-  patch via `--config-patch-control-plane` (role `controlplane`) or
-  `--config-patch-worker` (role `worker`).
-- `talosconfig` is generated once per cluster into
-  `build/<cluster>/talosconfig` (base + cluster patches, carries the
-  cluster endpoint) and reused via `talos_talosconfig`.
-- each generated node file is validated
-  (`talosctl validate -c <node file> -m metal`).
-- day-1 `apply-config` is role-aware: node `<name>` gets
-  `build/<cluster>/nodes/<name>/<type>.yaml` for its own role.
+- output: `build/<cluster>/nodes/<node>/<type>.yaml` (`talos_machine_roles`: role →
+  `controlplane.yaml` / `worker.yaml`).
+- invocation: base + cluster patches via `--config-patch`, only that node's patch via
+  `--config-patch-control-plane` / `--config-patch-worker`.
+- `talosconfig`: once per cluster (`build/<cluster>/talosconfig`, base + cluster
+  patches, cluster endpoint), reused via `talos_talosconfig`.
+- every node file validated (`talosctl validate -c <node file> -m metal`); day-1
+  `apply-config` is role-aware.
 
-`build/` outputs per cluster (all gitignored via `talos/.gitignore`
-`ansible/build/`): `secrets.bundle.yml`, `talosconfig`, `kubeconfig`,
-`proton-pass-pat` (day-0 `pass-cli inject` from the cluster
-`pat.yml.template`; see the backup/save guide in `RUNBOOK.md` §6),
-`patches.yml` (cluster patch with the §1.0b NetBird placeholder rewrite),
-`nodes-<node>-patches.yml`, `nodes/<node>/*.yaml`,
-`schematics-<node>.yml`, `schematic-<node>.id`,
-`schematic-<node>.sha256`. The staged `netbird-tf/` dir (working copy of
-the dedicated root + persistent local state, so re-applies upsert) is KEPT
-across runs — never backed up, never committed, never deleted between runs
-(fresh dir = empty state = duplicate-CREATE failures; recovery is
-`tofu import` per resource — see `roles/talos_render/files/netbird/README.md`).
+`build/` outputs per cluster (all gitignored): `secrets.bundle.yml`, `talosconfig`,
+`kubeconfig`, `proton-pass-pat` (backup guide: `RUNBOOK.md` §6), `patches.yml`
+(§1.0b NetBird rewrite), `nodes-<node>-patches.yml`, `nodes/<node>/*.yaml`,
+`schematics-<node>.yml`, `schematic-<node>.id`, `schematic-<node>.sha256`. The staged
+`netbird-tf/` dir (working copy + persistent state, so re-applies upsert) is KEPT —
+never backed up, committed, or deleted between runs (recovery is `tofu import` per
+resource — see `roles/talos_render/files/netbird/README.md`).
 
-Each node also runs an NFS server stack: the node schematic layer adds
-`siderolabs/nfsd` + `nfs-utils` + `nfs-server`, configured by
-`EtcFileConfig` `exports` (three LAN-only `192.168.1.0/24` lines with
-`fsid=0/1/2`, all `all_squash`) + `EtcFileConfig` `netconfig` +
-`ExtensionServiceConfig` `nfs-server` (`RPCNFSDCOUNT=32`) — no dedicated
-volume (see `RUNBOOK.md` §1.6).
+NFS server stack per node: `siderolabs/nfsd` + `nfs-utils` + `nfs-server` in the node
+schematic, `EtcFileConfig` `exports` (three LAN-only `192.168.1.0/24` `all_squash`
+lines, `fsid=0/1/2`) + `netconfig` + `ExtensionServiceConfig` `nfs-server`
+(`RPCNFSDCOUNT=32`); no dedicated volume (`RUNBOOK.md` §1.6).
 
 ## Inventory (local-only — no node inventory)
 
 Every playbook runs on `hosts: localhost` with `connection: local` (plus
-`transport = local` in `ansible.cfg`); all node contact is `talosctl` over
-the Talos API — no SSH (`kubectl --kubeconfig build/<cluster>/kubeconfig`
-only for the day-2 ESO PAT Secret plane). Run with an inline localhost
-inventory (`-i localhost,`); no inventory files are needed:
-`group_vars/all.yml` (`talos_clusters`) remains the single IP source.
+`transport = local` in `ansible.cfg`); all node contact is `talosctl` — no SSH
+(`kubectl --kubeconfig build/<cluster>/kubeconfig` only for the day-2 ESO PAT plane).
+Inline localhost inventory (`-i localhost,`); `talos_clusters` is the single IP source.
 
 ```bash
-ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=acme-dev-bdo1-talos-apps-01 --check --diff
+ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=<cluster> --check --diff
 ```
 
-FQCN (`ansible.builtin.*`, `community.general.*`) is enforced (ansible-lint
-`fqcn` rule). `false`/`true` are lowercase YAML booleans everywhere.
+FQCN (`ansible.builtin.*`, `community.general.*`) is enforced (ansible-lint `fqcn`
+rule). `false`/`true` are lowercase YAML booleans everywhere.

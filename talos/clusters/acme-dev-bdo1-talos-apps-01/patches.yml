@@ -1,14 +1,8 @@
-# Cluster patch: acme-dev-bdo1-talos-apps-01 (Talos v1.15.0-alpha.0, single control-plane).
-# Applied after ../_base/patches.yml. Dev addressing (node .201, VIP .248)
-# with its own Proton Pass vault; no cross-environment vault references.
-# Secrets are double-brace Proton Pass references; the NetBird placeholder
-# (NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__) is rewritten at render time from
-# the Terraform-minted key (see talos_netbird_* in ansible/group_vars/all.yml).
-# Render: pass-cli inject --in-file patches.yml
-#   --out-file ../../ansible/build/acme-dev-bdo1-talos-apps-01/patches.yml
-# Split-doc kinds: KubeClusterConfig{endpoint}; KubeProxyConfig{enabled: false}
-# (Cilium replaces kube-proxy); KubeNodeConfig with the default control-plane
-# taint removed (single-node runs workloads on the control-plane).
+# Cluster patch: acme-dev-bdo1-talos-apps-01 (Talos v1.15.0-alpha.0, single control-plane),
+# applied after ../_base/patches.yml. Own Proton Pass vault (no cross-env refs); secrets are
+# double-brace refs; __TALOS_NETBIRD_SETUP_KEY__ is rewritten at render time (RUNBOOK §1.0b).
+# KubeProxyConfig disabled (Cilium replaces kube-proxy); control-plane taint removed
+# (single-node runs workloads on the control-plane).
 ---
 apiVersion: v1alpha1
 kind: KubeClusterConfig
@@ -26,7 +20,7 @@ taints:
 apiVersion: v1alpha1
 kind: Layer2VIPConfig
 name: 192.168.1.248 # K8s API VIP, advertised from the control-plane node
-link: ens18 # QEMU/KVM virtio NIC; confirm via manual pre-flight `talosctl get links --insecure -n 192.168.1.201`
+link: ens18 # QEMU/KVM virtio NIC (pre-flight: talosctl get links --insecure -n 192.168.1.201)
 ---
 apiVersion: v1alpha1
 kind: RegistryAuthConfig
@@ -50,4 +44,4 @@ apiVersion: v1alpha1
 kind: ExtensionServiceConfig
 name: netbird
 environment:
-  - NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__ # render-time placeholder: rewritten from the Terraform talos_setup_key output (never a vault value)
+  - NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__ # render-time placeholder (RUNBOOK §1.0b; never a vault value)

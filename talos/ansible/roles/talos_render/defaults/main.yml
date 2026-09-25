@@ -1,8 +1,7 @@
 ---
 talos_render_talosctl: talosctl
 talos_render_version: "{{ talos_version }}"
-# Image Factory endpoint for schematic uploads (POST --data-binary @schematic).
+# Image Factory endpoint for schematic uploads.
 talos_render_schematic_factory_url: https://factory.talos.dev/schematics
-# Audit prefix for PROTON_PASS_AGENT_REASON
-# (`<prefix>-<cluster>[-<node>]-exec-<16 lowercase hex>` per pass-cli exec).
+# PROTON_PASS_AGENT_REASON prefix (`<prefix>-<cluster>[-<node>]-exec-<16 hex>`).
 talos_render_pass_agent_reason_prefix: talos-render

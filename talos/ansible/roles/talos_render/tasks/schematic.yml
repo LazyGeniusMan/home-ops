@@ -1,7 +1,6 @@
 ---
-# Per-node schematic: deep-merge _base -> cluster -> node layers (loop_var `node`).
-# Outputs per node under build/<cluster>/: schematics-<node>.yml (reference
-# copy), schematic-<node>.id, schematic-<node>.sha256 (upload idempotency).
+# Per-node schematic: deep-merge _base -> cluster -> node (loop_var `node`).
+# Outputs: schematics-<node>.yml, schematic-<node>.id, schematic-<node>.sha256.
 - name: Reset per-node schematic ID guard
   ansible.builtin.set_fact:
     talos_render_schematic_id: ""
@@ -125,8 +124,7 @@
   when: talos_render_schematic_need_upload and not ansible_check_mode
 
 - name: Fail when the uploaded schematic yields no ID
-  # A 2xx without a parseable ID would silently render
-  # pending-schematic-upload on every re-run; fail fast instead.
+  # A 2xx without a parseable ID would silently render pending-schematic-upload; fail fast.
   ansible.builtin.assert:
     that:
       - talos_render_schematic_id | length > 0
@@ -152,9 +150,8 @@
   when: not talos_render_schematic_need_upload and talos_render_schematic_stored_id.content is defined
 
 - name: Fail when the schematic hash matches but no ID resolves
-  # Hash unchanged (no upload ran) yet schematic ID file is missing/empty;
-  # without this, gen config silently falls back to pending-schematic-upload.
-  # Skipped in check mode (no upload runs there — see RUNBOOK §1.1).
+  # Hash unchanged yet .id missing/empty; without this gen config falls back to
+  # pending-schematic-upload. Skipped in check mode (RUNBOOK §1.1).
   ansible.builtin.assert:
     that:
       - talos_render_schematic_id | length > 0

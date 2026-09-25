@@ -1,8 +1,7 @@
 ---
-# Talos OS upgrade, one node at a time in cluster-map order.
-# An explicit talos_operate_upgrade_image wins; otherwise the installer ref is
-# built per node from the day-0 schematic .id files (never re-uploads).
-# Adjacent minors only (e.g. v1.14.x -> v1.15.x); never skip a minor.
+# Talos OS upgrade, one node at a time in cluster-map order. Explicit upgrade_image wins;
+# otherwise the installer ref is built per node from the schematic .id files.
+# Adjacent minors only (never skip a minor).
 - name: Read per-node schematic IDs for upgrade image construction
   ansible.builtin.slurp:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}/schematic-{{ item.name }}.id"

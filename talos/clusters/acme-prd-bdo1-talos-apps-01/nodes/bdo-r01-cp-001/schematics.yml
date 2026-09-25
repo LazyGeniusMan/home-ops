@@ -1,19 +1,15 @@
-# Node Image Factory schematic layer for bdo-r01-cp-001 (Talos v1.15.0-alpha.0).
-# Additive only: merges over _base + cluster layers (netbird comes from the
-# cluster layer — keep node-only entries here). Bare-metal host: intel-ucode
-# (CPU microcode), i915 (iGPU firmware), realtek-firmware (NICs), plus the
-# nfsd stack. Kernel args enable IOMMU passthrough.
-# Bare `siderolabs/<name>` entries only — the factory pins versions to the release.
+# Node schematic layer for bdo-r01-cp-001 (Talos v1.15.0-alpha.0): node-only entries
+# (netbird comes from the cluster layer). Bare `siderolabs/<name>` entries only.
 customization:
   extraKernelArgs:
-    - intel_iommu=on # DMAR for vfio-pci passthrough isolation
+    - intel_iommu=on # IOMMU passthrough isolation
     - iommu=pt # passthrough DMA for unassigned devices
   systemExtensions:
     officialExtensions:
       - siderolabs/intel-ucode
       - siderolabs/i915
       - siderolabs/realtek-firmware
-      # NFS server stack (all three required together).
+      # NFS server stack (all three required).
       - siderolabs/nfsd
       - siderolabs/nfs-utils
       - siderolabs/nfs-server

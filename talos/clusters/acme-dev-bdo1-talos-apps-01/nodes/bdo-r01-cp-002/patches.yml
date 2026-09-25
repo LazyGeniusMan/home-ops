@@ -1,8 +1,6 @@
-# Node patch: bdo-r01-cp-002 — acme-dev-bdo1-talos-apps-01 (Talos v1.15.0-alpha.0).
-# QEMU/KVM VM: virtio NIC (ens18), install disk /dev/sda (20 GiB OS),
-# data disk /dev/sdb (960 GB passthrough); EPHEMERAL capped (30GiB reserved),
-# nvme-data + sata-data XFS volumes.
-# Pre-flight: `talosctl get links/disks --insecure -n 192.168.1.201`.
+# Node patch: bdo-r01-cp-002 (Talos v1.15.0-alpha.0). QEMU/KVM VM: virtio NIC ens18,
+# install /dev/sda (20 GiB OS), data /dev/sdb (960 GB); EPHEMERAL capped (30GiB reserved);
+# nvme-data + sata-data XFS volumes. Pre-flight: talosctl get links/disks --insecure -n 192.168.1.201.
 ---
 apiVersion: v1alpha1
 kind: HostnameConfig
@@ -60,24 +58,17 @@ filesystem:
 apiVersion: v1alpha1
 kind: SysctlConfig
 params:
-  # 1. SunRPC Slot Tables (Concurrency depth per connection)
   sunrpc.tcp_slot_table_entries: "32"
   sunrpc.tcp_max_slot_table_entries: "32"
-
-  # 2. Network Core Socket Buffers (Optimized for 10GbE+)
-  net.core.rmem_max: "33554432"          # 32MB
-  net.core.wmem_max: "33554432"          # 32MB
+  net.core.rmem_max: "33554432"
+  net.core.wmem_max: "33554432"
   net.core.rmem_default: "1048576"
   net.core.wmem_default: "1048576"
   net.core.netdev_max_backlog: "10000"
   net.core.somaxconn: "4096"
-
-  # 3. TCP Memory Buffer Limits (Min, Default, Max)
   net.ipv4.tcp_rmem: "4096 87380 33554432"
   net.ipv4.tcp_wmem: "4096 65536 33554432"
   net.ipv4.tcp_slow_start_after_idle: "0"
-
-  # 4. Virtual Memory Writeback Flushing
   vm.dirty_background_ratio: "5"
   vm.dirty_ratio: "10"
 ---
@@ -102,8 +93,7 @@ name: nfs-server
 environment:
   - RPCNFSDCOUNT=32
 ---
-# NFS stack: exports the nvme-data + sata-data volumes above
-# (UserVolumeConfig <name> mounts at /var/mnt/<name>); no dedicated volume.
+# NFS exports for the nvme-data + sata-data volumes above (<name> mounts at /var/mnt/<name>).
 apiVersion: v1alpha1
 kind: EtcFileConfig
 name: exports
@@ -112,8 +102,6 @@ contents: |
   /var 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=0)
   /var/mnt/nvme-data 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=1)
   /var/mnt/sata-data 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=2)
-# LAN-only 192.168.1.0/24; default root_squash kept (no no_root_squash).
-# fsid values mark the NFSv4 exports (pseudo-root fsid=0).
 ---
 apiVersion: v1alpha1
 kind: EtcFileConfig
@@ -122,8 +110,7 @@ mode: 0o644
 contents: |
   udp        tpi_clts      v     inet     udp     -       -
   tcp        tpi_cots_ord  v     inet     tcp     -       -
-# libtirpc IPv4 server table (nfs-server README); service path-deps on both
-# /etc/exports and /etc/netconfig — it will not start without them.
+# libtirpc IPv4 server table (nfs-server needs both /etc/exports and /etc/netconfig).
 ---
 apiVersion: v1alpha1
 kind: KubeNodeConfig

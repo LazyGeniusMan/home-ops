@@ -1,8 +1,4 @@
-# Base Image Factory schematic layer shared by all clusters/nodes (Talos v1.15.0-alpha.0).
-# Deep-merges base -> cluster -> node (dedup union); the cluster layer adds
-# env-wide entries, the node layer adds node-specific entries.
-# Bare `siderolabs/<name>` entries only — the factory pins extension versions
-# to the Talos release. Empty customization renders no installer image; each
-# node's installer image comes from its own merged schematic upload (ansible day-0).
-# Kernel args live here (customization.extraKernelArgs).
+# Base Image Factory schematic layer (Talos v1.15.0-alpha.0): merges base -> cluster -> node.
+# Bare `siderolabs/<name>` entries only (factory pins versions to the release).
+# Kernel args: customization.extraKernelArgs.
 customization: {}

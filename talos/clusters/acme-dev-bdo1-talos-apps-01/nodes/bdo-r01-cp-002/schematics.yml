@@ -1,13 +1,10 @@
-# Node Image Factory schematic layer for bdo-r01-cp-002 (Talos v1.15.0-alpha.0).
-# Additive only: merges over _base + cluster layers (netbird comes from the
-# cluster layer — keep node-only entries here). QEMU/KVM VM: qemu-guest-agent
-# for host-visible shutdown/IP, plus the nfsd stack.
-# Bare `siderolabs/<name>` entries only — the factory pins versions to the release.
+# Node schematic layer for bdo-r01-cp-002 (Talos v1.15.0-alpha.0): node-only entries
+# (netbird comes from the cluster layer). Bare `siderolabs/<name>` entries only.
 customization:
   systemExtensions:
     officialExtensions:
       - siderolabs/qemu-guest-agent
-      # NFS server stack (all three required together).
+      # NFS server stack (all three required).
       - siderolabs/nfsd
       - siderolabs/nfs-utils
       - siderolabs/nfs-server

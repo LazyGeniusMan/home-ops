@@ -1,11 +1,6 @@
-# Shared barebone base patch for all clusters (Talos v1.15.0-alpha.0).
-# Multi-document file consumed via `talosctl gen config --config-patch @file`;
-# split-doc kinds merge after the v1alpha1 fragment. Base ships zero bootstrap
-# manifests (no inlineManifests / extraManifests): CNI none (delete
-# KubeFlannelCNIConfig; Cilium arrives via GitOps), CoreDNS off, kube-proxy
-# iptables mode (clusters on Cilium kube-proxy replacement set enabled: false
-# in their cluster patches.yml), discovery off (delete DiscoveryServiceConfig
-# `default`).
+# Shared barebone base patch (Talos v1.15.0-alpha.0), applied first via --config-patch.
+# CNI none (Cilium arrives via GitOps), CoreDNS off, kube-proxy iptables mode
+# (clusters on Cilium kube-proxy replacement disable it), discovery off.
 ---
 apiVersion: v1alpha1
 kind: KubeFlannelCNIConfig

@@ -1,12 +1,9 @@
 ---
 talos_bootstrap_talosctl: talosctl
 talos_bootstrap_mode: auto
-# Audit prefix for PROTON_PASS_AGENT_REASON on the early auth probe
-# (`<prefix>-<cluster>-authcheck-<16 lowercase hex>`).
+# PROTON_PASS_AGENT_REASON prefix for the auth probe (`<prefix>-<cluster>-authcheck-<16 hex>`).
 talos_bootstrap_pass_agent_reason_prefix: talos-bootstrap
-# Readiness gates: L1 = TCP 50000 reachable per node; L2 = authenticated
-# `talosctl version` poll on every node. Bootstrap + kubeconfig retry because
-# slow boots can lag the gates.
+# Readiness gates: TCP 50000 per node, then authenticated `talosctl version` on every node.
 talos_bootstrap_api_port: 50000
 talos_bootstrap_wait_timeout: 300
 talos_bootstrap_version_retries: 60

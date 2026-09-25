@@ -1,7 +1,5 @@
 ---
-# Day-0 render: inject secrets, generate machine configs, validate.
-# Auth first: every render exec needs a live session (Ansible never logs
-# in — run the login command in your shell before the play).
+# Day-0 render: inject secrets, generate machine configs, validate (needs a live pass-cli session; RUNBOOK §0.3).
 - name: Ensure build directory exists
   ansible.builtin.file:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}"
@@ -9,9 +7,7 @@
     mode: "0700"
 
 - name: Stat cluster patch source for render freshness preflight
-  # Inject tasks carry `creates:` guards (never re-run while the render
-  # exists); compare mtimes and fail fast naming the §1.7 rm instead of
-  # validating stale configs as fresh.
+  # `creates:` guards never re-run; fail fast naming the §1.7 rm on stale renders.
   ansible.builtin.stat:
     path: "{{ playbook_dir }}/../../clusters/{{ talos_cluster }}/patches.yml"
   check_mode: false
@@ -51,8 +47,7 @@
   register: talos_render_preflight_pat_out
 
 - name: Fail when the PAT template is newer than its render
-  # Covers template edits only; vault rotations still need an explicit
-  # rm build/<cluster>/proton-pass-pat + re-run day-0 (§4.3).
+  # Template edits only; vault rotations still need rm + re-run day-0 (§4.3).
   ansible.builtin.assert:
     that:
       - not (talos_render_preflight_pat_src.stat.exists | default(false))
@@ -85,8 +80,7 @@
   register: talos_render_preflight_node_out
 
 - name: Fail when a node patch source is newer than its render
-  # Indexed pairing (not zip): node list order is stable, so src/out result
-  # indices align 1:1 with the node loop above.
+  # Node list order is stable: src/out result indices align 1:1 with the node loop.
   ansible.builtin.assert:
     that:
       - not (talos_render_preflight_node_src.results[idx].stat.exists | default(false))
@@ -106,8 +100,7 @@
     index_var: idx
 
 - name: Check pass-cli session is authenticated
-  # Probes the existing session via the info command (rc==0 + JSON mapping
-  # = logged in). check_mode:false so --check still validates auth.
+  # rc==0 + JSON mapping = logged in. check_mode:false so --check still validates auth.
   ansible.builtin.command:
     cmd: pass-cli info -o json
   environment:
@@ -132,8 +125,7 @@
     success_msg: "pass-cli session authenticated."
 
 - name: Render cluster patches.yml via pass-cli inject
-  # Intentionally WITHOUT no_log: --out-file mode prints no secret values,
-  # so failures name the unresolved vault ref instead of "censored".
+  # No no_log: --out-file mode prints no values, so failures name the unresolved ref.
   ansible.builtin.command:
     cmd: >-
       pass-cli inject
@@ -149,7 +141,7 @@
   changed_when: true
 
 - name: Render node patches via pass-cli inject
-  # Intentionally WITHOUT no_log (see cluster inject above).
+  # No no_log (see cluster inject above).
   ansible.builtin.command:
     cmd: >-
       pass-cli inject
@@ -168,8 +160,7 @@
   changed_when: true
 
 - name: Render PAT file via pass-cli inject
-  # Source: clusters/<cluster>/pat.yml.template. Intentionally WITHOUT no_log
-  # (see cluster inject above).
+  # Source: clusters/<cluster>/pat.yml.template. No no_log (see cluster inject above).
   ansible.builtin.command:
     cmd: >-
       pass-cli inject
@@ -184,8 +175,7 @@
         override_all='0123456789abcdef') }}
   changed_when: true
 
-# NetBird setup key: resolves the PAT, applies the dedicated Talos root, and
-# rewrites __TALOS_NETBIRD_SETUP_KEY__ in the rendered cluster patch.
+# NetBird setup key (RUNBOOK §1.0b): resolves the PAT, applies the dedicated root, rewrites the placeholder.
 - name: Resolve NetBird setup key from Terraform and rewrite cluster patch
   ansible.builtin.include_tasks: netbird_setup_key.yml
 
@@ -197,8 +187,7 @@
     label: "{{ node.name }}"
 
 - name: Generate Talos secrets bundle when missing
-  # Intentionally WITHOUT no_log: -o writes to a file and prints nothing
-  # secret-bearing, so failures stay visible instead of "censored".
+  # No no_log: -o writes to a file and prints nothing secret-bearing.
   ansible.builtin.command:
     cmd: >-
       {{ talos_render_talosctl }} gen secrets

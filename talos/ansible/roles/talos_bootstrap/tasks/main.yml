@@ -1,9 +1,7 @@
 ---
 # Day-1: insecure-apply per node, wait gates, bootstrap etcd, fetch kubeconfig.
-# Auth first: fail fast on a dead session before pushing configs.
 - name: Check pass-cli session is authenticated
-  # Probes the existing session via the info command (Ansible never logs
-  # in). check_mode:false so --check still validates auth.
+  # Ansible never logs in. check_mode:false so --check still validates auth.
   ansible.builtin.command:
     cmd: pass-cli info -o json
   environment:
@@ -52,8 +50,7 @@
   changed_when: false
 
 - name: Wait for Talos API port on installed nodes
-  # L1 gate: nodes install + reboot after the insecure apply, so TCP 50000
-  # drops briefly (typical wait 1-2 min; timeout covers slow installs).
+  # Nodes install + reboot after the insecure apply; TCP 50000 drops briefly.
   ansible.builtin.wait_for:
     host: "{{ item.ip }}"
     port: "{{ talos_bootstrap_api_port }}"
@@ -63,7 +60,7 @@
     label: "{{ item.name }}"
 
 - name: Assert the bootstrap node is a control-plane node
-  # Etcd bootstrap targets nodes[0] by list-order convention (RUNBOOK §4.5).
+  # Etcd bootstrap targets nodes[0] by list order (RUNBOOK §4.5).
   ansible.builtin.assert:
     that:
       - talos_clusters[talos_cluster].nodes[0].role == 'controlplane'
@@ -75,8 +72,7 @@
     success_msg: "Bootstrap node {{ talos_clusters[talos_cluster].nodes[0].name }} is a control-plane node."
 
 - name: Wait for authenticated Talos API on every node
-  # L2 gate on ALL nodes: rc==0 proves the node installed, rebooted, and
-  # booted configured (`talosctl health` only works post-bootstrap).
+  # rc==0 proves the node installed, rebooted, and booted configured.
   ansible.builtin.command:
     cmd: >-
       {{ talos_bootstrap_talosctl }} version
@@ -94,7 +90,7 @@
     label: "{{ item.name }}"
 
 - name: Bootstrap etcd on the first control-plane node
-  # No wait flags on `bootstrap` and it races slow boots — retry all non-zero exits.
+  # Races slow boots — retry all non-zero exits.
   ansible.builtin.command:
     cmd: >-
       {{ talos_bootstrap_talosctl }} bootstrap
@@ -117,8 +113,6 @@
 
 - name: Fetch admin kubeconfig
   # Single control-plane per cluster (RUNBOOK §4.5): source pinned to nodes[0].
-  # Stale after re-bootstrap/cert rotation: `rm build/<cluster>/kubeconfig` +
-  # re-run day-1, or day-2 `-e regen_kubeconfig=true`.
   ansible.builtin.command:
     cmd: >-
       {{ talos_bootstrap_talosctl }} kubeconfig

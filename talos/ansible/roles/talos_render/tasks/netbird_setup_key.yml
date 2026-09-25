@@ -1,23 +1,9 @@
 ---
-# NetBird setup-key plane (shared by day-0 render + day-2 re-apply).
-# The rendered cluster patch carries NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__
-# (never a vault value); this plane resolves the PAT from the vault, applies
-# the dedicated Talos NetBird root (roles/talos_render/files/netbird/,
-# Ansible-managed, never Flux) via `community.general.terraform`
-# (requirements.yml pins community.general >= 9.0.0), and rewrites the
-# placeholder with the sensitive `talos_setup_key` output. No raw apply shell
-# exists here — only the vault render command and the module call.
-# Key: reusable, expiry 0 = never, usage 0 = unlimited,
-# auto_groups [<cluster>-nodes]. no_log throughout; 0600 kept.
-#
-# - PAT (pass://<cluster-vault>/talos/netbird-pat) reaches Terraform ONLY as
-#   the NB_PAT env (never -var, never on disk).
-# - The module needs an ABSOLUTE binary path, so the apply task resolves the
-#   `talos_netbird_tofu` name via command lookup. `force_init: true`; no
-#   backend_config, so state is the local `terraform.tfstate` in the staged dir.
-# - The root is staged at build/<cluster>/netbird-tf/ (gitignored) and applied
-#   THERE; the dir persists across runs so re-applies upsert (do NOT delete —
-#   recovery is `tofu import` per resource, see files/netbird/README.md).
+# NetBird setup-key plane (day-0 render + day-2 re-apply, RUNBOOK §1.0b).
+# PAT (pass://<cluster-vault>/talos/netbird-pat) reaches Terraform only as NB_PAT env
+# (never -var, never on disk); the module applies the dedicated root staged at
+# build/<cluster>/netbird-tf/ (persistent state, re-applies upsert — never delete)
+# and the sensitive talos_setup_key output rewrites the placeholder. no_log; 0600.
 - name: Resolve NetBird PAT from Proton Pass
   ansible.builtin.command:
     cmd: >-
@@ -45,23 +31,21 @@
   no_log: true
 
 - name: Ensure staged Terraform dir exists
-  # Persistent: local terraform.tfstate lives here across runs so re-applies upsert.
+  # Persistent local state lives here across runs so re-applies upsert.
   ansible.builtin.file:
     path: "{{ talos_netbird_terraform_dir }}"
     state: directory
     mode: "0700"
 
 - name: Stage dedicated NetBird root copy
-  # Working copy so the module never writes state into the committed tree.
-  # Re-runs sync changed sources over the persisted state by checksum.
+  # Working copy: module state stays out of the committed tree; re-runs sync changed sources.
   ansible.builtin.copy:
     src: "{{ role_path }}/files/netbird/"
     dest: "{{ talos_netbird_terraform_dir }}/"
     mode: preserve
 
-# The PAT authenticates via the NB_PAT env only (no netbird_token variable,
-# so it never lands in TFVARS/state). Only cluster_name is passed as a
-# variable; lan_cidr rides the root default (192.168.1.0/24).
+# PAT via NB_PAT env only (never a variable — stays out of TFVARS/state).
+# Only cluster_name is passed; lan_cidr rides the root default (192.168.1.0/24).
 - name: Apply Talos NetBird fabric via Terraform
   community.general.terraform:
     project_path: "{{ talos_netbird_terraform_dir }}"
@@ -87,8 +71,7 @@
   no_log: true
 
 - name: Stage resolved setup key for the shape check
-  # Indirection keeps the key out of the assert args (assert stays WITHOUT
-  # no_log so failures name the PAT source; only a boolean is asserted).
+  # Indirection keeps the key out of assert args (only a boolean is asserted).
   ansible.builtin.set_fact:
     talos_render_netbird_setup_key_ok: >-
       {{ talos_render_netbird_tf.outputs.talos_setup_key.value | default('', true) | trim
@@ -96,8 +79,7 @@
   no_log: true
 
 - name: Assert the resolved setup key matches the expected shape
-  # UUID gate: proves the value is a real minted key before baking it into
-  # the machine configs. Never echoes the value.
+  # UUID gate before baking into machine configs; never echoes the value.
   ansible.builtin.assert:
     that:
       - talos_render_netbird_setup_key_ok | bool
@@ -109,8 +91,7 @@
     success_msg: "NetBird setup key resolved for {{ talos_cluster }}."
 
 - name: Rewrite setup-key placeholder in the rendered cluster patch
-  # pass-cli inject ran first, so the render still carries the placeholder;
-  # file-mode stays 0600.
+  # Inject ran first, so the render still carries the placeholder; mode stays 0600.
   ansible.builtin.replace:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}/patches.yml"
     regexp: "{{ talos_netbird_placeholder }}"

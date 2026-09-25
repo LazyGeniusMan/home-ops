@@ -1,9 +1,7 @@
 ---
-# Config re-apply: force re-render of edited patches (bypassing day-0
-# creates: guards), regenerate node machine configs, push via authenticated
-# apply-config --mode <reapply_mode> (default staged). Day-1's insecure apply
-# is maintenance-only; this is the installed-cluster path. Pass-cli session
-# was already probed at the top of main.yml.
+# Config re-apply (installed-cluster path): force re-render of edited patches (bypassing
+# day-0 creates: guards), regenerate machine configs, push via authenticated
+# apply-config --mode <reapply_mode> (default staged).
 - name: Assert re-apply mode is valid
   ansible.builtin.assert:
     that:
@@ -13,8 +11,7 @@
   when: talos_operate_reapply_configs | bool
 
 - name: Force re-render cluster patches.yml via pass-cli inject
-  # Intentionally WITHOUT no_log and WITHOUT creates: (dropped guard lets
-  # edited sources re-render).
+  # No no_log and no creates: (dropped guard lets edited sources re-render).
   ansible.builtin.command:
     cmd: >-
       pass-cli inject
@@ -48,8 +45,7 @@
   changed_when: true
 
 - name: Force re-render PAT file via pass-cli inject
-  # No creates:, no no_log — picks up vault rotations; inject names the
-  # unresolved ref on failure. Source: clusters/<cluster>/pat.yml.template.
+  # No creates:, no no_log — picks up vault rotations. Source: clusters/<cluster>/pat.yml.template.
   ansible.builtin.command:
     cmd: >-
       pass-cli inject
@@ -64,11 +60,9 @@
   when: talos_operate_reapply_configs | bool
   changed_when: true
 
-# NetBird rewrite: the forced re-render restores
-# NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__, so re-apply the module plane day-0
-# uses (via include_role; cross-role include_tasks paths do not resolve) and
-# rewrite the placeholder. Needs the vault PAT + api.netbird.io on EVERY
-# re-apply (the staged dir does not make this offline-safe).
+# NetBird rewrite: the forced re-render restores the placeholder, so re-apply the day-0
+# module plane (via include_role; cross-role include_tasks paths do not resolve).
+# Needs vault PAT + api.netbird.io on EVERY re-apply.
 - name: Rewrite NetBird setup-key placeholder in the re-rendered cluster patch
   ansible.builtin.include_role:
     name: talos_render
@@ -76,9 +70,7 @@
   when: talos_operate_reapply_configs | bool
 
 - name: Refresh per-node schematic IDs from the Image Factory
-  # Reuses the day-0 schematic plane with the day-2 factory URL so hash
-  # changes re-upload (.id/.sha256 persist; IDs accumulate in
-  # talos_render_schematic_ids). Same check-mode behavior as day-0.
+  # Reuses the day-0 schematic plane (hash changes re-upload; .id/.sha256 persist).
   ansible.builtin.include_role:
     name: talos_render
     tasks_from: schematic
@@ -92,7 +84,7 @@
   when: talos_operate_reapply_configs | bool
 
 - name: Read per-node schematic IDs for installer image rewrite
-  # Offline fallback when no upload ran; upload-fresh IDs win on disagreement.
+  # Offline fallback when no upload ran; upload-fresh IDs win.
   ansible.builtin.slurp:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}/schematic-{{ item.name }}.id"
   loop: "{{ talos_clusters[talos_cluster].nodes }}"
@@ -121,7 +113,7 @@
   when: talos_operate_reapply_configs | bool
 
 - name: Assert schematic IDs resolve for re-apply
-  # A miss here means build/<cluster> lost its .id files offline — re-run day-0.
+  # A miss means build/<cluster> lost its .id files — re-run day-0.
   ansible.builtin.assert:
     that:
       - (talos_operate_reapply_ids | default({})).get(item.name, '') | length > 0
