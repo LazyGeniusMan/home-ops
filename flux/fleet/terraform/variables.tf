@@ -5,6 +5,13 @@ variable "oci_token" {
   nullable    = false
 }
 
+variable "github_token" {
+  description = "GitHub token with contents read+write on home-ops (classic PAT repo scope, or fine-grained contents read+write), seeded as flux-system/github-auth for ImageUpdateAutomation push access. Null (default) seeds nothing — set it when bootstrapping the update cluster."
+  sensitive   = true
+  type        = string
+  default     = null
+}
+
 variable "cluster_name" {
   description = "Name of the cluster directory under clusters/ (e.g. acme-prd-bdo1-talos-apps-01, update)."
   type        = string

@@ -14,12 +14,14 @@ flux/fleet/
 │   ├── acme-dev-bdo1-talos-apps-01/  # dev (ENVIRONMENT=dev, ARTIFACT_TAG=dev)
 │   │   # each: flux-system/ (FluxInstance, operator ResourceSet, values, runtime-info) + tenants.yaml (→ tenants/overlays/<name>)
 │   └── update/  # image-automation cluster, NOT a Talos cluster (ENVIRONMENT=dev, ARTIFACT_TAG=dev)
-│       # flux-system/ + automation.yaml (ImageUpdateAutomation ResourceSet for infra + apps)
+│       # flux-system/ + automation.yaml (ImageUpdateAutomation ResourceSet
+│       # for infra + apps, dependsOn policies Ready) + tenants.yaml
+│       # (→ tenants/overlays/update, policies only)
 ├── tenants/
 │   ├── policies.yaml    # source allowlist + ValidatingAdmissionPolicy
 │   ├── infra.yaml       # ResourceSet: per-component namespace + OCIRepository + Kustomizations
 │   ├── apps.yaml        # ResourceSet: per-component namespace + OCIRepository + Kustomizations
-│   └── overlays/        # per-cluster selection (prd pass-through, dev skips win11-vm)
+│   └── overlays/        # per-cluster selection (prd pass-through, dev skips win11-vm, update policies-only)
 └── terraform/           # OpenTofu bootstrap of the Flux Operator (no live apply in CI)
 ```
 
@@ -56,7 +58,10 @@ Fleet promotes dev → prd through `ARTIFACT_TAG`:
 
 1. **Propose.** The `update` cluster's `ImageUpdateAutomation` (30m) opens
    `image-updates-*` PRs (`ImageRepository` 12h); the fleet artifact itself
-   versions by release tag, no update policy.
+   versions by release tag, no update policy. Automation pushes through
+   `flux-system/github-auth` (Terraform-seeded via `var.github_token` on the
+   update bootstrap); the policies ResourceSet (`tenants/overlays/update`)
+   gates it via `dependsOn`.
 2. **Merge (human).** Automation proposes, never merges.
 3. **Bake on dev.** Every `main` commit publishes `dev` (+ `dev-<sha>`);
    dev and `update` sync `dev` — validate there first.

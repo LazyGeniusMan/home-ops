@@ -36,6 +36,12 @@ output "test_runtime_seed" {
   sensitive   = true
 }
 
+output "test_secrets_yaml" {
+  description = "Secrets YAML passed to the module (test hook; token is interpolated, so keep assertions to names/counts)."
+  value       = local.flux_secrets_yaml
+  sensitive   = true
+}
+
 output "test_operator_ref" {
   description = "Operator chart/module versions from versions.yaml (test hook)."
   value       = local.flux_operator_ref

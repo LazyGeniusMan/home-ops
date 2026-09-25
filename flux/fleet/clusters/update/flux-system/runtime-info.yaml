@@ -1,3 +1,8 @@
+# Runtime info for update-1 (automation-only cluster): ARTIFACT_TAG/ENVIRONMENT
+# track dev; CLUSTER_REGION is real (must match var.cluster_region — Terraform
+# seeds it pre-Flux, GitOps owns it after). CLUSTER_DOMAIN is intentionally
+# absent: nothing under clusters/update or the update-policies substitutes
+# ${CLUSTER_DOMAIN} (no hostnames rendered here).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -5,9 +10,11 @@ metadata:
   namespace: flux-system
   labels:
     toolkit.fluxcd.io/runtime: "true"
+    reconcile.fluxcd.io/watch: Enabled
   annotations:
     kustomize.toolkit.fluxcd.io/ssa: "Merge"
 data:
   ARTIFACT_TAG: "dev"
   ENVIRONMENT: "dev"
   CLUSTER_NAME: "update-1"
+  CLUSTER_REGION: home-lab

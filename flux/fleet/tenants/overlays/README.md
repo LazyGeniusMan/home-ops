@@ -7,8 +7,10 @@ tenants/overlays/
 ├── README.md                          # this file
 ├── acme-dev-bdo1-talos-apps-01/       # ENVIRONMENT=dev, ARTIFACT_TAG=dev
 │   └── kustomization.yaml             # active patch: skips win11-vm
-└── acme-prd-bdo1-talos-apps-01/       # ENVIRONMENT=prd, ARTIFACT_TAG=stable
-    └── kustomization.yaml             # pass-through + commented policy example
+├── acme-prd-bdo1-talos-apps-01/       # ENVIRONMENT=prd, ARTIFACT_TAG=stable
+│   └── kustomization.yaml             # pass-through + commented policy example
+└── update/                            # update-1, automation-only
+    └── kustomization.yaml             # policies.yaml only (never apps/infra)
 ```
 
 Each overlay holds a single `kustomization.yaml` — no sidecar patch files —
@@ -30,7 +32,10 @@ resources:
 
 With no `patches:` active, the overlay renders the shared set as-is.
 The dev overlay has one active patch (removes the `win11-vm` input from
-the `apps` ResourceSet); the prd overlay has no active patches.
+the `apps` ResourceSet); the prd overlay has no active patches. The update
+overlay lists `policies.yaml` only — the update cluster runs no app/infra
+tenants (`clusters/update/automation.yaml` drives those via
+ImageUpdateAutomation, gated on policies Ready).
 
 ## One mechanism for apps + infra + policies
 

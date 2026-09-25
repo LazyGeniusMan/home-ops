@@ -91,9 +91,10 @@ dependency-free tests and local runs.
 
 ## Discovery (TargetAllocator)
 
-Every tenant namespace (infra + apps) carries `otel-scrape: "true"` from the
-fleet ResourceSet Namespace templates (`flux/fleet/tenants/infra.yaml`,
-`flux/fleet/tenants/apps.yaml`); the gateway TargetAllocator scrapes only
+Every tenant namespace (infra + apps, plus the update cluster's automation
+namespaces) carries `otel-scrape: "true"` from the fleet ResourceSet
+Namespace templates (`flux/fleet/tenants/infra.yaml`,
+`flux/fleet/tenants/apps.yaml`, `flux/fleet/clusters/update/automation.yaml`); the gateway TargetAllocator scrapes only
 monitors + namespaces carrying that label (object and namespace selectors
 must both match). Monitor-object labels land via each chart's label knob
 from the dev/prd overlay patches.

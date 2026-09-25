@@ -1,0 +1,21 @@
+# Tenants for update-1: renders tenants/overlays/update (policies only —
+# the automation cluster runs no app/infra tenants; automation.yaml drives
+# those areas via ImageUpdateAutomation instead).
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: tenants
+  namespace: flux-system
+spec:
+  serviceAccountName: flux-operator
+  interval: 30m
+  retryInterval: 3m
+  path: ./tenants/overlays/update
+  prune: true
+  sourceRef:
+    kind: OCIRepository
+    name: flux-system
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: flux-runtime-info

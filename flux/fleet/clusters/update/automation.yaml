@@ -12,6 +12,14 @@ spec:
     - apiVersion: apiextensions.k8s.io/v1
       kind: CustomResourceDefinition
       name: imageupdateautomations.image.toolkit.fluxcd.io
+    # Same gate shape as tenants/infra.yaml: automation only runs once the
+    # policies ResourceSet is Ready (namespace-selector allowlist bound).
+    - apiVersion: fluxcd.controlplane.io/v1
+      kind: ResourceSet
+      name: policies
+      namespace: flux-system
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
   inputs:
     - namespace: "apps"
       repository: "https://github.com/LazyGeniusMan/home-ops.git"
@@ -28,6 +36,12 @@ spec:
       kind: Namespace
       metadata:
         name: << inputs.namespace >>
+        labels:
+          toolkit.fluxcd.io/role: "tenant"
+          # Same label as every tenants/infra.yaml + apps.yaml namespace so
+          # the gateway TargetAllocator namespaceSelectors keep matching
+          # (the update cluster runs no collectors, but labels stay uniform).
+          otel-scrape: "true"
     - apiVersion: v1
       kind: ConfigMap
       metadata:

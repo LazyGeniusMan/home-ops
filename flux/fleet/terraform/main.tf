@@ -32,6 +32,38 @@ locals {
     }
   })
 
+  ghcr_auth_secret_yaml = <<-YAML
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: ghcr-auth
+    type: kubernetes.io/dockerconfigjson
+    stringData:
+      .dockerconfigjson: '${replace(local.ghcr_auth_dockerconfigjson, "'", "''")}'
+  YAML
+
+  # github-auth seed for the update cluster's ImageUpdateAutomation push
+  # access (automation.yaml copyFrom's flux-system/github-auth into the
+  # apps/infra namespaces). Null by default so dev/prd bootstrap output is
+  # byte-identical to before; set var.github_token when bootstrapping update.
+  # Username home-ops-bot matches the automation commit author.
+  github_auth_secret_yaml = var.github_token == null ? "" : <<-YAML
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: github-auth
+      namespace: flux-system
+    type: Opaque
+    stringData:
+      username: home-ops-bot
+      password: '${replace(var.github_token, "'", "''")}'
+  YAML
+
+  # Multi-doc secrets string; compact() drops the empty github-auth doc when
+  # var.github_token is null so no stray `---` reaches the module (it
+  # requires every document to be a Secret object).
+  flux_secrets_yaml = join("\n---\n", compact([local.ghcr_auth_secret_yaml, local.github_auth_secret_yaml]))
+
   flux_operator_ref = yamldecode(file("${path.root}/versions.yaml"))
 
   # Cilium prerequisite, parsed from the same manifests Flux reconciles.
@@ -111,15 +143,7 @@ module "flux_operator_bootstrap" {
   }
 
   managed_resources = {
-    secrets_yaml = <<-YAML
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: ghcr-auth
-      type: kubernetes.io/dockerconfigjson
-      stringData:
-        .dockerconfigjson: '${replace(local.ghcr_auth_dockerconfigjson, "'", "''")}'
-    YAML
+    secrets_yaml = local.flux_secrets_yaml
     runtime_info = {
       data = local.flux_runtime_seed
     }

@@ -80,3 +80,28 @@ run "instance_values_single_source" {
     error_message = "dev runtime seed must carry ARTIFACT_TAG=dev from runtime-info.yaml."
   }
 }
+
+# github-auth seeding: null (dev/prd default) ships ghcr-auth only; the update
+# bootstrap passes github_token and gets the flux-system/github-auth doc too
+# (automation.yaml copyFrom's it into the apps/infra namespaces).
+run "github_auth_seed_conditional" {
+  command = plan
+
+  assert {
+    condition     = strcontains(nonsensitive(output.test_secrets_yaml), "name: ghcr-auth") && !strcontains(nonsensitive(output.test_secrets_yaml), "name: github-auth")
+    error_message = "Null github_token must seed ghcr-auth only (dev/prd bootstrap unchanged)."
+  }
+}
+
+run "github_auth_seed_update" {
+  command = plan
+
+  variables {
+    github_token = "update-test-token"
+  }
+
+  assert {
+    condition     = strcontains(nonsensitive(output.test_secrets_yaml), "name: ghcr-auth") && strcontains(nonsensitive(output.test_secrets_yaml), "name: github-auth") && strcontains(nonsensitive(output.test_secrets_yaml), "username: home-ops-bot")
+    error_message = "Update bootstrap github_token must add the github-auth Secret (home-ops-bot) next to ghcr-auth."
+  }
+}

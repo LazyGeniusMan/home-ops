@@ -1,0 +1,8 @@
+# Per-cluster tenants overlay for update-1 (synced by
+# clusters/update/tenants.yaml). Policies only — the update cluster never
+# renders apps.yaml/infra.yaml tenants; ImageUpdateAutomation drives pushes
+# for those areas from the update-policies Kustomizations instead.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../policies.yaml

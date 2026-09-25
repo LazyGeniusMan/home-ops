@@ -10,9 +10,14 @@ spec:
     # Automation cluster: no distribution.artifact (only reconciles
     # clusters/update/automation.yaml policies) and the image-automation
     # component subset; sync.verify tracks flux-fleet-push on refs/heads/main.
+    # helm-controller stays: the flux-operator HelmRelease below is
+    # self-managed by Flux (dependsOn the HelmRelease CRD), so dropping it
+    # leaves that release permanently pending. source-watcher and
+    # notification-controller stay out (nothing here needs them).
   components:
     - source-controller
     - kustomize-controller
+    - helm-controller
     - image-reflector-controller
     - image-automation-controller
   cluster:

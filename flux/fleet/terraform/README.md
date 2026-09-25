@@ -34,7 +34,14 @@ single source: Terraform seeds the Job's ConfigMap pre-Flux
 (`var.cluster_region` must match the file); post-Flux the GitOps file owns
 it and ResourceSets fan it out via `copyFrom` + `postBuild.substituteFrom`
 (`${ENVIRONMENT}` selects `controllers/<env>/`). The `update` cluster is
-automation only.
+automation only (no `CLUSTER_DOMAIN` — nothing under `clusters/update`
+substitutes it; `CLUSTER_REGION` is real so the seed stays single-sourced).
+
+`managed_resources.secrets_yaml` ships `flux-system/ghcr-auth` always, plus
+`flux-system/github-auth` (username `home-ops-bot`) only when
+`var.github_token` is set — pass it when bootstrapping the `update` cluster
+so `ImageUpdateAutomation` can push `image-updates-*` branches
+(`automation.yaml` `copyFrom`s it into the `apps`/`infra` namespaces).
 
 ## First bootstrap order
 
@@ -70,5 +77,10 @@ tofu plan -var oci_token="${GITHUB_TOKEN}" \
   -var cilium_k8s_service_host="192.168.1.198"
 ```
 
-Use `.248` for dev. `tofu plan` needs no live cluster (dummy kubeconfig OK).
+Use `.248` for dev. For the `update` cluster bootstrap add
+`-var cluster_name="update" -var github_token="<contents-read-write-token>"`
+(`cilium_k8s_service_host` is still required by validation — pass the dev
+`.248` value; the update host is not Talos-managed, so review the Cilium
+prerequisite effect on that host before applying).
+`tofu plan` needs no live cluster (dummy kubeconfig OK).
 Bump `var.bootstrap_revision` for a new bootstrap run.
