@@ -17,6 +17,20 @@ spec:
   # CHI/keeper, otel-operator CRDs + otel-collectors gateway pipeline) gate
   # here so BucketClaim/Cluster/ClickHouseInstallation/otel consumers never
   # reconcile before their backends are Ready.
+  # Backend-serving gates: dragonfly infra-configs (Dragonfly CR applied for
+  # Redis API consumers), local-path-provisioner infra-controllers
+  # (local-ssd-nvme StorageClass for RWO PVCs: tuwunel 10Gi, discord 2Gi, VM
+  # DVIs), tofu-controller infra-configs (configs path exists, empty today;
+  # future-proofs consumer Terraform CRs), vpa infra-controllers (VPA CRDs for
+  # the VPA objects shipped by coder/clickstack/matrix/hubble/headlamp/
+  # flux-operator-ui). ResourceSet dependsOn only sees Kustomization Ready
+  # (wait:true apply success), NOT CR-level serving (CNPG available, CHI
+  # complete, BucketClaim bound, ExternalSecret synced, Zitadel serving) —
+  # that residual readiness stays per-app (base/terraform.yaml + in-namespace
+  # ordering). Ungated by design: metrics-server (HPA degrades, never blocks),
+  # external-dns (apps ship no DNSEndpoint), netbird (controllers/configs both
+  # empty; per-app ESO/Terraform owns creds), apprise-go-api (matrix reads the
+  # in-namespace kept Secret via tuwunel-k8s, no cross-namespace call).
   dependsOn:
     - apiVersion: kustomize.toolkit.fluxcd.io/v1
       kind: Kustomization
@@ -106,6 +120,30 @@ spec:
       kind: Kustomization
       name: infra-controllers
       namespace: tofu-controller
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra-configs
+      namespace: tofu-controller
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra-configs
+      namespace: dragonfly
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra-controllers
+      namespace: local-path-provisioner
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra-controllers
+      namespace: vpa
       ready: true
       readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
   inputs:
