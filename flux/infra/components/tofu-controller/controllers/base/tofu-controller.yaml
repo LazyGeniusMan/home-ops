@@ -1,9 +1,9 @@
 # Tofu Controller v0.16.5 (chart == app). Chart oci://ghcr.io/flux-iac/charts/tofu-controller.
-# Runs in its tenant namespace (tofu-controller), not flux-system. Metrics + ServiceMonitor stay off (keep-off decision):
-# `metrics.enabled: false` means no endpoint exists to scrape — flipping the monitor would render a monitoring.coreos.com
-# resource unconditionally (no skipIfMissing guard) pointing at nothing. Revisit only after monitoring CRDs land via the
-# otel pipeline AND `metrics.enabled` is turned on first (see the ESO `renderMode: skipIfMissing` template in
-# external-secrets/controllers/base/externalsecrets.yaml).
+# Runs in its tenant namespace (tofu-controller), not flux-system. Metrics endpoint + ServiceMonitor on
+# (two-step: `metrics.enabled: true` renders the metrics Service first, then the monitor scrapes it):
+# monitoring CRDs arrive via the otel-operator infra-crds delivery (prune:false), and the gateway TA scrapes
+# monitors labeled `otel-scrape: "true"` (labels land via sibling; see the ESO `renderMode: skipIfMissing`
+# template in external-secrets/controllers/base/externalsecrets.yaml).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -88,6 +88,6 @@ spec:
           - matrix
           - netbird
     metrics:
-      enabled: false
+      enabled: true
       serviceMonitor:
-        enabled: false
+        enabled: true

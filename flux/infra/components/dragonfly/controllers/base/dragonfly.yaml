@@ -1,6 +1,7 @@
 # Dragonfly operator v1.6.1 (chart == app). Chart oci://ghcr.io/dragonflydb/dragonfly-operator/helm/dragonfly-operator.
-# ServiceMonitor + Grafana dashboard stay disabled: the chart renders monitoring.coreos.com resources unconditionally (no skipIfMissing guard),
-# so flips wait for monitoring CRDs via the otel pipeline (see the ESO `renderMode: skipIfMissing` template in
+# ServiceMonitor on (Grafana dashboard stays off - no Grafana): monitoring CRDs arrive via the otel-operator
+# infra-crds delivery (prune:false), and the gateway TA scrapes monitors labeled `otel-scrape: "true"`
+# (labels land via sibling; see the ESO `renderMode: skipIfMissing` template in
 # external-secrets/controllers/base/externalsecrets.yaml).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -54,6 +55,6 @@ spec:
       install: true
       keep: true
     serviceMonitor:
-      enabled: false
+      enabled: true
     grafanaDashboard:
-      enabled: false
+      enabled: false # no Grafana - ClickStack/HyperDX is the only UI

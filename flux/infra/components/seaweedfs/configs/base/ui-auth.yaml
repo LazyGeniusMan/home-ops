@@ -168,12 +168,15 @@ spec:
     service:
       portNumber: 4180
       targetPort: http
-    # No telemetry: metrics endpoint stays off (no ServiceMonitor key exists while
-    # the endpoint is off; flip waits for monitoring CRDs via the otel pipeline —
-    # see the ESO `renderMode: skipIfMissing` template in
-    # external-secrets/controllers/base/externalsecrets.yaml).
+    # Metrics endpoint + ServiceMonitor on (two-step: `metrics.enabled: true` renders the :44180
+    # metrics port first, then the monitor scrapes it). Monitoring CRDs arrive via the otel-operator
+    # infra-crds delivery (prune:false), and the gateway TA scrapes monitors labeled `otel-scrape: "true"`
+    # (labels land via sibling; see the ESO `renderMode: skipIfMissing` template in
+    # external-secrets/controllers/base/externalsecrets.yaml). No telemetry knob exists on this chart.
     metrics:
-      enabled: false
+      enabled: true
+      serviceMonitor:
+        enabled: true
     serviceAccount:
       enabled: false
       automountServiceAccountToken: false

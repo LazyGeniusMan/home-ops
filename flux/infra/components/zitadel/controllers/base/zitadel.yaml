@@ -156,11 +156,12 @@ spec:
         enabled: false
     postgresql:
       enabled: false
-    # Metrics + ServiceMonitor stay off (keep-off decision): `enabled: false` means no endpoint exists to scrape,
-    # and the chart renders monitoring.coreos.com resources unconditionally (no skipIfMissing guard). Revisit only after
-    # monitoring CRDs land via the otel pipeline AND `metrics.enabled` is turned on first (see the ESO `renderMode: skipIfMissing`
-    # template in external-secrets/controllers/base/externalsecrets.yaml).
+    # Metrics endpoint + ServiceMonitor on (two-step: `metrics.enabled: true` adds the prometheus.io
+    # scrape annotations first, then the monitor scrapes them). Monitoring CRDs arrive via the otel-operator
+    # infra-crds delivery (prune:false), and the gateway TA scrapes monitors labeled `otel-scrape: "true"`
+    # (labels land via sibling; see the ESO `renderMode: skipIfMissing` template in
+    # external-secrets/controllers/base/externalsecrets.yaml).
     metrics:
-      enabled: false
+      enabled: true
       serviceMonitor:
-        enabled: false
+        enabled: true
