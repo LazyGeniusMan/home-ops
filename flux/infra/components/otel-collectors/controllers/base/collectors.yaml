@@ -104,10 +104,14 @@ spec:
   image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.159.0 # {"$imagepolicy": "infra:otel-collector:tag"}
   serviceAccount: otel-collector
   # Scrape sharding: TargetAllocator (consistent-hashing, per-collector
-  # http_sd) discovers ServiceMonitors/PodMonitors labeled `otel-scrape:
-  # "true"` and drops stragglers via `denyNamespaces`. The prometheus
-  # receiver keeps only its job list — the operator rewrites discovery to
-  # the TA http_sd endpoint at reconcile.
+  # http_sd) discovers ServiceMonitors/PodMonitors carrying `otel-scrape:
+  # "true"` in namespaces carrying the same label (object and namespace
+  # selectors must both match). Tenant namespaces get the label from the
+  # fleet tenants/infra.yaml Namespace template; each flipped monitor gets
+  # it via its chart label knob (ESO: serviceMonitor.additionalLabels from
+  # the dev/prd overlay patches). The prometheus receiver keeps only its
+  # job list — the operator rewrites discovery to the TA http_sd endpoint
+  # at reconcile.
   targetAllocator:
     enabled: true
     allocationStrategy: consistent-hashing

@@ -18,8 +18,10 @@ ClickStack deployment itself.
   `otel-gateway` StatefulSet (dev 1 / prd 2, `otel_dev` / `otel_prd`) with
   `infra:otel-collector:tag` update policy (`update-policies/otel-collectors.yaml`).
 - **Discovery:** the gateway's TargetAllocator (consistent-hashing, `prometheusCR.enabled`) scrapes only
-  monitors + namespaces labeled `otel-scrape: "true"`; ESO's guarded-on `skipIfMissing` block is the
-  sanctioned flip of that label's consumer side. The agent uses static targets.
+  monitors + namespaces labeled `otel-scrape: "true"` (object and namespace selectors must both
+  match). Tenant namespaces carry the label from the fleet `tenants/infra.yaml` Namespace template;
+  each flipped monitor carries it via its chart label knob — ESO via `serviceMonitor.additionalLabels`
+  from the dev/prd overlay patches. The agent uses static targets.
 - **ClickHouse export:** gateway `clickhouse` exporter points at the shared infra CHI
   (`tcp://clickhouse-clickhouse.clickhouse.svc:9000`, `create_schema: true`), `ttl: 0s` (DBA-managed
   table TTLs, default 30d) and exporter-internal `sending_queue.batch` 5000/10s; no custom TTLs in git
@@ -49,12 +51,17 @@ ClickStack deployment itself.
 
 ## When a chart ships a ServiceMonitor (4 steps)
 
-1. Keep it off by default (`enabled: false` or the chart's equivalent) with a keep-off comment.
-2. The only sanctioned on-state is a chart-native guard such as ESO's
-   `renderMode: skipIfMissing` (`infra/components/external-secrets/controllers/base/externalsecrets.yaml`
-   `serviceMonitor` block) — it renders only where monitor CRDs exist.
-3. Any flip from keep-off to guarded-on carries a comment stating why (which consumer needs discovery).
-   `tofu-controller` and Zitadel stay keep-off; their comments say so.
+1. Keep it off by default (`enabled: false` or the chart's equivalent) with a keep-off comment until
+   its owner flips it.
+2. The sanctioned on-state is `enabled: true` plus the `otel-scrape: "true"` label so the gateway TA
+   scrapes it into ClickHouse — the namespace label comes from the fleet `tenants/infra.yaml`
+   template; the monitor-object label comes via the chart's label knob (ESO:
+   `serviceMonitor.additionalLabels`, applied from the dev/prd overlay patches, never base-values
+   edits).
+3. Guarded charts use a chart-native guard as the template — ESO's `renderMode: skipIfMissing`
+   (`infra/components/external-secrets/controllers/base/externalsecrets.yaml` `serviceMonitor` block)
+   renders only where monitor CRDs exist. `tofu-controller` and Zitadel flip in two steps
+   (`metrics.enabled: true` first so the endpoint exists, then the monitor); their comments say so.
 4. Never add Prometheus/Grafana to consume the monitors. Discovery feeds the OTel → ClickHouse
    pipeline; HyperDX is the UI.
 

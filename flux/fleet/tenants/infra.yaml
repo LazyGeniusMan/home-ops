@@ -139,6 +139,11 @@ spec:
         name: << inputs.tenant >>
         labels:
           toolkit.fluxcd.io/role: "tenant"
+          # TA discovery: the otel-gateway TargetAllocator namespaceSelectors
+          # match otel-scrape, so every flipped monitor in the tenant is
+          # scraped (the monitor object itself still needs the label — see
+          # flux/OBSERVABILITY.md; ESO carries it via overlay additionalLabels).
+          otel-scrape: "true"
     - apiVersion: v1
       kind: ConfigMap
       metadata:
