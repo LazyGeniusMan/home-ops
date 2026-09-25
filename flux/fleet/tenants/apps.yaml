@@ -11,7 +11,12 @@ metadata:
     fluxcd.controlplane.io/reconcileEvery: "5m"
 spec:
   # Apps reconcile after infra Ready; per-app ordering lives in each app's
-  # base/terraform.yaml (Kustomization-level dependsOn).
+  # base/terraform.yaml (Kustomization-level dependsOn). The storage +
+  # observability backends (seaweedfs/cnpg/clickhouse/cosi via COSI claims,
+  # external-secrets via ESO-synced credentials, clickstack CHI via the infra
+  # CHI/keeper, otel-operator CRDs + otel-collectors gateway pipeline) gate
+  # here so BucketClaim/Cluster/ClickHouseInstallation/otel consumers never
+  # reconcile before their backends are Ready.
   dependsOn:
     - apiVersion: kustomize.toolkit.fluxcd.io/v1
       kind: Kustomization
@@ -69,6 +74,36 @@ spec:
       readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
     - apiVersion: kustomize.toolkit.fluxcd.io/v1
       kind: Kustomization
+      name: infra-configs
+      namespace: cnpg
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra-configs
+      namespace: clickhouse
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra-configs
+      namespace: cosi
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra-configs
+      namespace: otel-operator
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
+      name: infra-configs
+      namespace: otel-collectors
+      ready: true
+      readyExpr: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+    - apiVersion: kustomize.toolkit.fluxcd.io/v1
+      kind: Kustomization
       name: infra-controllers
       namespace: tofu-controller
       ready: true
@@ -121,6 +156,10 @@ spec:
         name: << inputs.tenant >>
         labels:
           toolkit.fluxcd.io/role: "tenant"
+          # TA discovery: the otel-gateway TargetAllocator namespaceSelectors
+          # match otel-scrape, so every flipped monitor in the tenant is
+          # scraped (matches the tenants/infra.yaml Namespace template).
+          otel-scrape: "true"
     - apiVersion: v1
       kind: ConfigMap
       metadata:

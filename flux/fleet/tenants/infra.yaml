@@ -4,7 +4,10 @@
 # CRD delivery (gateway-api + cosi + otel-operator only): CRDs render through a dedicated
 # prune:false infra-crds Kustomization (a removed CRD must never
 # cascade-delete CRs); the infra-controllers Kustomization gates on it via a
-# conditional dependsOn. This file is a Go template rendered by the Flux
+# conditional dependsOn. Tenants rendering monitoring.coreos.com objects gate
+# cross-namespace on the otel-operator infra-crds Established healthChecks;
+# otel-collectors additionally waits for the operator controllers + the
+# shared infra CHI configs. This file is a Go template rendered by the Flux
 # Operator — `<< if ... >>` blocks are comments until rendered.
 apiVersion: fluxcd.controlplane.io/v1
 kind: ResourceSet
@@ -253,9 +256,29 @@ spec:
         name: infra-controllers
         namespace: << inputs.tenant >>
       spec:
-        # << if or (eq inputs.tenant "gateway-api") (eq inputs.tenant "cosi") (eq inputs.tenant "otel-operator") >>
+        # Single dependsOn (one key: template conditionals are comments until the
+        # operator renders them). Own-CRD tenants gate on local infra-crds;
+        # monitor-producing tenants (own crds/<env> disabled) gate on the
+        # otel-operator tenant's infra-crds Established healthChecks (CRDs are
+        # cluster-scoped, cross-namespace ref is valid); otel-collectors gates
+        # on the operator controllers (opentelemetry.io CRDs + collector RBAC)
+        # and the shared infra CHI configs (the gateway clickhouse exporter
+        # points at the infra clickhouse tenant).
+        # << if or (eq inputs.tenant "gateway-api") (eq inputs.tenant "cosi") (eq inputs.tenant "otel-operator") (eq inputs.tenant "cilium") (eq inputs.tenant "coredns") (eq inputs.tenant "metrics-server") (eq inputs.tenant "cert-manager") (eq inputs.tenant "external-secrets") (eq inputs.tenant "external-dns") (eq inputs.tenant "tofu-controller") (eq inputs.tenant "zitadel") (eq inputs.tenant "cnpg") (eq inputs.tenant "clickhouse") (eq inputs.tenant "dragonfly") (eq inputs.tenant "seaweedfs") (eq inputs.tenant "otel-collectors") >>
         dependsOn:
+          # << if or (eq inputs.tenant "gateway-api") (eq inputs.tenant "cosi") (eq inputs.tenant "otel-operator") >>
           - name: infra-crds
+          # << end >>
+          # << if or (eq inputs.tenant "cilium") (eq inputs.tenant "coredns") (eq inputs.tenant "metrics-server") (eq inputs.tenant "cert-manager") (eq inputs.tenant "external-secrets") (eq inputs.tenant "external-dns") (eq inputs.tenant "tofu-controller") (eq inputs.tenant "zitadel") (eq inputs.tenant "cnpg") (eq inputs.tenant "clickhouse") (eq inputs.tenant "dragonfly") (eq inputs.tenant "seaweedfs") >>
+          - name: infra-crds
+            namespace: otel-operator
+          # << end >>
+          # << if eq inputs.tenant "otel-collectors" >>
+          - name: infra-controllers
+            namespace: otel-operator
+          - name: infra-configs
+            namespace: clickhouse
+          # << end >>
         # << end >>
         targetNamespace: << inputs.tenant >>
         serviceAccountName: flux

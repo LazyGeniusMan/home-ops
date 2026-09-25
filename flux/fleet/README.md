@@ -66,5 +66,5 @@ Fleet promotes dev → prd through `ARTIFACT_TAG`:
 Cadences: FluxInstance OCIRepository 10m (semver `*`), tenant
 `OCIRepository` 5m, tenant Kustomizations 30m, charts 1h,
 `ImageUpdateAutomation` 30m, ResourceSets 5m, per-cluster `tenants`
-Kustomization 12h. Per-cluster differences stay in
+Kustomization 30m. Per-cluster differences stay in
 `tenants/overlays/` (selection patches only, no version pins).
