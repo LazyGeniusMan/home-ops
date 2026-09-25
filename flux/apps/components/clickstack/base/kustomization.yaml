@@ -1,18 +1,25 @@
+# Backend-first order (single Kustomization — fleet `apps` owns the only
+# Kustomization per tenant, so no dependsOn/split here). Flux applies in build
+# order: RBAC + buckets + stores/secrets, then CHI/CNPG backends, then the
+# FerretDB proxy, then app/collector (startupProbes gate on backend warmup so
+# first install never CrashLoops), then front/cert/autoscaling/backups, with
+# the Zitadel SSO Terraform last (its outputs feed back into
+# `oauth2-proxy-oidc` on the next resync).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
+  - zitadel-handoff-rbac.yaml
   - bucketclaims.yaml
   - cosi-keys.yaml
   - clickstack-secrets.yaml
   - clickstack-clickhouse.yaml
   - ferretdb-postgres.yaml
+  - ferretdb.yaml
+  - clickstack.yaml
   - wildcard-certificate.yaml
   - clickstack-httproute.yaml
-  - clickstack.yaml
+  - oauth2-proxy.yaml
   - clickstack-hpa.yaml
   - clickstack-vpa.yaml
-  - ferretdb.yaml
   - rclone-sync-buckets.yaml
-  - oauth2-proxy.yaml
   - terraform.yaml
-  - zitadel-handoff-rbac.yaml

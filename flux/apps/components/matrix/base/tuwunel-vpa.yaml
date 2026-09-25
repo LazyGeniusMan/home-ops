@@ -1,5 +1,7 @@
-# VPA for the tuwunel singleton (no HPA): updateMode Auto (evict-and-recreate; safe —
-# Deployment is already Recreate). minReplicas 1 (updater default 2 never evicts singletons).
+# VPA for the tuwunel singleton (no HPA): updateMode Initial — recommendations
+# apply at pod (re)start only, never mid-run eviction (600s grace, RWO
+# single-writer). Same singleton convention as mautrix-discord-vpa.yaml.
+# minReplicas 1 (updater default 2 never evicts singletons).
 # minAllowed guards the RocksDB page-cache floor (recommendations below it starve reads).
 ---
 apiVersion: autoscaling.k8s.io/v1
@@ -12,7 +14,7 @@ spec:
     kind: Deployment
     name: tuwunel
   updatePolicy:
-    updateMode: Auto
+    updateMode: 'Initial'
     minReplicas: 1
   resourcePolicy:
     containerPolicies:

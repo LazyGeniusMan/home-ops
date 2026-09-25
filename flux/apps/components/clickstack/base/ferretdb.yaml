@@ -38,6 +38,17 @@ spec:
           ports:
             - name: mongo
               containerPort: 27017
+          # No HTTP endpoint on this image — TCP on the mongo listener (same
+          # convention as mautrix-discord.yaml). Startup gates
+          # liveness/readiness (10s x 30 = 300s budget) so CNPG bootstrap
+          # never trips restarts.
+          startupProbe:
+            tcpSocket:
+              port: mongo
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
           livenessProbe:
             tcpSocket:
               port: mongo

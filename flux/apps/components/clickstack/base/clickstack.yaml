@@ -72,6 +72,18 @@ spec:
               containerPort: 8000
             - name: opamp
               containerPort: 4320
+          # Probes: upstream hdx-oss-v2 hardcodes `path: /health` on :8000 (no
+          # /healthz + /readyz on this image) — keep `/health` for both probes.
+          # Startup gates liveness/readiness (10s x 30 = 300s budget) so
+          # FerretDB/CHI warmup never trips restarts.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: api
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /health
@@ -180,6 +192,18 @@ spec:
               containerPort: 4318
             - name: metrics
               containerPort: 8888
+          # Probes: upstream hdx-oss-v2 hardcodes `path: /` on :13133 (no
+          # /healthz + /readyz on this image) — keep `/` for both probes.
+          # Startup gates liveness/readiness (10s x 30 = 300s budget) so CHI
+          # warmup never trips restarts.
+          startupProbe:
+            httpGet:
+              path: /
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /
