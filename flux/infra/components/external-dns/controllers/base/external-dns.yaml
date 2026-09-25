@@ -76,6 +76,9 @@ spec:
             value: ":8080"
           - name: LOG_LEVEL
             value: info
+          # Infra OTLP endpoint (overrides code default; OTEL_SDK_DISABLED=true disables export).
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: "http://otel-gateway-collector.otel-collectors.svc:4318"
         # Probes hit the sidecar ops listener: `http-webhook` renders (helm
         # template, chart 1.22.0) to containerPort 8080 (METRICS_ADDR), which
         # serves /healthz + /readyz (projects/external-dns-netbird

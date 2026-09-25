@@ -50,7 +50,7 @@ func run() error {
 	}
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 
-	// Traces export to the in-namespace OTLP collector (OTEL_EXPORTER_OTLP_ENDPOINT);
+	// Traces export to the infra otel-gateway OTLP collector (OTEL_EXPORTER_OTLP_ENDPOINT);
 	// Setup disables itself with OTEL_SDK_DISABLED=true.
 	shutdownTracing, err := tracing.Setup(context.Background(), "apprise-go-api", version.Version)
 	if err != nil {

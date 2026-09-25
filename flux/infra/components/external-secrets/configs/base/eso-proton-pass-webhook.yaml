@@ -57,6 +57,9 @@ spec:
               value: ":8080"
             - name: PROTON_PASS_PAT_FILE
               value: /secrets/pat
+            # Infra OTLP endpoint (overrides code default; OTEL_SDK_DISABLED=true disables export).
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-gateway-collector.otel-collectors.svc:4318"
           volumeMounts:
             - name: pat
               mountPath: /secrets

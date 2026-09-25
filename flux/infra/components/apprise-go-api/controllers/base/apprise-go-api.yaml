@@ -48,6 +48,9 @@ spec:
               value: "*"
             - name: APPRISE_ATTACH_REJECT_URL
               value: "127.0.* localhost* internal"
+            # Infra OTLP endpoint (overrides code default; OTEL_SDK_DISABLED=true disables export).
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-gateway-collector.otel-collectors.svc:4318"
           # Probes: /healthz (live) + /readyz (ready) on :8080; tuned like
           # the COSI controller (/healthz period 30, /readyz period 10).
           livenessProbe:

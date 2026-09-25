@@ -1,5 +1,5 @@
 // Package tracing wires OpenTelemetry traces: W3C propagation on inbound
-// requests, OTLP/HTTP export to the in-namespace collector, and trace_id /
+// requests, OTLP/HTTP export to the infra otel-gateway collector, and trace_id /
 // span_id slog correlation. Prometheus /metrics is untouched.
 package tracing
 
@@ -20,8 +20,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// DefaultEndpoint is the in-namespace ClickStack OTLP/HTTP collector.
-const DefaultEndpoint = "http://clickstack-otel-collector.clickstack.svc:4318"
+// DefaultEndpoint is the infra otel-gateway OTLP/HTTP collector.
+const DefaultEndpoint = "http://otel-gateway-collector.otel-collectors.svc:4318"
 
 // Setup installs the global tracer provider (W3C TraceContext+Baggage
 // propagation, parent-based always-sample, batch OTLP/HTTP export) for

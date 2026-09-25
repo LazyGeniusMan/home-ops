@@ -36,7 +36,7 @@ func run() error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	// Traces export to the in-namespace OTLP collector (OTEL_EXPORTER_OTLP_ENDPOINT);
+	// Traces export to the infra otel-gateway OTLP collector (OTEL_EXPORTER_OTLP_ENDPOINT);
 	// Setup disables itself with OTEL_SDK_DISABLED=true.
 	shutdownTracing, err := tracing.Setup(context.Background(), "eso-proton-pass", version.Version)
 	if err != nil {

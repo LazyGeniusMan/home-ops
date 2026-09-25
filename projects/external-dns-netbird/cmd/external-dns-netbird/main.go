@@ -50,7 +50,7 @@ func run() error {
 		slog.String("telemetry", "otlp"),
 	)
 
-	// Traces export to the in-namespace OTLP collector (OTEL_EXPORTER_OTLP_ENDPOINT);
+	// Traces export to the infra otel-gateway OTLP collector (OTEL_EXPORTER_OTLP_ENDPOINT);
 	// Setup disables itself with OTEL_SDK_DISABLED=true.
 	bootCtx := context.Background()
 	shutdownTracing, err := tracing.Setup(bootCtx, "external-dns-netbird", version.Version)
