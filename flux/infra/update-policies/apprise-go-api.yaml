@@ -1,13 +1,5 @@
-# Update policy for the apprise-go-api infra component: tracks the first-party
-# apprise-go-api image (stable + semver tag leg published by
-# .github/workflows/apprise-go-api.yml), and the ImageUpdateAutomation
-# (update cluster) opens PRs via the marker in
-# components/apprise-go-api/controllers/base/apprise-go-api.yaml. Follows the
-# §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy
-# markers).
-# Changelog: in-repo (projects/apprise-go-api — no external changelog; tags apprise-go-api-v*).
-# Mode: auto.
-# Coupled files: [components/apprise-go-api/controllers/base/apprise-go-api.yaml].
+# apprise-go-api image policy (first-party, tags apprise-go-api-v*).
+# Coupled: controllers/base/apprise-go-api.yaml.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

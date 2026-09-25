@@ -1,15 +1,5 @@
-# S3 to Proton Drive backup of the dragonfly-backups COSI bucket (bucketclaims.yaml),
-# which holds dragonfly-base hourly snapshots (dir s3://dragonfly-backups/dragonfly/,
-# cron hourly). rclone mirrors <live-bucket>/dragonfly-backups/dragonfly/ to
-# /home-ops/backups/<cluster>/dragonfly/dragonfly-backups (operation sync, hourly at
-# minute 30, concurrencyPolicy Forbid; chart defaults rclone 1.75.0).
-# Live bucket name is never hardcoded: ExternalSecret rclone-dragonfly-backups-s3-path
-# templates it from BucketInfo.spec.bucketName through the in-namespace dragonfly-cosi
-# SecretStore (cosi-keys.yaml). S3 keys via rclone-dragonfly-backups-s3, Proton creds
-# via rclone-proton-credentials (ClusterSecretStore proton-pass, password rclone-obscured
-# via rclone obscure). Seed pass://<cluster>/dragonfly/rclone-proton-username and
-# pass://<cluster>/dragonfly/rclone-proton-password. Overlays patch
-# __PROTON_PASS_BASE__ and the destination cluster segment.
+# S3 to Proton Drive backup of the dragonfly-backups bucket (hourly snapshots): mirrors <live-bucket>/dragonfly-backups/dragonfly/ to /home-ops/backups/<cluster>/dragonfly/dragonfly-backups (sync, hourly at :30, Forbid; rclone 1.75.0).
+# Live bucket via BucketInfo.spec.bucketName through the dragonfly-cosi store.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

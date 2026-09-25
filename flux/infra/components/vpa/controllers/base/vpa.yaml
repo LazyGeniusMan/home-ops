@@ -1,23 +1,6 @@
-# VPA (§9.x): Vertical Pod Autoscaler — recommender-only for HPA-paired
-# workloads, applying (Recreate/Initial) for singletons; see VPA CRs next to
-# each target Deployment. Chart: official upstream vertical-pod-autoscaler
-# 0.12.0 (app 1.7.1) via OCI
-# oci://chartproxy.container-registry.com/kubernetes.github.io/autoscaler/vertical-pod-autoscaler
-# (chartproxy proxy of the official classic repo
-# https://kubernetes.github.io/autoscaler). No cosign verify block: proxied
-# tarballs are live-translated by chartproxy, so no upstream signature applies.
-# CRD handling: the chart ships verticalpodautoscalers +
-# verticalpodautoscalercheckpoints CRDs as regular templates
-# (crds.enabled/keep true); Flux applies them via install/upgrade
-# crds.CreateReplace below.
-# Telemetry: no usage-reporting keys in chart values, nothing to switch off.
-# Monitoring: recommender/updater/admissionController expose no ServiceMonitor
-# keys; ServiceMonitor stays out until monitoring.coreos.com CRDs land.
-# Admission: Helm-managed certgen (admissionController.registerWebhook=false
-# + certGen.enabled=true). cert-manager path skipped: certManager.enabled is
-# mutually exclusive with certGen, and its Issuer+Certificate CRs would wedge
-# the release when cert-manager CRDs are momentarily unavailable during
-# bootstrap ordering; certgen has no such cross-component dependency.
+# VPA chart 0.12.0 (app 1.7.1) via chartproxy OCI (proxy of https://kubernetes.github.io/autoscaler).
+# Recommender-only for HPA-paired workloads, Recreate for singletons. CRDs render as templates (crds.enabled/keep true, CreateReplace).
+# Admission: Helm-managed certgen (cert-manager path mutually exclusive, skipped).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -47,7 +30,7 @@ spec:
     strategy:
       name: RetryOnFailure
       retryInterval: 5m
-    # Flux applies the chart's templates/ CRDs declaratively.
+    # Chart templates/ CRDs applied declaratively.
     crds: CreateReplace
   upgrade:
     strategy:
@@ -56,15 +39,7 @@ spec:
     crds: CreateReplace
   # https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler/charts/vertical-pod-autoscaler
   values:
-    # Resources: upstream chart defaults are resources: {} everywhere, so pin
-    # explicit (recommender 50m/500Mi req, updater 50m/500Mi req,
-    # admission-controller 50m/200Mi req; memory-only limits pinned so bursty
-    # recommenders are never CPU-throttled).
-    # Replica seed 1 everywhere (singleton; leader election auto-enables only
-    # when replicas > 1, so no lease churn at this scale). Chart PDBs default
-    # minAvailable 1 — at replicas 1 any voluntary eviction blocks, which is
-    # the safe stance for the stack that owns evictions cluster-wide.
-    # No autoscaling knob for the stack itself — keep static.
+    # Resources pinned explicit (chart defaults {}); singleton seeds 1, static (no autoscaling knob).
     crds:
       enabled: true
       keep: true
@@ -78,11 +53,7 @@ spec:
           memory: 500Mi
         limits:
           memory: 1000Mi
-    # Updater note: extraArgs left at the chart default
-    # (--in-place-skip-disruption-budget=true); the updater binary default
-    # --min-replicas=2 (flags.md) stands, so singleton (1-replica) targets
-    # recommend but never evict unless their VPA CR sets
-    # updatePolicy.minReplicas: 1 — see the Recreate singleton VPAs.
+    # Updater --min-replicas=2 stands: singleton targets need updatePolicy.minReplicas: 1 to ever evict.
     updater:
       replicas: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
       logLevel: 4

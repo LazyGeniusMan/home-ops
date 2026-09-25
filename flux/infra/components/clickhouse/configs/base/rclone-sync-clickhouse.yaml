@@ -1,14 +1,4 @@
-# S3 to ProtonDrive off-site backup for BucketClaim/clickhouse. Syncs the live COSI
-# bucket path <bc-uuid>/clickhouse (never the claim name) to
-# /home-ops/backups/<cluster>/clickhouse/<bucket>, capturing nightly snapshots
-# (backup-cronjob.yaml BACKUP TO Disk backs up under nightly/).
-# S3 keys esoRef-consume the ESO-synced clickhouse-s3-backup Secret; Proton creds sync
-# from ClusterSecretStore/proton-pass (password rclone-obscured). Seed
-# pass://<cluster>/clickhouse/rclone-proton-username and
-# pass://<cluster>/clickhouse/rclone-proton-password. Schedule 30 4 * * * (after the
-# 0 3 nightly backup), operation sync, concurrencyPolicy Forbid. Chart
-# oci://ghcr.io/lazygeniusman/home-ops/projects/helm-rclone-sync tag 0.1.0
-# (projects/helm-rclone-sync, direction-05 shape).
+# S3 to ProtonDrive backup of the clickhouse bucket (nightly snapshots): syncs <bc-uuid>/clickhouse to /home-ops/backups/<cluster>/clickhouse/<bucket>. Schedule 30 4 * * * (after the 03:00 backup), sync, Forbid. Chart helm-rclone-sync 0.1.0 (direction 05).
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

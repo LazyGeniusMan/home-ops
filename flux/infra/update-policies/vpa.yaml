@@ -1,11 +1,6 @@
-# Update policy for the vpa component: tracks the chartproxy OCI mirror of the
-# official vertical-pod-autoscaler chart (proxy of classic repo
-# kubernetes.github.io/autoscaler). This feed polls the recommender app image
-# while the range pins the 0.12.x chart line, so no tag ever matches; chart bumps
-# flow via the $imagepolicy marker on the OCIRepository ref semver.
-# Changelog: autoscaler releases (vertical-pod-autoscaler chart).
-# Mode: manual (chart bumps by hand via the $imagepolicy marker).
-# Coupled files: [controllers/base/vpa.yaml].
+# vpa chart policy. Feed polls the recommender app image while the range pins the chart line, so chart bumps move by hand via the marker.
+# Changelog: https://github.com/kubernetes/autoscaler/releases.
+# Coupled: controllers/base/vpa.yaml.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

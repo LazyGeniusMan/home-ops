@@ -1,13 +1,6 @@
-# Update policy for the cnpg component (§10): tracks the OCI Helm chart, and the
-# ImageUpdateAutomation (update cluster) opens PRs via markers in
-# components/cnpg (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
-# Chart-to-operator mapping: chart 0.29.x embeds operator 1.30.x, so the
-# semver floor below is the CHART version; the operator stays >=1.30 while the
-# chart stays on its 0.29 line.
-# Changelog: chart — https://github.com/cloudnative-pg/charts/releases.
-# Changelog: operator — https://github.com/cloudnative-pg/cloudnative-pg/releases.
-# Mode: auto (re-verify the chart->operator mapping on every PR before merge).
-# Coupled files: [controllers/base/cnpg.yaml].
+# cnpg chart policy. Chart 0.29.x embeds operator 1.30.x: floor tracks the chart line, re-verify Chart.yaml on every PR.
+# Changelog: https://github.com/cloudnative-pg/charts/releases, https://github.com/cloudnative-pg/cloudnative-pg/releases.
+# Coupled: controllers/base/cnpg.yaml.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

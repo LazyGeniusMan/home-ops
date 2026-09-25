@@ -1,10 +1,4 @@
-# In-namespace wildcard Certificate. cert-manager Secrets are namespace-local, so this
-# component mints wildcard-home-ops-tls HERE via ClusterIssuer/letsencrypt (same
-# dnsNames pattern as gateway-api). The token ExternalSecret mirrors
-# cert-manager/configs/base/cluster-issuer.yaml so the DNS-01 solver credential exists
-# in this namespace too.
-# SANs: single-level wildcard plus nested *.zitadel.<base> (wildcard certs match one
-# label only, so *.base does NOT cover login.zitadel.base).
+# In-namespace wildcard Certificate (Secrets are namespace-local): single-level wildcard plus nested *.zitadel.<base> (one label per wildcard). Token ExternalSecret mirrors cluster-issuer.yaml.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

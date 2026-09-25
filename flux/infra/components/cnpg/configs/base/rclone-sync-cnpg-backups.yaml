@@ -1,16 +1,5 @@
-# S3 to Proton Drive backup of the cnpg-backups COSI bucket (bucketclaims.yaml), which
-# holds the postgres-base CNPG WAL + base backups (destinationPath s3://cnpg-backups/
-# postgres/). rclone mirrors <live-bucket>/cnpg-backups/postgres/ to
-# /home-ops/backups/<cluster>/cnpg/cnpg-backups (operation sync, daily 03:45,
-# concurrencyPolicy Forbid; chart defaults rclone 1.75.0). Covers only this
-# base/template bucket; per-instance clusters ship their own colocated syncs.
-# Live bucket name is never hardcoded: ExternalSecret rclone-cnpg-backups-s3-path
-# templates it from BucketInfo.spec.bucketName through the in-namespace cnpg-cosi
-# SecretStore (cosi-keys.yaml). S3 keys via rclone-cnpg-backups-s3, Proton creds via
-# rclone-proton-credentials (ClusterSecretStore proton-pass, password rclone-obscured
-# via rclone obscure). Seed pass://<cluster>/cnpg/rclone-proton-username and
-# pass://<cluster>/cnpg/rclone-proton-password. Overlays patch __PROTON_PASS_BASE__
-# and the destination cluster segment.
+# S3 to Proton Drive backup of the cnpg-backups bucket (postgres-base WAL + base backups): mirrors <live-bucket>/cnpg-backups/postgres/ to /home-ops/backups/<cluster>/cnpg/cnpg-backups (sync, daily 03:45, Forbid; rclone 1.75.0).
+# Live bucket via BucketInfo.spec.bucketName through the cnpg-cosi store. Per-instance clusters ship their own syncs.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

@@ -1,13 +1,6 @@
-# Update policy for the zitadel component (§11): tracks the OCI Helm chart, and the
-# ImageUpdateAutomation (update cluster) opens PRs via markers in
-# components/zitadel (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
-# Chart-to-app mapping: chart 10.0.4 embeds app v4.15.3, but the app image is
-# pinned separately to v4.17.1 in values — the semver floor below is the CHART
-# version; on bumps set the chart tag AND image.tag/login.image.tag together.
-# Changelog: chart — https://github.com/zitadel/zitadel-charts/releases.
-# Changelog: app — https://github.com/zitadel/zitadel/releases.
-# Mode: auto (chart<->app diverge — bump chart tag + both image tags together).
-# Coupled files: [controllers/base/zitadel.yaml (chart tag + image.tag + login.image.tag)].
+# zitadel chart policy. Chart 10.0.4 embeds app v4.15.3, app pinned to v4.18.0: on bumps set chart tag + both image tags together.
+# Changelog: https://github.com/zitadel/zitadel-charts/releases, https://github.com/zitadel/zitadel/releases.
+# Coupled: controllers/base/zitadel.yaml.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

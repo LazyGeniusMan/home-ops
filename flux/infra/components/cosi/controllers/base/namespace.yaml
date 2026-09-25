@@ -1,15 +1,5 @@
-# COSI central controller (tag v0.2.2, v1alpha1 API) + CRDs.
-# Vendored from kubernetes-sigs/container-object-storage-interface @ tag
-# v0.2.2 — do NOT track main (v1alpha2, incompatible with this driver).
-# CRDs: group objectstorage.k8s.io, version v1alpha1 (BucketClass,
-# BucketClaim, Bucket, BucketAccessClass, BucketAccess); the 5 files live in
-# crds/base (fleet prune:false infra-crds), not in controllers/.
-# Namespace: upstream ships `system` with namespace-scoped RBAC bound to
-# `default`; this component sets the kustomize `namespace: cosi` (matches the
-# Flux tenant namespace) and patches RBAC subjects below.
-# Controller image: tag v0.2.2 on gcr.io/k8s-staging-sig-storage.
-# Tracked via flux/infra/update-policies/cosi.yaml ($imagepolicy marker
-# in deployment.yaml; range capped <0.3.0).
+# COSI central controller v0.2.2 (v1alpha1; do not track main/v1alpha2). Vendored from kubernetes-sigs/container-object-storage-interface.
+# CRDs in crds/base (fleet prune:false); namespace cosi (upstream system) with RBAC subjects patched. Image tracks update-policies/cosi.yaml (capped <0.3.0).
 ---
 kind: Namespace
 apiVersion: v1

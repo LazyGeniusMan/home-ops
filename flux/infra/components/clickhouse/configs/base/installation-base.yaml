@@ -1,12 +1,5 @@
-# Reusable ClickHouseInstallation base (§10.2): 2 shards x 2 replicas against
-# a 3-replica Keeper ensemble (CHI references the CHK by name). All data
-# volumes on local-ssd-nvme (default StorageClass); S3 backups go to
-# SeaweedFS via the `backups_s3` disk (credentials from the
-# clickhouse-s3-backup Secret — never committed). Server/keeper images pinned
-# to the 26.8 LTS line in lockstep (move together; read the upstream
-# changelog before taking a new LTS).
-# Per-table replication: create tables with ReplicatedMergeTree + ON CLUSTER
-# DDL (see README).
+# Reusable ClickHouseInstallation base: 2 shards x 2 replicas against a 3-replica Keeper; local-ssd-nvme; S3 backups via backups_s3 disk (clickhouse-s3-backup Secret).
+# Server/keeper images pinned to the 26.8 LTS line in lockstep. Tables use ReplicatedMergeTree + ON CLUSTER DDL.
 ---
 apiVersion: clickhouse-keeper.altinity.com/v1
 kind: ClickHouseKeeperInstallation

@@ -1,22 +1,7 @@
-# Multus v4.3.0 (§13.1): thick-plugin DaemonSet + NetworkAttachmentDefinition
-# CRD, vendored pinned upstream release manifest (no official chart).
-# Source:
-#   https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/v4.3.0/deployments/multus-daemonset-thick.yml
-# Thick = per-node multus-daemon server + lightweight multus-shim CNI binary;
-# KubeVirt secondary-net (§13.2 NetworkBindingPlugins) rides the daemon.
-# Update procedure: re-download the same URL at the new tag, diff, then bump
-# the $imagepolicy marker in update-policies/multus.yaml (>=4.3.0).
-# Dual image-pin discipline: BOTH image fields MUST stay pinned together
-# (DaemonSet container kube-multus AND initContainer install-multus-binary)
-# to ghcr.io/k8snetworkplumbingwg/multus-cni:<tag>-thick — never
-# `snapshot-thick` (floats), never a half-pinned pair.
-# Node-file residue (thick installs node files OUTSIDE the DaemonSet
-# lifecycle): uninstall/cleanup must sweep /opt/cni/bin, /etc/cni/net.d,
-# /run, and /var/lib/cni/multus state — stale files break CNI on re-install.
-# The NAD CRD is part of this bundle and is NOT removed by deleting the
-# DaemonSet; delete NADs/CRD explicitly on full uninstall.
-# No telemetry knobs upstream; DaemonSet metrics are plain
-# prometheus annotations only.
+# Multus thick-plugin DaemonSet v4.3.0, vendored pinned (no official chart).
+# Source: https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/v4.3.0/deployments/multus-daemonset-thick.yml
+# Both images pinned together to ghcr.io/k8snetworkplumbingwg/multus-cni:<tag>-thick (never snapshot-thick). Thick mode serves KubeVirt secondary-net.
+# Node files + NAD CRD linger after DaemonSet deletion (sweep /opt/cni/bin, /etc/cni/net.d, /run, /var/lib/cni/multus; delete NADs/CRD explicitly).
 # {"$imagepolicy": "infra:multus:tag"}
 # Note:
 #   This deployment file is designed for 'quickstart' of multus, easy installation to test it,

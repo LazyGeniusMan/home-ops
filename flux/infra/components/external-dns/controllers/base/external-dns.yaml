@@ -1,17 +1,5 @@
-# ExternalDNS (§9.4): single NetBird webhook provider over __BASE_DOMAIN__.
-# Chart mirror: oci://ghcr.io/controlplaneio-fluxcd/charts/external-dns, tag
-# 1.22.0; app image pinned to v0.22.0 (chart bundled default).
-#  - external-dns-netbird: NetBird Custom Zones via the in-repo webhook
-#    sidecar (projects/external-dns-netbird, :dev), PAT via NETBIRD_PAT_FILE.
-# Webhook sidecar tracks single-stream :dev in all envs; prd pins :stable
-# once the first external-dns-netbird-v* tag lands.
-# TXT ownership: txtOwnerId/txtPrefix pin the single txt registry, policy sync.
-# Sources include Gateway API routes so §8 Gateways/HTTPRoutes sync without
-# file overlap; the wildcard A record materializes from the §8 Gateway LB
-# target (__LB_VIP__). No Cloudflare provider and no manual
-# Record/DNSEndpoint CRs — the Gateway routes are the only sync source.
-# Telemetry: external-dns phones home nothing. Monitoring: ServiceMonitor
-# stays disabled until monitoring.coreos.com CRDs land (see README).
+# ExternalDNS chart 1.22.0 (app v0.22.0) + NetBird webhook sidecar (projects/external-dns-netbird, :dev, PAT via NETBIRD_PAT_FILE).
+# Gateway routes are the only sync source (no Cloudflare provider, no Record/DNSEndpoint CRs); wildcard A from the Gateway LB target (__LB_VIP__).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

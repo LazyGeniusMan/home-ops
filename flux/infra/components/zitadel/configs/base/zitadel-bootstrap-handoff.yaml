@@ -1,15 +1,5 @@
-# Bootstrap handoff: zero-UI FirstInstance wiring, no Tofu Controller. The chart setup
-# Job (controllers/base/zitadel.yaml FirstInstance stanza) creates org home-ops + the
-# IAM_OWNER machine user zitadel-bootstrap-sa and writes two kept Secrets
-# (cleanupJob.enabled=false): zitadel-bootstrap-sa (machine-key JSON) and
-# zitadel-bootstrap-sa-pat (PAT). This file mirrors both into consumer-ready
-# zitadel-bootstrap-credentials (jwt_profile_json + pat) via the in-namespace
-# zitadel-bootstrap SecretStore; per-app tofu-controller varsFrom/fileMappings consume
-# it. zitadel-bootstrap-outputs (org_id + admin_user_id) is a PLAIN Secret created
-# once by the operator after first install (see README runbook). AssetStorage S3
-# (zitadel-asset-storage) is ESO-mirrored here from the colocated zitadel-assets claim
-# through the in-namespace zitadel-cosi SecretStore; overlays patch only the endpoint
-# literal.
+# Bootstrap handoff: mirrors the setup-Job kept Secrets into zitadel-bootstrap-credentials (jwt_profile_json + pat) via the in-namespace zitadel-bootstrap SecretStore.
+# zitadel-bootstrap-outputs (org_id + admin_user_id) is a plain Secret created once by the operator. zitadel-asset-storage mirrors the zitadel-assets claim via the zitadel-cosi store.
 ---
 apiVersion: v1
 kind: ServiceAccount

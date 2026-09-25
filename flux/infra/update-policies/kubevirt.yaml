@@ -1,10 +1,6 @@
-# Update policy for the kubevirt component (§13.2): tracks the upstream KubeVirt
-# release, and the ImageUpdateAutomation (update cluster) opens PRs via markers
-# in components/kubevirt (see README). Follows the §7 update-policy contract
-# (ImageRepository + ImagePolicy + $imagepolicy markers).
+# kubevirt release policy. N-1 -> N only; operator roll is the upgrade (CR sets no imageTag).
 # Changelog: https://github.com/kubevirt/kubevirt/releases.
-# Mode: auto (N-1 -> N only — never skip a minor; operator roll IS the upgrade, CR sets no imageTag).
-# Coupled files: [controllers/base/kubevirt-operator.yaml, configs/base/kubevirt-cr.yaml (re-apply §13.2 locks on re-vendor)].
+# Coupled: controllers/base/kubevirt-operator.yaml, configs/base/kubevirt-cr.yaml.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

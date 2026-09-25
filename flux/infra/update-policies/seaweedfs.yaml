@@ -1,13 +1,6 @@
-# Update policy for the seaweedfs component (§12.1): tracks the Enterprise + CSI
-# container images, and the ImageUpdateAutomation (update cluster) opens PRs via
-# markers in components/seaweedfs (see README). Charts resolve via chartproxy
-# OCI mirrors (see controllers/base/seaweedfs.yaml header); chart `version:`
-# pins hand-bump, so only image tags automate here. Follows the §7
-# update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
-# Changelog: server/driver/CSI — https://github.com/seaweedfs/seaweedfs/releases.
-# Changelog: oauth2-proxy chart + image (ui-auth) — https://github.com/oauth2-proxy/manifests/releases (chart) + https://github.com/oauth2-proxy/oauth2-proxy/releases (image).
-# Mode: manual (operator chart 0.1.40 + CSI chart 0.2.36 `version:` hand-bumps) + auto (images; sidecar/driver caps move together with cosi.yaml; ui-auth chart + image track their own infra: markers — per-copy own policy, unlike the shared apps: markers).
-# Coupled files: [controllers/base/seaweedfs.yaml (both chart `version:` pins), configs/base/cluster.yaml, configs/base/driver.yaml (sidecar/driver pins + markers), configs/base/ui-auth.yaml (ui-auth chart + image markers), ../cosi.yaml (controller cap moves together)].
+# seaweedfs images policy. Charts hand-bump (operator 0.1.40 + CSI 0.2.36); only image tags automate.
+# Changelog: https://github.com/seaweedfs/seaweedfs/releases (ui-auth: oauth2-proxy chart + image).
+# Coupled: controllers/base/seaweedfs.yaml, configs/base/cluster.yaml, configs/base/driver.yaml, configs/base/ui-auth.yaml, cosi.yaml (caps move together).
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
@@ -48,13 +41,7 @@ spec:
   policy:
     semver:
       range: ">=1.4.32"
-# SeaweedFS COSI driver + sidecar (moved here from cosi.yaml with the driver
-# move — markers live in components/seaweedfs/configs/base/driver.yaml).
-# Sidecar tracks the k8s-staging repo v0.2.x tags; driver tracks ghcr.io
-# semver >=0.3.1 <0.4.0. Sidecar capped <0.3.0 alongside the controller
-# (cosi.yaml): main-line v1alpha2 (breaking, incompatible with this driver)
-# versions above v0.2.x, so automation must never PR past the v0.2 line.
-# Bump pins + all three caps together.
+# COSI driver + sidecar (markers in configs/base/driver.yaml). Caps move together with cosi.yaml.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
@@ -95,9 +82,7 @@ spec:
   policy:
     semver:
       range: ">=0.3.1 <0.4.0"
-# Filer-UI auth proxy (configs/base/ui-auth.yaml HelmRelease): official OCI
-# chart + pinned app image, own infra: markers (per-copy own policy — the
-# apps: markers cover the three apps-area proxies, not this one).
+# Filer-UI auth proxy (markers in configs/base/ui-auth.yaml; own infra: markers, not the apps: markers).
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

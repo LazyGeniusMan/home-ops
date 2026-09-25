@@ -1,18 +1,5 @@
-# Cilium v1.20.2 (§8.2): eBPF dataplane with kube-proxy replacement (Talos
-# runs without kube-proxy), Gateway API support, Hubble observability, and a
-# single-IP LoadBalancer pool. Chart: oci://quay.io/cilium/charts/cilium,
-# tag 1.20.2.
-# Single release identity with the Terraform bootstrap Job
-# (flux/fleet/terraform/main.tf): release `cilium` in namespace `kube-system`
-# on both sides. spec.targetNamespace + spec.storageNamespace below force
-# helm-controller to render AND store the release in kube-system too, instead
-# of the HelmRelease object namespace (`cilium`, forced by the infra tenant
-# targetNamespace). Without both overrides Flux would install a second,
-# conflicting copy of the CNI. The `cilium` Namespace only hosts Flux
-# bookkeeping (OCIRepository/Kustomizations/ServiceAccount) for this tenant.
-# Telemetry: the chart has no usage-reporting keys, nothing to switch off.
-# Monitoring: plain prometheus endpoints on, ServiceMonitors off until the
-# monitoring stack (monitoring.coreos.com CRDs) lands — see README.
+# Cilium 1.20.2: eBPF dataplane, kube-proxy replacement, Gateway API, Hubble, single-IP LB pool. Chart oci://quay.io/cilium/charts/cilium.
+# Single release identity with the Terraform bootstrap Job: targetNamespace + storageNamespace force render + store in kube-system (else a second conflicting CNI copy).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -34,9 +21,7 @@ metadata:
 spec:
   interval: 1h
   releaseName: cilium
-  # Single release identity with the bootstrap Job: render and store in
-  # kube-system (see header comment). serviceAccountName `flux` still resolves
-  # in the HelmRelease object namespace (`cilium`).
+  # Render + store in kube-system (see header); serviceAccountName resolves in the object namespace.
   targetNamespace: kube-system
   storageNamespace: kube-system
   serviceAccountName: flux
@@ -44,11 +29,9 @@ spec:
     kind: OCIRepository
     name: cilium-chart
   install:
-    # kube-system pre-exists on Talos — never create it (mirrors the Job's
-    # create_namespace = false).
+    # kube-system pre-exists on Talos; never create it.
     createNamespace: false
-    # CreateReplace keeps the Cilium CRDs advanced with the chart on every
-    # ImagePolicy bump.
+    # CreateReplace advances Cilium CRDs with the chart on every bump.
     crds: CreateReplace
     strategy:
       name: RetryOnFailure
@@ -60,21 +43,14 @@ spec:
       retryInterval: 5m
   # https://docs.cilium.io/en/v1.20/helm-reference/
   values:
-    # upgradeCompatibility: the initial Cilium minor installed in this
-    # cluster (1.20). Bump only deliberately per the 1.20 upgrade guide —
-    # it pins datapath behaviour so minor bumps never disrupt connections.
+    # upgradeCompatibility pins datapath behaviour to the install minor (1.20); bump only per the upgrade guide.
     upgradeCompatibility: "1.20"
-    # Strict kube-proxy replacement: Talos runs with kube-proxy disabled.
+    # Talos runs kube-proxy disabled.
     kubeProxyReplacement: true
-    # LRP for the node-local DNS cache (§8.3): CiliumLocalRedirectPolicy
-    # `nodelocaldns` (configs/base/node-local-dns-lrp.yaml) steers the
-    # kube-dns VIP to the cache pod on the same node. CRD ships with the
-    # chart (ciliumlocalredirectpolicies.cilium.io).
+    # LRP for the node-local DNS cache: CiliumLocalRedirectPolicy `nodelocaldns` steers the kube-dns VIP to the same-node cache pod.
     localRedirectPolicies:
       enabled: true
-    # Talos K8s API VIP (Layer2VIP) — NOT the LB pool VIP (__LB_VIP__),
-    # see README. Placeholder patched per environment: prd 192.168.1.198,
-    # dev 192.168.1.248.
+    # Talos K8s API VIP (Layer2VIP), not the LB pool VIP (__LB_VIP__); patched per env (prd .198, dev .248).
     k8sServiceHost: __TALOS_API_VIP__
     k8sServicePort: 6443
     gatewayAPI:
@@ -82,8 +58,7 @@ spec:
     hubble:
       relay:
         enabled: true
-        # Resources: upstream defaults {}; requests-only so the relay is
-        # never CPU-throttled.
+        # Requests-only so the relay is never CPU-throttled.
         resources:
           requests:
             cpu: 50m
@@ -103,13 +78,9 @@ spec:
         serviceMonitor:
           enabled: false
     operator:
-      # Operator replica placeholder - overridden by dev/prd overlays.
-      # NO HPA: the chart has no operator autoscaling knob, and the operator
-      # Deployment renders in kube-system while the tenant Kustomization
-      # targets namespace `cilium` — a same-base HPA would never bind.
+      # Operator replica placeholder (dev/prd overlays). No HPA: chart has no operator autoscaling knob.
       replicas: 1 # placeholder - overridden by dev/prd overlays
-      # Resources: upstream defaults {}; requests-only so the operator is
-      # never CPU-throttled.
+      # Requests-only so the operator is never CPU-throttled.
       resources:
         requests:
           cpu: 100m
@@ -118,23 +89,18 @@ spec:
         enabled: true
         serviceMonitor:
           enabled: false
-    # Agent resources (top-level key, NOT agent.resources): requests pinned
-    # per the chart's commented example (100m/512Mi — eBPF maps + per-pod
-    # state). No limits: the CNI agent must never be throttled/OOM-killed.
+    # Agent resources (top-level key): requests-only, no limits; the CNI agent must never throttle.
     resources:
       requests:
         cpu: 100m
         memory: 512Mi
-    # Envoy DaemonSet (renders with gatewayAPI/L7): upstream defaults {}
-    # (cilium-docs envoy.resources); idles without L7 policy so requests stay
-    # light. Requests-only, no limits: data-plane must never throttle.
+    # Envoy DaemonSet: requests-only, no limits.
     envoy:
       resources:
         requests:
           cpu: 50m
           memory: 64Mi
-    # Agent prometheus + ServiceMonitor stay disabled (plain `if enabled`
-    # gates); flip when the monitoring stack lands — see README.
+    # Agent prometheus + ServiceMonitor disabled until the monitoring stack lands.
     prometheus:
       enabled: false
       serviceMonitor:

@@ -1,17 +1,5 @@
-# S3 to ProtonDrive backups for the three colocated COSI buckets (zitadel-db,
-# zitadel-cache, zitadel-assets - see bucketclaims.yaml). One helm-rclone-sync
-# CronJob per bucket (direction 05, s3 to proton-drive; projects/helm-rclone-sync
-# chart 0.1.0, own OCIRepository/chartRef per release).
-# Source is the live bc-<uuid> bucket (never hardcoded) via BucketInfo.spec.bucketName,
-# read through SRC_PATH esoRef. Assets have no single live bucket (Zitadel creates
-# per-instance zitadel-assets-* buckets itself), so the assets sync reads the account
-# root with rclone --include "zitadel-assets*/**".
-# Destination /home-ops/backups/<cluster>/zitadel/<bucket> (__CLUSTER_NAME__ patched
-# per env). Proton password is rclone-obscured (rclone obscure); seed
-# pass://<cluster>/zitadel/rclone-proton-username and
-# pass://<cluster>/zitadel/rclone-proton-password-obscured via pass-cli.
-# Schedules staggered (db 01:15, cache 02:15, assets 03:15 UTC); operation sync,
-# concurrencyPolicy Forbid.
+# S3 to ProtonDrive backups for zitadel-db, zitadel-cache, zitadel-assets (one helm-rclone-sync CronJob per bucket, direction 05; chart 0.1.0).
+# Source is the live bc-<uuid> bucket via BucketInfo.spec.bucketName (assets sync reads the account root with --include "zitadel-assets*/**"). Destination /home-ops/backups/<cluster>/zitadel/<bucket>. Schedules db 01:15, cache 02:15, assets 03:15 UTC; sync, Forbid.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

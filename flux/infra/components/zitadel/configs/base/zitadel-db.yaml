@@ -1,29 +1,7 @@
-# Zitadel PostgreSQL HA Cluster: namespace-local instantiation of the
-# cluster-base template (flux/infra/components/cnpg/configs/base/cluster-base.yaml —
-# same shape, adjusted: dbname zitadel, single-purpose S3 prefix). Live
-# cluster, not a template: spec.bootstrap.initdb creates database+owner
-# zitadel, with the app password from zitadel-db-app-secret (ESO, see
-# zitadel-secrets.yaml — the secret's username MUST equal
-# spec.bootstrap.initdb.owner per upstream).
-# - HA: 3 instances, sync quorum 1, pod anti-affinity (copied from the base).
-# - Storage: local-ssd-nvme (the default StorageClass).
-# - Backup: continuous WAL + daily base backup to SeaweedFS S3 (DNS name
-#   only, no file dependency; see the seaweedfs README S3 contract) under
-#   s3://cnpg-backups/zitadel/. The bucket prefix must exist before the first
-#   Cluster starts (CNPG never creates buckets). Credentials:
-#   cnpg-s3-credentials ExternalSecret synced by ESO from the COSI-minted
-#   BucketInfo JSON (Secret zitadel-db-cosi-creds in THIS namespace, from the
-#   colocated `zitadel-db` BucketClaim in bucketclaims.yaml) through the
-#   in-namespace `zitadel-cosi` SecretStore (cosi-keys.yaml) — GJSON
-#   `property` extracts spec.secretS3.accessKeyID/accessSecretKey. Target
-#   literal keys are unchanged. Fallback: the Proton Pass entries
-#   (pass://.../cnpg/s3-*) are retained in the vault; to roll back, repoint
-#   secretStoreRef to proton-pass/ClusterSecretStore with remoteRef keys
-#   __PROTON_PASS_BASE__/cnpg/s3-access-key-id and
-#   __PROTON_PASS_BASE__/cnpg/s3-secret-access-key (no `property`).
-# - PITR/restore: same runbook as the base template — apply a NEW Cluster
-#   with bootstrap.recovery (example stanza commented out below) instead of
-#   initdb.
+# Zitadel PostgreSQL Cluster: namespace-local CNPG Cluster (dbname/owner zitadel; 3 instances, sync quorum 1, local-ssd-nvme).
+# Backup: continuous WAL + daily base backup to s3://cnpg-backups/zitadel/ (bucket prefix must pre-exist).
+# Credentials: cnpg-s3-credentials from the COSI BucketInfo (zitadel-db-cosi-creds) via in-namespace zitadel-cosi SecretStore.
+# PITR: apply a NEW Cluster with bootstrap.recovery (example below) instead of initdb.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

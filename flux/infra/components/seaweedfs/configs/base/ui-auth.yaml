@@ -5,21 +5,8 @@
 # __ZITADEL_ISSUER_URL__, redirect https://__SEAWEEDFS_UI_HOST__/oauth2/callback,
 # scopes openid profile email groups, admin-only via --allowed-group=seaweedfs-admin,
 # cookie domain .__BASE_DOMAIN__.
-# Credentials flow from stored outputs: seaweedfs-sso writes client_id +
-# client_secret + cookie_secret into seaweedfs-sso-outputs, and the
-# ui-auth-credentials ExternalSecret consumes them through the in-cluster
-# seaweedfs-k8s SecretStore (no pass:// seeding; property fields map onto
-# OAUTH2_PROXY_* env keys).
-#
-# Official OCI chart (oci://ghcr.io/oauth2-proxy/charts/oauth2-proxy, tag 10.7.0;
-# app v7.15.4 set explicitly, chart 10.7.0 pins 7.15.3). Chart contract: release +
-# fullname ui-auth; existingSecret + proxyVarsAsSecrets: false keep credential
-# ownership in ESO; no-config mode keeps every flag in extraArgs;
-# metrics/ServiceMonitor, ServiceAccount, autoscaling, and PDB off (external
-# HPA/VPA own scaling). Probes: liveness /ping, readiness /ready.
-# Chart/image tags track update-policies/seaweedfs.yaml via $imagepolicy markers.
-# The ESO ExternalSecret lives alongside the release, so the first install pends
-# until ESO syncs and Flux retries (RetryOnFailure).
+# Credentials from seaweedfs-sso-outputs via the seaweedfs-k8s SecretStore.
+# Chart oci://ghcr.io/oauth2-proxy/charts/oauth2-proxy 10.7.0 (app v7.15.4); tags track update-policies/seaweedfs.yaml.
 apiVersion: v1
 kind: ServiceAccount
 metadata:

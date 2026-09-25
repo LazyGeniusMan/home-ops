@@ -1,27 +1,6 @@
-# Node-local DNS cache (§8.3): DaemonSet of CoreDNS cache instances (one per
-# node) + the stable upstream Service + cache Corefile. Pods keep using the
-# kube-dns VIP (10.96.0.10); the CiliumLocalRedirectPolicy in the cilium
-# component (configs/base/node-local-dns-lrp.yaml) steers that VIP to the
-# cache pod on the same node.
-# - Pod network, NOT hostNetwork (Cilium LRP replaces the classic dummy
-#   interface + iptables hijack): hostNetwork unset, dnsPolicy Default,
-#   -setupinterface=false -setupiptables=false -skipteardown=true. Node-cache
-#   image pinned 1.26.8.
-# - bind-all: -localip 0.0.0.0 + `bind 0.0.0.0` in every server block, so the
-#   pod answers on its pod IP (where LRP delivers the redirected packets).
-# - Fully concrete Corefile — no __PILLAR__ placeholders. The upstream
-#   Service gets a static ClusterIP (10.96.0.11, next after kube-dns .10) so
-#   the cache forward target is a literal. If talos/ ever overrides
-#   serviceSubnet, both statics MUST move (see controllers/base/kube-dns.yaml).
-# - kube-dns-upstream selector pins the chart pods' stable
-#   app.kubernetes.io labels (same pin as the kube-dns Service). It does NOT
-#   select `k8s-app: kube-dns`: the chart renders pods with k8s-app=coredns,
-#   so that selector would match nothing.
-# - health/ready live ONLY in the cluster.local block (one listener each on
-#   :8080/:8181); prometheus :9253 in every block.
-# - Explicit `namespace: kube-system` on every object: survives the tenant
-#   targetNamespace. The LRP requires backends in the SAME namespace as the
-#   policy (kube-system).
+# Node-local DNS cache: per-node CoreDNS DaemonSet + upstream Service + cache Corefile. Pods keep the kube-dns VIP (10.96.0.10); the cilium CiliumLocalRedirectPolicy steers it to the same-node cache pod.
+# Pod network (no hostNetwork; Cilium LRP replaces the dummy-interface hijack). Image 1.26.8. Upstream Service static 10.96.0.11 (moves with serviceSubnet; see kube-dns.yaml).
+# Objects pinned to namespace kube-system (LRP requires same-namespace backends).
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -39,8 +18,7 @@ metadata:
     kubernetes.io/cluster-service: "true"
     kubernetes.io/name: KubeDNSUpstream
 spec:
-  # Static IP = kube-dns (.10) + 1. Distinct from the LRP-intercepted kube-dns
-  # VIP, so cache -> upstream traffic never re-enters the redirect.
+  # Static .10 + 1: cache -> upstream never re-enters the redirect.
   clusterIP: 10.96.0.11
   ports:
     - name: dns

@@ -3,15 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev DNS scope: home-ops-dev.yansyah.my.id (home-ops-dev-netbird, single
-  # NetBird webhook instance — no Cloudflare provider).
-  # Merge patches (no positional paths): txtOwnerId + domainFilters are
-  # wholesale scalar/single-item values, so a merge replaces them cleanly.
-  # The webhook DOMAIN_FILTER env entry below stays a test-guarded RFC 6902
-  # patch — provider.webhook.env is an ordered list with no merge key on
-  # this CRD, so wholesale replacement would silently drop future base env
-  # entries; the `test` op fails the build loudly if the entry ever moves
-  # from index 1 (same guard pattern as flux/fleet/tenants/overlays).
+  # Dev DNS scope: home-ops-dev.yansyah.my.id (home-ops-dev-netbird). Merge patch for scalar values; test-guarded RFC 6902 patch for the ordered webhook env list (test op fails loudly if the entry moves).
   - target:
       kind: HelmRelease
       name: external-dns-netbird

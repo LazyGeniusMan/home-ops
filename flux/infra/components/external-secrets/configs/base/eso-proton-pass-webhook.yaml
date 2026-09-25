@@ -1,11 +1,4 @@
-# eso-proton-pass: in-cluster ESO generic-webhook provider for Proton Pass
-# (projects/eso-proton-pass, pull-only). The ClusterSecretStore addresses it by
-# Service DNS; no ESO chart values change needed. Probes/metrics come from the app.
-# Bootstrap: the proton-pass-pat Secret must exist in the external-secrets
-# namespace BEFORE first reconcile (one-time out-of-band create, values never
-# committed), or the Deployment stays Pending and all syncs stay NotReady.
-# PAT rollout (expiry at most 1y): the webhook reads the PAT file at startup, so
-# restart the Deployment after rotating (see README "PAT renewal").
+# eso-proton-pass (projects/eso-proton-pass, pull-only): in-cluster generic-webhook provider, addressed by Service DNS. proton-pass-pat Secret must exist before first reconcile; restart the Deployment after PAT rotation.
 ---
 apiVersion: v1
 kind: ServiceAccount

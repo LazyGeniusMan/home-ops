@@ -1,15 +1,5 @@
-# apprise-go-api (stateless-only, credential-free): shared platform webhook
-# sink for notification-controller Alert/Provider posts, forwarding to
-# caller-supplied apprise URLs. Internal ClusterIP only — no
-# Gateway/HTTPRoute, no ServiceMonitor (monitoring.coreos.com CRDs not
-# present).
-# Image: ghcr.io/lazygeniusman/home-ops/projects/apprise-go-api (branch leg
-# dev/dev-sha, tag leg stable/semver; marker below owned by
-# update-policies/apprise-go-api.yaml).
-# Credential-free: every caller passes full per-request apprise URLs in each
-# POST /notify `urls` (empty fallback boots clean; missing urls -> HTTP 204).
-# Distroless nonroot: no volumes — APPRISE_ATTACH_DIR stays unset so attachments
-# stage request-scoped under os.TempDir() (see projects/apprise-go-api/README.md).
+# apprise-go-api (projects/apprise-go-api): stateless credential-free webhook sink for Alert/Provider posts. Internal ClusterIP only.
+# Callers pass full apprise URLs per POST /notify (missing urls -> HTTP 204). No volumes: attachments stage under os.TempDir().
 ---
 apiVersion: apps/v1
 kind: Deployment

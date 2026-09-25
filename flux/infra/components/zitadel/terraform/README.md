@@ -7,10 +7,9 @@ cross-namespace `sourceRef` + their own vars.
 ## Layout (flat — no child modules)
 
 - `main.tf` — provider `zitadel` block + the full SSO slice inline: org
-  lookup, project, admin project role + bootstrap-admin grant, optional user
-  role, human users + org members + grants (normal users plus extra admins
-  from `admin_emails`), OIDC app with coder secure defaults, optional
-  `random_bytes` cookie secret. Zero `module` blocks.
+  lookup, project, admin role + bootstrap-admin grant, optional user role,
+  users + members + grants, OIDC app, optional `random_bytes` cookie secret.
+  Zero `module` blocks.
 - `variables.tf` — full contract (project, credentials, roles, users, URIs,
   cookie secret). No `app_host`/`ui_host` vars: callers pass fully-rendered
   `redirect_uris` / `post_logout_redirect_uris`.
@@ -62,13 +61,10 @@ spec:
 ```
 
 User-capable apps add `create_user_role: "true"` + `user_emails` (+ optional
-`user_initial_password` via `varsFrom`, never git). Extra OIDC admins beyond
-the bootstrap admin go in `admin_emails` (created + granted the admin role).
+`user_initial_password` via `varsFrom`). Extra admins go in `admin_emails`.
 Provider auth (`jwt_profile_json`) and handoff IDs (`org_id`,
-`admin_user_id`) flow from the FirstInstance handoff
-(`zitadel-bootstrap-credentials` / `zitadel-bootstrap-outputs` Secrets in
-the `zitadel` namespace) via the ESO-synced `<app>-terraform-vars` Secret —
-never commit secrets, never hardcode IDs.
+`admin_user_id`) flow from the FirstInstance handoff Secrets via the
+ESO-synced `<app>-terraform-vars` Secret.
 
 ## Variables
 
@@ -93,8 +89,7 @@ never commit secrets, never hardcode IDs.
 | `create_cookie_secret` | `bool` | no | `false` | Generate a 32-byte oauth2-proxy cookie secret (base64 output) |
 
 `group_name`, `oidc_name`, `admin_role_key`, and `user_role_key` default to
-`null` (Terraform forbids referencing `project_name` in a variable default);
-`main.tf` resolves them with `coalesce` to the values shown above.
+`null`; `main.tf` resolves them with `coalesce` to the values shown above.
 
 ## Examples
 
@@ -136,10 +131,8 @@ user_emails               = var.user_emails
 
 - Upsert-only: every managed resource carries
   `lifecycle { prevent_destroy = true }`, and every consumer Terraform CR
-  sets explicit `destroy: false` + `destroyResourcesOnDeletion: false`
-  (the only destroy knobs in tofu-controller 0.16.5 v1alpha2 — there is no
-  `preventDestroy`/`destroyPlan` field). No `tofu destroy` path via Flux;
-  drift detection stays on.
+  sets `destroy: false` + `destroyResourcesOnDeletion: false`. No `tofu
+  destroy` path via Flux; drift detection stays on.
 - `project_role_check = true` + `project_role_assertion = true`: a grant is
   required to authenticate and roles land in the token `groups` claim.
 - Roles/grants are project-scoped — `<app>-admin` never implies org admin.
@@ -148,3 +141,4 @@ user_emails               = var.user_emails
   assertions on.
 - No secrets in git: JWT profile, org/admin IDs, and generated
   client/cookie secrets flow through ESO mirrors and the CR outputs Secret.
+

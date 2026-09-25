@@ -1,15 +1,6 @@
-# KubeVirt v1.9.0 operator (§13.2): vendored pinned upstream release manifest
-# (1 CRD kubevirts.kubevirt.io + RBAC + virt-operator Deployment).
+# KubeVirt operator v1.9.0, vendored pinned.
 # Source: https://github.com/kubevirt/kubevirt/releases/download/v1.9.0/kubevirt-operator.yaml
-# Update procedure: re-download both operator + CR URLs at the new tag, diff,
-# then bump the $imagepolicy marker in update-policies/kubevirt.yaml (>=1.9.0).
-# Version lock: the KubeVirt CR sets NO spec.imageTag, so the operand is
-# locked to this operator's version — the operator roll IS the upgrade.
-# Operator-first: if the diff shows new/expanded RBAC, the new operator MUST
-# apply before anything reads the CR (infra-configs already dependsOn
-# infra-controllers; never reorder).
-# No telemetry knobs upstream, nothing to disable. ServiceMonitor fields stay
-# unset until the monitoring stack lands.
+# Re-vendor whole to bump; upgrades N-1 -> N only, operator-first (infra-configs dependsOn infra-controllers).
 # {"$imagepolicy": "infra:kubevirt:tag"}
 ---
 apiVersion: v1

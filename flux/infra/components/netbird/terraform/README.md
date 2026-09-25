@@ -35,25 +35,19 @@ cross-namespace `sourceRef` + their own vars.
 ## What the root does
 
 1. Registers the custom base domain (`netbird_reverse_proxy_domain`) unless
-   `create_custom_domain = false` (free/cluster-domain path). Create-once,
-   then a steady-state no-op: both `domain` and `target_cluster` are
-   `RequiresReplace` upstream, so changing either fails closed under
-   `prevent_destroy` by design.
+   `create_custom_domain = false` (free/cluster-domain path). `domain` and
+   `target_cluster` are `RequiresReplace` upstream.
 2. Manages the wildcard CNAME `*.<base-domain>` → proxy cluster address in
    Cloudflare unless `cloudflare_zone_id` is `null` (DNS self-managed). The
-   record is `proxied = false` (DNS-only) — Cloudflare proxying would hide
-   the cluster address from NetBird's ownership lookup and break ZeroSSL
-   issuance.
+   record is `proxied = false` (DNS-only).
 3. Manages the guest entrypoint: the `guest-users-resources` group plus the
    `Service Load Balancer IP` `/32` resource (`var.service_lb_ip`, guest
    path). `network_id` is schema-required on every
    `netbird_network_resource`, so the resource attaches to the Talos-owned
    parent network (`var.network_name`) via the `netbird_network` data
    source — no `netbird_network` resource lives here. The rest of the
-   access fabric (admin/guest/node groups, the parent network itself,
-   setup keys, routers, LAN resources, access policies) is owned by the
-   Talos Ansible Terraform task, which must apply first so the parent
-   network exists for this lookup.
+   access fabric is owned by the Talos Ansible Terraform task, which applies
+   first so the parent network exists.
 4. Wires the reverse-proxy service: public `domain` FQDN → the shared
    Service-LB subnet target (`target_id` = LB resource ID, `target_type`
    `subnet`, `host` = `var.service_lb_ip`, port/protocol/path via
@@ -61,13 +55,12 @@ cross-namespace `sourceRef` + their own vars.
    `targets`. `http` mode terminates TLS at the proxy; `tcp` /
    `udp` / `tls` listen on `listen_port` (0 = auto-assign).
 
-`netbird_dns_zone` (internal MagicDNS custom zones) is deliberately NOT in
-this root: it governs in-mesh name resolution, not proxy verification.
+`netbird_dns_zone` (internal MagicDNS custom zones) is not in this root.
 
 ## First-run ordering (custom-domain path)
 
-Terraform only performs the *registration* (step 0). Ownership verification
-is a one-time manual confirmation — NetBird has no API to trigger it:
+Terraform performs the registration (step 0); ownership verification is
+a one-time manual confirmation:
 
 0. Apply the consumer Terraform CR — registers the domain (status **Pending
    Verification**) and creates the wildcard CNAME.
@@ -79,8 +72,7 @@ is a one-time manual confirmation — NetBird has no API to trigger it:
    need no action.
 3. In the dashboard (**Reverse Proxy > Custom Domains**) click **Verify
    Domain** next to the domain within 48h of registration — unverified
-   registrations expire (removed at management startup and every 60 min) and
-   must be re-added. Once **Active**, the domain stays usable and later
+   registrations expire and must be re-added. Once **Active**, later
    applies are no-ops.
 
 If the base domain was already registered out-of-band, import it once into
@@ -92,26 +84,19 @@ tofu import 'netbird_reverse_proxy_domain.this[0]' '<domain-id>'
 tofu import 'cloudflare_dns_record.validation[0]' '<zone-id>/<record-id>'
 ```
 
-## Fabric ownership (Talos task mints the fabric, not this root)
+## Fabric ownership
 
-This root manages NO setup keys, networks, routers, LAN resources, or
-access policies — those live in the Talos Ansible Terraform task, which must
-apply before any consumer of this root (the parent network
-`var.network_name` has to exist for the `netbird_network` data-source
-lookup). If the setup-key output or fabric IDs are needed, read them from
-that task's outputs — never from here.
+Setup keys, networks, routers, LAN resources, and access policies live in
+the Talos Ansible Terraform task, which applies first (the parent network
+`var.network_name` must exist for the `netbird_network` data-source
+lookup).
 
 ## CrowdSec (dashboard-only — no TF field)
 
-CrowdSec Enforce is NOT Terraform-representable: provider `0.0.10`
-exposes no CrowdSec
-attribute on `netbird_reverse_proxy_service` (only `access_restrictions`
-for CIDR/country lists), and the management API surfaces CrowdSec mode
-dashboard-side only. Do NOT repurpose `access_restrictions` to fake it.
-After the first apply, set it manually per service: **Reverse Proxy >
-Services > <service> > Access Control > CrowdSec → Enforce** (default
-Off; Observe only logs). Re-apply this step if the service is ever
-recreated. `main.tf` carries the same note at the service resource.
+Provider `0.0.10` exposes no CrowdSec attribute on
+`netbird_reverse_proxy_service`. After the first apply, set per service:
+**Reverse Proxy > Services > <service> > Access Control > CrowdSec → Enforce**
+(default Off). Re-apply if the service is recreated.
 
 ## Consumer usage (cross-namespace sourceRef)
 

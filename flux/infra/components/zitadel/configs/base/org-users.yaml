@@ -1,18 +1,5 @@
-# Static identity intent: org, users, groups, OIDC client ownership. The chart setup
-# Job (controllers/base/zitadel.yaml FirstInstance stanza, Helm setup Job) creates org
-# home-ops plus the IAM_OWNER machine user zitadel-bootstrap-sa (mirrored by
-# zitadel-bootstrap-handoff.yaml). Human admin onboarding is operator-driven via
-# invite/reset after install. OIDC clients live in each app's own per-app terraform/
-# slice; this bootstrap slice owns no clients. This ConfigMap mirrors that intent -
-# keep it in sync with the HelmRelease FirstInstance stanza.
-# Hosts: admin UI/console/API + OIDC issuer on admin.zitadel.<base> (ExternalDomain,
-# per-env overlay); end-user login UI on login.zitadel.<base> (NetBird
-# zitadel-login-proxy + instance LoginV2.BaseURI + per-app login_base_uri).
-# Org: home-ops. Machine admin: zitadel-bootstrap-sa (key JSON + PAT kept Secrets).
-# Users: admin@<base domain> super-admin (org owner; invite via console).
-# Groups: admin (asserted into the groups claim via per-app project roles/grants).
-# Roles/grants: home-ops project with role admin. Scopes for every client:
-# openid profile email groups (code flow + PKCE, refresh tokens on; secrets via ESO).
+# Identity intent mirror (keep in sync with the HelmRelease FirstInstance stanza): org home-ops, machine admin zitadel-bootstrap-sa, admin@ super-admin (console invite), group admin, project role admin, scopes openid profile email groups.
+# Issuer admin.zitadel.<base>; login UI login.zitadel.<base>. OIDC clients live in each app's own terraform/ slice; this bootstrap owns none.
 ---
 apiVersion: v1
 kind: ConfigMap

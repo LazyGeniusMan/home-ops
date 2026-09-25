@@ -1,14 +1,5 @@
-# Example NetBird reverse-proxy consumer skeleton - copy into
-# flux/apps/components/<app>/base/ (or flux/infra/components/<comp>/configs/base/)
-# and replace every <app> / __PLACEHOLDER__. Owns only this app slice: one
-# custom-domain registration (shared per base domain; second slice imports it, see
-# terraform/README.md) + one wildcard CNAME + one reverse-proxy service.
-# Ordering comes from the fleet Kustomization (apps dependsOn infra-configs); no
-# Terraform dependsOn (checkDependencies only resolves kind Terraform). Tokens flow
-# from Proton Pass via the ESO-synced <app>-terraform-vars Secret (same-namespace
-# varsFrom); backend is in-cluster Kubernetes default; drift detection stays on.
-# Outputs service_id + service_domain + proxy_url land in <app>-proxy-outputs.
-# First-run: complete the dashboard Verify within 48h.
+# NetBird consumer skeleton: copy into the app base, replace <app> / __PLACEHOLDER__. One custom-domain registration + wildcard CNAME + reverse-proxy service per slice (second slice imports the shared domain).
+# Tokens via <app>-terraform-vars (same-namespace varsFrom); backend in-cluster Kubernetes default. Outputs land in <app>-proxy-outputs. Dashboard Verify within 48h.
 ---
 # Provider tokens from Proton Pass (ClusterSecretStore proton-pass, direct -
 # no cross-namespace SecretStore needed). Keys land under module var names so

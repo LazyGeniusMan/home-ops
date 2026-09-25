@@ -1,87 +1,60 @@
-# Zitadel (§14 dev)
+# Zitadel dev
 
-Dev identity provider: the OIDC issuer on `https://admin.zitadel.home-ops-dev.yansyah.my.id` (login UI on `https://login.zitadel.home-ops-dev.yansyah.my.id`, NetBird-exposed) plus the locked dev client
-contract the §14 app writers build against (table below — do not deviate).
-`kustomization.yaml` here references `../base` plus kustomize patches
-carrying the §14 locked deltas: dev domain, DEV Proton Pass vault
-(`pass://acme-dev-bdo1-talos-apps-01/...`), dev SeaweedFS S3 endpoints,
-same DB/cache classes (3-instance CNPG, 3-replica Dragonfly,
-`local-ssd-nvme`). No prd references outside comments.
+Dev identity provider: OIDC issuer on
+`https://admin.zitadel.home-ops-dev.yansyah.my.id` (login UI on
+`https://login.zitadel.home-ops-dev.yansyah.my.id`, NetBird-exposed) plus
+the locked dev client contract below.
 
-## Layout
+Patches against `configs/base`: ESO remoteRefs (dev vault), namespace-local
+CNPG Cluster + ScheduledBackup (dev S3 endpoint), namespace-local Dragonfly
++ snapshot credentials (dev S3 host), in-namespace
+`wildcard-home-ops-dev-tls`, admin HTTPRoute (`/` -> zitadel:8080 on the
+dev Gateway), rclone Proton credentials + destinations (dev cluster
+segment), login-proxy vars + domain + mesh attach (dev login host,
+`network_name` -> dev cluster, `service_lb_ip` -> `.249`,
+`cloudflare_zone_id` null), `org-users.yaml` intent mirror + handoff
+mirrors, plus single-instance scaling (DB `instances` -> 1, cache
+`replicas` -> 1). Controllers in `controllers/dev`: `ExternalDomain:
+admin.zitadel.home-ops-dev.yansyah.my.id` (+ `LoginV2.BaseURI:
+https://login.zitadel.home-ops-dev.yansyah.my.id/ui/v2/login`) + API/login
+seeds -> 1 with chart-native HPAs 1 / 2.
 
-Patches against `configs/base`: ESO remoteRefs (dev vault),
-namespace-local CNPG Cluster + ScheduledBackup (dev S3 endpoint),
-namespace-local Dragonfly + snapshot credentials (dev S3 host),
-in-namespace `wildcard-home-ops-dev-tls`, admin HTTPRoute (`/` → zitadel:8080 on the shared §14 DEV Gateway),
-rclone Proton credentials + destinations (dev cluster segment),
-login-proxy vars + domain + mesh attach (domain → dev login host,
-`network_name` → dev cluster, `service_lb_ip` → `.249`,
-`cloudflare_zone_id` stays null), `org-users.yaml` intent (human-readable
-mirror, dev users + per-app clients) + `zitadel-bootstrap-handoff.yaml`
-(ESO credential/asset mirrors, machine-applied), plus dev single-instance
-scaling (DB `instances` → 1, cache `replicas` → 1).
-Controllers live in `controllers/dev` (`../base` + patch setting
-`ExternalDomain: admin.zitadel.home-ops-dev.yansyah.my.id` (+ `DefaultInstance.Features.LoginV2.BaseURI: https://login.zitadel.home-ops-dev.yansyah.my.id/ui/v2/login`)
-+ API/login seeds → 1 with chart-native HPAs 1 / 2).
-
-## OIDC contract (LOCKED for §14 app writers)
-
-App writers build against THIS table — do not deviate.
+## OIDC contract (locked)
 
 | Item | Value |
 |---|---|
 | Issuer (admin host) | `https://admin.zitadel.home-ops-dev.yansyah.my.id` |
-| Login UI (NetBird) | `https://login.zitadel.home-ops-dev.yansyah.my.id/ui/v2/login` (per-app `login_base_uri` + instance `LoginV2.BaseURI`; trusted domain registered by the terraform root) |
+| Login UI (NetBird) | `https://login.zitadel.home-ops-dev.yansyah.my.id/ui/v2/login` |
 | Org | `home-ops` |
-| Users | `admin@home-ops-dev.yansyah.my.id` (super-admin, `admin` group + role — bootstrap-owned); non-admin users are owned per consumer app, not by this bootstrap |
-| Groups | `admin` (admin@ member) — asserted in the `groups` claim; per-app `users` membership is owned by each consumer app |
+| Users | `admin@home-ops-dev.yansyah.my.id` (super-admin -- bootstrap-owned); non-admin users owned per consumer app |
+| Groups | `admin` (admin@ member) -- asserted in the `groups` claim; per-app `users` membership owned by each consumer app |
 | Scopes (all clients) | `openid profile email groups` |
 | Flow (all clients) | Authorization code + PKCE, refresh tokens on |
-| Owner: `coder` → client `coder` | `https://coder.home-ops-dev.yansyah.my.id/*` (post-logout → `https://coder.home-ops-dev.yansyah.my.id/`) |
-| Owner: `clickstack` → client `clickstack` | `https://clickstack.home-ops-dev.yansyah.my.id/*` (covers the per-instance oauth2-proxy callback under `/oauth2/callback`) |
-| Owner: `hubble-ui` → client `hubble` | `https://hubble.home-ops-dev.yansyah.my.id/*` (covers the per-instance oauth2-proxy callback under `/oauth2/callback`) |
-| Owner: `flux-operator-ui` → client `flux-operator-ui` | `https://flux-operator.home-ops-dev.yansyah.my.id/*` (covers the per-instance oauth2-proxy callback under `/oauth2/callback`) |
-| Owner: `headlamp` → client `headlamp` | `https://headlamp.home-ops-dev.yansyah.my.id/*` |
-| Owner: `seaweedfs` → client `seaweedfs` | `https://admin.seaweedfs.home-ops-dev.yansyah.my.id/oauth2/callback` (serves the filer-UI proxy) |
+| Owner: `coder` -> client `coder` | `https://coder.home-ops-dev.yansyah.my.id/*` |
+| Owner: `clickstack` -> client `clickstack` | `https://clickstack.home-ops-dev.yansyah.my.id/*` (covers `/oauth2/callback`) |
+| Owner: `hubble-ui` -> client `hubble` | `https://hubble.home-ops-dev.yansyah.my.id/*` (covers `/oauth2/callback`) |
+| Owner: `flux-operator-ui` -> client `flux-operator-ui` | `https://flux-operator.home-ops-dev.yansyah.my.id/*` (covers `/oauth2/callback`) |
+| Owner: `headlamp` -> client `headlamp` | `https://headlamp.home-ops-dev.yansyah.my.id/*` |
+| Owner: `seaweedfs` -> client `seaweedfs` | `https://admin.seaweedfs.home-ops-dev.yansyah.my.id/oauth2/callback` |
 
 Each app owns its own `zitadel_project` + `zitadel_application_oidc` client
-in its per-app `terraform/` slice (own project roles/grants assert the
-`groups` claim); the central bootstrap slice owns no clients. Post-logout
-redirects point at each app's root (`https://<app>…/`).
-
-## Identity bootstrap (Helm FirstInstance) — DEV note
-
-Machine-applied like base: the chart's `FirstInstance` stanza (inherited
-from `controllers/base`, plus this overlay's `ExternalDomain: admin.zitadel.home-ops-dev.yansyah.my.id` (+ `LoginV2.BaseURI: https://login.zitadel.home-ops-dev.yansyah.my.id/ui/v2/login`) patch) creates org `home-ops` + the
-`zitadel-bootstrap-sa` machine user; `zitadel-bootstrap-handoff.yaml`
-mirrors its key/PAT into `zitadel-bootstrap-credentials` (no DEV vault refs
-for bootstrap — the setup Job mints the key) plus the `zitadel-assets` S3
-mirror (dev internal S3 endpoint patch in this overlay's `kustomization.yaml`).
-
-- Client `redirect_uris`/`post_logout_redirect_uris`: each per-app
-  `terraform/` slice rides its own `app_host`/`ui_host` CR vars (same shapes
-  as the table above) — no shared client remains.
-- Read each app's generated client secret from its own per-app state into
-  the DEV Proton Pass vault
-  (`pass://acme-dev-bdo1-talos-apps-01/...`, never Git) — each §14 app's dev
-  ESO secrets reference those entries.
+in its per-app `terraform/` slice; the central bootstrap owns no clients.
+Client `redirect_uris`/`post_logout_redirect_uris` ride each slice's
+`app_host`/`ui_host` CR vars. Client secrets read from each app's own state
+into the dev vault (`pass://acme-dev-bdo1-talos-apps-01/...`, never Git).
 
 ## Credentials
 
-All secrets sync from Proton Pass via ESO (Git holds `remoteRef`s only).
-Seed each vault entry with pass-cli (never commit):
+All secrets sync from Proton Pass via ESO (Git holds `remoteRef`s only):
 
-- `pass://acme-dev-bdo1-talos-apps-01/zitadel/masterkey` — 32-byte masterkey.
-  IMMUTABLE: Zitadel cannot re-key; loss means loss of all encrypted data.
-- `pass://acme-dev-bdo1-talos-apps-01/zitadel/db-password` — SINGLE password
-  source: the `zitadel-db-credentials` DSN is composed in ESO target.template
-  from literal parts (user/host/port/db + `sslmode=require`) plus this field,
-  and `zitadel-db-app-secret` consumes the same field (no dual-write; rotate
-  in one place).
-- `pass://acme-dev-bdo1-talos-apps-01/zitadel/smtp-*` — relay user/password
-  (optional; unwired until a relay exists).
+- `pass://acme-dev-bdo1-talos-apps-01/zitadel/masterkey` -- 32-byte
+  masterkey, immutable.
+- `pass://acme-dev-bdo1-talos-apps-01/zitadel/db-password` -- single
+  password source (DSN composed in ESO target.template; `zitadel-db-app-secret`
+  consumes the same field).
+- `pass://acme-dev-bdo1-talos-apps-01/zitadel/smtp-*` -- relay
+  user/password (optional, unwired).
 - `pass://acme-dev-bdo1-talos-apps-01/{cnpg,dragonfly}/s3-*` and
-  `pass://acme-dev-bdo1-talos-apps-01/cert-manager/cloudflare-api-token` —
-  same vault paths as the §14 DEV §§9–10, copied so the Barman/snapshot/DNS-01
-  secrets exist in this namespace too.
+  `pass://acme-dev-bdo1-talos-apps-01/cert-manager/cloudflare-api-token` --
+  same vault paths as dev cnpg/dragonfly/cert-manager, copied into this
+  namespace.

@@ -1,10 +1,5 @@
-# CoreDNS v1.14.7 (§8.3): in-cluster DNS, deployed at bootstrap alongside
-# Cilium (§8.2) so cluster DNS is live before LAN-name workloads land.
-# Chart: oci://ghcr.io/coredns/charts/coredns (chart 1.47.1 carries app
-# 1.14.6; app image pinned to 1.14.7 explicitly — see README).
-# Telemetry: no usage-reporting keys in chart values, nothing to switch off.
-# Monitoring: prometheus scrape annotations on (safe without a stack);
-# ServiceMonitor stays disabled until monitoring.coreos.com CRDs land.
+# CoreDNS chart 1.47.1 (app pinned to 1.14.7). Chart oci://ghcr.io/coredns/charts/coredns.
+# Deployed at bootstrap alongside Cilium. ServiceMonitor disabled until monitoring.coreos.com CRDs land.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

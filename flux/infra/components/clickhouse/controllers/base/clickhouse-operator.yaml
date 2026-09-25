@@ -1,9 +1,5 @@
-# ClickHouse operator 0.27.3 (§10.2): Altinity clickhouse-operator backing the
-# infra data layer. Chart: oci://registry-1.docker.io/altinity/clickhouse-operator,
-# tag 0.27.3.
-# Telemetry: no usage-reporting keys in chart values, nothing to switch off.
-# Monitoring: metrics exporter on (prometheus.io annotations, safe without a
-# stack); ServiceMonitor stays disabled until monitoring.coreos.com CRDs land.
+# ClickHouse operator 0.27.3. Chart oci://registry-1.docker.io/altinity/clickhouse-operator.
+# ServiceMonitor disabled until monitoring.coreos.com CRDs land.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

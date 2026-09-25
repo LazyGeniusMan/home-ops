@@ -1,14 +1,5 @@
-# Cloudflare DNS-01 ClusterIssuer (§9.3). The API token is synced by ESO from
-# Proton Pass (__PROTON_PASS_BASE__/cert-manager/cloudflare-api-token);
-# the token needs Zone:Read + DNS:Edit on the __BASE_DOMAIN__ zone.
-# ACME server is set per environment (prd/dev overlays); the base
-# intentionally leaves it unset (overlays set it).
-# Renewal: cert-manager renews at 2/3 of the issued lifetime automatically;
-# chart bumps flow through update-policies/cert-manager.yaml + PR automation.
-# Ordering: the ExternalSecret resolves through ClusterSecretStore/proton-pass
-# (external-secrets configs/); fresh-cluster NotReady heals via ESO
-# refreshInterval (1h) + cert-manager retries. Cross-tenant ordering is owned
-# by tenants/*.yaml. Alert past ~10m.
+# Cloudflare DNS-01 ClusterIssuer. Token from __PROTON_PASS_BASE__/cert-manager/cloudflare-api-token (Zone:Read + DNS:Edit on __BASE_DOMAIN__).
+# ACME server unset in base, set per env. Renewal automatic (2/3 lifetime).
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

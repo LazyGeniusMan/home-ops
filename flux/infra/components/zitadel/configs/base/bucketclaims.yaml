@@ -1,34 +1,5 @@
-# COSI-managed buckets for Zitadel (colocated with the consuming component —
-# lands in the `zitadel` tenant namespace via the Fleet `infra-configs`
-# Kustomization's `targetNamespace`). Two dedicated claims: `zitadel-db`
-# backs the CNPG zitadel-db Cluster WAL + base backups (zitadel-db.yaml);
-# `zitadel-cache` backs the zitadel-cache Dragonfly snapshots
-# (zitadel-cache.yaml).
-# - Claims use BucketClass/seaweedfs, protocol S3. The driver provisions the
-#   live buckets under controller-generated names (`bc-<uuid>`), so
-#   `spec.existingBucketName` stays unset; read the live names from each
-#   claim's `status.bucketName` once `status.bucketReady` is true.
-# - The `zitadel-assets` claim backs Zitadel `AssetStorage` S3 (avatars,
-#   org logos/icons — Secret `zitadel-asset-storage` via the `zitadel-cosi`
-#   SecretStore; wired as ZITADEL_ASSET_STORAGE_* env vars, see
-#   zitadel-bootstrap-handoff.yaml). Bucket names are controller-generated
-#   (`bc-<uuid>`); Zitadel's S3 backend creates per-instance buckets itself
-#   (`<BucketPrefix>-<instanceID>`, e.g. `zitadel-assets-<id>`), so BucketPrefix
-#   MUST be `zitadel-assets` and the claim needs no destinationPath — assets
-#   never share the cnpg/dragonfly backup buckets.
-# - The zitadel-db Cluster `destinationPath` (`s3://cnpg-backups/zitadel/`)
-#   and the zitadel-cache Dragonfly `dir`
-#   (`s3://dragonfly-backups/zitadel-cache/`) target the COSI-provisioned
-#   buckets. The `s3://` path prefixes must exist before the first Cluster /
-#   Dragonfly object starts (CNPG and Dragonfly never create buckets).
-# - Each BucketAccess mints S3 keys into its `credentialsSecretName` Secret
-#   in THIS namespace as a `BucketInfo` JSON file. The driver hands back the
-#   internal endpoint
-#   (http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333).
-# - Credential bridge: consumers read their keys through the in-namespace
-#   `zitadel-cosi` SecretStore (cosi-keys.yaml) — GJSON `property` extracts
-#   spec.secretS3.accessKeyID/accessSecretKey. Target literal keys are
-#   unchanged.
+# COSI buckets for Zitadel (BucketClass/seaweedfs, S3): zitadel-db (CNPG WAL + base backups), zitadel-cache (Dragonfly snapshots), zitadel-assets (AssetStorage S3, BucketPrefix zitadel-assets).
+# Live buckets provision under controller-generated names (bc-<uuid>); read from status.bucketName. Keys via the in-namespace zitadel-cosi SecretStore (cosi-keys.yaml).
 ---
 apiVersion: objectstorage.k8s.io/v1alpha1
 kind: BucketClaim

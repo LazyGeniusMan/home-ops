@@ -1,18 +1,5 @@
-# Node-local DNS redirect (§8.2/§8.3): steers kube-dns VIP (10.96.0.10)
-# traffic to the node-local-dns cache pod on the SAME node (dummy-interface
-# + iptables hijack stay disabled in the DaemonSet).
-# - serviceMatcher kube-dns/kube-system = the kube-dns Service in the
-#   coredns component (controllers/base/kube-dns.yaml, 10.96.0.10).
-# - Backend pods MUST be in the same namespace as the policy (kube-system);
-#   explicit `namespace: kube-system` survives the tenant targetNamespace.
-# - toPorts names (dns/dns-tcp) MUST match the DaemonSet port names in
-#   coredns configs/base/node-local-dns.yaml.
-# - LRP updates are NOT supported in Cilium: to change this policy,
-#   DELETE + RECREATE it (existing connections keep old path until client
-#   pods restart).
-# - Requires localRedirectPolicies.enabled=true in the Cilium HelmRelease
-#   (controllers/base/cilium.yaml); the CRD ships with the chart
-#   (ciliumlocalredirectpolicies.cilium.io in Chart.yaml).
+# Node-local DNS redirect: steers kube-dns VIP (10.96.0.10) to the same-node cache pod. Backends must be in kube-system (same namespace as the policy).
+# toPorts names match the DaemonSet ports. LRP updates unsupported: DELETE + RECREATE to change. Requires localRedirectPolicies.enabled in the Cilium HelmRelease.
 ---
 apiVersion: cilium.io/v2
 kind: CiliumLocalRedirectPolicy

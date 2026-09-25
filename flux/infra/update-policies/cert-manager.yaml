@@ -1,9 +1,6 @@
-# Update policy for the cert-manager component (§9): tracks the OCI Helm chart, and the
-# ImageUpdateAutomation (update cluster) opens PRs via markers in
-# components/cert-manager (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+# cert-manager chart policy.
 # Changelog: https://github.com/cert-manager/cert-manager/releases.
-# Mode: auto.
-# Coupled files: [controllers/base/cert-manager.yaml].
+# Coupled: controllers/base/cert-manager.yaml.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

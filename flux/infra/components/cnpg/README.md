@@ -1,134 +1,73 @@
 # CNPG
 
-CloudNativePG operator **1.30.0** (via Helm chart **0.29.1**) plus a reusable
-`Cluster` base template: 3 instances (dev pins 1, prd pins 3), streaming
-replication with synchronous quorum (`standbyNames: ["*"], number: 1`),
-`local-ssd-nvme` storage (20Gi, the default StorageClass — see
-`flux/infra/components/local-path-provisioner/`), Barman S3 backup to
-SeaweedFS (continuous WAL gzip + daily base backup `0 0 0 * * *`,
-retention `30d`, prefix `s3://cnpg-backups/postgres/`), and a
-`*.postgres.home-ops.yansyah.my.id` wildcard `Certificate`.
+CloudNativePG operator 1.30.0 via chart 0.29.1
+(`oci://ghcr.io/cloudnative-pg/charts/cloudnative-pg`) plus a reusable
+`Cluster` base template: 3 instances, streaming replication with
+synchronous quorum (`standbyNames: ["*"]`, number 1), `local-ssd-nvme`
+storage (20Gi), Barman S3 backup to SeaweedFS (continuous WAL gzip + daily
+base backup `0 0 0 * * *`, retention `30d`, prefix
+`s3://cnpg-backups/postgres/`), and a `*.postgres.home-ops.yansyah.my.id`
+wildcard `Certificate`.
 
-## Chart source
+Chart 0.29.1 embeds operator 1.30.0 (`appVersion: 1.30.0`) -- the
+`OCIRepository` tag pins the chart; the policy floor `>=0.29.1` tracks the
+chart line. Re-verify the chart->operator mapping in `Chart.yaml` on every
+bump.
 
-- `oci://ghcr.io/cloudnative-pg/charts/cloudnative-pg`, tag `0.29.1`.
-- Chart version and operator version differ: chart **0.29.1** embeds operator
-  **1.30.0** (`appVersion: 1.30.0`). The `OCIRepository` tag pins the
-  *chart* version; the update-policy floor tracks the chart line
-  (`>=0.29.1`). Re-verify the chart→operator mapping on every bump PR.
+## HA
 
-## Upgrade runbook
+`spec.instances: 3`, one primary + two streaming standbys;
+`enablePodAntiAffinity: true`. Failover automatic (operator promotes the
+most caught-up standby); switchover via `kubectl cnpg switchover <cluster>`.
 
-- Version source: the `OCIRepository` tag in
-  `controllers/base/cnpg.yaml` (chart 0.29.1, operator 1.30.0 — see the
-  chart→operator mapping above).
-- Changelog (chart): https://github.com/cloudnative-pg/charts/releases.
-  Changelog (operator):
-  https://github.com/cloudnative-pg/cloudnative-pg/releases.
-- Bump: let the ImagePolicy PR land (marker `infra:cnpg:tag`,
-  `update-policies/cnpg.yaml`), then re-verify the chart→operator
-  mapping in the pulled `Chart.yaml` before merge (the floor tracks the
-  CHART line).
-- Migrate: take a fresh base backup BEFORE the operator bump (see the
-  Backup / PITR runbook above — never upgrade without a restorable
-  backup). Verify: `kubectl cnpg status <cluster>` shows all instances
-  streaming, then spot-check row counts.
+## Backup / PITR
 
-## HA / replication
-
-- `spec.instances: 3`, one primary + two streaming standbys.
-- `spec.postgresql.synchronous.standbyNames: ["*"], number: 1`: every commit
-  is acknowledged by at least one standby before the primary reports success,
-  so a failover never loses acknowledged writes.
-- `spec.affinity.enablePodAntiAffinity: true` spreads instances across nodes.
-- Failover is automatic (operator promotes the most caught-up standby);
-  switchover for maintenance via `kubectl cnpg switchover <cluster>`.
-
-## Backup / PITR runbook
-
-`cluster-base.yaml` wires continuous archiving plus a daily base backup:
-
-- `spec.backup.barmanObjectStore`: WAL archive (gzip) streams continuously to
-  `s3://cnpg-backups/postgres/` on the SeaweedFS endpoint; `retentionPolicy:
-  "30d"` keeps a month of base backups + WAL.
-- `ScheduledBackup/postgres-base-backup`: full base backup daily at midnight
-  (`0 0 0 * * *`, CNPG 6-field cron), owned by the Cluster object.
-- Restore flows (all start from a **new** Cluster, never in place):
-  - Latest state: copy the base template, replace `bootstrap.initdb` with
-    `bootstrap.recovery.backup.name: <backup-object>` (a `Backup` created by
-    the schedule).
-  - Point-in-time: same, plus `recoveryTarget.targetTime:
-    "YYYY-MM-DD HH:MM:SS.NNNNNN+00"` — WAL replay stops at that instant. A
-    commented example lives in `cluster-base.yaml`.
-  - Verify with `kubectl cnpg status <new-cluster>` and compare row counts
-    before pointing apps at the restored cluster.
+`spec.backup.barmanObjectStore` streams WAL (gzip) to
+`s3://cnpg-backups/postgres/`; `ScheduledBackup/postgres-base-backup` runs
+daily at midnight (CNPG 6-field cron). Restore starts from a new Cluster:
+copy the base template, replace `bootstrap.initdb` with
+`bootstrap.recovery.backup.name: <backup>` (latest) or add
+`recoveryTarget.targetTime` (point-in-time; commented example in
+`cluster-base.yaml`).
 
 ## S3 contract
 
-- Endpoint `http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333`
-  (in-cluster SeaweedFS S3 FQDN; the public
-  `https://s3.seaweedfs.<domain>` Gateway route is for outside-cluster
-  users only) is referenced by DNS name only — SeaweedFS is deployed
-  alongside this component (see `flux/infra/components/seaweedfs/`), so
-  there is no file dependency from this component. The bucket backing
-  `s3://cnpg-backups/` must exist **before** the first Cluster starts
-  (Barman Cloud ≥3.16 only creates the bucket on the check-wal-archive
-  path). Its COSI `BucketClaim`/`BucketAccess` pair lives here in
-  `configs/base/bucketclaims.yaml`. (`zitadel-db`, `coder-db`, and
-  `ferretdb` each use a dedicated in-namespace claim; see the cosi README.)
-  COSI-managed buckets live under controller-generated names — see the cosi
-  README "Bucket naming" for the name mapping used in `destinationPath`.
-- Credentials: `ExternalSecret/cnpg-s3-credentials` syncs
-  `ACCESS_KEY_ID`/`ACCESS_SECRET_KEY` from the COSI-minted BucketInfo JSON
-  (Secret `cnpg-backups-cosi-creds`) through the in-namespace `cnpg-cosi`
-  SecretStore — GJSON `property` extracts
-  `spec.secretS3.accessKeyID/accessSecretKey`. Target literal keys are
-  unchanged.
-- S3-compatible quirk per upstream docs: if boto3 checksum errors appear
-  (`x-amz-content-sha256`), set `spec.env` `AWS_REQUEST_CHECKSUM_CALCULATION`
-  / `AWS_RESPONSE_CHECKSUM_VALIDATION` to `when_required` on the Cluster.
+Endpoint `http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333`
+(in-cluster SeaweedFS S3; the public Gateway route is for outside-cluster
+users only). The bucket backing `s3://cnpg-backups/` must exist before the
+first Cluster starts. `BucketClaim`/`BucketAccess` in
+`configs/base/bucketclaims.yaml`. Credentials:
+`ExternalSecret/cnpg-s3-credentials` syncs `ACCESS_KEY_ID`/`ACCESS_SECRET_KEY`
+from the COSI-minted BucketInfo JSON (`cnpg-backups-cosi-creds`) through the
+in-namespace `cnpg-cosi` SecretStore. S3-compatible quirk: on boto3 checksum
+errors set Cluster `spec.env` `AWS_REQUEST_CHECKSUM_CALCULATION` /
+`AWS_RESPONSE_CHECKSUM_VALIDATION` to `when_required`.
 
-## Certificate + DNS
+## Certificate / DNS
 
 `Certificate/wildcard-postgres` requests `*.postgres.home-ops.yansyah.my.id`
-from `ClusterIssuer/letsencrypt` (see `flux/infra/components/cert-manager/`),
-stored as `wildcard-postgres-tls` in the Cluster's own namespace
-(namespace-local TLS, same pattern as the gateway-api component).
-No `DNSEndpoint` CR is shipped: the external-dns chart (see
-`flux/infra/components/external-dns/`) does not enable a CRD source for
-this zone, so the nested wildcard rides on the existing `*.home-ops`
-wildcard A automation (Gateway LB target). Verify host
-resolution (`dig primary.postgres.home-ops.yansyah.my.id`) before sending
-client traffic over TLS.
-
-## Telemetry-off / monitoring / updates
-
-- Telemetry: the chart `values.yaml` contains no phone-home, analytics, or
-  usage-reporting knobs; the operator exposes only a local `:8080` metrics
-  endpoint.
-- Monitoring: the in-cluster Postgres exporter is on by default upstream
-  (metrics port on every instance), but nothing scrapes it — `monitoring:
-  podMonitorEnabled: false` in chart values and **no** `PodMonitor`/`ServiceMonitor`
-  objects are shipped until `monitoring.coreos.com` CRDs land (same as the
-  cert-manager component). Flip: set `podMonitorEnabled: true` once the
-  monitoring stack
-  exists, or apply the manual `PodMonitor` from upstream docs
-  (`monitoring.md`, selector `cnpg.io/cluster: <name>`, port `metrics`).
-  Note upstream deprecates `.spec.monitoring.enablePodMonitor` — prefer the
-  standalone `PodMonitor`, never the in-Cluster flag.
-- Operator bumps flow through `update-policies/cnpg.yaml` + PR automation;
-  re-verify the chart→operator mapping on every bump (see above).
+from `ClusterIssuer/letsencrypt`, stored as `wildcard-postgres-tls`
+namespace-local. No `DNSEndpoint` CR: the nested wildcard rides the existing
+`*.home-ops` wildcard A automation.
 
 ## Environments
 
 | Env | Replicas | Patches |
 | --- | --- | --- |
-| `dev` | `instances: 1` (single-instance, no failover) | S3 endpoint + wildcard DNS; `instances` → 1 on `Cluster/postgres-base` |
-| `prd` | `instances: 3` (recommended production: 1 primary + 2 sync standbys) | S3 endpoint + wildcard DNS; `instances` → 3 on `Cluster/postgres-base` |
+| `dev` | `instances: 1` | S3 endpoint + wildcard DNS; `instances` -> 1 |
+| `prd` | `instances: 3` | S3 endpoint + wildcard DNS; `instances` -> 3 |
 
-Controllers inherit `../base` unchanged. Size/schedule/retention tuning
-rides the same per-env patches once real clusters diverge.
-Rclone sync (`rclone-sync-cnpg-backups` CronJob): 1 per
-instance/schedule, `concurrencyPolicy: Forbid` — no scaling.
+Controllers inherit `../base` unchanged.
+`CronJob/rclone-sync-cnpg-backups` uses `concurrencyPolicy: Forbid`.
 
-Upstream reference (read-only): `/tmp/home-ops-docs/cnpg-docs`.
+## Telemetry / monitoring / updates
+
+No phone-home knobs in chart values (local `:8080` metrics only). Postgres
+exporter on by default upstream but unscraped; `monitoring.podMonitorEnabled:
+false` and no PodMonitor/ServiceMonitor until `monitoring.coreos.com` CRDs
+land (prefer the standalone PodMonitor; upstream deprecates
+`.spec.monitoring.enablePodMonitor`). Bumps:
+`update-policies/cnpg.yaml` (marker `infra:cnpg:tag`) -> PR automation.
+Take a fresh base backup before bumping.
+Changelogs: https://github.com/cloudnative-pg/charts/releases,
+https://github.com/cloudnative-pg/cloudnative-pg/releases.

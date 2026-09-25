@@ -1,12 +1,5 @@
-# kube-dns front door + RBAC for the Flux-managed CoreDNS (§8.3).
-# Talos-managed CoreDNS is disabled, so no kube-dns Service exists; kubelets
-# default clusterDNS to 10.96.0.10. This static-ClusterIP Service selects
-# the chart pods; its selector pins the stable app.kubernetes.io labels so
-# it keeps matching across the isClusterService flip.
-# The explicit `namespace: kube-system` survives the tenant targetNamespace.
-# RBAC mirrors the chart's own ClusterRole but binds the standalone
-# ServiceAccount `coredns` (chart rbac.create is false, so it renders no
-# duplicate ClusterRole/coredns).
+# kube-dns front door + RBAC for Flux-managed CoreDNS (Talos-managed CoreDNS disabled; kubelets use 10.96.0.10).
+# Static-ClusterIP Service selects the chart pods; namespace kube-system survives the tenant targetNamespace. Standalone SA coredns (chart rbac.create false).
 ---
 apiVersion: v1
 kind: Service

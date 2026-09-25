@@ -1,18 +1,5 @@
-# Tofu Controller v0.16.5: Flux-native Terraform/OpenTofu reconciler. Installs
-# the cluster-scoped `terraforms.infra.contrib.fluxcd.io` CRD (v1alpha2).
-# Chart: oci://ghcr.io/flux-iac/charts/tofu-controller, tag 0.16.5 == app
-# v0.16.5 (digest
-# sha256:336e9a2690b868781422165bf20550dc7e7093abeb841c498d8bd1dd594fbd27).
-# Namespace: runs in its tenant namespace (tofu-controller), NOT flux-system.
-# The chart parameterises everything on .Release.Namespace and reaches the
-# Flux controllers over cluster DNS, so no flux-system co-location is needed.
-# Telemetry: chart values carry no phone-home/analytics/usage-reporting
-# knobs; metrics + ServiceMonitor stay off, see below.
-# Monitoring: metrics.enabled stays false and no ServiceMonitor is shipped
-# until monitoring.coreos.com CRDs land (same §9 deviation as cert-manager —
-# an unconditional render would wedge the release). Flip: set
-# metrics.enabled: true plus metrics.serviceMonitor.enabled: true once the
-# monitoring stack exists.
+# Tofu Controller v0.16.5 (chart == app). Chart oci://ghcr.io/flux-iac/charts/tofu-controller.
+# Runs in its tenant namespace (tofu-controller), not flux-system; metrics + ServiceMonitor off.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

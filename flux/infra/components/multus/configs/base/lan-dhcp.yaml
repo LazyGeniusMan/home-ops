@@ -1,12 +1,5 @@
-# lan-dhcp NetworkAttachmentDefinition (§13.1). SINGLE-WRITER: the multus
-# component owns this NAD; win11-vm/talos-vm reference it — they must not
-# define their own copy.
-# No `metadata.namespace` field: the infra tenant applies configs with
-# targetNamespace=multus, so this lands in `multus`. Consumers MUST reference
-# it namespace-qualified as `multus/lan-dhcp` (see multus README + VM READMEs).
-# L2: macvlan on the LAN uplink in bridge mode; guests DHCP directly against
-# the router at 192.168.1.1. Base holds the __NODE_NIC__ placeholder
-# (prd enp45s0 = RTL8125, dev-cluster virtio ens18); overlays patch it.
+# lan-dhcp NAD (single-writer: owned here; consumers reference multus/lan-dhcp, never define their own). No metadata.namespace (tenant targetNamespace lands it in multus).
+# L2 macvlan bridge; guests DHCP against 192.168.1.1. __NODE_NIC__ placeholder patched per env.
 ---
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition

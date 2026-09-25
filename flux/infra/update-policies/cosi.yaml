@@ -1,19 +1,6 @@
-# Update policy for the cosi component: tracks the COSI central controller
-# image. The ImageUpdateAutomation (update cluster) opens PRs via
-# $imagepolicy markers in components/cosi (see README). Follows the §7
-# update-policy contract (ImageRepository + ImagePolicy + $imagepolicy
-# markers).
-#
-# The SeaweedFS COSI driver + its sidecar moved to the seaweedfs component
-# (configs/base/driver.yaml) — their policies live in seaweedfs.yaml now.
-#
-# Range capped <0.3.0: main-line v1alpha2 is breaking for the SeaweedFS driver.
-# Bump pins + all three caps (here + seaweedfs.yaml sidecar/driver) together.
-# Changelog: COSI releases (kubernetes-sigs/container-object-storage-interface).
-# Mode: auto (capped <0.3.0).
-# Coupled: controllers/base/deployment.yaml,
-# crds/base/objectstorage*.yaml (5, re-vendor together),
-# ../seaweedfs.yaml (sidecar/driver caps move together).
+# cosi controller image policy (driver + sidecar policies in seaweedfs.yaml). Capped <0.3.0 (v1alpha2 breaking for the driver); bump all three caps together.
+# Changelog: kubernetes-sigs/container-object-storage-interface.
+# Coupled: controllers/base/deployment.yaml, crds/base/objectstorage*.yaml (5, re-vendor together).
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

@@ -1,13 +1,5 @@
-# Reusable PostgreSQL HA Cluster base template (§10.1). Copy this stanza into a
-# namespace-local Cluster; it is a template, not a live cluster.
-# - HA: 3 instances, streaming replication (synchronous quorum below), pod
-#   anti-affinity so replicas spread across nodes.
-# - Storage: storageClassName local-ssd-nvme (the §9 default class).
-# - Backup: continuous WAL archive + daily base backup to the SeaweedFS S3
-#   endpoint (referenced by DNS name only, no file dependency). Credentials
-#   come from the s3-credentials ExternalSecret in this directory.
-# - PITR/restore: see README runbook; an example bootstrap.recovery stanza
-#   with recoveryTarget.targetTime is included commented out.
+# Reusable PostgreSQL HA Cluster template (not a live cluster): copy into a namespace-local Cluster.
+# 3 instances, sync quorum, pod anti-affinity; local-ssd-nvme; continuous WAL + daily base backup to SeaweedFS S3.
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
@@ -16,8 +8,7 @@ metadata:
 spec:
   instances: 3 # placeholder - overridden by dev/prd overlays
 
-  # Synchronous commit across a quorum of standbys (1 of the 2 standbys
-  # here) so a failover never loses acknowledged writes.
+  # Sync quorum: 1 of 2 standbys acknowledges every commit.
   postgresql:
     synchronous:
       standbyNames: ["*"]
@@ -27,10 +18,7 @@ spec:
     initdb:
       database: app
       owner: app
-  # Point-in-time recovery: create a NEW Cluster bootstrapping from an
-  # existing backup instead of initdb (uncomment, set the Backup/ScheduledBackup
-  # object name and the target timestamp). WAL replay reaches any instant
-  # covered by the retained WAL archive.
+  # PITR: create a NEW Cluster from a backup instead of initdb (uncomment, set backup name + targetTime).
   # bootstrap:
   #   recovery:
   #     backup:
@@ -62,13 +50,13 @@ spec:
         compression: gzip
     retentionPolicy: "30d"
 ---
-# Daily base backup to the same Barman object store (streaming method).
+# Daily base backup (streaming).
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
 metadata:
   name: postgres-base-backup
 spec:
-  schedule: "0 0 0 * * *" # midnight daily (CNPG uses 6-field cron)
+  schedule: "0 0 0 * * *" # midnight daily (CNPG 6-field cron)
   backupOwnerReference: self
   cluster:
     name: postgres-base

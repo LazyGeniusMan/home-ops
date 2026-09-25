@@ -1,27 +1,6 @@
-# Zitadel Dragonfly cache: namespace-local instantiation of the
-# dragonfly-base template
-# (flux/infra/components/dragonfly/configs/base/dragonfly-base.yaml —
-# same shape: 3 replicas, automatic failover, tiered persistence on
-# local-ssd-nvme, hourly S3 snapshots).
-# - Connection contract (per the dragonfly README): host
-#   zitadel-cache.zitadel.svc.cluster.local, port 6379 (Redis-compatible).
-#   No password/TLS; Zitadel connects via ZITADEL_CACHES_CONNECTORS_REDIS_URL
-#   (see the HelmRelease). Zitadel-dedicated — never share it with other apps.
-# - Snapshots land under s3://dragonfly-backups/zitadel-cache/ (own prefix).
-#   The bucket prefix must exist before the first object starts (Dragonfly
-#   never creates buckets). Credentials: dragonfly-s3-credentials
-#   ExternalSecret synced by ESO from the COSI-minted BucketInfo JSON (Secret
-#   zitadel-cache-cosi-creds in THIS namespace) through the in-namespace
-#   `zitadel-cosi` SecretStore (cosi-keys.yaml) — GJSON `property` extracts
-#   spec.secretS3.accessKeyID/accessSecretKey. Target literal keys are
-#   unchanged. Fallback: the Proton Pass entries (pass://.../dragonfly/s3-*)
-#   are retained in the vault; to roll back, repoint secretStoreRef to
-#   proton-pass/ClusterSecretStore with remoteRef keys
-#   __PROTON_PASS_BASE__/dragonfly/s3-access-key-id and
-#   __PROTON_PASS_BASE__/dragonfly/s3-secret-access-key (no `property`).
-# - Restore: same runbook as the base template — delete pods for
-#   latest-snapshot reload, or point a NEW Dragonfly object at a pinned dump
-#   prefix.
+# Zitadel Dragonfly cache: namespace-local Dragonfly (3 replicas, failover, local-ssd-nvme, hourly S3 snapshots to s3://dragonfly-backups/zitadel-cache/).
+# Host zitadel-cache.zitadel.svc.cluster.local:6379, no password/TLS; Zitadel-dedicated.
+# Credentials: dragonfly-s3-credentials from the COSI BucketInfo (zitadel-cache-cosi-creds) via in-namespace zitadel-cosi SecretStore.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

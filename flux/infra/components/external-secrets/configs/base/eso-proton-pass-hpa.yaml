@@ -1,13 +1,4 @@
-# HPA for the eso-proton-pass webhook (stateless pull-only HTTP service,
-# projects/eso-proton-pass — every pod serves GET /get independently, so no
-# leader election is needed; see external-secret-operator-docs/docs/index.md
-# for the ESO pull contract and pass-cli-docs for the vault backend).
-# Autoscaling prerequisite (not managed here): metrics-server healthy
-# (flux/infra/components/metrics-server) — without the Metrics API this HPA
-# reports Unknown and replicas hold at min.
-# Bounds per env via the dev/prd overlay patches: dev min 1/max 2,
-# prd min 2/max 4. Base replicas: 1 is the create-time seed, HPA owns
-# runtime count (HPA minReplicas enforces the floor).
+# HPA for the eso-proton-pass webhook (stateless; dev 1/2, prd 2/4 via overlays). Requires metrics-server healthy.
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

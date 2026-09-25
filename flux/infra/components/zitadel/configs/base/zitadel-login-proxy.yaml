@@ -1,22 +1,7 @@
-# Zitadel login reverse-proxy consumer: exposes the end-user login UI
-# (__ZITADEL_LOGIN_HOST__) through the shared NetBird reverse-proxy root (same
-# consumer pattern as the SSO slices; cross-namespace sourceRef to the
-# infra/netbird OCI artifact, path ./terraform). Owns only this login slice: one
-# reverse-proxy service (login host to in-mesh zitadel-login backend) + shared
-# base-domain registration + Cloudflare wildcard CNAME for NetBird ownership
-# verification.
-# Backend is plain http (in-pod TLS OFF; NetBird terminates public TLS at the edge);
-# pass_host_header + rewrite_redirects stay true so the login app sees the public
-# host. Target rides the shared Service-LB subnet the root appends automatically
-# (port 3000 http, path /ui/v2/login); per-env values are domain + network_name +
-# service_lb_ip only (patched by dev/prd overlays by index - keep vars order).
-# Tokens flow from Proton Pass via the ESO-synced zitadel-login-proxy-vars Secret
-# (same-namespace varsFrom); backend is in-cluster Kubernetes default; drift
-# detection stays on. First-run: complete the dashboard Verify within 48h.
+# Zitadel login reverse-proxy consumer (shared netbird root, ./terraform): login host to in-mesh zitadel-login backend (port 3000 http, path /ui/v2/login; public TLS at NetBird).
+# Tokens from zitadel-login-proxy-vars via same-namespace varsFrom; backend in-cluster Kubernetes default. Vars order positional (dev/prd overlays patch by index).
 ---
-# Vars mirror: provider tokens from Proton Pass through cluster-scoped
-# `proton-pass` ClusterSecretStore. Keys land under module var names, so
-# `varsFrom` needs no renames. Per-env overlays set the cluster vault path.
+# Vars mirror: provider tokens from the proton-pass ClusterSecretStore; keys match module vars so varsFrom needs no renames.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:

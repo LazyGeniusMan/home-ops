@@ -1,17 +1,5 @@
-# Local Path Provisioner v0.0.37 (§9.5): node-local dynamic volumes for the
-# data layer. Chart: oci://ghcr.io/rancher/local-path-provisioner/charts/local-path-provisioner,
-# tag 0.0.37 == app v0.0.37.
-# Talos alignment: UserVolumeConfig volumes mount at /var/mnt/<name>, so
-# nvme-data -> /var/mnt/nvme-data and sata-data -> /var/mnt/sata-data.
-# Default-class discipline: exactly one default — local-ssd-nvme. The base
-# storageClass.create=false disables the chart's single built-in class so
-# only the two storageClassConfigs below exist.
-# Telemetry: none upstream. Monitoring: the chart exposes no metrics
-# endpoint/ServiceMonitor; node/volume health is observed via kubelet +
-# kube-state-metrics once the monitoring stack lands (see README).
-# Backup note: local-path volumes are node-local and NOT snapshottable —
-# data services must back up at the operator/app level, not via CSI
-# snapshots alone (see README).
+# Local Path Provisioner v0.0.37 (chart == app). Chart oci://ghcr.io/rancher/local-path-provisioner/charts/local-path-provisioner.
+# Talos UserVolumeConfig mounts at /var/mnt/<name>; exactly one default (local-ssd-nvme); chart built-in class disabled. Volumes are node-local, not snapshottable.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

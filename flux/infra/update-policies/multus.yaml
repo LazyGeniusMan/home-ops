@@ -1,10 +1,6 @@
-# Update policy for the multus component (§13.1): tracks the upstream Multus
-# release, and the ImageUpdateAutomation (update cluster) opens PRs via markers
-# in components/multus (see README). Follows the §7 update-policy contract
-# (ImageRepository + ImagePolicy + $imagepolicy markers).
+# multus release policy. Daemon + initContainer pins move together.
 # Changelog: https://github.com/k8snetworkplumbingwg/multus-cni/releases.
-# Mode: auto (dual image-pin discipline — daemon + initContainer move together).
-# Coupled files: [controllers/base/multus-daemonset.yaml (both image pins + marker), configs/base/lan-dhcp.yaml (NAD re-verify)].
+# Coupled: controllers/base/multus-daemonset.yaml, configs/base/lan-dhcp.yaml.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

@@ -1,26 +1,6 @@
-# KubeVirt CR (§13.2): enables virt-operator/api/controller onto the pinned
-# v1.9.0 operator from controllers/base/kubevirt-operator.yaml.
-# Source shape: upstream kubevirt-cr.yaml at v1.9.0
-#   (https://github.com/kubevirt/kubevirt/releases/download/v1.9.0/kubevirt-cr.yaml),
-# extended per the Talos install guide (advanced-guides/install-kubevirt.mdx):
-#   - featureGates LiveMigration + NetworkBindingPlugins (Multus
-#     secondary-net support);
-#   - smbios TalosCloud identity block from the upstream guide;
-#   - workloadUpdateStrategy LiveMigrate (guide default);
-#   - storage: the KubeVirt CRD has no top-level storage field, so
-#     default-class local-ssd-nvme is used implicitly;
-#   - metrics: upstream defaults (prometheus annotations, no ServiceMonitor
-#     namespace/account pinned); telemetry: no phone-home flags upstream,
-#     nothing to disable;
-#   - unguarded monitors: monitorNamespace/monitorAccount/
-#     serviceMonitorNamespace stay UNSET (defaults point at namespaces that
-#     do not exist here).
-# Version lock: NO spec.imageTag is set here — deliberately. An absent
-# imageTag locks the operand to the operator version, so this CR always runs
-# the pinned v1.9.0. Do NOT add imageTag to decouple them.
-# No `metadata.namespace`: infra-configs applies with targetNamespace=kubevirt.
-# infra-configs waits on infra-controllers, so the operator (with fresh RBAC)
-# exists before this CR reconciles — keep it.
+# KubeVirt CR v1.9.0 (extends upstream kubevirt-cr.yaml at https://github.com/kubevirt/kubevirt/releases/download/v1.9.0/kubevirt-cr.yaml per the Talos install guide).
+# featureGates LiveMigration + NetworkBindingPlugins (multus); smbios TalosCloud block; workloadUpdateStrategy LiveMigrate (single-node VMIs restart on upgrade).
+# No storage knob in the CRD schema (default-class local-ssd-nvme implicit). Monitors unset. No spec.imageTag: operand locks to the operator version.
 # {"$imagepolicy": "infra:kubevirt:tag"}
 ---
 apiVersion: kubevirt.io/v1

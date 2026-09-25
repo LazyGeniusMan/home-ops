@@ -1,18 +1,5 @@
-# Zitadel v4.18.0 identity provider (§11.1): OIDC issuer on the admin host
-# (__ZITADEL_HOST__ = admin.zitadel.<base>) plus the per-app client contract
-# (see README). End-user logins run on the separate login host
-# (__ZITADEL_LOGIN_HOST__ = login.zitadel.<base>, NetBird-exposed).
-# Chart: oci://ghcr.io/zitadel/zitadel-charts/zitadel, tag 10.0.4
-# (digest sha256:9afa657fad65079857339f7d7fd296c73e577f6c8ec4e4a103093be35964b50c).
-# Chart-to-app mapping (see README): chart 10.0.4 embeds app v4.15.3, but the
-# app image is pinned separately below to v4.18.0. On chart bumps set
-# image.tag AND login.image.tag to the new appVersion together.
-# Telemetry: chart values carry no phone-home/analytics/usage-reporting
-# knobs; metrics.enabled stays false and no ServiceMonitor is shipped until
-# monitoring.coreos.com CRDs land.
-# Ordering: the masterkey/DSN ExternalSecrets live in configs (which the fleet
-# applies AFTER controllers), so the first install attempt pends until ESO
-# syncs them and Flux retries (RetryOnFailure below).
+# Zitadel app v4.18.0 (chart 10.0.4, app pinned separately; chart 10.0.4 embeds app v4.15.3 -- set image.tag + login.image.tag together on bumps).
+# Logins run on the separate NetBird-exposed login host. First install pends until the configs ExternalSecrets sync (RetryOnFailure).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -48,12 +35,9 @@ spec:
       retryInterval: 5m
   # https://zitadel.com/docs/self-hosting/deploy/kubernetes
   values:
-    # Replica placeholders - overridden by dev/prd overlays. Chart-native
-    # autoscaling omits the rendered `replicas:` field when enabled, so the
-    # HPA owns the count; these replicaCounts are fallback seeds only.
+    # Replica placeholders (dev/prd overlays); HPA owns the count.
     replicaCount: 2 # placeholder - overridden by dev/prd overlays
-    # CPU requests are REQUIRED for the targetCPU HPA below (chart defaults
-    # resources {} — utilization has no denominator without requests).
+    # CPU requests required for the targetCPU HPA (chart defaults resources {} — utilization has no denominator without requests).
     resources:
       requests:
         cpu: 500m
@@ -79,8 +63,7 @@ spec:
         httpRoute:
           enabled: false
     zitadel:
-      # Existing secret synced by ESO (configs/base/zitadel-secrets.yaml);
-      # must exist before install — see ordering note in the header.
+      # ESO-synced secret (configs/base/zitadel-secrets.yaml); must exist before install — see ordering note in the header.
       masterkeySecretName: zitadel-masterkey
       configmapConfig:
         ExternalDomain: __ZITADEL_HOST__
@@ -88,22 +71,13 @@ spec:
         ExternalSecure: true
         TLS:
           Enabled: false # terminated at the §8 Gateway, not in-pod
-        # FirstInstance zero-UI bootstrap (§11.1): the setup Job creates the
-        # default org (name home-ops) plus an IAM_OWNER machine user and
-        # writes its key JSON + PAT into kept Secrets (cleanupJob.enabled=false
-        # below). Do NOT set MachineKeyPath/PatPath (chart-managed; the
-        # template fails the render if set) and do NOT set Org.Skip (use
-        # FirstInstance.Skip instead).
-        # Auth is maintenance-free by design: both ExpirationDate fields are
-        # explicitly null (NOT omitted — omission falls back to the chart
+        # FirstInstance zero-UI bootstrap: setup Job creates org home-ops + IAM_OWNER machine user into kept Secrets.
+        # Non-expiring auth: both ExpirationDate null (NOT omitted — omission falls back to the chart
         # values.yaml default of 2029-01-01 via Helm coalesce). Null renders
         # as an absent key, which Zitadel decodes to the zero time and
         # internal/domain/expiration.go ValidateExpirationDate maps to
         # 9999-12-31 (effectively never expires; matches "leave empty for no
-        # expiration" in the private-key-jwt / personal-access-token guides).
-        # Scopes: [] keeps the Pat map non-empty so the chart template's
-        # $hasMachinePat stays truthy (PATPATH env + pat-writer sidecar);
-        # a bare `Pat: {}` would silently drop PAT creation wiring.
+        # Scopes: [] keeps PAT wiring rendered (a bare Pat: {} would drop it).
         FirstInstance:
           Org:
             Name: home-ops
@@ -118,30 +92,20 @@ spec:
                 ExpirationDate: null
                 Scopes: []
     cleanupJob:
-      enabled: false # keep zitadel-bootstrap-sa + -pat Secrets across reinstalls
+      enabled: false # keep bootstrap Secrets across reinstalls
     env:
-      # DSN mode (recommended): discrete Database.Postgres.* fields stay unset
-      # and Zitadel reads the connection string from this secret key.
+      # DSN mode: Zitadel reads the connection string from this secret key.
       - name: ZITADEL_DATABASE_POSTGRES_DSN
         valueFrom:
           secretKeyRef:
             name: zitadel-db-credentials
             key: dsn
-      # Dragonfly cache (§10.3 base instance in configs/base/zitadel-cache.yaml):
-      # host <name>.<namespace>.svc.cluster.local, port 6379, no auth (base
-      # ships neither password nor TLS — same contract as the README).
+      # Dragonfly cache (host zitadel-cache.zitadel:6379, no auth).
       - name: ZITADEL_CACHES_CONNECTORS_REDIS_URL
         value: "redis://zitadel-cache.zitadel:6379"
       - name: ZITADEL_CACHES_CONNECTORS_REDIS_ENABLED
         value: "true"
-      # AssetStorage S3 (avatars/org logos — Secret zitadel-asset-storage,
-      # ESO-mirrored from the colocated `zitadel-assets` claim via the
-      # zitadel-cosi SecretStore; see configs/base/zitadel-bootstrap-handoff.yaml).
-      # Viper env mapping: ZITADEL_ prefix, dots → underscores
-      # (cmd/zitadel.go). S3 backend fields per internal/static/s3/config.go:
-      # Endpoint/AccessKeyID/SecretAccessKey/SSL/Location/BucketPrefix.
-      # Type must be s3 (default is db) so assets leave Postgres for object
-      # storage; MultiDelete stays false (single-object deletes only).
+      # AssetStorage S3 (avatars/org logos from zitadel-asset-storage; type s3, not the db default).
       - name: ZITADEL_ASSET_STORAGE_TYPE
         value: "s3"
       - name: ZITADEL_ASSETSTORAGE_ENDPOINT

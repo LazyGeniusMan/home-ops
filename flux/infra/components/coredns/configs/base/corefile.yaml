@@ -1,18 +1,6 @@
-# Standalone Corefile for CoreDNS §8.3 (ConfigMap `coredns`, key `Corefile`).
-# The chart-owned ConfigMap is skipped (deployment.skipConfig: true); the
-# chart Deployment mounts config-volume from this ConfigMap instead. Three
-# server blocks:
-#   1. cluster.local (+ in-addr.arpa/ip6.arpa) via the kubernetes plugin —
-#      Talos-managed CoreDNS is disabled, so without this block pods using
-#      the default clusterDNS (10.96.0.10) get no answer for *.cluster.local.
-#   2. __BASE_DOMAIN__ LAN zone: template -> hosts -> forward (template runs
-#      first, hosts carries static entries + fallthrough, everything else
-#      forwards upstream).
-#   3. `.` catch-all for external names (health/ready live here; the
-#      Deployment's liveness/readiness probes need :8080/health + :8181/ready).
-# Pods run with dnsPolicy Default (isClusterService: true), so
-# `forward . /etc/resolv.conf` reaches the node upstream instead of looping
-# back into the cluster DNS IP.
+# Standalone Corefile (ConfigMap coredns): chart ConfigMap skipped (deployment.skipConfig: true), chart Deployment mounts this one.
+# Blocks: cluster.local via kubernetes plugin (Talos-managed CoreDNS disabled); __BASE_DOMAIN__ LAN zone (template -> hosts -> forward); `.` catch-all.
+# dnsPolicy Default so forward reaches node upstream.
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -22,9 +10,7 @@ data:
   Corefile: |-
     cluster.local:53 in-addr.arpa:53 ip6.arpa:53 {
         errors
-        # Split cache: node-local caches front this server over TCP and only
-        # forward misses, so absorb repeat NXDOMAIN storms with short denial
-        # TTL while keeping success at the kubernetes plugin ttl (30s).
+        # Split cache: short denial TTL absorbs NXDOMAIN storms; success at the kubernetes ttl (30s).
         cache {
             success 9984 30
             denial 9984 5
@@ -42,25 +28,25 @@ data:
     __BASE_DOMAIN__:53 {
         errors
         cache 30
-        # Apex: __BASE_DOMAIN__ -> gateway LB VIP (__LB_VIP__).
+        # Apex -> __LB_VIP__.
         template IN A {
             match "^__BASE_DOMAIN_ESCAPED__\\.$"
             answer "{{ .Name }} 60 IN A __LB_VIP__"
             fallthrough
         }
-        # Single-level wildcard: *.__BASE_DOMAIN__ -> gateway LB VIP.
+        # Single-level wildcard -> __LB_VIP__.
         template IN A {
             match "^[^.]+\\.__BASE_DOMAIN_ESCAPED__\\.$"
             answer "{{ .Name }} 60 IN A __LB_VIP__"
             fallthrough
         }
-        # Nested wildcard: *.*.__BASE_DOMAIN__ -> gateway LB VIP.
+        # Nested wildcard -> __LB_VIP__.
         template IN A {
             match "^.+\\.__BASE_DOMAIN_ESCAPED__\\.$"
             answer "{{ .Name }} 60 IN A __LB_VIP__"
             fallthrough
         }
-        # Static host entries (empty by default); falls through to forward.
+        # Static hosts (empty); falls through to forward.
         hosts {
             fallthrough
         }

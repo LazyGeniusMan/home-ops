@@ -1,35 +1,8 @@
-# SeaweedFS filer-UI SSO identity, machine-applied by Tofu Controller. Owns
-# ONLY this component's slice: the `seaweedfs` Zitadel project +
-# project-scoped admin role (seaweedfs-admin) + admin grant + the `seaweedfs`
-# OIDC client for the oauth2-proxy UI gate (project-scoped, never org admin).
-# Ordering: this object ships in configs/ (fleet `infra-configs` dependsOn
-# `infra-controllers`), so it reconciles after the Zitadel HelmRelease +
-# FirstInstance setup Job are Ready. Terraform `dependsOn` is
-# Terraform-CR-only upstream, so NO dependsOn entry here — the fleet ordering
-# above is the mechanism.
-# Upstream wiring: org_id + admin ID flow from the FirstInstance handoff
-# (`zitadel-bootstrap-outputs` Secret in the `zitadel` namespace) via the
-# ESO-synced `seaweedfs-terraform-vars` Secret (same-namespace `varsFrom`
-# below; the cross-namespace `seaweedfs-zitadel` SecretStore + narrow Role in
-# `zitadel-handoff-rbac.yaml` do the mirroring). NO org_id literal in git, NO
-# manual per-env fill, NO email lookups, NO remote-state reads. Provider auth
-# flows from the chart handoff (`zitadel-bootstrap-credentials` key
-# `jwt_profile_json`) through the same Secret. Same-namespace `varsFrom`
-# CANNOT cross namespaces, which is why the ESO mirror + RBAC is the
-# mechanism here.
-# Backend: in-cluster Kubernetes default (state Secrets in the seaweedfs
-# namespace) — no backendConfig needed. Drift detection stays on (default).
-# Outputs: client_id + client_secret + cookie_secret (sensitive) land in
-# `seaweedfs-sso-outputs`; the `ui-auth-credentials` ExternalSecret consumes
-# all three through the in-cluster `seaweedfs-k8s` SecretStore (ui-auth.yaml).
+# seaweedfs-sso Terraform: owns this component's Zitadel slice (project + seaweedfs-admin role + grant + seaweedfs OIDC client, project-scoped).
+# Ships in configs/ so fleet infra-configs ordering applies (after Zitadel Ready). IDs/auth mirror from the FirstInstance handoff via seaweedfs-terraform-vars (same-namespace varsFrom); no org_id literal in git.
+# Backend: in-cluster Kubernetes default. Outputs land in seaweedfs-sso-outputs, consumed by ui-auth-credentials via the seaweedfs-k8s store.
 ---
-# Cross-namespace handoff reader: mirrors the two chart-minted handoff Secrets
-# from the `zitadel` namespace into this namespace's `seaweedfs-terraform-vars`
-# Secret (remoteNamespace MUST be `zitadel` — ESO reads REMOTE secrets through
-# this namespace's `eso-zitadel-handoff-reader` SA; the narrow Role + RoleBinding
-# in `zitadel-handoff-rbac.yaml` grant get/list/watch on the two handoff Secrets
-# only). Same pattern as the in-namespace `seaweedfs-k8s` store
-# (server.url omitted = kubernetes.default, kube-root-ca.crt supplies the API CA).
+# Cross-namespace handoff reader: mirrors the two handoff Secrets from remoteNamespace zitadel (RBAC in zitadel-handoff-rbac.yaml).
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -58,11 +31,7 @@ spec:
         serviceAccount:
           name: eso-zitadel-handoff-reader
 ---
-# Zero-UI vars mirror: provider auth (`jwt_profile_json`) from the chart-kept
-# `zitadel-bootstrap-credentials`, IDs (`org_id`, `admin_user_id`) from the
-# operator-created `zitadel-bootstrap-outputs` — no Proton Pass seeding, no
-# manual vault step. Keys land under the module var names so `varsFrom` below
-# needs no varsKeys renames.
+# Vars mirror: jwt_profile_json from zitadel-bootstrap-credentials, IDs from zitadel-bootstrap-outputs; keys match module vars so varsFrom needs no renames.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
@@ -96,37 +65,19 @@ metadata:
 spec:
   interval: 30m
   approvePlan: auto
-  # Upsert-only guard (tofu-controller 0.16.5): the v1alpha2 CRD has no
-  # preventDestroy/destroyPlan field — `destroy` (destroy plan on reconcile)
-  # and `destroyResourcesOnDeletion` (destroy plan on CR deletion) are the
-  # only destroy knobs, both default false. Stated explicitly so no `tofu
-  # destroy` path exists via Flux; drift detection stays on (default).
+  # Upsert-only: destroy + destroyResourcesOnDeletion false (no destroy path via Flux).
   destroy: false
   destroyResourcesOnDeletion: false
-  # Shared reusable SSO root: the infra/zitadel OCI artifact (namespace
-  # `zitadel`) packs flux/infra/components/zitadel/terraform/ at
-  # ./terraform. Cross-namespace sourceRef is allowed by
-  # allowCrossNamespaceRefs=true on the tofu-controller — no per-app
-  # terraform/ root, no git-SHA module pin.
+  # Shared zitadel SSO root (infra/zitadel OCI artifact, ./terraform).
   sourceRef:
     kind: OCIRepository
     name: infra
     namespace: zitadel
   path: ./terraform
-  # Plain (non-sensitive) per-env values; secrets (jwt_profile_json, org_id,
-  # admin_user_id) come from varsFrom below. varsFrom overrides vars on key
-  # collision (upstream GenerateVarsForTF).
-  # Redirect URIs are fully rendered here (the shared root takes no
-  # ui_host var): `__SEAWEEDFS_UI_HOST__` is the per-env UI hostname,
-  # replaced by the dev/prd overlay patches. Exact
-  # https://<ui-host>/oauth2/callback (NOT a wildcard — byte-identical to
-  # the retired thin root).
-  # Admin-only filer-UI proxy gate: no user role (create_user_role=false, no
-  # user_emails), generated in-Terraform cookie secret
-  # (create_cookie_secret=true).
-  # POSITIONAL: the dev/prd overlays patch /spec/vars/0 (domain) +
-  # /spec/vars/2/value/0 (redirect) + /spec/vars/3/value/0 (post-logout) by
-  # index, so this order must not change without updating the overlays.
+  # Plain per-env values; secrets come from varsFrom below.
+  # Redirect URIs fully rendered: __SEAWEEDFS_UI_HOST__ replaced per env (exact https://<ui-host>/oauth2/callback, not a wildcard).
+  # Admin-only gate: no user role, generated in-Terraform cookie secret.
+  # POSITIONAL: dev/prd overlays patch /spec/vars by index; keep this order.
   vars:
     - name: domain
       value: __ZITADEL_HOST__

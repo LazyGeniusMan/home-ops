@@ -1,18 +1,6 @@
-# Reusable Dragonfly HA cache base template (§10.3). Copy this stanza into a
-# namespace-local Dragonfly object; it is a template, not a live instance.
-# - HA: 3 replicas (1 primary + 2 replicas), automatic failover by the
-#   operator; the <name>.<namespace>.svc.cluster.local Service always selects
-#   the current primary. Pod anti-affinity spreads replicas across nodes.
-# - Persistence: tiering.persistentVolumeClaimSpec on local-ssd-nvme (the §9
-#   default class). A PVC snapshot volume cannot combine with an S3 dir, so
-#   persistent local disk lives on the tiering volume; S3 carries snapshots.
-# - Backup: hourly snapshots stream to the SeaweedFS S3 endpoint (referenced
-#   by DNS name only, no file dependency). The internal S3 serves plain HTTP,
-#   so --s3_use_https=false rides alongside --s3_endpoint (bare host, no
-#   scheme). Credentials come from the s3-credentials ExternalSecret in this
-#   directory. Restore: see README runbook.
-# - Connection contract: host <name>.<namespace>.svc.cluster.local, port
-#   6379 (Redis-compatible).
+# Reusable Dragonfly HA cache template (not a live instance): copy into a namespace-local Dragonfly object.
+# 3 replicas (1 primary + 2), failover; tiering PVC on local-ssd-nvme; hourly S3 snapshots (plain HTTP: --s3_use_https=false with bare-host --s3_endpoint).
+# Host <name>.<namespace>.svc.cluster.local:6379.
 ---
 apiVersion: dragonflydb.io/v1alpha1
 kind: Dragonfly
@@ -21,8 +9,7 @@ metadata:
 spec:
   replicas: 3 # placeholder - overridden by dev/prd overlays
 
-  # Persistent local disk for tiered entries (S3 owns snapshots here, so no
-  # snapshot PVC).
+  # Tiered-entries disk (S3 owns snapshots, no snapshot PVC).
   tiering:
     persistentVolumeClaimSpec:
       storageClassName: local-ssd-nvme
@@ -32,16 +19,13 @@ spec:
         requests:
           storage: 20Gi
 
-  # Hourly snapshots to SeaweedFS S3 (operator passes --dir/--snapshot_cron;
-  # Dragonfly auto-loads the latest snapshot from dir on startup).
+  # Hourly S3 snapshots (auto-loaded from dir on startup).
   snapshot:
     dir: "s3://dragonfly-backups/dragonfly/"
     cron: "0 * * * *"
     enableOnMasterOnly: true
 
-  # S3-compatible endpoint + static creds from the synced Secret (same
-  # namespace). Region is required by the AWS SDK credential chain even for
-  # S3-compatible backends.
+  # S3 creds from the synced Secret (same namespace); region required by the AWS SDK chain.
   env:
     - name: AWS_ACCESS_KEY_ID
       valueFrom:

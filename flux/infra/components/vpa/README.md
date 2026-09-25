@@ -1,56 +1,38 @@
-# vpa (§9.x)
+# vpa
 
-Vertical Pod Autoscaler official upstream chart `vertical-pod-autoscaler`
-0.12.0 (app v1.7.1) via OCI
-`oci://chartproxy.container-registry.com/kubernetes.github.io/autoscaler/vertical-pod-autoscaler`
-(chartproxy proxy of the official classic repo
-`https://kubernetes.github.io/autoscaler`). Serving resource
-recommendations (`kubectl describe vpa`) for every workload; applying
-(`Recreate`) only on singletons, recommender-only (`Off`) where HPA owns CPU.
+Vertical Pod Autoscaler chart 0.12.0 (app v1.7.1), official upstream
+`vertical-pod-autoscaler` via chartproxy OCI
+(`oci://chartproxy.container-registry.com/kubernetes.github.io/autoscaler/vertical-pod-autoscaler`,
+proxy of `https://kubernetes.github.io/autoscaler`). Serving resource
+recommendations (`kubectl describe vpa`); applying (`Recreate`) only on
+singletons, recommender-only (`Off`) where HPA owns CPU.
 
-## Values keys (upstream shape)
+## Values keys
 
 - `recommender` / `updater` / `admissionController` each take `replicas`
   (not `replicaCount`), plus `logLevel` + `extraArgs` (list, not map).
 - `admissionController`: Helm-managed certgen (`registerWebhook: false` +
   `certGen.enabled: true`); cert-manager path skipped (mutually exclusive
-  with certGen, adds Issuer/Certificate CRs that wedge bootstrap ordering —
-  see `controllers/base/vpa.yaml` header).
+  with certGen, adds Issuer/Certificate CRs that wedge bootstrap ordering).
 - `crds.enabled/keep: true` (CRDs render as regular templates; Flux replaces
   via `crds: CreateReplace`).
 - Stack PDBs default `minAvailable: 1`; updater binary default
   `--min-replicas=2` stands, so singleton targets need
   `updatePolicy.minReplicas: 1` on their VPA CRs to ever evict.
 
-## Telemetry-off / monitoring / updates
-
-- Upstream chart exposes no reporting knobs; values set only `recommender`,
-  `updater`, `admissionController` (certgen + resources).
-- No `ServiceMonitor` keys exist in the chart.
-- Chart bumps: `update-policies/vpa.yaml` → PR automation (app-image
-  feed never matches the chart-line range, so chart bumps stay manual
-  via the `$imagepolicy` marker on the OCIRepository `ref`).
-
-## Upgrade runbook
-
-- Version source: the `semver` ref in `controllers/base/vpa.yaml` (chart
-  0.12.x line on the chartproxy OCI mirror, app v1.7.1). The update
-  policy polls the recommender app image while the range pins the chart
-  line, so no automation PR ever arrives — bump by hand.
-- Changelog: https://github.com/kubernetes/autoscaler/releases
-  (`vertical-pod-autoscaler` chart).
-- Bump: check the chart release notes, move the `semver` ref by hand
-  with the `$imagepolicy` marker in the same file, and keep the policy
-  range on the new chart line.
-- Verify: recommender + updater + admission-controller Deployments
-  `Ready`, then `kubectl describe vpa <any>` renders a fresh
-  recommendation.
-
 ## Environments
 
-| Env | Replicas | Patches |
-| --- | --- | --- |
-| `dev` | 1 (singleton) | confirms `recommender.replicas: 1` |
-| `prd` | 1 (singleton) | confirms `recommender.replicas: 1` |
+| Env | Replicas |
+| --- | --- |
+| `dev` | 1 (singleton) |
+| `prd` | 1 (singleton) |
 
-Upstream reference (read-only): `/tmp/home-ops-docs/vpa-docs`.
+## Telemetry / monitoring / updates
+
+No reporting knobs; values set only `recommender`, `updater`,
+`admissionController`. No `ServiceMonitor` keys in the chart. Bumps are
+manual: the update policy polls the recommender app image while the range
+pins the chart line (`>=0.12.0 <0.13.0`), so no automation PR arrives --
+move the `semver` ref by hand with the `$imagepolicy` marker
+(`infra:vpa:tag`) and keep the range on the new chart line.
+Changelog: https://github.com/kubernetes/autoscaler/releases.

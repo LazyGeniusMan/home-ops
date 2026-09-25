@@ -1,12 +1,6 @@
-# Update policy for the clickhouse component (§10): tracks the OCI Helm chart
-# plus the server + keeper runtime images (installation-base.yaml,
-# backup-cronjob.yaml, and the clickstack ClickHouseInstallation), and the
-# ImageUpdateAutomation (update cluster) opens PRs via markers in
-# components/clickhouse (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
-# Changelog: operator — https://github.com/Altinity/clickhouse-operator/releases.
-# Changelog: server/keeper 26.8 LTS lockstep — https://github.com/ClickHouse/ClickHouse/releases.
-# Mode: auto (read the server changelog before taking a new LTS).
-# Coupled files: [configs/base/installation-base.yaml, configs/base/backup-cronjob.yaml, ../../../apps/components/clickstack/base/clickstack-clickhouse.yaml].
+# clickhouse chart + server/keeper (26.8 LTS lockstep) policy.
+# Changelog: https://github.com/Altinity/clickhouse-operator/releases, https://github.com/ClickHouse/ClickHouse/releases.
+# Coupled: configs/base/installation-base.yaml, configs/base/backup-cronjob.yaml, apps clickstack-clickhouse.yaml.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

@@ -1,11 +1,6 @@
-# Update policy for the coredns component (§8.3): tracks the OCI Helm chart
-# plus the node-local-dns cache image, and the ImageUpdateAutomation (update
-# cluster) opens PRs via markers in components/coredns (see README). Follows
-# the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
-# Changelog: app — https://github.com/coredns/coredns/releases.
-# Changelog: chart — https://github.com/coredns/helm/releases.
-# Mode: auto (chart) + auto (node-cache image).
-# Coupled files: [controllers/base/coredns.yaml (chart `ref.tag` + `values.image.tag`), configs/base/node-local-dns.yaml, configs/base/corefile.yaml].
+# coredns chart + node-cache image policy.
+# Changelog: https://github.com/coredns/coredns/releases, https://github.com/coredns/helm/releases.
+# Coupled: controllers/base/coredns.yaml, configs/base/node-local-dns.yaml.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

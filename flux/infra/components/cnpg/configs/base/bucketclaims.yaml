@@ -1,21 +1,5 @@
-# COSI-managed bucket for the CNPG Postgres backups (colocated with the
-# consuming component — lands in the `cnpg` tenant namespace via the Fleet
-# `infra-configs` Kustomization's `targetNamespace`).
-# - Claim uses BucketClass/seaweedfs, protocol S3. The driver provisions the
-#   live bucket under a controller-generated name (`bc-<uuid>`), so
-#   `spec.existingBucketName` stays unset; read the live name from the
-#   claim's `status.bucketName` once `status.bucketReady` is true.
-# - `cnpg-backups` backs the postgres-base CNPG Cluster WAL + base backups
-#   (`destinationPath: s3://cnpg-backups/postgres/`, see cluster-base.yaml).
-#   Per-instance consumers (zitadel-db, coder-db, ferretdb) hold their own
-#   dedicated claims — see the cosi README. The `s3://` path prefix must
-#   exist before the first Cluster starts (CNPG never creates buckets).
-# - The BucketAccess mints S3 keys into its `credentialsSecretName` Secret in
-#   THIS namespace as a `BucketInfo` JSON file. The driver hands back the
-#   internal endpoint
-#   (http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333).
-# - Credential bridge: consumers read COSI BucketInfo JSON through
-#   same-namespace ExternalSecrets.
+# COSI bucket cnpg-backups (BucketClass/seaweedfs, S3) for postgres-base WAL + base backups (s3://cnpg-backups/postgres/).
+# Live bucket provisions under a controller-generated name (bc-<uuid>); s3:// prefix must pre-exist. Keys via same-namespace ExternalSecrets.
 ---
 apiVersion: objectstorage.k8s.io/v1alpha1
 kind: BucketClaim
