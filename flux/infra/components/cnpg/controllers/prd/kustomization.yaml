@@ -12,3 +12,17 @@ patches:
     target:
       kind: HelmRelease
       name: cnpg
+  # TA discovery: the otel-gateway TargetAllocator object + namespace
+  # selectors both match `otel-scrape: "true"` (tenant namespace carries it
+  # from the fleet tenants/infra.yaml template). The chart renders a
+  # PodMonitor (not ServiceMonitor) and supports
+  # monitoring.podMonitorAdditionalLabels, so the label lands via this
+  # overlay patch — base values stay untouched.
+  - patch: |
+      - op: add
+        path: /spec/values/monitoring/podMonitorAdditionalLabels
+        value:
+          otel-scrape: "true"
+    target:
+      kind: HelmRelease
+      name: cnpg

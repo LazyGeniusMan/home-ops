@@ -2,3 +2,18 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../base
+patches:
+  # TA discovery: the otel-gateway TargetAllocator object + namespace
+  # selectors both match `otel-scrape: "true"` (tenant namespace carries it
+  # from the fleet tenants/infra.yaml template). The chart supports
+  # serviceMonitor.additionalLabels (covers both the operator and keeper
+  # monitors), so the label lands via this overlay patch — base values stay
+  # untouched.
+  - patch: |
+      - op: add
+        path: /spec/values/serviceMonitor/additionalLabels
+        value:
+          otel-scrape: "true"
+    target:
+      kind: HelmRelease
+      name: clickhouse-operator

@@ -2,7 +2,8 @@
 # Operator CRDs Helm-managed (crds.create); COSI CRDs vendored in cosi/crds/base (prune:false); driver classes hand-vendored in configs/base (chart cosi.enabled off).
 # serviceMonitor on (Grafana dashboard stays off - no Grafana): monitoring CRDs arrive via the otel-operator
 # infra-crds delivery (prune:false), and the gateway TA scrapes monitors labeled `otel-scrape: "true"`
-# (labels land via sibling; see the ESO `renderMode: skipIfMissing` template in
+# (label lands via the postRenderers patch below — the chart's additionalLabels
+# knob is unreferenced by its template; see the ESO `renderMode: skipIfMissing` template in
 # external-secrets/controllers/base/externalsecrets.yaml).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -50,6 +51,24 @@ spec:
     strategy:
       name: RetryOnFailure
       retryInterval: 5m
+  # The chart's `serviceMonitor.additionalLabels` value is dead (the
+  # servicemonitor.yaml template never references it — verified via
+  # helm template), so the TA `otel-scrape: "true"` label lands via
+  # postRenderers kustomize instead: strategic-merge patch targeting the
+  # chart-rendered `seaweedfs-operator-metrics-monitor` ServiceMonitor.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: ServiceMonitor
+              name: seaweedfs-operator-metrics-monitor
+            patch: |-
+              apiVersion: monitoring.coreos.com/v1
+              kind: ServiceMonitor
+              metadata:
+                name: seaweedfs-operator-metrics-monitor
+                labels:
+                  otel-scrape: "true"
   # https://github.com/seaweedfs/seaweedfs-operator/tree/master/deploy/helm
   values:
     # Replica seed (dev 1, prd 2); HPA owns the count. CPU requests required for the targetCPU HPA.

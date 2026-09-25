@@ -47,6 +47,19 @@ patches:
     target:
       kind: HelmRelease
       name: ui-auth
+  # TA discovery: the otel-gateway TargetAllocator object + namespace
+  # selectors both match `otel-scrape: "true"` (tenant namespace carries it
+  # from the fleet tenants/infra.yaml template). The chart supports
+  # metrics.serviceMonitor.labels, so the label lands via this overlay
+  # patch — base values stay untouched.
+  - patch: |
+      - op: add
+        path: /spec/values/metrics/serviceMonitor/labels
+        value:
+          otel-scrape: "true"
+    target:
+      kind: HelmRelease
+      name: ui-auth
   # Prd SeaweedFS SSO Terraform identity: CR vars (prd issuer host, prd
   # redirect URIs) against the shared infra/zitadel root (see
   # base/terraform.yaml cross-namespace sourceRef). IDs flow from the
