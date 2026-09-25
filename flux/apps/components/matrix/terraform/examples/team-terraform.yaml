@@ -1,28 +1,13 @@
-# Example consumer: per-team opt-in room template (SUSPENDED by pairing, not
-# by CR — the Terraform CR below is live, but nothing posts until a team
-# Alert targets it).
-#
-# Copy into flux/apps/components/<team>/base/terraform.yaml, rename every
-# placeholder (room name/alias `team` -> e.g. `payments`, the member mxid,
-# the bot face), and wire the matching Alert: copy the suspended
-# `team-optin` Alert from flux/apps/components/matrix/base/
-# notifications.yaml, set eventSources[].namespace to the team tenant
-# namespace, and unsuspend it. The `apprise-team` Provider address already
-# carries `tag=team`, and the STATELESS_URLS fallback already has a
-# `.../%23team?tag=team...` leg — but that leg points at the literal `#team`
-# alias, so either (a) name the room alias `team` (single shared opt-in
-# room), or (b) give the team its own room alias AND extend the fallback
-# with a `?tag=<team>` leg pointing at it (the Provider tag must equal a
-# fallback server tag or requests 204). See NOTIFICATIONS.md tag scheme.
-#
-# Notification-only power lock (events_default 50) + plaintext
-# (encryption_enabled false): the stateless apprise notifier has no Olm
-# persistence, so E2EE rooms are unreadable to it.
-# Team-owned bot-token mirror (same-namespace `varsFrom`; keys land under
-# the module var names, no varsKeys renames). Team namespaces mint their own
-# bot via their own bootstrap (same Job pattern as matrix
-# base/matrix-bot-bootstrap.yaml) — NEVER the matrix tenant's kept Secret
-# (varsFrom CANNOT cross namespaces).
+# Example consumer: per-team opt-in room template (SUSPENDED by pairing, not by CR —
+# the CR below is live, but nothing posts until a team Alert targets it).
+# Copy into flux/apps/components/<team>/base/terraform.yaml, rename placeholders, and wire
+# the matching Alert (copy suspended `team-optin` from base/notifications.yaml, set
+# eventSources[].namespace, unsuspend). Either name the alias `team` (single shared room)
+# or give the team its own alias + a `?tag=<team>` fallback leg (Provider tag MUST equal a
+# fallback server tag or requests 204).
+# Notification-only (events_default 50) + plaintext (encryption_enabled false — E2EE
+# unreadable to the stateless notifier). Team-owned bot-token mirror (same-namespace
+# `varsFrom`); team namespaces mint their own bot — NEVER the matrix kept Secret.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

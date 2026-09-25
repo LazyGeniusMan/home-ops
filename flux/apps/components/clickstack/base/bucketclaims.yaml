@@ -1,28 +1,9 @@
-# COSI-managed buckets for clickstack's own backups (colocated with the
-# consuming component — lands in the `clickstack` tenant namespace via the
-# Fleet `apps` Kustomization's `targetNamespace`).
-# - Claims use BucketClass/seaweedfs, protocol S3. The central controller
-#   creates the cluster-scoped Buckets; the driver (DriverCreateBucket =
-#   req.GetName()) provisions the live buckets in SeaweedFS under
-#   controller-generated names (`bc-<uuid>`) — claim/access names do NOT map
-#   to pre-existing bucket names, so `spec.existingBucketName` is
-#   intentionally unset. Read each live name from its claim's
-#   `status.bucketName` once `status.bucketReady` is true.
-# - `ferretdb` backs the FerretDB CNPG Cluster WAL + base backups
-#   (ferretdb-postgres.yaml); `clickstack` backs the namespace-local CHI S3
-#   backups (clickstack-clickhouse.yaml). The CNPG `destinationPath`
-#   (`s3://cnpg-backups/ferretdb/`) and the CHI `storage.xml` endpoint target
-#   the COSI-provisioned buckets. The `s3://` path prefixes must exist before
-#   the first Cluster starts (CNPG never creates buckets).
-# - Each BucketAccess (BucketAccessClass/seaweedfs-key, authenticationType
-#   KEY) mints S3 keys into its `credentialsSecretName` Secret in THIS
-#   namespace as a `BucketInfo` JSON file (secretS3.endpoint/region/
-#   accessKeyID/accessSecretKey). The driver hands back the INTERNAL
-#   endpoint (http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333).
-# - Credential bridge: the in-namespace `clickstack-cosi` SecretStore
-#   (cosi-keys.yaml) serves both BucketInfo JSONs; the ExternalSecrets use
-#   GJSON `property` (BucketInfo.spec.secretS3.accessKeyID/accessSecretKey),
-#   keeping target literal keys unchanged.
+# COSI buckets for clickstack backups (claims `ferretdb` + `clickstack`,
+# BucketClass/seaweedfs, S3): live names are controller-generated
+# (`bc-<uuid>`, read from `status.bucketName`); `spec.existingBucketName`
+# stays unset. S3 prefixes must exist before the first workload backup lands
+# (CNPG/CHI never create buckets). Keys bridge via `clickstack-cosi`
+# (cosi-keys.yaml) BucketInfo JSON.
 ---
 apiVersion: objectstorage.k8s.io/v1alpha1
 kind: BucketClaim

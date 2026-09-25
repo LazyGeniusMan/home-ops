@@ -1,11 +1,5 @@
-# Update policy for the element-web app: tracks the upstream Element Web
-# image, and the ImageUpdateAutomation (update cluster) opens PRs via the
-# marker in components/matrix/base/element-web.yaml. Follows the §7
-# update-policy contract (ImageRepository + ImagePolicy + $imagepolicy
-# markers).
-# Changelog: https://github.com/element-hq/element-web/releases.
-# Mode: auto (stateless SPA — safe to roll).
-# Coupled files: [components/matrix/base/element-web.yaml].
+# element-web image policy (auto; stateless SPA — safe to roll).
+# Changelog: https://github.com/element-hq/element-web/releases. Coupled: components/matrix/base/element-web.yaml.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

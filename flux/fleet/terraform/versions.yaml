@@ -1,13 +1,6 @@
-# SINGLE SOURCE for the Flux Operator chart coordinates used by BOTH the
-# GitOps manifests and the Terraform bootstrap. Do not duplicate these
-# coordinates anywhere else:
-# - clusters/*/flux-system/flux-operator.yaml (OCIRepository url consumed by
-#   Flux after bootstrap) MUST reference the same repository recorded here;
-#   GitOps floats on semver '*' while versions.yaml pins the bootstrap install.
-# - main.tf reads this file and passes repository/version to the
-#   flux-operator-bootstrap module, and tests/versions.tftest.hcl asserts the
-#   mapping so drift between GitOps and Terraform fails `tofu test`.
-# - flux/apps/components/flux-operator-ui chart tag moves with operator_chart_version (see its update-policy header).
+# Single source for the Flux Operator chart coordinates (GitOps + bootstrap).
+# flux-operator.yaml floats semver '*'; this pins the bootstrap install.
+# flux-operator-ui chart tag moves with operator_chart_version.
 operator_chart_repository: ghcr.io/controlplaneio-fluxcd/charts/flux-operator
 operator_chart_version: 0.60.0
 bootstrap_module_version: 0.8.0

@@ -1,12 +1,8 @@
-# Hubble UI standalone (§11.3): Deployment + Service reaching Hubble Relay BY
-# DNS NAME (hubble-relay.cilium.svc:80 — Relay itself ships in the §8.2 cilium
-# component, NOT here). Images pinned to the Cilium v1.20.2 chart defaults
-# (frontend + backend v0.13.6); bumps via update-policies/hubble-ui.yaml.
-# Shape mirrors the chart's hubble-ui templates (Deployment env, probes, nginx
-# ConfigMap, Service 80→8081) minus cluster-scoped RBAC (see Role below).
-# Telemetry: no usage-reporting keys in chart values; nothing to switch off.
-# Monitoring: no ServiceMonitor (monitoring.coreos.com CRDs not present —
-# same §9 deviation).
+# Hubble UI standalone: Deployment + Service reaching Hubble Relay by DNS name
+# (hubble-relay.cilium.svc:80 — Relay ships in the cilium component, NOT here).
+# Images pinned to the Cilium v1.20.2 chart defaults (frontend + backend
+# v0.13.6); bumps via update-policies/hubble-ui.yaml. No telemetry keys, no
+# ServiceMonitor.
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -16,11 +12,10 @@ metadata:
     app.kubernetes.io/name: hubble-ui
     app.kubernetes.io/part-of: hubble-ui
 ---
-# Namespaced read role: the chart ships a ClusterRole (componentstatuses,
-# namespaces, nodes, pods, services, CRDs) for cluster-wide service-map
-# listing, but the apps-tenant Flux SA cannot manage cluster-scoped RBAC, so
-# this grants pods/services/endpoints read in-namespace only. Cluster-wide
-# listing stays limited until a cluster-scoped grant lands out-of-band.
+# Namespaced read role: the chart ships a ClusterRole for cluster-wide listing,
+# but the apps-tenant Flux SA cannot manage cluster-scoped RBAC, so this grants
+# pods/services/endpoints read in-namespace only (cluster-wide listing stays
+# limited until a cluster-scoped grant lands out-of-band).
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -48,8 +43,7 @@ roleRef:
   kind: Role
   name: hubble-ui
 ---
-# Nginx front door, rendered from the chart's hubble-ui/_nginx.tpl with the
-# default baseUrl "/".
+# Nginx front door, rendered from the chart's hubble-ui/_nginx.tpl (baseUrl "/").
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -150,17 +144,13 @@ spec:
           env:
             - name: EVENTS_SERVER_PORT
               value: "8090"
-            # Relay by DNS name: Service hubble-relay in the cilium namespace
-            # (see the §8.2 cilium component). Port 80 = relay TLS server OFF,
-            # matching the §8.2 values (no relay tls block set).
+            # Relay by DNS name (port 80 = relay TLS server OFF).
             - name: FLOWS_API_ADDR
               value: "hubble-relay.cilium.svc:80"
           ports:
             - name: grpc
               containerPort: 8090
-          # Backend serves gRPC only (no HTTP health endpoint upstream);
-          # TCP socket on the grpc port mirrors the FerretDB
-          # Mongo-wire precedent (ferretdb.yaml).
+          # Backend serves gRPC only (no HTTP health endpoint); TCP socket probe.
           livenessProbe:
             tcpSocket:
               port: grpc

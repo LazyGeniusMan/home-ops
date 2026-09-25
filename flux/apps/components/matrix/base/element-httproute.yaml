@@ -1,17 +1,8 @@
-# Element Web HTTPRoute: attaches to the shared §8.1 Gateway
-# (listeners accept routes from all namespaces — cross-namespace parentRef,
-# no targetNamespace override needed; same pattern as hubble-ui/clickstack).
-# Hostname __SERVICE_HOST__ (dev/prd overlays replace with the per-env
-# element hostname) → element-web Service (:80, the nginx SPA). PathPrefix /
-# (single-page app — all paths serve the SPA shell). TLS terminates at the
-# Gateway via the in-namespace wildcard Certificate
-# (wildcard-certificate.yaml).
-# Upstream nginx-snippet headers translated (Ingress annotations →
-# Gateway ResponseHeaderModifier):
-#   X-Frame-Options SAMEORIGIN, X-Content-Type-Options nosniff,
-#   Content-Security-Policy "frame-ancestors 'self'".
-# Response headers set: X-Frame-Options, X-Content-Type-Options,
-# Content-Security-Policy.
+# Element Web HTTPRoute on the shared Gateway (cross-namespace parentRef).
+# __SERVICE_HOST__ (per-env element hostname) → element-web Service :80.
+# PathPrefix / (SPA shell). TLS terminates at the Gateway via the
+# in-namespace wildcard Certificate. Response headers: X-Frame-Options
+# SAMEORIGIN, X-Content-Type-Options nosniff, CSP frame-ancestors 'self'.
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

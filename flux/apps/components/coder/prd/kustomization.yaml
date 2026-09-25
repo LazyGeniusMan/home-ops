@@ -3,18 +3,10 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # No coder-oidc vault patches: client_id + client_secret flow end-to-end
-  # from the coder-sso outputs Secret via the in-cluster `coder-k8s`
-  # SecretStore (base/coder-secrets.yaml) — no Proton Pass seeding.
-  # Prd Coder SSO Terraform identity: CR vars (prd issuer host, prd redirect
-  # URIs). Provider auth (jwt_profile_json) + org_id + admin_user_id all
-  # mirror from the FirstInstance handoff via the cross-namespace
-  # `coder-zitadel` SecretStore (base/terraform.yaml) — no vault ref patch,
-  # no pass:// JWT seeding, no per-env ID literals. project_name,
-  # create_user_role, user_emails, create_cookie_secret are env-invariant —
-  # only hosts vary per env. Positional: /spec/vars/0 (domain) +
-  # /spec/vars/2 (login_base_uri) + /spec/vars/3/value/0 (redirect) +
-  # /spec/vars/4/value/0 (post-logout).
+  # No coder-oidc vault patches (client id + secret flow from `coder-sso` outputs
+  # via `coder-k8s`). Prd SSO Terraform identity (issuer host + redirect URIs;
+  # IDs mirror from the handoff — no per-env ID literals; only hosts vary).
+  # Vars patched by index (keep order).
   - patch: |
       - op: replace
         path: /spec/vars/0/value
@@ -31,9 +23,8 @@ patches:
     target:
       kind: Terraform
       name: coder-sso
+  # Prd DB vault (single db-password source for both DB ExternalSecrets).
   - patch: |
-      # coder-db-credentials composes the full URI in ESO template from this
-      # single db-password source (same field as coder-db-app-secret below).
       - op: replace
         path: /spec/data/0/remoteRef/key
         value: pass://acme-prd-bdo1-talos-apps-01/coder/db-password
@@ -47,15 +38,10 @@ patches:
     target:
       kind: ExternalSecret
       name: coder-db-app-secret
-  # No matrix-notify vault patches: the notifier token + host flow from the
-  # matrix bot bootstrap kept Secret via the in-cluster `coder-matrix`
-  # SecretStore (base/coder-secrets.yaml) — no Proton Pass seeding.
-  # (S3 keys are COSI-minted via the coder-cosi SecretStore — no
-  # per-env vault ref patch for cnpg-s3-credentials, rclone-coder-db-s3,
-  # or rclone-coder-db-s3-path.)
-  # Prd rclone-sync-coder-db identity (chart source: projects/helm-rclone-sync): Proton Pass vault keys + the Proton
-  # Drive destination cluster segment (base holds __PROTON_PASS_BASE__ /
-  # __CLUSTER_NAME__ placeholders).
+  # No matrix-notify vault patches (notifier flows from the kept Secret via
+  # `coder-matrix`). (S3 keys COSI-minted — no per-env vault patch.)
+  # Prd rclone identity (chart source: projects/helm-rclone-sync): vault keys +
+  # destination cluster segment (base holds placeholders).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -150,7 +136,8 @@ patches:
     target:
       kind: Certificate
       name: coder-wildcard
-  # Prd Coder URLs, OIDC issuer, mail domain, sign-in text.
+  # Prd Coder URLs, OIDC issuer, mail domain, sign-in text (positional env
+  # indices — keep order).
   - patch: |
       - op: replace
         path: /spec/values/coder/env/0/value
@@ -170,9 +157,7 @@ patches:
     target:
       kind: HelmRelease
       name: coder
-  # Prd replica counts: stateless HA floor (2), CNPG 3. Static
-  # `coder.replicaCount` stays at the HPA min (chart 2.37.3 has no
-  # autoscaling knob); the HPA below scales 2-4 on CPU.
+  # Prd scaling: `replicaCount` + HPA placeholders -> 2/4; DB instances -> 3.
   - patch: |
       - op: replace
         path: /spec/values/coder/replicaCount

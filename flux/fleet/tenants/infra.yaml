@@ -1,24 +1,11 @@
-# Infra tenants: one entry per component directory under flux/infra/components.
-# To onboard a new platform component: add its directory as a new
-# input tenant here AND add it to the components matrix in
+# Infra tenants: one input per component dir under flux/infra/components.
+# Onboard: add the input tenant here + the components matrix in
 # .github/workflows/flux-infra-push.yaml so its OCI artifact is published.
-#
-# CRD delivery (gateway-api, cosi only): CRDs render through a dedicated
-# prune:false infra-crds Kustomization per tenant below — a removed CRD file
-# must never cascade-delete CRs cluster-wide (CRDs are never
-# garbage-collected). The matching infra-controllers Kustomization keeps
-# prune:true and gains a conditional dependsOn on its sibling infra-crds so
-# the controller only reconciles once its CRDs are Ready.
-# Sanctioned pattern: ResourceSet conditional-resource inclusion —
-# per-input resources gated by the fluxcd.controlplane.io/reconcile
-# annotation set from << if >> Go-template conditionals. The infra-crds
-# Kustomization carries reconcile: enabled only for the two tenants that ship
-# a crds/<env> dir (gateway-api, cosi) and disabled for every other tenant;
-# sibling components (cert-manager, cilium, kubevirt, multus) keep chart- or
-# daemonset-managed CRDs inside prune:true controllers and are untouched.
-# NOTE: infra.yaml is a Go template rendered by the Flux Operator, not plain
-# YAML — the `<< if ... >>` conditionals are comments until the operator
-# renders them, so plain-yaml tooling reads every block unconditionally.
+# CRD delivery (gateway-api + cosi only): CRDs render through a dedicated
+# prune:false infra-crds Kustomization (a removed CRD must never
+# cascade-delete CRs); the infra-controllers Kustomization gates on it via a
+# conditional dependsOn. This file is a Go template rendered by the Flux
+# Operator — `<< if ... >>` blocks are comments until rendered.
 apiVersion: fluxcd.controlplane.io/v1
 kind: ResourceSet
 metadata:
@@ -194,10 +181,9 @@ spec:
           matchOIDCIdentity:
           - issuer: ^https://token\.actions\.githubusercontent\.com$
             subject: ^https://github\.com/LazyGeniusMan/home-ops/\.github/workflows/<< inputs.artifactSubjectWorkflow >>\.yaml@<< inputs.artifactSubjectGitRef >>$
-    # infra-crds: vendored-CRD delivery (gateway-api + cosi only — the
-    # reconcile annotation below disables this resource for every other
-    # tenant). prune:false so a removed CRD file never cascade-deletes CRs;
-    # wait:true + explicit CRD healthChecks so dependents gate on Established.
+    # infra-crds: vendored-CRD delivery (gateway-api + cosi only; disabled
+    # for other tenants). prune:false so removed CRDs never delete CRs;
+    # healthChecks gate dependents on Established.
     - apiVersion: kustomize.toolkit.fluxcd.io/v1
       kind: Kustomization
       metadata:
@@ -217,9 +203,8 @@ spec:
           name: infra
         path: "./crds/<< inputs.environment >>"
         prune: false
-        # Health gates: one branch renders per input (operator strips the other).
         healthChecks:
-          # Gateway Established gates (<< if eq inputs.tenant "gateway-api" >>):
+          # Gateway gates (<< if eq inputs.tenant "gateway-api" >>):
           - apiVersion: apiextensions.k8s.io/v1
             kind: CustomResourceDefinition
             name: gatewayclasses.gateway.networking.k8s.io

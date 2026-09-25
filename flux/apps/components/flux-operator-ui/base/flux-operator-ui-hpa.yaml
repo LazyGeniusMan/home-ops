@@ -1,15 +1,6 @@
-# Flux Operator UI HPA (autoscaling/v2 over the chart-rendered Deployment
-# `flux-operator-ui` — fullnameOverride pins the Service/Deployment name).
-# Chart 0.60.0 has NO autoscaling knob (evidence: flux-operator-docs
-# docs/web/web-standalone.md documents only `web.serverOnly` +
-# `web.serverReplicas`; `helm show values ... --version 0.60.0` confirms
-# `web.serverReplicas: 1` with no autoscaling block), so the HPA lives here
-# and static `web.serverReplicas` stays as the chart seed (dev 1 / prd 2 via
-# overlay patches); no Deployment /spec/replicas overlay patch: base
-# replicas: 1 is the create-time seed, HPA owns runtime count (HPA
-# minReplicas enforces the floor). Dev min 1/max 2, prd min 2/max 4 via
-# overlay patches.
-# CPU + memory: the chart defaults requests 100m/64Mi, so HPA works.
+# Flux Operator UI HPA over the chart-rendered Deployment `flux-operator-ui`
+# (chart has no autoscaling knob — HPA lives here). Base replicas is the
+# create-time seed; HPA owns runtime count. Dev 1-2, prd 2-4 via overlays.
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

@@ -11,18 +11,10 @@ patches:
     target:
       kind: HTTPRoute
       name: hubble
-  # No oauth2-proxy vault patches: client_id + client_secret + cookie_secret
-  # flow end-to-end from the hubble-ui-sso outputs Secret via the in-cluster
-  # `hubble-ui-k8s` SecretStore (base/hubble-secrets.yaml).
-  # Dev SSO CR vars (issuer host, redirect URIs) against the shared
-  # infra/zitadel root (base/terraform.yaml cross-namespace sourceRef).
-  # Provider auth + org_id + admin ID mirror from the FirstInstance handoff
-  # via the cross-namespace `hubble-ui-zitadel` SecretStore — no vault ref
-  # patch, no per-env ID literals. project_name, oidc_name,
-  # create_user_role, create_cookie_secret are env-invariant — only hosts
-  # vary per env. Positional: /spec/vars/0 (domain) +
-  # /spec/vars/3 (login_base_uri) + /spec/vars/4/value/0 (redirect) +
-  # /spec/vars/5/value/0 (post-logout).
+  # No OIDC vault patch: client creds + cookie flow from the sso outputs Secret
+  # via the in-cluster SecretStore.
+  # Dev SSO CR vars (issuer host, redirect URIs). Env-invariant vars stay in
+  # base; only hosts vary per env. Positional: /spec/vars/0,3,4,5.
   - patch: |
       - op: replace
         path: /spec/vars/0/value
@@ -46,10 +38,7 @@ patches:
     target:
       kind: ExternalSecret
       name: cloudflare-api-token
-  # Dev wildcard Certificate (wildcard-home-ops-dev). The DNS-01 solver
-  # credential ES above already renders the per-env vault path — one
-  # cloudflare-api-token ES serves both the route and the Certificate, so no
-  # second vault patch is needed here.
+  # Dev wildcard Certificate (wildcard-home-ops-dev).
   - patch: |
       - op: replace
         path: /metadata/name
@@ -71,8 +60,7 @@ patches:
     target:
       kind: Certificate
       name: wildcard-home-ops-dev
-  # Dev proxy: Zitadel issuer, cookie domain, callback (values keys, not
-  # arg indices — the chart takes every flag from extraArgs).
+  # Dev proxy: Zitadel issuer, cookie domain, callback.
   - patch: |
       - op: replace
         path: /spec/values/extraArgs/oidc-issuer-url
@@ -86,10 +74,7 @@ patches:
     target:
       kind: HelmRelease
       name: oauth2-proxy
-  # Dev replica counts: minimal single-replica footprint. No Deployment
-  # /spec/replicas patch: base replicas: 1 is the create-time seed, HPA
-  # owns runtime count (HPA minReplicas enforces the floor); the HPAs below
-  # scale 1-2 on CPU+memory.
+  # Dev replicas: single-replica footprint (HPAs scale 1-2).
   - patch: |
       - op: replace
         path: /spec/minReplicas

@@ -1,9 +1,7 @@
-# Coder HPA (autoscaling/v2 over the chart-rendered Deployment `coder`).
-# The chart has no autoscaling knob (only `coder.replicaCount`, default 1),
-# so the HPA lives here and `coder.replicaCount` stays at the env min
-# (dev 1 / prd 2 via overlay patches). Dev min 1/max 2, prd min 2/max 4.
-# CPU-only (no memory metric): memory-driven churn on coderd pods is
-# expensive. CPU requests exist by chart default, so HPA works.
+# HPA over the chart-rendered `coder` Deployment (CPU 70% only — memory churn on
+# coderd is expensive). `coder.replicaCount` stays at the env min; base
+# `replicas: 1` is the create-time seed. `min/maxReplicas` are placeholders —
+# overlays set dev 1/2, prd 2/4.
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

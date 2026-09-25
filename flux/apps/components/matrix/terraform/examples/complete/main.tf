@@ -1,13 +1,7 @@
-# Local-only example: notifier-room shape (flux-notifications + tofu-runs)
-# with locked power levels. Not applied in CI (no live homeserver); validates
-# the flat root call shape. Real deploys go through the Terraform CRs
-# (flux-notifications-terraform.yaml / tofu-runs-terraform.yaml /
-# team-terraform.yaml) + varsFrom Secret, never literals.
-#
-# Notifier rooms are notification-only (events_default 50: only the bot at
-# 100 posts, members read) and PLAINTEXT (encryption_enabled false — the
-# stateless apprise notifier has no Olm persistence, so E2EE rooms are
-# unreadable to it; irreversible at creation).
+# Local-only example: notifier-room shape (flux-notifications + tofu-runs). Not applied in
+# CI (no live homeserver); validates the flat root call shape. Real deploys go through the
+# Terraform CRs + varsFrom Secret, never literals. Notification-only (events_default 50) +
+# PLAINTEXT (encryption_enabled false — E2EE unreadable to the stateless notifier).
 #
 #   cd flux/apps/components/matrix/terraform/examples/complete
 #   tofu init -backend=false && tofu validate
@@ -23,8 +17,7 @@ terraform {
 }
 
 provider "matrix" {
-  # Reads MATRIX_HOMESERVER_URL / MATRIX_ACCESS_TOKEN / MATRIX_USER_ID.
-  # Export dummies for offline validate; real values come from the vault.
+  # Reads MATRIX_HOMESERVER_URL / MATRIX_ACCESS_TOKEN / MATRIX_USER_ID (dummies for offline validate).
 }
 
 module "flux_notifications" {
@@ -40,8 +33,7 @@ module "flux_notifications" {
     "@oncall-lead:tuwunel.matrix.home-ops.yansyah.my.id" = "invite"
   }
 
-  # Locked power levels: bot pinned at 100 by the root; lead at 50;
-  # everyone else at users_default 0 + events_default 50 (read-only).
+  # Bot pinned at 100 by the root; lead at 50; rest read-only.
   power_levels = {
     "@oncall-lead:tuwunel.matrix.home-ops.yansyah.my.id" = 50
   }

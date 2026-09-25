@@ -1,8 +1,5 @@
-# Flat root vars: provider auth + room inputs in one set. The consumer
-# Terraform CR (examples/flux-notifications-terraform.yaml) renders plain
-# (non-sensitive) vars here; secrets (homeserver_url/access_token/user_id)
-# arrive via varsFrom from the ESO-synced matrix-rooms-terraform-vars Secret —
-# varsFrom overrides vars on key collision (upstream GenerateVarsForTF).
+# Flat root vars: provider auth + room inputs. Consumer CR renders plain vars here;
+# secrets (homeserver_url/access_token/user_id) arrive via varsFrom (overrides vars on collision).
 
 variable "homeserver_url" {
   description = "Matrix homeserver base URL (e.g. https://tuwunel.matrix.home-ops.yansyah.my.id). Also settable via MATRIX_HOMESERVER_URL."
@@ -35,7 +32,7 @@ variable "topic" {
 }
 
 variable "preset" {
-  description = "Creation preset: private_chat | trusted_private_chat | public_chat. Creation-only: not reported back, so changing it later recreates nothing but shows an in-place update on imported rooms."
+  description = "Creation preset: private_chat | trusted_private_chat | public_chat. Creation-only."
   type        = string
   default     = "private_chat"
   validation {
@@ -45,7 +42,7 @@ variable "preset" {
 }
 
 variable "visibility" {
-  description = "Room directory visibility: private (default, locked down) | public. Synapse denies publication by default (room_list_publication_rules), so declare public only against a homeserver known to allow it."
+  description = "Room directory visibility: private (default) | public."
   type        = string
   default     = "private"
   validation {
@@ -55,7 +52,7 @@ variable "visibility" {
 }
 
 variable "history_visibility" {
-  description = "Who can read the timeline: joined | invited | shared | world_readable. Null = homeserver default."
+  description = "Who can read the timeline: joined | invited | shared | world_readable."
   type        = string
   default     = "shared"
   validation {
@@ -83,7 +80,7 @@ variable "encryption_enabled" {
 }
 
 variable "members" {
-  description = "Membership intents keyed by mxid (@user:server): invite | join | leave | ban | knock. Declarative: invite re-fires after a later leave unless the resource is removed from state (see provider note). Bot itself needs no entry."
+  description = "Membership intents keyed by mxid: invite | join | leave | ban | knock. Bot itself needs no entry."
   type        = map(string)
   default     = {}
   validation {
@@ -93,25 +90,25 @@ variable "members" {
 }
 
 variable "power_levels" {
-  description = "Extra per-user power overrides keyed by mxid. The provider bot (matrix_whoami) is ALWAYS pinned at 100 by the root — entries here merge around it and can never drop it. A declared users map replaces the whole map homeserver-side, so keep this list complete."
+  description = "Extra per-user power overrides keyed by mxid. Bot is ALWAYS pinned at 100 by the root; a declared users map replaces the whole map homeserver-side, so keep this list complete."
   type        = map(number)
   default     = {}
 }
 
 variable "users_default" {
-  description = "Default power for users not listed in users. Keep below state_default so stray users cannot send state."
+  description = "Default power for unlisted users. Keep below state_default."
   type        = number
   default     = 0
 }
 
 variable "events_default" {
-  description = "Default power to send message events. 0 = any joined member may post (notification rooms)."
+  description = "Default power to send message events."
   type        = number
   default     = 0
 }
 
 variable "state_default" {
-  description = "Default power to send state events. 50 keeps topic/name/alias changes moderator-only."
+  description = "Default power to send state events."
   type        = number
   default     = 50
 }
@@ -151,13 +148,13 @@ variable "join_rule" {
 }
 
 variable "allow_spaces" {
-  description = "Space room IDs whose members may join when join_rule is restricted/knock_restricted (typically a matrix_space id). Empty otherwise."
+  description = "Space room IDs whose members may join when join_rule is restricted/knock_restricted."
   type        = list(string)
   default     = []
 }
 
 variable "create_space" {
-  description = "Also create a parent space for this room and link the room under it (m.space.child). Spaces apply Element-style defaults (events_default=100); the root relaxes nothing — tune via the same power knobs."
+  description = "Also create a parent space and link the room under it (m.space.child)."
   type        = bool
   default     = false
 }
@@ -181,31 +178,31 @@ variable "space_alias_name" {
 }
 
 variable "space_via" {
-  description = "Server names for the m.space.child join hint (Matrix spec requires via; a link with no via/order/suggested reads as removed)."
+  description = "Server names for the m.space.child join hint (spec requires via)."
   type        = list(string)
   default     = []
 }
 
 variable "bot_display_name" {
-  description = "Global bot display name (matrix_user_profile). Shared across every room on this provider identity — per-room overrides use bot_room_display_name. Null = leave untouched."
+  description = "Global bot display name (matrix_user_profile). Null = leave untouched."
   type        = string
   default     = null
 }
 
 variable "bot_avatar_url" {
-  description = "Global bot avatar mxc:// URI (matrix_user_profile). Null = leave untouched. Destroy leaves the profile as-is (no protocol-level delete)."
+  description = "Global bot avatar mxc:// URI (matrix_user_profile). Null = leave untouched."
   type        = string
   default     = null
 }
 
 variable "bot_room_display_name" {
-  description = "Per-room bot display name in THIS room (matrix_user_profile_override), e.g. Flux Notifier. Null = no override. Applies after matrix_user_profile (global propagation would otherwise wipe it)."
+  description = "Per-room bot display name in THIS room (matrix_user_profile_override). Null = no override."
   type        = string
   default     = null
 }
 
 variable "bot_room_avatar_url" {
-  description = "Per-room bot avatar mxc:// URI in THIS room. Null = no override. Empty string stops overriding (falls back to global)."
+  description = "Per-room bot avatar mxc:// URI in THIS room. Null = no override."
   type        = string
   default     = null
 }

@@ -1,6 +1,4 @@
-# Both providers read the SAME kubeconfig file so validation-only flows
-# never need a live cluster. Point kubeconfig_path at the real cluster
-# kubeconfig for apply.
+# Both providers read the same kubeconfig; validation flows need no live cluster.
 provider "kubernetes" {
   config_path = var.kubeconfig_path
 }

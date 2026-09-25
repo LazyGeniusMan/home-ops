@@ -1,7 +1,5 @@
-# Barebone-Talos bootstrap wiring: the host-networked Job + Cilium
-# prerequisite chart must track the same manifests Flux reconciles
-# (flux/infra/components/cilium/controllers/base/cilium.yaml + the
-# controllers/<env>/ kustomization VIP patches). Fails `tofu test` on drift.
+# Bootstrap wiring must track the same manifests Flux reconciles
+# (cilium/controllers/base/cilium.yaml + controllers/<env>/ VIP patches).
 mock_provider "kubernetes" {}
 mock_provider "helm" {}
 
@@ -13,8 +11,7 @@ variables {
   cilium_k8s_service_host = "192.168.1.198"
 }
 
-# Prd: repository/tag track the OCIRepository doc; values track the
-# HelmRelease spec.values with the prd API VIP substituted.
+# Prd: repository/tag track the OCIRepository doc; values carry the prd API VIP.
 run "cilium_prerequisite_matches_gitops_prd" {
   command = plan
 
@@ -49,24 +46,19 @@ run "cilium_prerequisite_matches_gitops_prd" {
     error_message = "Cilium prerequisite values must not contain the __TALOS_API_VIP__ placeholder."
   }
 
-  # Steady-state handoff identity: release `cilium` in kube-system (mirrors
-  # the Flux tenant targetNamespace/storageNamespace); kube-system
-  # pre-exists on Talos so the Job must not create it.
+  # Handoff identity: release `cilium` in kube-system (pre-exists on Talos).
   assert {
     condition     = output.test_cilium_prerequisite.name == "cilium" && output.test_cilium_prerequisite.namespace == "kube-system" && output.test_cilium_prerequisite.create_namespace == false
     error_message = "Cilium prerequisite must be release cilium in kube-system with create_namespace=false (kube-system pre-exists on Talos)."
   }
 
-  # Adoption check: DaemonSet `cilium` in kube-system (chart .Values.name
-  # default; `cilium-agent` is only the app.kubernetes.io/name label). The
-  # Job skips the chart once helm-controller stamps ownership labels.
+  # Adoption check: DaemonSet `cilium` (chart Values.name default, not `cilium-agent`).
   assert {
     condition     = output.test_cilium_prerequisite.adoption.resource == "daemonset" && output.test_cilium_prerequisite.adoption.name == "cilium" && output.test_cilium_prerequisite.adoption.namespace == "kube-system"
     error_message = "flux_adoption_check must target the cilium DaemonSet in kube-system (chart Values.name default is cilium, not cilium-agent)."
   }
 
-  # Barebone Talos: the bootstrap Job must run host-networked (no CNI at
-  # Job time) so ghcr.io/quay.io pulls resolve via Talos ResolverConfig.
+  # Barebone Talos: Job must run host-networked (no CNI at Job time).
   assert {
     condition     = output.test_bootstrap_job.host_network == true
     error_message = "Bootstrap Job must set host_network=true on barebone Talos (no pod networking before Cilium)."
@@ -78,9 +70,7 @@ run "cilium_prerequisite_matches_gitops_prd" {
     error_message = "k8sServiceHost must be the Talos API VIP, never the Cilium LB pool VIP (.199 prd / .249 dev)."
   }
 
-  # Runtime-info seed: ENVIRONMENT/CLUSTER_NAME/CLUSTER_DOMAIN single-sourced
-  # from the GitOps runtime-info.yaml, CLUSTER_REGION from the var (matches
-  # the GitOps file so pre-Flux and post-Flux agree).
+  # Runtime-info seed: single-sourced from runtime-info.yaml (+ CLUSTER_REGION var).
   assert {
     condition     = nonsensitive(output.test_runtime_seed["ENVIRONMENT"]) == "prd" && nonsensitive(output.test_runtime_seed["CLUSTER_NAME"]) == "acme-prd-bdo1-talos-apps-01" && nonsensitive(output.test_runtime_seed["CLUSTER_DOMAIN"]) == "home-ops.yansyah.my.id" && nonsensitive(output.test_runtime_seed["CLUSTER_REGION"]) == "home-lab"
     error_message = "Runtime seed must carry prd ENVIRONMENT/CLUSTER_NAME/CLUSTER_DOMAIN from runtime-info.yaml plus CLUSTER_REGION=home-lab."

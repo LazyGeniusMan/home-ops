@@ -1,10 +1,10 @@
-# Flux Operator UI (§11.4)
+# Flux Operator UI
 
 Standalone Flux Web UI (serverOnly) in the apps tenant, auth-fronted by a
 per-instance oauth2-proxy. UI only — bootstrap, fleet sync, and Managed
-resources are never touched here (see "Update automation" below).
+resources are never touched here.
 
-## Layout (environment-direct, apps area)
+## Layout
 
 `base/` holds every manifest (`flux-operator-ui.yaml` OCIRepository +
 HelmRelease, `oauth2-proxy.yaml` OCIRepository + HelmRelease, proxy
@@ -13,33 +13,23 @@ patch hostnames, vault refs, and proxy values via `resources: [../base]`.
 Tenant is `apps/flux-operator-ui` via
 `flux/apps/update-policies/flux-operator-ui.yaml`.
 
-## Version choice
+## Pins
 
-UI tag **0.60.0**, chart
-`oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator` — pinned to the
-Flux Operator release line compatible with bootstrap
-**0.60.0** / operator chart **0.60.0** (`operator_chart_version` in
-`flux/fleet/terraform/versions.yaml`, the single source: `clusters/*/flux-system/flux-operator.yaml`
-consumes the same coordinates via Flux after bootstrap, and
-`tests/versions.tftest.hcl` asserts the GitOps↔Terraform mapping). The
-standalone install comes from the upstream docs
-(`/tmp/home-ops-docs/flux-operator-docs/docs/web`, upstream
-[flux-operator](https://github.com/controlplaneio-fluxcd/flux-operator) branch
-`main`, `docs/web/web-standalone.md`): dedicated Helm release with
-`web.serverOnly: true` and `installCRDs: false`, `fullnameOverride:
-flux-operator-ui` (Service `flux-operator-ui`, port 9080 `http-web`).
-Bootstrap keeps `web.enabled: false` so the two releases never overlap.
+UI chart `oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator` tag
+**0.60.0**, in lockstep with `operator_chart_version` in
+`flux/fleet/terraform/versions.yaml`. Dedicated Helm release with
+`web.serverOnly: true`, `installCRDs: false`, `fullnameOverride:
+flux-operator-ui` (Service `flux-operator-ui`, port 9080). Bootstrap keeps
+`web.enabled: false` so the two releases never overlap.
 
-## RBAC (read-only-friendly, least-privilege)
+## RBAC
 
-The UI backend impersonates the authenticated user for every Kubernetes API
-call (upstream `docs/web/web-least-privilege-rbac.md`), so end users need
-READ access to the Flux CRs they should see — least-privilege example for a
-read-only viewer (adjust subjects to taste; the UI's own service account is
-chart-managed, NO extra Role/Binding is created here):
+The UI backend impersonates the authenticated user, so end users need READ
+access to the Flux CRs they should see. Least-privilege read-only viewer
+(illustrative — apply out-of-band; the UI's own SA is chart-managed):
 
 ```yaml
-# Read-only Flux CR viewer for UI users (illustrative — apply out-of-band).
+# Read-only Flux CR viewer for UI users.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -55,74 +45,52 @@ rules:
     verbs: ["get", "list", "watch"]
 ```
 
-No Secret/ConfigMap data is ever returned to users by the privileged backend
-paths (CronJob pod listing, Flux GVK resolution — see the upstream RBAC doc).
-
-## Auth (locked contract)
-
-Same contract as the other ExternalAuth apps (zitadel README OIDC table —
-do not deviate):
+## Auth
 
 | Item | Value |
 | --- | --- |
 | Issuer | `https://admin.zitadel.home-ops.yansyah.my.id` |
-| Client | `flux-operator-ui` (owned by the `flux-operator-ui-sso` Terraform CR against the shared zitadel root — reference only) |
-| Scopes | `openid profile email groups` (groups claim enforced, `flux-operator-ui-admin` group only) |
-| Secrets (ESO) | `oauth2-proxy-oidc` syncs client-id + client-secret from `flux-operator-ui-sso-outputs` via the in-cluster `flux-operator-ui-k8s` SecretStore (stored outputs, end-to-end — no pass:// seeding for OIDC creds); `oauth2-proxy-cookie` syncs the cookie-secret from `pass://acme-prd-bdo1-talos-apps-01/flux-operator-ui/oauth2-proxy-cookie-secret` |
+| Client | `flux-operator-ui` (owned by the `flux-operator-ui-sso` Terraform CR) |
+| Scopes | `openid profile email groups` (`flux-operator-ui-admin` group only) |
+| Secrets (ESO) | `oauth2-proxy-oidc` syncs client-id + client-secret from `flux-operator-ui-sso-outputs` via the in-cluster `flux-operator-ui-k8s` SecretStore (no pass:// seeding for OIDC creds); `oauth2-proxy-cookie` syncs the cookie-secret from `pass://acme-prd-bdo1-talos-apps-01/flux-operator-ui/oauth2-proxy-cookie-secret` |
 | Upstream | `http://flux-operator-ui.<ns>.svc:9080` (namespace-agnostic via `POD_NAMESPACE` env) |
-| Callback | `https://flux-operator.home-ops.yansyah.my.id/oauth2/callback` (covered by the shared wildcard redirect `https://*/oauth2/callback` — no client change needed) |
+| Callback | `https://flux-operator.home-ops.yansyah.my.id/oauth2/callback` (covered by the shared wildcard redirect) |
 
 ## Routing
 
 Gateway `flux-operator.home-ops.yansyah.my.id`: port 80 carries only the
-RequestRedirect filter (§8.1 pattern); 443 terminates with the in-namespace
-wildcard Secret and backends to the **oauth2-proxy** Service (4180), never to
-the UI directly. TLS via the duplicate in-namespace `Certificate`
-(`wildcard-certificate.yaml`, same namespace-local discipline as §11.1 —
-cert-manager Secrets cannot cross namespaces).
+RequestRedirect filter; 443 terminates with the in-namespace wildcard Secret
+and backends to the **oauth2-proxy** Service (4180), never to the UI
+directly. TLS via the duplicate in-namespace `Certificate`
+(cert-manager Secrets cannot cross namespaces).
 
-## Telemetry-off / monitoring / updates
+## Telemetry / monitoring / updates
 
-- No usage-reporting flags are set on the release and no metrics port is
-  opened (unguarded monitors OFF). UI health via `kube-state-metrics`
-  (`kube_deployment_status_replicas_available` for `oauth2-proxy` and the
-  `flux-operator-ui` HelmRelease `Ready` condition) once the monitoring stack
-  lands; alert on consecutive failures then. No ServiceMonitor here — nothing
-  serves metrics yet (monitors guarded, same discipline as cert-manager §9).
-- The UI tracks the operator release line via
-  `update-policies/flux-operator-ui.yaml` (UI chart marker
-  `apps:flux-operator-ui:tag`, floor `>=0.60.0`; proxy chart marker
-  `apps:oauth2-proxy-chart` shared with clickstack + hubble-ui, image
-  marker `apps:oauth2-proxy` shared with clickstack + hubble-ui). It NEVER touches fleet sync:
-  this release is `serverOnly` with `installCRDs: false`, so it owns no CRDs,
-  no bootstrap values, and no Managed sync resources — bumps move the UI tag
-  and `operator_chart_version` together, nothing else.
+No usage-reporting flags, no metrics port, no ServiceMonitor. Tracks the
+operator release line via `update-policies/flux-operator-ui.yaml` (UI marker
+`apps:flux-operator-ui:tag`, floor `>=0.60.0`; proxy markers
+`apps:oauth2-proxy-chart` + `apps:oauth2-proxy` shared with clickstack +
+hubble-ui). Never touches fleet sync (`serverOnly` + `installCRDs: false`).
 
 ## Upgrade runbook
 
-- Version source: the chart tag in `base/flux-operator-ui.yaml` (UI
-  0.60.0) IN LOCKSTEP with `operator_chart_version` in
-  `flux/fleet/terraform/versions.yaml` (the single source —
-  `tests/versions.tftest.hcl` asserts the GitOps↔Terraform mapping).
+- Version source: chart tag in `base/flux-operator-ui.yaml` (UI 0.60.0) in
+  lockstep with `operator_chart_version` in
+  `flux/fleet/terraform/versions.yaml`.
 - Changelog:
   https://github.com/controlplaneio-fluxcd/flux-operator/releases.
-- Bump: let the ImagePolicy PR land (marker
-  `apps:flux-operator-ui:tag`, `update-policies/flux-operator-ui.yaml`),
-  then set the chart tag here AND `operator_chart_version` in
-  `versions.yaml` together. The UI is `serverOnly` with
-  `installCRDs: false` — bumps never touch fleet sync, bootstrap values,
-  or Managed resources.
-- Verify: the UI lists Kustomizations/HelmReleases read-only and the
-  fleet `FluxInstance` still reconciles `Ready=True`.
+- Bump: let the ImagePolicy PR land (marker `apps:flux-operator-ui:tag`),
+  then set the chart tag here AND `operator_chart_version` together.
+- Verify: the UI lists Kustomizations/HelmReleases read-only and the fleet
+  `FluxInstance` still reconciles `Ready=True`.
 
 ## Environments
 
 | Env | Replicas | Patches |
 | --- | --- | --- |
-| `dev` | UI chart default 1, oauth2-proxy 1 (single-instance) | hostnames, vault refs, proxy args + oauth2-proxy `replicas` → 1 |
-| `prd` | UI chart default 1, oauth2-proxy 1 (singleton in every env) | hostnames, vault refs, proxy args + oauth2-proxy `replicas` → 1 |
+| `dev` | UI chart default 1, oauth2-proxy 1 | hostnames, vault refs, proxy args |
+| `prd` | UI chart default 1, oauth2-proxy 1 (singleton in every env) | hostnames, vault refs, proxy args |
 
-oauth2-proxy stays a singleton (1) in every env — never scale it. The
-UI HelmRelease keeps its chart default in both envs.
+oauth2-proxy stays a singleton (1) in every env — never scale it.
 
 Upstream reference (read-only): `/tmp/home-ops-docs/flux-operator-docs/docs/web`.

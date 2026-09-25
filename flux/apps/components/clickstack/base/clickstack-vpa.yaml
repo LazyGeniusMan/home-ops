@@ -1,7 +1,5 @@
-# VPA recommenders for the clickstack HPA-paired Deployments (clickstack,
-# clickstack-otel-collector, ferretdb, oauth2-proxy): updateMode Off —
-# recommender-only, because each HPA scales the same CPU/memory metrics
-# (known-limitations.md: never VPA-apply on a resource HPA scales on).
+# VPA recommenders for the four HPA-paired Deployments: updateMode Off —
+# recommend-only (never VPA-apply on a resource HPA scales).
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler

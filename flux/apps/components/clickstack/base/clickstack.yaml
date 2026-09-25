@@ -1,17 +1,10 @@
-# Clickstack observability (§11.2): HyperDX app + OTel Collector, vendored as
-# plain Deployments (no embedded MongoDB/ClickHouse — backends are the
-# namespace-local CHI in base/clickstack-clickhouse.yaml and FerretDB
-# on the CNPG Cluster in base/ferretdb-postgres.yaml).
-# Vendored shape (not the upstream hdx-oss-v2 chart): every credential is a
-# secretKeyRef/envFrom to ESO-synced Secrets (ESO-only contract, cf. README).
-# Images pinned to the hdx-oss-v2 appVersion line (v2.7.1); bumps via
-# update-policies/clickstack.yaml. Env shape mirrors the chart's app ConfigMap
-# + Deployment (ports, probes, OPAMP wiring) minus the in-chart DBs.
-# Telemetry: USAGE_STATS_ENABLED=false (chart knob, defaults true) and the
-# app's OTLP endpoint points at the in-namespace collector — nothing leaves
-# the cluster. See README for evidence.
-# Monitoring: no ServiceMonitor (monitoring.coreos.com CRDs not present —
-# same §9 deviation).
+# HyperDX app + OTel Collector as plain Deployments (backends: namespace-local
+# CHI in clickstack-clickhouse.yaml, FerretDB in ferretdb.yaml). All credentials
+# are secretKeyRefs to ESO-synced Secrets. Images track the hdx-oss-v2
+# appVersion line (`apps:hyperdx(-otel-collector):tag` markers). Telemetry off
+# (`USAGE_STATS_ENABLED=false`; app OTLP points at the in-namespace collector).
+# No ServiceMonitor until monitoring CRDs land. `__SERVICE_HOST__` is an
+# overlay-replaced placeholder.
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -48,17 +41,14 @@ spec:
               value: "3000"
             - name: HYPERDX_LOG_LEVEL
               value: "info"
-            # Mongo-wire backend: FerretDB Service in this namespace (see
-            # ferretdb.yaml + README connection contract).
+            # Mongo-wire backend: FerretDB Service in this namespace (ferretdb.yaml).
             - name: MONGO_URI
               value: "mongodb://ferretdb.clickstack.svc:27017/hyperdx"
             - name: OTEL_SERVICE_NAME
               value: "hdx-oss-api"
-            # Telemetry OFF: chart knob (values hyperdx.usageStatsEnabled,
-            # default true) — nothing phones home.
+            # Telemetry off (chart knob defaults true); app OTLP stays in-namespace.
             - name: USAGE_STATS_ENABLED
               value: "false"
-            # App's own telemetry ships to the in-namespace collector only.
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: "http://clickstack-otel-collector.clickstack.svc:4318"
             - name: HYPERDX_API_KEY
@@ -66,9 +56,7 @@ spec:
                 secretKeyRef:
                   name: clickstack-hyperdx
                   key: api-key
-            # External ClickHouse connection: operator default user (empty
-            # password, intra-cluster only — matches the CHI's no-users
-            # stance) in an ESO-templated connections.json (never in Git).
+            # Operator `default` user, empty password (CHI defines no users).
             - name: DEFAULT_CONNECTIONS
               valueFrom:
                 secretKeyRef:
@@ -131,8 +119,7 @@ spec:
       port: 4320
       targetPort: 4320
 ---
-# OTel Collector (chart's otel Deployment shape, repointed at the external
-# CHI + HyperDX app; image pinned to the same v2.7.1 appVersion line).
+# OTel Collector Deployment (repointed at the external CHI + HyperDX app).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -171,8 +158,7 @@ spec:
                 secretKeyRef:
                   name: clickstack-hyperdx
                   key: api-key
-            # Operator default user (empty password; same no-users stance as
-            # the CHI).
+            # Operator `default` user, empty password (CHI defines no users).
             - name: CLICKHOUSE_USER
               value: "default"
             - name: CLICKHOUSE_PASSWORD

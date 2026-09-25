@@ -1,66 +1,10 @@
-# S3 -> Proton Drive backups of the `ferretdb` + `clickstack` COSI buckets
-# (colocated with the consuming component — land in the `clickstack` tenant
-# namespace via the Fleet `apps` Kustomization's `targetNamespace`). One
-# HelmRelease per bucket, per the colocated-backup rule.
-#
-# What each syncs (SeaweedFS buckets provisioned by bucketclaims.yaml; the
-# bucket prefix in each source path must exist before the first workload
-# backup lands — CNPG/the CHI never create buckets):
-# - `ferretdb`: the FerretDB CNPG Cluster WAL + base backups under the
-#   barmanObjectStore prefix `cnpg-backups/ferretdb/` (see
-#   ferretdb-postgres.yaml `destinationPath: s3://cnpg-backups/ferretdb/`).
-#   rclone mirrors `<live-bucket>/cnpg-backups/ferretdb/` to Proton Drive
-#   `/home-ops/backups/<cluster>/clickstack/ferretdb` (operation `sync`,
-#   daily 03:30, `concurrencyPolicy: Forbid`, image pinned via chart
-#   defaults rclone 1.75.0).
-# - `clickstack`: the namespace-local CHI S3 backups under the storage.xml
-#   prefix `clickhouse/clickstack/` (see clickstack-clickhouse.yaml
-#   `<endpoint>__S3_ENDPOINT_URL__/clickhouse/clickstack/</endpoint>`,
-#   credentials from the `clickhouse-s3-backup` ExternalSecret in
-#   clickstack-secrets.yaml). rclone mirrors
-#   `<live-bucket>/clickhouse/clickstack/` to Proton Drive
-#   `/home-ops/backups/<cluster>/clickstack/clickstack` (operation `sync`,
-#   daily 04:00 — staggered 30m after ferretdb so the two syncs never fight
-#   over Proton Drive rate limits, `concurrencyPolicy: Forbid`).
-#
-# Live bucket names (NEVER hardcoded): the driver provisions each bucket under
-# a controller-generated `bc-<uuid>` name (`spec.existingBucketName` is
-# unset; the live name is only in `status.bucketName`). The BucketInfo JSON
-# minted into Secrets `ferretdb-cosi-creds` / `clickstack-cosi-creds` carries
-# that same live name at `spec.bucketName` (COSI sidecar contract — same JSON
-# the existing `cnpg-s3-credentials` / `clickhouse-s3-backup` ExternalSecrets
-# already read keys from), so the `rclone-*-s3-path` ExternalSecrets below
-# template `<live-bucket>/<prefix>/` via GJSON `property`
-# `BucketInfo.spec.bucketName` into synced Secrets, and the chart consumes
-# them through `source.uri.esoRef` (`SRC_PATH` env + `$(VAR)` expansion in
-# the `SRC:` arg — the chart-supported dynamic ref).
-#
-# S3 credentials: dedicated `rclone-ferretdb-s3` / `rclone-clickstack-s3`
-# ExternalSecrets through the in-namespace `clickstack-cosi` SecretStore
-# (cosi-keys.yaml), same GJSON pattern as `cnpg-s3-credentials` /
-# `clickhouse-s3-backup`. Proton credentials: ONE shared
-# `rclone-proton-credentials` ExternalSecret through the `proton-pass`
-# ClusterSecretStore into a synced Secret consumed via the chart's `esoRef`
-# (consume, not create) by BOTH HelmReleases.
-#
-# MANUAL SEEDING (Proton Pass vault, rclone-obscured where noted — generate
-# with `rclone obscure`, see projects/helm-rclone-sync/README.md "Proton
-# obscure step"; the ProtonDrive backend REJECTS plain-text passwords):
-# - pass://<cluster>/clickstack/rclone-proton-username (plain login, NOT obscured)
-# - pass://<cluster>/clickstack/rclone-proton-password (OBSCURED)
-# - optional, only if the Proton account needs them (also OBSCURED; extend the
-#   ExternalSecret data[] + each destination.credentials mailboxPassword/
-#   otpSecretKey below): .../clickstack/rclone-proton-mailbox-password,
-#   .../clickstack/rclone-proton-otp-secret-key
-# Per-env overlay patches (dev/prd kustomization.yaml) repoint
-# `__PROTON_PASS_BASE__` below to the full `pass://acme-<env>-...` keys and
-# each destination uri to the full `/home-ops/backups/acme-<env>-...` path.
-#
-# Runtime note: provider AWS + the internal endpoint below mirror the chart's
-# s3->proton-drive fixture
-# (projects/helm-rclone-sync/ci/values-direction-05-s3-to-proton.yaml);
-# region us-east-1 is ignored by SeaweedFS but required by S3 clients (same
-# convention as the COSI README endpoint contract).
+# S3 -> Proton Drive backups of the `ferretdb` (03:30) + `clickstack` (04:00) COSI
+# buckets, one HelmRelease per bucket (`sync`, `concurrencyPolicy: Forbid`). Live
+# names template from BucketInfo `spec.bucketName` (never hardcoded); S3 keys via
+# `clickstack-cosi`, Proton creds via shared `rclone-proton-credentials` (`esoRef`).
+# Seed pass://<cluster>/clickstack/rclone-proton-{username (plain),password
+# (rclone-obscured)}; optional mailbox/otp keys obscured too. Placeholders
+# overlay-replaced. Chart source: projects/helm-rclone-sync.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -177,11 +121,9 @@ spec:
   layerSelector:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
-  # Version skew guard: this tag MUST equal Chart.yaml `version` in
-  # projects/helm-rclone-sync (single source of truth). Chart version bumps
-  # ship as one commit touching Chart.yaml + all six consumers — no floating
-  # alias, no $imagepolicy marker (Helm OCIRepositories cannot be tracked by
-  # image automation), no silent skew.
+  # Tag MUST equal Chart.yaml `version` in projects/helm-rclone-sync (bump
+  # Chart.yaml + all six consumers together; no $imagepolicy marker — Helm
+  # OCIRepositories are untracked by image automation).
   ref:
     tag: "0.1.0"
 ---

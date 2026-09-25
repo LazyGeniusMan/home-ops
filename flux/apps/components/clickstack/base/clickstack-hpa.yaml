@@ -1,15 +1,6 @@
-# Clickstack + OTel collector + FerretDB + oauth2-proxy HPAs (§11.2):
-# autoscaling/v2 over the hand-vendored Deployments (ESO-only secret posture,
-# no chart — see clickstack.yaml header; no autoscaling knob exists for a
-# plain Deployment).
-# All four are horizontally safe: HyperDX app + OTel collector repointed at
-# the external CHI (stateless); FerretDB is a stateless Mongo-wire proxy
-# (state lives in the CNPG backend, no leader election); oauth2-proxy uses
-# the cookie session store with a shared secret (stateless).
-# No Deployment /spec/replicas overlay patches: base replicas: 1 is the
-# create-time seed, HPA owns runtime count (HPA minReplicas enforces the
-# floor). Dev min 1/max 2, prd min 2/max 4 via overlay patches.
-# CPU + memory: all Deployments already request cpu/memory, so HPA works.
+# HPAs over the clickstack, collector, FerretDB, and oauth2-proxy Deployments
+# (CPU 70% + memory 80%). Base `replicas: 1` is the create-time seed; HPA owns
+# runtime count. `min/maxReplicas` are placeholders — overlays set dev 1/2, prd 2/4.
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

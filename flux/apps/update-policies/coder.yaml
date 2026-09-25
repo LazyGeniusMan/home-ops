@@ -1,10 +1,9 @@
-# Update policy for the coder component (§13.6): tracks the OCI Helm chart plus
-# the Coder app container image (chart<->app lockstep — chart 2.37.3 embeds
-# app v2.37.3), and the ImageUpdateAutomation (update cluster) opens PRs via
-# the markers in components/coder (see README). Follows the §7 update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
+# Update policy for coder: OCI chart + app image (chart<->app lockstep — bump
+# both together, never one side alone). Automation opens PRs via markers in
+# components/coder.
 # Changelog: app+chart — https://github.com/coder/coder/releases.
-# Mode: auto (chart tag + app image tag move together — bump both, never one side alone).
-# Coupled files: [components/coder/base/coder.yaml (chart tag + image tag), base/coder-db.yaml (CNPG — snapshot before major bumps)].
+# Mode: auto. Coupled: [components/coder/base/coder.yaml (chart + image tags),
+# base/coder-db.yaml (snapshot before major bumps)].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

@@ -1,158 +1,81 @@
-# Clickstack observability (§11.2)
+# Clickstack observability
 
-HyperDX v2 (logs/traces/metrics UI) + OTel Collector, backed by a
-namespace-local ClickHouse (replicated) and FerretDB on a namespace-local CNPG
-Cluster (Mongo-wire, no embedded DBs in Git).
+HyperDX v2 (logs/traces/metrics UI) + OTel Collector, backed by a namespace-local ClickHouse (1 shard x 2
+replicas) and FerretDB on a namespace-local CNPG Cluster (Mongo-wire, no embedded DBs in Git).
 
-## Layout (environment-direct, apps area)
+## Layout
 
-`base/` holds every manifest (`clickstack.yaml` (HyperDX app + OTel
-Collector) + `ferretdb.yaml` + `oauth2-proxy.yaml` OCIRepository +
-HelmRelease, plus secrets,
-ClickHouseInstallation, FerretDB CNPG Cluster, wildcard certificate,
-HTTPRoute); env overlays `{dev,prd}/` patch hostnames, vault
-refs, and endpoints via `resources: [../base]`. Tenant is `apps/clickstack`
-via `flux/apps/update-policies/clickstack.yaml` (proxy chart marker
-`apps:oauth2-proxy-chart` shared with hubble-ui + flux-operator-ui).
+`base/` holds every manifest (`clickstack.yaml` app + collector Deployments, `ferretdb.yaml` Deployment,
+`oauth2-proxy.yaml` OCIRepository + HelmRelease, secrets, ClickHouseInstallation, FerretDB CNPG Cluster, wildcard certificate,
+HTTPRoute); env overlays `{dev,prd}/` patch hostnames, vault refs, and endpoints via `resources: [../base]`.
 
 ## Images
 
 | Image | Pin | Source |
 |---|---|---|
-| HyperDX app `docker.hyperdx.io/hyperdx/hyperdx` | `v2.7.1` | hdx-oss-v2 chart 0.8.4 appVersion (classic repo `https://clickhouse.github.io/ClickStack-helm-charts`, `helm show chart clickstack/hdx-oss-v2`) |
-| Collector `docker.hyperdx.io/hyperdx/hyperdx-otel-collector` | `v2.7.1` | same chart appVersion line (`otel.image.tag` defaults to `Chart.AppVersion`) |
-| FerretDB `ghcr.io/ferretdb/ferretdb` | `2.7.0` | newest non-`latest` 2.x tag (Docker Hub tags API) |
+| HyperDX app `docker.hyperdx.io/hyperdx/hyperdx` | `v2.7.1` | hdx-oss-v2 chart 0.8.4 appVersion |
+| Collector `docker.hyperdx.io/hyperdx/hyperdx-otel-collector` | `v2.7.1` | same chart appVersion (`otel.image.tag` defaults to `Chart.AppVersion`) |
+| FerretDB `ghcr.io/ferretdb/ferretdb` | `2.7.0` | newest non-`latest` 2.x tag |
 
-## Deployment shape
+## Backends
 
-Plain Deployments mirroring the chart's env shape; every credential is a `secretKeyRef` to an ESO-synced Secret (ESO-only contract).
-
-## ClickHouse backend (namespace-local CHI)
-
-`base/clickstack-clickhouse.yaml` — namespace-local instantiation of
-the §10.2 `installation-base` template (same shape, adjusted: 1 shard x 2
-replicas, own S3 prefix `s3://.../clickhouse/clickstack/`, own app/otel
-passwords). The component-local keeper is NOT duplicated: the CHI references
-the shared `clickhouse-keeper` ensemble (infra clickhouse namespace) by name
-and the operator resolves it. If keeper endpoints are not resolvable
-cross-namespace, create a component-local CHK from the §10.2 base shape first.
-Backups go to SeaweedFS via the `backups_s3` disk (credentials from the
-`clickhouse-s3-backup` Secret — never Git; COSI-minted from the
-`clickstack-cosi-creds` BucketInfo JSON through the in-namespace
-`clickstack-cosi` SecretStore — dedicated claim `clickstack`; see
-`base/bucketclaims.yaml` and the cosi README). Per-table replication: create
-tables with ReplicatedMergeTree + ON CLUSTER DDL (same §10.2 rule).
-
-## FerretDB backend (Mongo-wire over CNPG)
-
-`base/ferretdb-postgres.yaml` — namespace-local instantiation of the
-§10.1 `cluster-base` template (same shape: 3 instances, sync quorum 1,
-`local-ssd-nvme`, continuous WAL + daily base backup to SeaweedFS S3 under
-`s3://cnpg-backups/ferretdb/`). Adjusted: dbname/owner `ferretdb`, own S3
-prefix. S3 keys are COSI-minted from the `ferretdb-cosi-creds`
-BucketInfo JSON through the in-namespace `clickstack-cosi` SecretStore
-(dedicated claim `ferretdb` — see `base/bucketclaims.yaml` and the cosi
-README). Connection via
-the CNPG `-rw` Service
-(`postgres://ferretdb@ferretdb-rw.clickstack.svc:5432/ferretdb`,
-`sslmode=require` — CNPG serves TLS with a self-signed cert FerretDB cannot
-verify, so verify-full is impossible; require still encrypts in transit, same
-trade-off as the §11.1 Zitadel DSN).
-
-Connection contract:
+- ClickHouse (`base/clickstack-clickhouse.yaml`): namespace-local CHI, 1 shard x 2 replicas, `local-ssd-nvme`, S3
+  backups to `clickhouse/clickstack/`, no users (operator `default`, empty password). Keeper reuses the shared infra `clickhouse-keeper` ensemble. Tables use ReplicatedMergeTree + ON CLUSTER DDL.
+- FerretDB (`base/ferretdb-postgres.yaml` + `base/ferretdb.yaml`): CNPG Cluster (3 instances, sync quorum 1, WAL + daily
+  base backup to `s3://cnpg-backups/ferretdb/`, dbname/owner `ferretdb`) + stateless Mongo-wire proxy. `sslmode=require` (CNPG self-signed cert; require still encrypts in transit).
 
 | Item | Value |
 |---|---|
 | HyperDX → FerretDB | `MONGO_URI=mongodb://ferretdb.clickstack.svc:27017/hyperdx` |
-| FerretDB → Postgres | `ferretdb-rw.clickstack.svc:5432/ferretdb` (user `ferretdb`, password from `ferretdb-app-secret`; username MUST equal `initdb.owner` per upstream) |
-| HyperDX → ClickHouse UI | `DEFAULT_CONNECTIONS` (`connections.json` from `clickstack-hyperdx-config`): `http://clickhouse-clickstack.clickstack.svc:8123`, user `default` (empty password) |
-| Collector → ClickHouse | `CLICKHOUSE_ENDPOINT=tcp://clickhouse-clickstack.clickstack.svc:9000?dial_timeout=10s`, user `default` (empty password) |
-| Service naming | CHI `clickstack` → operator Service `clickhouse-clickstack` — every client above dials this host |
+| FerretDB → Postgres | `ferretdb-rw.clickstack.svc:5432/ferretdb` (user `ferretdb`, password from `ferretdb-app-secret`; username MUST equal `initdb.owner`) |
+| HyperDX → ClickHouse | `DEFAULT_CONNECTIONS` (`connections.json`): `http://clickhouse-clickstack.clickstack.svc:8123`, user `default` |
+| Collector → ClickHouse | `CLICKHOUSE_ENDPOINT=tcp://clickhouse-clickstack.clickstack.svc:9000?dial_timeout=10s`, user `default` |
 
-## Auth (locked proxy contract)
+## Auth
 
-Per-instance `oauth2-proxy` (official OCI chart
-`oci://ghcr.io/oauth2-proxy/charts/oauth2-proxy:10.7.0`, app `v7.15.4`)
-fronts the UI; the HTTPRoute backend points at the proxy (`:4180`), which
-upstreams to `http://clickstack.clickstack.svc:3000`:
+Per-instance `oauth2-proxy` (official OCI chart 10.7.0, app v7.15.4) fronts the UI; the HTTPRoute backend points at
+the proxy (`:4180`), which upstreams to `http://clickstack.clickstack.svc:3000`:
 
 | Item | Value |
 |---|---|
 | Issuer | `https://admin.zitadel.home-ops.yansyah.my.id` |
-| Client | `clickstack` (secret via ESO, never Git) |
-| Redirect | `https://clickstack.home-ops.yansyah.my.id/oauth2/callback` (covered by the registered wildcard `https://*/oauth2/callback`) |
+| Client | `clickstack` (server-generated, via ESO — never Git) |
+| Redirect | `https://clickstack.home-ops.yansyah.my.id/oauth2/callback` |
 | Cookie domain | `.home-ops.yansyah.my.id` (secure, samesite=lax) |
-| Scopes | `openid profile email groups` (groups claim `groups`) |
+| Scopes | `openid profile email groups` |
 | Gate | `allowed-group=clickstack-admin` |
 | Flags | `reverse-proxy=true`, `skip-provider-button=true` |
 
-Secrets: `ExternalSecret/oauth2-proxy-oidc` syncs `client-id` +
-`client-secret` (both generated server-side) from the `clickstack-sso-outputs`
-Secret through the in-cluster `clickstack-k8s` SecretStore (stored outputs,
-end-to-end — NO pass:// seeding for OIDC creds); `oauth2-proxy-cookie` syncs
-the `cookie-secret` (32 random bytes) from Proton Pass
-(`pass://acme-prd-bdo1-talos-apps-01/clickstack/oauth2-proxy-cookie-secret`).
-Seed the cookie vault entry with pass-cli. The Zitadel `clickstack` client is
-owned by this app's `clickstack-sso` Terraform CR (upstream identity — org_id
-+ admin ID — mirrors from the FirstInstance handoff via the ESO-synced
-`clickstack-terraform-vars` Secret, no `org_id` literal in git, no email
-lookups; provider auth mirrors from the chart-kept handoff the same way).
-No pass:// SSO dependency remains.
+`ExternalSecret/oauth2-proxy-oidc` syncs `client-id` + `client-secret` from the `clickstack-sso-outputs` Secret via
+the in-cluster `clickstack-k8s` SecretStore (no pass:// seeding for OIDC creds); `oauth2-proxy-cookie` syncs the cookie secret
+(32 random bytes) from Proton Pass (`pass://acme-prd-bdo1-talos-apps-01/clickstack/oauth2-proxy-cookie-secret`). The
+`clickstack` Zitadel client is owned by this app's `clickstack-sso` Terraform CR (org_id + admin ID mirror from the FirstInstance handoff via ESO; no `org_id` literal in git).
 
-## Routing
+## Routing + TLS
 
-`base/clickstack-httproute.yaml` — HTTPRoute on the shared §8.1 Gateway
-(`main`, cross-namespace parentRef, `https` section): hostname
-`clickstack.home-ops.yansyah.my.id`, `/` → `oauth2-proxy:4180`. TLS terminates
-at the Gateway via the in-namespace wildcard `Certificate`
-(`wildcard-certificate.yaml`, same duplicate pattern as §8.1 — cert-manager
-Secrets are namespace-local).
+HTTPRoute on the shared `main` Gateway (`https` section, cross-namespace parentRef): `clickstack.home-ops.yansyah.my.id`
+→ `oauth2-proxy:4180`. TLS terminates at the Gateway via the in-namespace wildcard `Certificate` (cert-manager Secrets are namespace-local).
 
-## Telemetry-off / monitoring / updates
+## Telemetry / monitoring / updates
 
-- Telemetry evidence: the hdx-oss-v2 0.8.4 chart exposes one
-  usage-reporting knob (`hyperdx.usageStatsEnabled`, defaults true); the
-  vendored app Deployment sets `USAGE_STATS_ENABLED=false` explicitly, no
-  Sentry/Segment/Mixpanel envs are set anywhere, and the app's
-  `OTEL_EXPORTER_OTLP_ENDPOINT` points at the in-namespace collector
-  (`clickstack-otel-collector:4318`) — nothing leaves the cluster.
-- `ServiceMonitor: off` (same §9 deviation).
-- Updates flow through `flux/apps/update-policies/clickstack.yaml`
-  (ImageRepository + ImagePolicy, `$imagepolicy` markers on all four images;
-  the HyperDX floors `>=2.7.1` track the appVersion line, FerretDB `>=2.7.0`).
+- Telemetry off: `USAGE_STATS_ENABLED=false` (chart knob defaults true); app OTLP points at the in-namespace collector — nothing leaves the cluster. `ServiceMonitor: off` (no monitoring CRDs).
+- Updates via `flux/apps/update-policies/clickstack.yaml` (ImageRepository + ImagePolicy + `$imagepolicy` markers; proxy markers shared with hubble-ui + flux-operator-ui — bump together).
 
 ## Upgrade runbook
 
-- Version source: image tags in `base/clickstack.yaml` (HyperDX app +
-  collector v2.7.1, tracking the hdx-oss-v2 appVersion line),
-  `base/ferretdb.yaml` (FerretDB 2.7.0), and
-  `base/oauth2-proxy.yaml` (chart 10.7.0 marker `apps:oauth2-proxy-chart`
-  SHARED with hubble-ui + flux-operator-ui by design, app v7.15.4 marker
-  `apps:oauth2-proxy` SHARED with hubble-ui + flux-operator-ui by design).
-- Changelog (HyperDX): https://github.com/hyperdxio/hyperdx/releases.
-  Changelog (FerretDB): https://github.com/FerretDB/FerretDB/releases.
-  Changelog (proxy chart): https://github.com/oauth2-proxy/manifests/releases.
-  Changelog (proxy image): https://github.com/oauth2-proxy/oauth2-proxy/releases.
-- Bump: let the ImagePolicy PRs land
-  (`update-policies/clickstack.yaml`); move the proxy pins together with
-  hubble-ui + flux-operator-ui in the same round. The namespace-local CHI instantiates the
-  §10.2 `installation-base` template but currently pins server 25.9.7.56
-  (via the `infra:clickhouse-server:tag` marker), behind the infra
-  26.8.10.6 LTS line — check the infra clickhouse LTS line before taking
-  a server-coupled bump.
-- Migrate: snapshot the `ferretdb` CNPG cluster + confirm a ClickHouse
-  `BACKUP ALL` completed BEFORE major bumps. Verify: the logs/traces UI
-  loads through the proxy and the collector still receives OTLP.
+- Version source: `base/clickstack.yaml` (HyperDX app + collector), `base/ferretdb.yaml` (FerretDB), `base/oauth2-proxy.yaml` (chart + app).
+- Changelog: HyperDX https://github.com/hyperdxio/hyperdx/releases · FerretDB https://github.com/FerretDB/FerretDB/releases · proxy chart https://github.com/oauth2-proxy/manifests/releases · proxy image https://github.com/oauth2-proxy/oauth2-proxy/releases.
+- Bump: let the ImagePolicy PRs land; move the proxy pins together with hubble-ui + flux-operator-ui. The CHI server marker tracks the infra clickhouse line — check it before a server-coupled bump.
+- Migrate: snapshot the `ferretdb` CNPG cluster + confirm a ClickHouse `BACKUP ALL` completed BEFORE major bumps. Verify: the logs/traces UI loads through the proxy and the collector still receives OTLP.
 
 ## Environments
 
 | Env | Replicas | Patches |
 | --- | --- | --- |
-| `dev` | app 1, collector 1, oauth2-proxy 1, ferretdb 1, `ferretdb` Cluster 1, CHI 1 shard x 1 replica (single-instance) | vault refs, hostnames, endpoints + replica/instance patches → 1 |
-| `prd` | app 2, collector 2, oauth2-proxy 1, ferretdb 1, `ferretdb` Cluster 3, CHI 1 shard x 2 replicas (recommended production) | vault refs, hostnames, endpoints + production counts pinned |
+| `dev` | app 1, collector 1, oauth2-proxy 1, ferretdb 1, `ferretdb` Cluster 1, CHI 1x1 | vault refs, hostnames, endpoints + counts → 1 |
+| `prd` | app 2, collector 2, oauth2-proxy 1, ferretdb 1, `ferretdb` Cluster 3, CHI 1x2 | vault refs, hostnames, endpoints + production counts |
 
-oauth2-proxy and FerretDB stay singletons (1) in every env — never scale
-them. Rclone sync (`ferretdb` + `clickstack` legs): 1 per
-instance/schedule, `concurrencyPolicy: Forbid` — no scaling.
+oauth2-proxy and FerretDB stay singletons (1) in every env — never scale them. Rclone sync (`ferretdb` + `clickstack`
+legs): 1 per instance/schedule, `concurrencyPolicy: Forbid` — no scaling.
 
 Upstream reference (read-only): `/tmp/home-ops-docs/clickstack-helm-charts-docs`.

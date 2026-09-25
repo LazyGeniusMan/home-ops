@@ -1,14 +1,6 @@
-# FerretDB (§11.2): Mongo-wire proxy over the namespace-local CNPG Cluster
-# (base/ferretdb-postgres.yaml, dbname ferretdb). Image pinned to the
-# v2.7.0 line; bumps via update-policies/clickstack.yaml.
-# Connection contract (documented for app writers, see README):
-# - HyperDX MONGO_URI=mongodb://ferretdb.clickstack.svc:27017/hyperdx.
-# - FerretDB reaches Postgres at ferretdb-rw.clickstack.svc:5432/ferretdb
-#   (CNPG -rw Service, user ferretdb, password from ferretdb-app-secret).
-# - sslmode=require: CNPG serves TLS with a self-signed cert FerretDB cannot
-#   verify, so verify-full is impossible; require still encrypts in transit
-#   (same trade-off as the §11.1 Zitadel DSN).
-# Monitoring: no ServiceMonitor until monitoring.coreos.com CRDs land.
+# FerretDB Mongo-wire proxy over the `ferretdb` CNPG Cluster (ferretdb-postgres.yaml).
+# Image marker `apps:ferretdb:tag`. `sslmode=require` (CNPG self-signed cert;
+# require still encrypts in transit). No ServiceMonitor until monitoring CRDs land.
 ---
 apiVersion: apps/v1
 kind: Deployment

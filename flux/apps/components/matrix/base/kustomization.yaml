@@ -1,20 +1,14 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  # Shared tenant plumbing (ONE copy serves every in-namespace k8s store:
-  # tuwunel-k8s, tuwunel-cosi, mautrix-discord-cosi).
+  # Shared tenant plumbing (ONE copy serves tuwunel-k8s, tuwunel-cosi, mautrix-discord-cosi).
   - matrix-rbac.yaml
-  # ONE wildcard Certificate covering both nested service hostnames
-  # (tuwunel.matrix.* + element.matrix.*).
+  # ONE wildcard Certificate (tuwunel.matrix.* + element.matrix.*).
   - wildcard-certificate.yaml
-  # apprise-go-api consumer wiring (workload in namespace apprise-go-api;
-  # fallback secret + Provider/Alert wiring here, posting to the infra
-  # Service DNS below).
+  # apprise-go-api consumer wiring (workload in namespace apprise-go-api).
   - apprise-go-api-secrets.yaml
   - notifications.yaml
-  # tuwunel: Matrix homeserver (Deployment+PVC+Service, secrets, COSI storage
-  # claim, COSI keys, VPA, HTTPRoutes). No HPA (singleton; RocksDB
-  # single-writer).
+  # tuwunel homeserver (no HPA — singleton, RocksDB single-writer).
   - tuwunel-secrets.yaml
   - tuwunel-sso.yaml
   - zitadel-handoff-rbac.yaml
@@ -23,32 +17,20 @@ resources:
   - tuwunel.yaml
   - tuwunel-vpa.yaml
   - tuwunel-httproute.yaml
-  # mautrix-discord: Discord bridge singleton + colocated Postgres (secrets,
-  # storage claim, COSI keys, CNPG Cluster, workload, VPA). No HPA (fixed
-  # appservice listener + in-memory portal buffer — singleton contract).
+  # mautrix-discord bridge singleton + colocated Postgres (no HPA — singleton contract).
   - mautrix-storage.yaml
   - mautrix-cosi-keys.yaml
   - mautrix-discord-secrets.yaml
   - mautrix-discord-db.yaml
   - mautrix-discord.yaml
   - mautrix-discord-vpa.yaml
-  # element-web: stateless SPA (DNS-01 solver secret, workload + config +
-  # Service, HTTPRoute, HPA, VPA, NetBird consumer). Single
-  # cloudflare-api-token mirror ships here (in tuwunel-secrets.yaml).
+  # element-web stateless SPA (cloudflare-api-token mirror in tuwunel-secrets.yaml).
   - element-web.yaml
   - element-web-hpa.yaml
   - element-web-vpa.yaml
   - element-httproute.yaml
   - element-proxy.yaml
-  # Bot bootstrap (zitadel-style): the matrix-bot-bootstrap Job registers the
-  # notifier bot server-side + mints its token + writes the KEPT Secret
-  # `matrix-bot-bootstrap-outputs` (rooms.yaml varsFrom + the
-  # apprise-stateless-urls ES read it directly — same namespace, NO ESO
-  # mirror hop). Registration secret wiring lives in tuwunel.yaml +
-  # tuwunel-secrets.yaml.
+  # Bot bootstrap Job + kept Secret (rooms varsFrom + apprise ES read directly, same namespace).
   - matrix-bot-bootstrap.yaml
-  # Live room provisioning (tofu-controller): one Terraform CR per ops
-  # notification room (flux-notifications, tofu-runs, coder-notifications)
-  # reading provider auth from the bootstrap kept Secret. Live counterpart
-  # of the terraform/examples/ skeletons; team room stays example-only.
+  # Live room provisioning (one Terraform CR per ops room; team room stays example-only).
   - rooms.yaml

@@ -1,12 +1,7 @@
-# Hubble UI + oauth2-proxy HPAs (§11.3): autoscaling/v2 over the
-# hand-vendored Deployments (shape mirrors the Cilium chart's hubble-ui
-# templates; the chart carries no usable autoscaling knob here). Both are
-# stateless (nginx frontend + backend dialing Hubble Relay by DNS; proxy with
-# cookie session store), so horizontal scaling is safe. No Deployment
-# /spec/replicas overlay patches: base replicas: 1 is the create-time seed,
-# HPA owns runtime count (HPA minReplicas enforces the floor).
-# Dev min 1/max 2, prd min 2/max 4 via overlay patches. CPU + memory: both
-# Deployments already request cpu/memory, so HPA works.
+# Hubble UI + oauth2-proxy HPAs over the hand-vendored Deployments (no usable
+# chart autoscaling knob). Both are stateless, so horizontal scaling is safe.
+# Base replicas is the create-time seed; HPA owns runtime count. Dev 1-2,
+# prd 2-4 via overlays.
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

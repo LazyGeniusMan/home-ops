@@ -1,13 +1,9 @@
-# Update policy for the headlamp component (§13.3): tracks the headlamp image
-# (and, by lockstep, the chart — chart 0.45.0 carries app 0.45.0, unlike the
-# §11.1 Zitadel divergence), and the ImageUpdateAutomation (update cluster)
-# opens PRs via markers in components/headlamp (see README). Follows the §7
-# update-policy contract (ImageRepository + ImagePolicy + $imagepolicy
-# markers). Plugin pins (ai-assistant, flux, kubevirt in the HelmRelease
-# configContent) are bumped by hand in the same PR — see README.
-# Changelog: https://github.com/headlamp-k8s/headlamp/releases (plugins via the ArtifactHub links in the README).
-# Mode: auto (image) + manual same-PR (OCIRepository `ref.tag` to match + plugin pins in configContent).
-# Coupled files: [components/headlamp/base/headlamp.yaml (OCIRepository `ref.tag` + image tag + plugin pins)].
+# Update policy for the headlamp component: tracks the headlamp image (and, by
+# lockstep, the chart — chart 0.45.0 carries app 0.45.0). Plugin pins
+# (ai-assistant, flux, kubevirt in configContent) are hand-bumped in the same PR.
+# Changelog: headlamp-k8s/headlamp releases (plugins via the ArtifactHub links in the README).
+# Mode: auto (image) + manual same-PR (`ref.tag` to match + plugin pins).
+# Coupled files: [components/headlamp/base/headlamp.yaml].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

@@ -1,10 +1,5 @@
-# Update policy for the talos-vm app (§13.5): tracks the Talos nocloud base
-# ISO, and the ImageUpdateAutomation (update cluster) opens PRs via the marker
-# in components/talos-vm (see README). Follows the §7 update-policy contract
-# (ImageRepository + ImagePolicy + $imagepolicy markers).
-# Changelog: https://github.com/siderolabs/talos/releases.
-# Mode: auto (ISO URL marker stays aligned to the Talos version in talos/ansible/group_vars/all.yml — refresh together).
-# Coupled files: [components/talos-vm/base/talos-vm.yaml (ISO URL + marker), ../../../../talos/ansible/group_vars/all.yml].
+# talos-vm nocloud ISO policy (auto; stays aligned to talos/ansible/group_vars/all.yml — refresh together).
+# Changelog: https://github.com/siderolabs/talos/releases. Coupled: components/talos-vm/base/talos-vm.yaml.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

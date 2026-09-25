@@ -1,27 +1,8 @@
-# COSI-managed bucket for the coder-db Postgres backups (colocated with the
-# consuming component — lands in the `coder` tenant namespace via the Fleet
-# `apps` Kustomization's `targetNamespace`).
-# - Claim uses BucketClass/seaweedfs, protocol S3. The central controller
-#   creates the cluster-scoped Bucket; the driver (DriverCreateBucket =
-#   req.GetName()) provisions the live bucket in SeaweedFS under a
-#   controller-generated name (`bc-<uuid>`) — claim/access names do NOT map
-#   to pre-existing bucket names, so `spec.existingBucketName` is
-#   intentionally unset. Read the live name from the claim's
-#   `status.bucketName` once `status.bucketReady` is true.
-# - `coder-db` backs the coder-db CNPG Cluster WAL + base backups: the
-#   barmanObjectStore `destinationPath` (`s3://cnpg-backups/coder/`, see
-#   coder-db.yaml) targets the COSI-provisioned bucket. The `s3://` path
-#   prefix must exist before the first Cluster starts (CNPG never creates
-#   buckets).
-# - The BucketAccess (BucketAccessClass/seaweedfs-key, authenticationType
-#   KEY) mints S3 keys into its `credentialsSecretName` Secret in THIS
-#   namespace as a `BucketInfo` JSON file (secretS3.endpoint/region/
-#   accessKeyID/accessSecretKey). The driver hands back the INTERNAL
-#   endpoint (http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333).
-# - Credential bridge: coder-db's `cnpg-s3-credentials` ExternalSecret (in
-#   coder-db.yaml) reads through the in-namespace `coder-cosi` SecretStore
-#   (cosi-keys.yaml) — GJSON `property` extracts
-#   spec.secretS3.accessKeyID/accessSecretKey.
+# COSI bucket for coder-db backups (claim `coder-db`, BucketClass/seaweedfs,
+# S3): live name is controller-generated (`bc-<uuid>`, read from
+# `status.bucketName`); `spec.existingBucketName` stays unset. S3 prefix must
+# exist before the first Cluster starts (CNPG never creates buckets). Keys bridge
+# via `coder-cosi` (cosi-keys.yaml) BucketInfo JSON.
 ---
 apiVersion: objectstorage.k8s.io/v1alpha1
 kind: BucketClaim

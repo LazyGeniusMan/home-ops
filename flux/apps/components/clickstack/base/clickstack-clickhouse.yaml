@@ -1,29 +1,15 @@
-# Clickstack ClickHouse (§11.2): namespace-local instantiation of the §10.2
-# installation-base template (reference/instantiate pattern — same shape,
-# adjusted: single-shard layout, own S3 prefix, own credentials).
-# - Layout: 1 shard x 2 replicas against the shared 3-replica Keeper ensemble
-#   (CHI references the infra-namespace CHK by name; the operator resolves
-#   keeper endpoints automatically). 2 replicas keep quorum on a node loss.
-# - Keeper: reuses clickhouse-keeper in the infra clickhouse namespace — NOT
-#   duplicated here. If the Keeper Service is not resolvable cross-namespace,
-#   create the component's own CHK from the §10.2 base shape first.
-# - Storage: local-ssd-nvme (the §9 default class).
-# - Backup: S3 backups go to SeaweedFS (§12, DNS name only, no file
-#   dependency) under s3://.../clickhouse/clickstack/. Credentials come from
-#   the clickhouse-s3-backup Secret synced by clickstack-secrets.yaml.
-# - Users: NONE — mirrors the §10.2 base (operator default: the `default`
-#   user, empty password, intra-cluster only). App + collector authenticate
-#   as `default`.
-# - Per-table replication: create tables with ReplicatedMergeTree +
-#   ON CLUSTER DDL (same rule as §10.2); keeper path defaults to
-#   /clickhouse/backups.
+# Namespace-local ClickHouseInstallation (1 shard x 2 replicas, `local-ssd-nvme`,
+# S3 backups to `clickhouse/clickstack/`, no users — operator `default` user,
+# empty password). Keeper reuses the shared infra `clickhouse-keeper` ensemble;
+# stand up a local CHK first if cross-namespace resolution fails.
+# `replicasCount` is a placeholder — overlays own the count.
+# Server image tracks the infra line (`infra:clickhouse-server:tag` marker).
 ---
 apiVersion: clickhouse.altinity.com/v1
 kind: ClickHouseInstallation
 metadata:
-  # Name `clickstack` (not clickhouse-clickstack): the operator exposes the
-  # cluster as Service `clickhouse-<chi-name>`, so this yields
-  # `clickhouse-clickstack` — the host every client below dials.
+  # Operator exposes Service `clickhouse-<chi-name>` → `clickstack` yields
+  # `clickhouse-clickstack`, the host every client dials.
   name: clickstack
 spec:
   defaults:
@@ -35,10 +21,7 @@ spec:
     zookeeper:
       keeper:
         name: clickhouse-keeper
-        # Assumes the operator resolves the shared infra-namespace ensemble
-        # cross-namespace (same "references the CHK by name" rule as §10.2).
-        # If the CHI stays Pending on keeper resolution, stand up a
-        # component-local CHK from the §10.2 base shape and point here.
+        # Shared infra-namespace ensemble; stand up a local CHK if Pending.
         namespace: clickhouse
     clusters:
       - name: main
@@ -67,9 +50,7 @@ spec:
         spec:
           containers:
             - name: clickhouse-pod
-              # Tracks the infra clickhouse-server line (policy lives in
-              # flux/infra/update-policies/clickhouse.yaml — the single
-              # infra: namespace owns the server/keeper image policies).
+              # Server line owned by the infra policy (`infra:clickhouse-server:tag`).
               image: clickhouse/clickhouse-server:25.9.7.56 # {"$imagepolicy": "infra:clickhouse-server:tag"}
               env:
                 - name: CLICKHOUSE_S3_ACCESS_KEY_ID

@@ -1,10 +1,7 @@
-# Clickstack HTTPRoute (§11.2): attaches to the shared §8.1 Gateway (listeners
-# accept routes from all namespaces — cross-namespace parentRef, no
-# targetNamespace override needed; same pattern as §11.1 zitadel). Hostname
-# __SERVICE_HOST__ (Zitadel clickstack client already declared -
-# reference only) → oauth2-proxy Service (:4180), which upstreams to
-# clickstack. TLS terminates at the Gateway via the in-namespace wildcard
-# Certificate (wildcard-certificate.yaml).
+# HTTPRoute on the shared `main` Gateway (`https` section, cross-namespace
+# parentRef): `__SERVICE_HOST__` → oauth2-proxy `:4180`. TLS terminates at the
+# Gateway via the in-namespace wildcard Certificate. `__SERVICE_HOST__` is an
+# overlay-replaced placeholder.
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

@@ -1,24 +1,9 @@
-# Element Web stateless SPA: Deployment + config.json ConfigMap +
-# Service, vendored from the upstream Kubernetes example
-# (docs/kubernetes.md, `/tmp/home-ops-docs/element-web-docs`): vectorim/element-web image, config.json via ConfigMap
-# subPath mount at /app/config.json, Service :80, probes GET / (readiness
-# initialDelay 2s / period 3s, liveness initialDelay 10s / period 10s —
-# upstream example values).
-#
-# Upstream image layout:
-# /app <- built webapp, ELEMENT_WEB_PORT=80, HEALTHCHECK GET /config.json.
-# The nginx template serves /config* from the entrypoint-copied staging dir
-# (/tmp/element-web-config), BUT the container entrypoint copies
-# /app/config*.json there at start (docker-entrypoint.d/18-*.sh), so the
-# subPath-mounted /app/config.json is what nginx serves at /config.json.
-# Load order (docs/config.md): Element tries config.$domain.json first, then
-# falls back to config.json — we ship ONLY config.json (no per-domain
-# variant), so every hostname deterministically serves this config.
-#
-# Stateless: pure nginx static file server (no session, no local state), so
-# horizontal scaling is safe. HPA owns runtime count (base replicas: 1 is the
-# create-time seed).
-# Image pinned explicitly; bumps via the update-policy contract.
+# Element Web stateless SPA (Deployment + config.json ConfigMap + Service),
+# vendored from the upstream Kubernetes example (`/tmp/home-ops-docs/element-web-docs`):
+# vectorim/element-web image, config.json via subPath mount at /app/config.json
+# (entrypoint copies it to the nginx-served staging dir), Service :80.
+# Stateless nginx static server — horizontal scaling safe; HPA owns runtime count
+# (base replicas: 1 is the create-time seed). Image bumps via update-policies/element-web.yaml.
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -28,38 +13,12 @@ metadata:
     app.kubernetes.io/name: element-web
     app.kubernetes.io/part-of: element-web
 data:
-  # Homeserver choice (docs/config.md): default_server_config with
-  # m.homeserver.base_url (the PREFERRED explicit-URL method — no .well-known
-  # lookup needed at startup). default_server_name intentionally NOT set
-  # alongside it (docs: Element would try .well-known first and only fall
-  # back to default_server_config — extra failure mode we skip).
-  # default_server_name match: the tuwunel server_name is
-  # "tuwunel.matrix.<base>" (placeholder — MUST match tuwunel server_name or
-  # login/user-ID routing breaks); base_url is the PUBLIC tuwunel client URL
-  # (placeholder, replaced per env).
-  # disable_custom_urls: true — locks the server picker to our homeserver
-  # (public Matrix client speaking to tuwunel via Zitadel SSO; users must
-  # not be offered arbitrary homeserver URLs).
-  # permalink_prefix: our Element hostname (dev/prd overlay replaces) so
-  # Share-link permalinks point at OUR deployment, not matrix.to.
-  # brand Element / default_theme light (upstream defaults, recorded
-  # explicitly). branding + embedded_pages: empty objects = stock Element
-  # welcome/home pages and assets (no white-labelling; og:image stays
-  # element.io-hosted as upstream ships it).
-  # room_directory.servers: [tuwunel server_name] so the public-room
-  # directory queries our server (not matrix.org).
-  # integrations (UI/REST/widgets): null = integration manager DISABLED
-  # (no Scalar/vector.im dependency, no widget hosting surface; widgets in
-  # general keep default container height).
-  # jitsi.preferred_domain: meet.element.io (upstream default — recorded;
-  # unused unless a call starts a Jitsi conference and neither an
-  # integration manager nor homeserver .well-known supplies Jitsi info).
-  # help URLs: element.io defaults (recorded; no self-hosted help pages).
-  # default_federate: false — new rooms are created non-federated
-  # (federation capability cannot be changed after room creation, so the
-  # safe default for a private deployment is false).
-  # bug_report_endpoint_url omitted = rageshake/feedback submission
-  # DISABLED (no rageshake server; upstream disables when absent).
+  # default_server_config.base_url is the public tuwunel URL (explicit-URL method,
+  # no .well-known lookup; MUST match tuwunel server_name). disable_custom_urls locks
+  # the picker to our homeserver. permalink_prefix is our Element hostname (overlays
+  # replace). room_directory.servers points at our server. integrations null =
+  # manager disabled. default_federate false (federation stays off). rageshake
+  # omitted = feedback disabled.
   config.json: |
     {
         "default_server_config": {

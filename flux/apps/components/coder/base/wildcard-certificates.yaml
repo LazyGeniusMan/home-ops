@@ -1,17 +1,10 @@
-# In-namespace Certificates (§§8.1/9.3/13.6). cert-manager Secrets are
-# namespace-local, so the §9 Certificate (cert-manager namespace) cannot feed
-# this component's Gateway listeners — the apex Certificate (coder-root)
-# mints __WILDCARD_TLS_SECRET__ for __SERVICE_HOST__, and the wildcard
-# Certificate (__WILDCARD_CERT_NAME__) mints __WILDCARD_TLS_SECRET__ for
-# __WILDCARD_SERVICE_HOST__, both HERE via the same
-# ClusterIssuer/letsencrypt DNS-01 flow (same duplicate pattern as §8.1
-# gateway-api). Two Certificates because one TLS wildcard matches a single
-# label only: the apex wildcard covers the dashboard root but NOT
-# nested <workspace>.__SERVICE_DOMAIN__ agents/apps. The token
-# ExternalSecret mirrors cert-manager/configs/base/cluster-issuer.yaml (same
-# Proton Pass remoteRef) so the DNS-01 solver credential exists in this
-# namespace too. No manual DNS: issuance uses DNS-01 TXT records, and the A
-# records ride on the §9.4 external-dns automation (see README).
+# In-namespace Certificates (cert-manager Secrets are namespace-local): `coder-root`
+# mints `__WILDCARD_TLS_SECRET__` for `__SERVICE_HOST__`, wildcard
+# `__WILDCARD_CERT_NAME__` mints `__WILDCARD_TLS_SECRET__` for
+# `*.coder.__BASE_DOMAIN__` — two certs because one wildcard covers a single
+# label only (nested workspace subdomains need the second). Both via
+# ClusterIssuer/letsencrypt DNS-01; issuance uses DNS-01 TXT, A records ride
+# external-dns. Placeholders are overlay-replaced.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

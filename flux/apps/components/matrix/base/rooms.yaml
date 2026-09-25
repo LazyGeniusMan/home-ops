@@ -1,54 +1,18 @@
-# Live room provisioning: flux-notifications + tofu-runs + coder-notifications
-# (tofu-controller).
-#
-# These CRs ship in THIS tenant's base (not a team namespace) —
-# the flux/tofu fallback legs
-# (matrixs://.../%23flux-notifications?tag=flux,
-#  matrixs://.../%23tofu-runs?tag=tofu in apprise-go-api-secrets.yaml) plus
-# the coder room (coder-owned credential, per-request `urls` — NO fallback
-# leg; see NOTIFICATIONS.md ownership table)
-# resolve to rooms that must exist, and no team namespace owns ops-wide
-# notification rooms. This file is the live counterpart of the copy-paste
-# skeletons in terraform/examples/ (flux-notifications-terraform.yaml,
-# tofu-runs-terraform.yaml) — team-terraform.yaml stays example-only (the
-# team-optin Alert stays suspended; no team room is provisioned here).
-#
-# Ordering: ships in the app Kustomization (fleet `apps` dependsOn
-# `infra-configs`), so it reconciles after the tuwunel HelmRelease is Ready.
-# Terraform `dependsOn` is Terraform-CR-only upstream (checkDependencies
-# resolves every entry as kind Terraform), so NO dependsOn entry here — the
-# fleet ordering above is the mechanism.
-# Notification-only power lock: events_default 50 — the bot (100) posts, the
-# on-call lead (50) moderates, normal members CANNOT post (see NOTIFICATIONS.md).
-# Plaintext: encryption_enabled false — the
-# stateless apprise notifier has no Olm persistence, so E2EE rooms are
-# unreadable to it (irreversible at creation; E2EE stays for human/opt-in
-# rooms only).
-#
-# Upstream wiring: provider auth (homeserver_url/access_token/user_id) flows
-# from the matrix-bot-bootstrap Job's KEPT Secret
-# `matrix-bot-bootstrap-outputs` (matrix-bot-bootstrap.yaml — the zitadel
-# chain analogue: setup-Job-keeps-Secret; same namespace, so the CRs read
-# it DIRECTLY via same-namespace `varsFrom`, NO ESO mirror hop needed).
-# The Job writes its keys under the module var names, so `varsFrom` needs
-# no varsKeys renames. NO token literal in git, NO manual per-env fill, NO
-# vault hop for room provisioning.
-# Backend: in-cluster Kubernetes default (state Secrets in the matrix
-# namespace) — no backendConfig needed.
-# Outputs: room_id + canonical_alias + bot_user_id land in
-# `<room>-outputs`; notifiers read room IDs from those Secrets through the
-# in-cluster store — never Git, never Proton Pass.
-# Prerequisite: the bootstrap Job ran per env (it registers the bot via
-# the Synapse-compat admin API + mints the token server-side). Without the
-# kept Secret the CRs retry on interval.
-# POSITIONAL: the dev/prd overlays patch /spec/vars/8 (members) +
-# /spec/vars/9 (power_levels) by index in EACH CR (flux-notifications,
-# tofu-runs, coder-notifications), so this var order must
-# not change without updating the overlays (same convention as
-# element-proxy.yaml).
+# Live room provisioning (flux-notifications + tofu-runs + coder-notifications).
+# Ships in THIS tenant's base (no team namespace owns ops-wide rooms). Live counterpart
+# of the terraform/examples/ skeletons (team-terraform.yaml stays example-only).
+# Reconciles after tuwunel is Ready (fleet `apps` dependsOn `infra-configs`); no
+# Terraform dependsOn (Terraform-CR-only upstream).
+# Notification-only (events_default 50 — members CANNOT post) + plaintext
+# (encryption_enabled false — E2EE unreadable to the stateless notifier, irreversible).
+# Provider auth flows from the bootstrap kept Secret via same-namespace `varsFrom`
+# (keys land under the module var names, no varsKeys renames, no ESO hop, no vault hop).
+# Backend: in-cluster default, no backendConfig. Outputs land in `<room>-outputs`.
+# Prerequisite: the bootstrap Job ran per env; without the kept Secret the CRs retry.
+# POSITIONAL: overlays patch /spec/vars/8 (members) + /spec/vars/9 (power_levels) by
+# index in EACH CR — keep this var order.
 ---
-# Room auth flows from kept Secret matrix-bot-bootstrap-outputs via
-# same-namespace varsFrom; no ESO hop.
+# Room auth: kept Secret via same-namespace varsFrom; no ESO hop.
 ---
 apiVersion: infra.contrib.fluxcd.io/v1alpha2
 kind: Terraform
@@ -57,30 +21,19 @@ metadata:
 spec:
   interval: 30m
   approvePlan: auto
-  # Upsert-only guard: `destroy` and `destroyResourcesOnDeletion` stay
-  # false, so no `tofu destroy` path exists via Flux.
+  # Upsert-only: no `tofu destroy` path via Flux.
   destroy: false
   destroyResourcesOnDeletion: false
-  # Shared reusable rooms root: the apps/matrix OCI artifact (namespace
-  # `matrix`) packs flux/apps/components/matrix/terraform/ at
-  # ./terraform. Same-namespace sourceRef — no per-team
-  # terraform/ root, no git-SHA module pin.
+  # Shared rooms root: apps/matrix OCI artifact (namespace `matrix`), path ./terraform.
   sourceRef:
     kind: OCIRepository
     name: apps
     namespace: matrix
   path: ./terraform
-  # Plain (non-sensitive) per-room values; secrets (homeserver_url,
-  # access_token, user_id) come from varsFrom below. varsFrom overrides vars
-  # on key collision (upstream GenerateVarsForTF).
-  # Locked power levels: bot pinned at 100 by the module (self-lockout safe);
-  # on-call lead at 50 (invite/kick/redact/state). Notification-only:
-  # events_default 50 means normal members (users_default 0) CANNOT post —
-  # only the bot (100) delivers; topic/name/alias changes stay moderator-only
-  # (state_default 50). Nested maps ride `vars` as HCL natively
-  # (tofu-controller renders nested YAML values as HCL — no JSON needed).
-  # Plaintext: encryption_enabled false (E2EE unreadable to the stateless
-  # notifier; irreversible — decide at creation, see module README).
+  # Plain per-room values; secrets from varsFrom (overrides vars on collision).
+  # Bot pinned at 100 by the module (self-lockout safe); on-call lead at 50.
+  # Notification-only (events_default 50) + plaintext (encryption_enabled false,
+  # irreversible). Nested maps ride `vars` as HCL natively.
   vars:
     - name: room_name
       value: flux-notifications
@@ -132,11 +85,7 @@ spec:
     name: apps
     namespace: matrix
   path: ./terraform
-  # Feeds from the `tofu-runs` Alert (Kustomization+HelmRelease info events
-  # filtered to Terraform messages via inclusionList — see NOTIFICATIONS.md).
-  # Overlaps the flux room by design (tofu events post to BOTH rooms).
-  # Notification-only power lock (events_default 50) + plaintext
-  # (encryption_enabled false): same rationale as the flux room header above.
+  # Feeds from the `tofu-runs` Alert (overlaps the flux room by design).
   vars:
     - name: room_name
       value: tofu-runs
@@ -188,18 +137,9 @@ spec:
     name: apps
     namespace: matrix
   path: ./terraform
-  # Feeds from the Coder Deployment webhook
-  # (CODER_NOTIFICATIONS_METHOD=webhook +
-  # CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT = ESO-composed coder-owned value
-  # with per-request `urls` — NO apprise-coder Provider, NO matrix fallback
-  # leg; see flux/apps/components/coder/base/coder.yaml + NOTIFICATIONS.md
-  # ownership table).
-  # Coder posts its fixed payload (top-level title/body) to ONE global
-  # endpoint, so every event lands in this single room (per-event routing
-  # is Premium-only — see base/NOTIFICATIONS.md). Same notification-only
-  # power lock (events_default 50) + plaintext (encryption_enabled false)
-  # as the flux/tofu rooms above. Var order mirrors the sibling CRs so the
-  # positional overlay patches (/spec/vars/8 + /spec/vars/9) apply here too.
+  # Feeds from the Coder webhook (per-request `urls`, no Provider, no fallback leg).
+  # Every event lands in this single room (per-event routing is Premium-only).
+  # Var order mirrors the sibling CRs (positional /spec/vars/8 + /spec/vars/9).
   vars:
     - name: room_name
       value: coder-notifications

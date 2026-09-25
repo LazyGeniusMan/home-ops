@@ -1,8 +1,6 @@
-# VPA recommender for the coder Deployment (HPA-paired): updateMode Off —
-# recommender-only, because the HPA scales CPU (coder-hpa.yaml: single
-# Resource metric cpu @70%), and controlledResources [memory] splits the
-# axes (memory-only VPA + CPU-based HPA; never VPA-apply on a resource HPA
-# scales on).
+# VPA recommender for the HPA-paired `coder` Deployment: updateMode Off,
+# memory-only (`controlledResources: [memory]`) — never VPA-apply on CPU,
+# which the HPA scales.
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler

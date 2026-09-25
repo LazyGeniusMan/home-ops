@@ -1,42 +1,18 @@
 # Example consumer: flux-notifications room (BOT posts, humans read).
 # Copy into flux/apps/components/<team>/base/terraform.yaml, rename every
-# matrix-rooms-*, and replace the mxids/hostnames. Ships in the app
-# Kustomization (fleet `apps` dependsOn `infra-configs`), so it reconciles
-# after the tuwunel HelmRelease is Ready. Terraform `dependsOn` is
-# Terraform-CR-only upstream (checkDependencies resolves every entry as kind
-# Terraform), so NO dependsOn entry here — the fleet ordering above is the
-# mechanism. Notification-only power lock: events_default 50 — the bot (100)
-# posts, the on-call lead (50) moderates, normal members CANNOT post (see
-# NOTIFICATIONS.md).
-# Plaintext: encryption_enabled false — the stateless apprise notifier has
-# no Olm persistence, so E2EE rooms are unreadable to it (irreversible at
-# creation; E2EE stays for human/opt-in rooms only).
-#
-# Upstream wiring: provider auth (homeserver_url/access_token/user_id) flows
-# from the TEAM's own bot-token mirror Secret (same-namespace `varsFrom`
-# below; keys land under the module var names so `varsFrom` needs no
-# varsKeys renames). Team namespaces mint their own bot via their own
-# bootstrap (same Job pattern as matrix base/matrix-bot-bootstrap.yaml) or
-# a vault-direct mirror — either way, NEVER the matrix tenant's kept Secret (same-namespace
-# `varsFrom` CANNOT cross namespaces). NO token literal in git, NO manual
-# per-env fill beyond the team's own seed.
-# Backend: in-cluster Kubernetes default (state Secrets in the consumer
-# team's namespace) — no backendConfig needed.
-# Outputs: room_id + canonical_alias land in `flux-notifications-outputs`;
-# notifiers read the room ID from that Secret through the in-cluster store —
-# never Git, never Proton Pass.
-# Prerequisite: the bootstrap runbook (../README.md)
-# minted the bot + token per env. Without the
-# `matrix-rooms-terraform-vars` Secret the CR retries on interval.
+# matrix-rooms-*, replace mxids/hostnames. Reconciles after tuwunel is Ready
+# (fleet `apps` dependsOn `infra-configs`); no Terraform dependsOn (Terraform-CR-only upstream).
+# Notification-only (events_default 50 — members CANNOT post) + plaintext
+# (encryption_enabled false — E2EE unreadable to the stateless notifier, irreversible).
+# Provider auth flows from the TEAM's own bot-token mirror Secret (same-namespace `varsFrom`;
+# keys land under module var names, no varsKeys renames). Team namespaces mint their own bot —
+# NEVER the matrix tenant's kept Secret (varsFrom cannot cross namespaces). No token literal
+# in git. Backend: in-cluster default, no backendConfig. Outputs land in
+# `flux-notifications-outputs`. Prerequisite: the bootstrap runbook (../README.md) minted
+# the bot per env; without `matrix-rooms-terraform-vars` the CR retries.
 ---
-# Vars mirror: bot token + homeserver URL from the vault — no vault seeding
-# beyond the one-time `pass insert` per env, no manual step per room. Reads
-# DIRECTLY through the existing cluster-scoped `proton-pass`
-# ClusterSecretStore (no cross-namespace SecretStore + RBAC needed — unlike
-# the zitadel handoff there is no chart-minted central secret to mirror).
-# Keys land under the module var names so `varsFrom` below needs no varsKeys
-# renames. Per-env overlays replace the pass:// keys with the cluster vault
-# path (same convention as the coder dev overlay).
+# Vars mirror: bot token + homeserver URL from the vault via the cluster-scoped
+# `proton-pass` store (keys land under module var names, no varsKeys renames).
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
@@ -66,30 +42,18 @@ metadata:
 spec:
   interval: 30m
   approvePlan: auto
-  # Upsert-only guard: `destroy` and `destroyResourcesOnDeletion` stay
-  # false, so no `tofu destroy` path exists via Flux.
+  # Upsert-only: no `tofu destroy` path via Flux.
   destroy: false
   destroyResourcesOnDeletion: false
-  # Shared reusable rooms root: the apps/matrix OCI artifact (namespace
-  # `matrix`) packs flux/apps/components/matrix/terraform/ at
-  # ./terraform. Same-namespace sourceRef — no per-team
-  # terraform/ root, no git-SHA module pin.
+  # Shared rooms root: apps/matrix OCI artifact (namespace `matrix`), path ./terraform.
   sourceRef:
     kind: OCIRepository
     name: apps
     namespace: matrix
   path: ./terraform
-  # Plain (non-sensitive) per-room values; secrets (homeserver_url,
-  # access_token, user_id) come from varsFrom below. varsFrom overrides vars
-  # on key collision (upstream GenerateVarsForTF).
-  # Locked power levels: bot pinned at 100 by the module (self-lockout safe);
-  # on-call lead at 50 (invite/kick/redact/state). Notification-only:
-  # events_default 50 means normal members (users_default 0) CANNOT post —
-  # only the bot (100) delivers; topic/name/alias changes stay moderator-only
-  # (state_default 50). Nested maps ride `vars` as HCL natively
-  # (tofu-controller renders nested YAML values as HCL — no JSON needed).
-  # Plaintext: encryption_enabled false (E2EE unreadable to the stateless
-  # notifier; irreversible — decide at creation, see module README).
+  # Plain per-room values; secrets from varsFrom (overrides vars on collision).
+  # Bot pinned at 100 by the module (self-lockout safe); on-call lead at 50.
+  # Notification-only (events_default 50) + plaintext (encryption_enabled false, irreversible).
   vars:
     - name: room_name
       value: flux-notifications

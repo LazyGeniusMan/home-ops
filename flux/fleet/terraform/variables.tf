@@ -18,7 +18,7 @@ variable "cluster_region" {
 }
 
 variable "kubeconfig_path" {
-  description = "Path to the kubeconfig file for the target cluster. Defaults to ~/.kube/config for apply; validation-only flows (CI, tofu test) can point at a dummy file since providers never dial out during init/validate/test/plan."
+  description = "Path to the kubeconfig file for the target cluster (dummy file OK for validation-only flows)."
   type        = string
   default     = "~/.kube/config"
   nullable    = false
@@ -32,7 +32,7 @@ variable "bootstrap_revision" {
 }
 
 variable "cilium_k8s_service_host" {
-  description = "Talos K8s API VIP (Layer2VIP) for the Cilium prerequisite chart values (k8sServiceHost). Per environment: prd 192.168.1.198, dev 192.168.1.248 — the same values the controllers/<env>/ kustomizations patch into the Flux-reconciled HelmRelease. NOT the LB pool VIP (.199 prd / .249 dev)."
+  description = "Talos K8s API VIP for the Cilium k8sServiceHost value: prd 192.168.1.198, dev 192.168.1.248 (NOT the LB pool VIP .199/.249)."
   type        = string
   nullable    = false
 

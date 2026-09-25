@@ -1,11 +1,5 @@
-# Update policy for the tuwunel Matrix homeserver: tracks the upstream
-# tuwunel image, and the ImageUpdateAutomation (update cluster) opens PRs
-# via the marker in components/matrix/base/tuwunel.yaml. Follows the §7
-# update-policy contract (ImageRepository + ImagePolicy + $imagepolicy
-# markers).
-# Changelog: https://github.com/matrix-construct/tuwunel/releases.
-# Mode: auto (singleton, Recreate — snapshot/export before major bumps; server_name immutable).
-# Coupled files: [components/matrix/base/tuwunel.yaml].
+# tuwunel image policy (auto; singleton Recreate — snapshot/export before major bumps; server_name immutable).
+# Changelog: https://github.com/matrix-construct/tuwunel/releases. Coupled: components/matrix/base/tuwunel.yaml.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

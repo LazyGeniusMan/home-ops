@@ -1,10 +1,6 @@
-# Flat single-layer root — shipped inside the apps/matrix OCI artifact
-# (flux/apps/components/matrix/terraform/). Consumers (one Terraform CR
-# per room, or per team space) reference this root via same-namespace
-# sourceRef + their own vars, mirroring the infra/zitadel shared root.
-#
-# Single layer: provider auth + room resources directly. No child
-# modules; per-team variation rides vars, never forks.
+# Flat single-layer root (shipped inside the apps/matrix OCI artifact). Consumers (one
+# Terraform CR per room) reference it via same-namespace sourceRef + their own vars.
+# Single layer: provider auth + room resources directly, no child modules.
 
 provider "matrix" {
   homeserver_url = var.homeserver_url
@@ -12,23 +8,13 @@ provider "matrix" {
   user_id        = var.user_id
 }
 
-# Reusable per-team Matrix room — locked-down defaults, self-lockout safe.
-#
-# Wraps matrix_room (private_chat + private visibility) + matrix_room_member +
-# matrix_room_power_levels (bot always pinned at 100) + matrix_room_join_rules
-# (invite default, restricted gated on allow_spaces) + optional matrix_space
-# (+child) + matrix_room_alias + matrix_user_profile(_override) for the bot
-# identity. Never matrix_room_server_acl: federation stays off on the tuwunel
-# homeserver, and a bad ACL is irreversible (locks federation permanently).
-#
-# Power-level semantics (provider wholesale-map): a declared `users` map
-# REPLACES the whole map homeserver-side, so this root always merges the
-# caller's var.power_levels with the provider account at 100:
-#   1. bot (data.matrix_whoami.me.user_id) is always present at 100 —
-#      omitting it would drop the bot below state_default;
-#   2. room version 12+ caveat: the room CREATOR keeps power without a users
-#      entry and the homeserver rejects a power event listing a creator —
-#      drop the pin only then (see README).
+# Reusable per-team room — locked-down defaults, self-lockout safe.
+# Wraps matrix_room + member + power_levels (bot always pinned at 100) + join_rules +
+# optional space (+child) + alias + bot profile (_override). Never matrix_room_server_acl
+# (federation stays off; a bad ACL is unfixable).
+# Power semantics: a declared `users` map REPLACES the whole map homeserver-side, so this
+# root always merges the caller var with the provider account at 100. On v12+ rooms the
+# creator keeps power without a `users` entry — drop the pin only then (see README).
 
 data "matrix_whoami" "me" {}
 
@@ -42,7 +28,7 @@ resource "matrix_room" "this" {
   encryption_enabled = var.encryption_enabled
 
   lifecycle {
-    # Encryption is irreversible: a flip from true to false must fail closed.
+    # Encryption is irreversible (true -> false must fail closed).
     prevent_destroy = false
   }
 }
@@ -64,8 +50,7 @@ resource "matrix_room_power_levels" "this" {
   ban            = var.ban_power
   redact         = var.redact_power
 
-  # Wholesale-map merge: caller overrides + bot pinned at 100. The bot entry
-  # wins on collision so no caller can (accidentally) demote the provider.
+  # Caller overrides + bot pinned at 100 (bot wins on collision).
   users = merge(
     var.power_levels,
     { (data.matrix_whoami.me.user_id) = 100 },
@@ -75,14 +60,12 @@ resource "matrix_room_power_levels" "this" {
 resource "matrix_room_join_rules" "this" {
   room_id   = matrix_room.this.id
   join_rule = var.join_rule
-  # restricted/knock_restricted gate on space membership; invite/public/knock
-  # take no allow list (null = untouched).
+  # restricted/knock_restricted gate on space membership; others take no allow list.
   allow_rooms = contains(["restricted", "knock_restricted"], var.join_rule) ? toset(var.allow_spaces) : null
 }
 
-# Optional parent space + child link. via is required by the Matrix spec and
-# load-bearing here: a link with no via/order/suggested reads as removed and
-# disappears from state on refresh.
+# Optional parent space + child link (via required by spec; a link with no
+# via/order/suggested reads as removed on refresh).
 resource "matrix_space" "this" {
   count           = var.create_space ? 1 : 0
   name            = var.space_name
@@ -100,28 +83,23 @@ resource "matrix_space_child" "this" {
   via             = toset(var.space_via)
 }
 
-# Extra directory aliases on the room (canonical alias rides room_alias_name).
+# Extra directory aliases (canonical alias rides room_alias_name).
 resource "matrix_room_alias" "extra" {
   for_each = toset(var.extra_aliases)
   alias    = each.value
   room_id  = matrix_room.this.id
 }
 
-# Bot identity: at most ONE matrix_user_profile per provider identity (every
-# instance resolves to the caller's mxid and races last-writer-wins). Gate on
-# nulls so rooms that only set a per-room override do not fight the global
-# profile. Destroy drops state but leaves the profile as-is (no protocol
-# delete; clearing would render the bot as a raw mxid).
+# Bot identity: at most ONE matrix_user_profile per provider identity (gate on nulls so
+# per-room-only rooms do not fight the global profile). Destroy leaves the profile as-is.
 resource "matrix_user_profile" "bot" {
   count        = var.bot_display_name != null || var.bot_avatar_url != null ? 1 : 0
   display_name = var.bot_display_name
   avatar_url   = var.bot_avatar_url
 }
 
-# Per-room bot override (different face in this room). Membership must exist
-# first (the bot joins by creating the room); depends_on the global profile
-# because Synapse propagates global changes over member events and would wipe
-# this override if it applied last (perpetual drift without the edge).
+# Per-room bot override. depends_on the global profile (Synapse propagates global changes
+# over member events and would wipe this override if it applied last).
 resource "matrix_user_profile_override" "bot" {
   count        = var.bot_room_display_name != null || var.bot_room_avatar_url != null ? 1 : 0
   room_id      = matrix_room.this.id

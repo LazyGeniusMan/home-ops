@@ -1,13 +1,9 @@
-# talos-vm (§13.5): Talos Linux guest, 1 replica, manual power.
-# Same shape as win11-vm (§13.4) except: UEFI with SecureBoot DISABLED
-# (Talos nocloud image is not SecureBoot-signed — efi.secureBoot=false and NO
-# features.smm block) and the Talos nocloud ISO source (see README).
-# runStrategy: Manual is LOCKED — same runbook as win11-vm (suspend the
-# apps/talos-vm Flux Kustomization around manual virtctl power ops).
-# No `metadata.namespace`: the apps tenant applies . with targetNamespace=<tenant>.
-# Secondary net references NAD `multus/lan-dhcp` namespace-qualified (owned by
-# the multus infra component — single-writer; do not define a NAD here).
-# Storage: DataVolume on local-ssd-nvme.
+# talos-vm: Talos Linux guest, singleton, manual power (runStrategy Manual LOCKED —
+# suspend the apps/talos-vm Kustomization around virtctl power ops; see README).
+# UEFI with SecureBoot DISABLED (nocloud image is not SecureBoot-signed — no
+# features.smm block; contrast win11-vm). No `metadata.namespace` (apps tenant
+# applies with targetNamespace). Secondary net: NAD `multus/lan-dhcp`
+# (multus-owned, single-writer). Storage: DataVolume on local-ssd-nvme.
 # {"$imagepolicy": "apps:talos-vm:tag"}
 ---
 apiVersion: kubevirt.io/v1
@@ -73,11 +69,7 @@ spec:
             requests:
               storage: 20Gi
         source:
-          # Talos nocloud image, aligned with the Talos version in talos/ansible/group_vars/all.yml
-          # (getting-started: Image factory https://factory.talos.dev/).
-          # Schematic extensions for a KVM guest: none beyond the base
-          # (virtio NIC/disk are in-tree; qemu-guest-agent extension optional
-          # — add via factory schematic if wanted, then refresh this URL).
-          # { talks to factory.talos.dev nocloud artifact }
+          # Talos nocloud image, aligned to talos/ansible/group_vars/all.yml (https://factory.talos.dev/).
+          # No schematic extensions beyond base (virtio in-tree; qemu-guest-agent optional).
           http:
             url: "https://factory.talos.dev/image/nocloud/amd64/v1.15.0-alpha.0/nocloud-amd64.iso"

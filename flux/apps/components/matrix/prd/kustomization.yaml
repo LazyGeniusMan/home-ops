@@ -3,14 +3,9 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # ---- apprise-go-api consumer wiring (workload in the infra
-  # apprise-go-api tenant — no Deployment/Service/HPA/VPA here) ----
-  # BOOTSTRAPPED: apprise-stateless-urls reads the notifier credential from
-  # the in-cluster kept Secret (tuwunel-k8s store) — no vault patch here.
-  # Providers post to the infra Service DNS (see base/notifications.yaml).
-  # ---- (no apprise-stateless-urls patch — bootstrapped, see above) ----
+  # ---- apprise-go-api consumer wiring (workload in the infra tenant; bootstrapped — no vault patch) ----
   # ---- tuwunel homeserver ----
-  # Prd route hostnames (tuwunel.matrix.home-ops.yansyah.my.id).
+  # Prd route hostnames.
   - patch: |
       - op: replace
         path: /spec/hostnames/0
@@ -26,21 +21,11 @@ patches:
     target:
       kind: HTTPRoute
       name: tuwunel-tls
-  # No tuwunel-sso-client vault patches: client_id + client_secret flow
-  # end-to-end from the tuwunel-sso outputs Secret via the in-cluster
-  # `tuwunel-k8s` SecretStore (base/tuwunel-secrets.yaml).
-  # (S3 keys are COSI-minted via the tuwunel-cosi SecretStore — no
-  # per-env vault ref patch for tuwunel-s3.)
-  # Prd Tuwunel SSO Terraform identity: CR vars (prd issuer host, prd login
-  # URI, prd redirect + post-logout URIs) against the shared infra/zitadel
-  # root (base/tuwunel-sso.yaml cross-namespace sourceRef). Provider auth
-  # (jwt_profile_json) + org_id + admin_user_id mirror from the FirstInstance
-  # handoff via the cross-namespace `tuwunel-zitadel` SecretStore — no vault
-  # ref patch, no per-env ID literals. project_name, create_user_role,
-  # user_emails, create_cookie_secret are env-invariant — only hosts vary per
-  # env. POSITIONAL: /spec/vars/0 (domain) + /spec/vars/2 (login_base_uri) +
-  # /spec/vars/3 (redirect_uris) + /spec/vars/4 (post_logout_redirect_uris) —
-  # base/tuwunel-sso.yaml var order must not change without updating this.
+  # No tuwunel-sso-client / tuwunel-s3 vault patches (SSO from tuwunel-sso outputs via
+  # `tuwunel-k8s`; S3 COSI-minted via `tuwunel-cosi`).
+  # Prd SSO identity: issuer host + login URI + redirect URIs against the shared
+  # infra/zitadel root. POSITIONAL: /spec/vars/0 + /spec/vars/2 + /spec/vars/3 +
+  # /spec/vars/4 — keep base/tuwunel-sso.yaml var order.
   - patch: |
       - op: replace
         path: /spec/vars/0/value
@@ -64,8 +49,7 @@ patches:
     target:
       kind: ExternalSecret
       name: cloudflare-api-token
-  # Prd registration shared secret (server side of the bootstrap Job flow;
-  # base holds the __PROTON_PASS_BASE__ placeholder).
+  # Prd registration shared secret (base holds the __PROTON_PASS_BASE__ placeholder).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -97,14 +81,9 @@ patches:
     target:
       kind: Certificate
       name: wildcard-home-ops
-  # Prd identity: server_name + well-known client + Zitadel issuer +
-  # SSO callback. POSITIONAL: /spec/template/spec/containers/0/env/0
-  # (SERVER_NAME) + /env/5 (WELL_KNOWN__CLIENT) + /env/25 (ISSUER_URL) +
-  # /env/26 (CALLBACK_URL) — see the order note in base/tuwunel.yaml
-  # (REGISTRATION_SHARED_SECRET_FILE at /env/18 shifts later indices +1).
-  # The callback embeds the per-env matrix host; the client_id suffix
-  # rides k8s $(TUWUNEL_SSO_CLIENT_ID) expansion, so no generated id
-  # ever lands in git.
+  # Prd identity: server_name + well-known + issuer + SSO callback.
+  # POSITIONAL: env/0 + env/5 + env/25 + env/26 (see base/tuwunel.yaml order note).
+  # Callback embeds the matrix host; client_id suffix rides k8s $(VAR) expansion.
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/env/0/value
@@ -122,9 +101,7 @@ patches:
       kind: Deployment
       name: tuwunel
   # ---- mautrix-discord bridge + colocated Postgres ----
-  # Prd Proton Pass identity: every mautrix-discord vault ref (base holds
-  # __PROTON_PASS_BASE__ placeholders). The S3 entry stays COSI-minted —
-  # no per-env patch for cnpg-s3-credentials.
+  # Prd Proton Pass identity (base holds __PROTON_PASS_BASE__ placeholders; S3 stays COSI-minted).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -166,7 +143,7 @@ patches:
     target:
       kind: ExternalSecret
       name: mautrix-discord-db-app-secret
-  # Prd S3 endpoint (same internal SeaweedFS name as every other component).
+  # S3 endpoint (internal SeaweedFS).
   - patch: |
       - op: replace
         path: /spec/backup/barmanObjectStore/endpointURL
@@ -174,9 +151,7 @@ patches:
     target:
       kind: Cluster
       name: mautrix-discord-db
-  # Prd homeserver link: the bridge talks to tuwunel over the SHARED `matrix`
-  # namespace (in-namespace Service DNS — both workloads land in `matrix` via
-  # the fleet apps Kustomization's targetNamespace). Positional:
+  # Prd homeserver link (in-namespace Service DNS, shared `matrix` namespace). Positional:
   # /spec/template/spec/containers/0/env/0 (HS_ADDRESS) +
   # /spec/template/spec/containers/0/env/1 (HS_DOMAIN).
   - patch: |
@@ -189,9 +164,7 @@ patches:
     target:
       kind: Deployment
       name: mautrix-discord
-  # Prd admin identity: the Matrix user that gets bridge `admin` (everyone
-  # on the prd HS keeps `user`; "*" keeps relay). Positional:
-  # /spec/template/spec/containers/0/env/3 (BRIDGE_ADMIN_MXID).
+  # Prd bridge admin mxid. Positional: env/3 (BRIDGE_ADMIN_MXID).
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/env/3/value
@@ -199,9 +172,7 @@ patches:
     target:
       kind: Deployment
       name: mautrix-discord
-  # Prd replica counts: bridge stays 1 (singleton — the patch below only
-  # restates the base value so a future base change cannot silently scale
-  # it); CNPG goes to the recommended 3.
+  # Prd replica counts (bridge stays 1 — singleton; CNPG goes to 3).
   - patch: |
       - op: replace
         path: /spec/replicas
@@ -218,7 +189,7 @@ patches:
       kind: Cluster
       name: mautrix-discord-db
   # ---- element-web stateless SPA + NetBird consumer ----
-  # Prd route hostname (element.matrix.home-ops.yansyah.my.id).
+  # Prd route hostname.
   - patch: |
       - op: replace
         path: /spec/hostnames/0
@@ -226,10 +197,8 @@ patches:
     target:
       kind: HTTPRoute
       name: element
-  # Prd config.json: full-string replace (same opaque-string note as dev).
-  # Base already carries the prd hosts, so this is a no-op anchor — kept so
-  # the prd config is explicit in the built output and future prd-only keys
-  # have a landing patch.
+  # Prd config.json: full-string replace (no-op anchor — base already carries prd hosts;
+  # keeps prd explicit and gives future prd-only keys a landing patch).
   - patch: |
       - op: replace
         path: /data/config.json
@@ -272,12 +241,10 @@ patches:
     target:
       kind: ConfigMap
       name: element-config
-  # (dropped identical ExternalSecret/cloudflare-api-token patch from element-web/prd — same ops already applied under tuwunel above; one cloudflare-api-token ES + one Certificate remain)
-  # (dropped identical Certificate/__WILDCARD_CERT_NAME__ patch from element-web/prd — same ops already applied under tuwunel above; one cloudflare-api-token ES + one Certificate remain)
-  # (dropped identical Certificate/wildcard-home-ops patch from element-web/prd — same ops already applied under tuwunel above; one cloudflare-api-token ES + one Certificate remain)
-  # (dropped identical Certificate/wildcard-home-ops patch from element-web/prd — same ops already applied under tuwunel above; one cloudflare-api-token ES + one Certificate remain)
+  # No element-web cloudflare-api-token/Certificate patches — already applied under tuwunel
+  # above (one ES + one Certificate remain).
   # Prd NetBird proxy vars: provider-token vault paths + service FQDN
-  # (positional: /spec/vars/0 is domain — base order must not change).
+  # (positional: /spec/vars/0 is domain — keep base order).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -289,8 +256,7 @@ patches:
       kind: ExternalSecret
       name: element-proxy-vars
 
-  # (cloudflare_zone_id intentionally absent — defaults to null, DNS
-  # self-managed; see base note).
+  # cloudflare_zone_id absent = DNS self-managed (see base note).
   - patch: |
       - op: replace
         path: /spec/vars/0/value
@@ -304,10 +270,7 @@ patches:
     target:
       kind: Terraform
       name: element-proxy
-  # Prd replica bounds: stateless HA floor (2). No Deployment
-  # /spec/replicas patch: base replicas: 1 is the create-time seed, HPA
-  # owns runtime count (HPA minReplicas enforces the floor); scales 2-4 on
-  # CPU+memory.
+  # Prd replica bounds: stateless HA floor 2 (HPA owns runtime count); scales 2-4.
   - patch: |
       - op: replace
         path: /spec/minReplicas
@@ -318,13 +281,8 @@ patches:
     target:
       kind: HorizontalPodAutoscaler
       name: element-web
-  # ---- live room provisioning (tofu-controller) ----
-  # BOOTSTRAPPED: room provider auth flows from the matrix-bot-bootstrap
-  # Job's kept Secret (same-namespace varsFrom — no ESO mirror, no vault
-  # patch).
-  # ---- (no matrix-rooms-terraform-vars patch — bootstrapped, see above) ----
-  # Prd bot identity for the matrix-bot-bootstrap Job (ONE bot per env;
-  # base holds __PLACEHOLDERS__; Job writes the kept Secret the CRs read).
+  # ---- live room provisioning (tofu-controller; bootstrapped — no vault patch) ----
+  # Prd bot identity (ONE bot per env; base holds __PLACEHOLDERS__).
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/env/0/value
@@ -341,9 +299,7 @@ patches:
     target:
       kind: Job
       name: matrix-bot-bootstrap
-  # Prd room members: on-call lead / coder-admin mxids on the prd homeserver.
-  # POSITIONAL: /spec/vars/8 is members + /spec/vars/9 is power_levels — see
-  # the order note in base/rooms.yaml.
+  # Prd room members. POSITIONAL: /spec/vars/8 (members) + /spec/vars/9 (power_levels).
   - patch: |
       - op: replace
         path: /spec/vars/8/value

@@ -1,11 +1,7 @@
-# Flux Operator UI HTTPRoutes (§§8.1/11.4): attach to the shared §8.1 Gateway
-# (listeners accept routes from all namespaces — cross-namespace parentRef, no
-# targetNamespace override needed; same shape as §11.1 zitadel-httproute.yaml).
-# Port 80 carries only the RequestRedirect filter (mirrors the §8.1
-# httproutes.yaml discipline); real traffic terminates on 443 with the
-# in-namespace wildcard Secret. BOTH routes backend to the per-instance
-# oauth2-proxy Service (port 4180) — the UI Service is never exposed directly
-# (admin-only auth enforced by the proxy).
+# Flux Operator UI HTTPRoutes on the shared Gateway (cross-namespace
+# parentRef). Port 80 carries only the RequestRedirect filter; 443 terminates
+# with the in-namespace wildcard Secret. Both routes backend to the
+# per-instance oauth2-proxy Service (port 4180), never the UI directly.
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

@@ -1,11 +1,9 @@
-# Update policy for the hubble-ui app (§11.3): tracks the Hubble UI images,
-# and the ImageUpdateAutomation (update cluster) opens PRs via markers in
-# components/hubble-ui (see README). Follows the §7 update-policy contract
-# (ImageRepository + ImagePolicy + $imagepolicy markers).
-# Changelog: https://github.com/cilium/cilium/releases (UI ships with Cilium — pins follow the Cilium chart defaults).
-# Changelog: oauth2-proxy chart + image — https://github.com/oauth2-proxy/manifests/releases (chart) + https://github.com/oauth2-proxy/oauth2-proxy/releases (image, shared marker).
-# Mode: auto (frontend+backend move together; check the new Cilium chart defaults on every Cilium minor; proxy chart marker apps:oauth2-proxy-chart shared with clickstack + flux-operator-ui, image marker apps:oauth2-proxy shared with clickstack + flux-operator-ui — bump all apps together).
-# Coupled files: [components/hubble-ui/base/hubble-ui.yaml, base/oauth2-proxy.yaml (shared apps:oauth2-proxy + apps:oauth2-proxy-chart markers with clickstack + flux-operator-ui), ../../infra/update-policies/cilium.yaml].
+# Update policy for the hubble-ui app: tracks the Hubble UI images (pins follow
+# the Cilium chart defaults).
+# Changelog: cilium/cilium releases.
+# Changelog: oauth2-proxy chart + image — manifests releases (chart) + oauth2-proxy releases (image, shared marker).
+# Mode: auto (frontend+backend move together; check the new Cilium chart defaults on every Cilium minor; proxy markers shared with clickstack + flux-operator-ui — bump together).
+# Coupled files: [components/hubble-ui/base/hubble-ui.yaml, base/oauth2-proxy.yaml, ../../infra/update-policies/cilium.yaml].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

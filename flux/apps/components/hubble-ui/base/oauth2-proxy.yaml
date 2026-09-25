@@ -1,36 +1,10 @@
-# Per-instance oauth2-proxy (§11.3, locked proxy contract): fronts hubble-ui,
-# authenticates against Zitadel (issuer __ZITADEL_ISSUER_URL__, OWN `hubble`
-# client owned by this app's `hubble-ui-sso` Terraform CR), gates on the
-# `hubble-ui-admin` project role (admin-only). Delivered by the official OCI
-# chart (oci://ghcr.io/oauth2-proxy/charts/oauth2-proxy, tag 10.7.0, digest
-# sha256:47193ebe7052f414c8c05ac2277b5b2b8fd62faf6f4f8ea6c7263a741e62acd,
-# cosign-signed by the upstream release workflow — verified by the
-# OCIRepository verify block below; app v7.15.4 set explicitly, chart 10.7.0
-# pins 7.15.3, delta is CVE/Go only).
-# The generated client_id is server-side, so it rides the
-# OAUTH2_PROXY_CLIENT_ID env (from ESO) — never a --client-id flag.
-# Callback https://__SERVICE_HOST__/oauth2/callback is covered by
-# the registered redirect https://__SERVICE_HOST__/*. HTTPRoute backend
-# (base/hubble-httproute.yaml) points at the chart Service (:4180);
-# the proxy upstreams to http://hubble-ui.<ns>.svc:80.
-# Chart contract: fullnameOverride keeps the Deployment + Service names at
-# oauth2-proxy (HTTPRoute backend, HPA/VPA targets, and ESO target untouched);
-# existingSecret + proxyVarsAsSecrets: false keep credential ownership in ESO
-# (chart renders no Secret); no-config mode (forceLegacyConfig: false, no
-# configFile) keeps every flag in extraArgs (the chart always injects
-# --http-address/--https-address itself);
-# metrics/ServiceMonitor off (no telemetry); ServiceAccount, autoscaling, and
-# PDB off (no SA token, create-time seed replica, external HPA/VPA own
-# scaling).
-# Probes: liveness /ping; readiness is the chart default /ready (deep
-# check on the same port), same binary.
-# The chart tag auto-tracks flux/apps/update-policies/hubble-ui.yaml via the
-# $imagepolicy marker (chart marker shared with clickstack + flux-operator-ui;
-# image marker apps:oauth2-proxy shared with clickstack + flux-operator-ui —
-# bump together).
-# Ordering: the ESO ExternalSecret lives alongside the release in this same
-# Kustomization, so the first install attempt pends until ESO syncs it and
-# Flux retries (RetryOnFailure below).
+# Per-instance oauth2-proxy: fronts hubble-ui, Zitadel auth via the own
+# `hubble` client, admin-only (`hubble-ui-admin`). Official OCI chart,
+# cosign-verified (app v7.15.4 pinned explicit). HTTPRoute backends to the
+# proxy (:4180); proxy upstreams to hubble-ui:80. Credentials stay in ESO
+# (chart renders no Secret); no telemetry; external HPA/VPA own scaling.
+# Tags track update-policies/hubble-ui.yaml via $imagepolicy markers (shared
+# with clickstack + flux-operator-ui — bump together).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev secrets vault (pass://acme-dev-bdo1-talos-apps-01).
+  # Dev secrets vault.
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -18,13 +18,10 @@ patches:
     target:
       kind: ExternalSecret
       name: clickstack-hyperdx
-  # (S3 keys are COSI-minted via the in-namespace clickstack-cosi
-  # SecretStore — no per-env vault ref patch for clickhouse-s3-backup,
-  # cnpg-s3-credentials, rclone-ferretdb-s3(+path), or rclone-clickstack-s3(+path).)
-  # Dev rclone-sync-buckets identity (chart source: projects/helm-rclone-sync): Proton Pass vault keys + the Proton
-  # Drive destination cluster segments (base holds __PROTON_PASS_BASE__ /
-  # __CLUSTER_NAME__ placeholders; both HelmReleases share the one
-  # rclone-proton-credentials ExternalSecret, so one patch covers both).
+  # (S3 keys COSI-minted — no per-env vault patch for S3 ExternalSecrets.)
+  # Dev rclone identity (chart source: projects/helm-rclone-sync): vault keys +
+  # destination cluster segments (base holds placeholders; one shared
+  # rclone-proton-credentials ExternalSecret covers both releases).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -63,9 +60,7 @@ patches:
     target:
       kind: ExternalSecret
       name: cloudflare-api-token
-  # Dev CNPG S3 endpoint. (S3 keys are COSI-minted via the in-namespace
-  # clickstack-cosi SecretStore — no per-env vault ref patch for
-  # cnpg-s3-credentials.)
+  # Dev CNPG S3 endpoint (keys COSI-minted).
   - patch: |
       - op: replace
         path: /spec/backup/barmanObjectStore/endpointURL
@@ -94,7 +89,7 @@ patches:
       kind: ClickHouseInstallation
       name: clickstack
 
-  # Dev route hostname (clickstack.home-ops-dev.yansyah.my.id).
+  # Dev route hostname.
   - patch: |
       - op: replace
         path: /spec/hostnames/0
@@ -102,7 +97,7 @@ patches:
     target:
       kind: HTTPRoute
       name: clickstack
-  # Dev wildcard Certificate.
+  # Dev wildcard Certificate (placeholder -> dev values).
   - patch: |
       - op: replace
         path: /metadata/name
@@ -124,7 +119,7 @@ patches:
     target:
       kind: Certificate
       name: wildcard-home-ops-dev
-  # Dev app URL (FRONTEND_URL).
+  # Dev app URL.
   - patch: |
       - op: replace
         path: /spec/template/spec/containers/0/env/2/value
@@ -132,8 +127,7 @@ patches:
     target:
       kind: Deployment
       name: clickstack
-  # Dev proxy: Zitadel issuer, cookie domain, callback (values keys, not
-  # arg indices — the chart takes every flag from extraArgs).
+  # Dev proxy identity (issuer, cookie domain, callback).
   - patch: |
       - op: replace
         path: /spec/values/extraArgs/oidc-issuer-url
@@ -147,10 +141,8 @@ patches:
     target:
       kind: HelmRelease
       name: oauth2-proxy
-  # Dev Clickstack SSO Terraform identity: CR vars (issuer host, rendered
-  # redirect + post-logout URIs against the shared zitadel root).
-  # org_id + admin ID mirror from the FirstInstance handoff via the
-  # cross-namespace SecretStore — no vault ref patch, no per-env ID literals.
+  # Dev SSO Terraform identity (issuer host + redirect URIs; IDs mirror from
+  # the handoff — no per-env ID literals).
   - patch: |
       - op: replace
         path: /spec/vars/0/value
@@ -167,10 +159,7 @@ patches:
     target:
       kind: Terraform
       name: clickstack-sso
-  # Dev replica counts: minimal single-replica footprint. No Deployment
-  # /spec/replicas patch: base replicas: 1 is the create-time seed, HPA
-  # owns runtime count (HPA minReplicas enforces the floor); the HPAs below
-  # scale 1-2 on CPU+memory.
+  # Dev scaling: HPA placeholders -> 1/2; stateful placeholders -> 1.
   - patch: |
       - op: replace
         path: /spec/minReplicas

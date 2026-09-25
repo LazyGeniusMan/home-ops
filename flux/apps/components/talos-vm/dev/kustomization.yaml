@@ -1,8 +1,4 @@
-# Dev tracks ../base with minimal specs (1 core / 1Gi / 10Gi — Talos worker
-# minima, boot+DHCP only) + a static `lan` MAC via talos-vm-dev-patch.yaml.
-# VM keeps the production name (talos-vm) — dev and prd are separate
-# clusters, so no name clash is possible. runStrategy Manual, NAD
-# multus/lan-dhcp and local-ssd-nvme storage class are unchanged.
+# Dev: minimal specs (1 core / 1Gi / 10Gi — boot+DHCP only) + static `lan` MAC.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:

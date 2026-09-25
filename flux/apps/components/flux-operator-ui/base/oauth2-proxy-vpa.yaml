@@ -1,7 +1,5 @@
-# VPA recommender for the flux-operator-ui oauth2-proxy Deployment
-# (HPA-paired): updateMode Off — recommender-only, because the HPA scales
-# the same CPU/memory metrics (known-limitations.md: never VPA-apply on a
-# resource HPA scales on).
+# VPA recommender for the oauth2-proxy Deployment (HPA-paired):
+# updateMode Off — recommender-only, never VPA-apply on HPA-scaled metrics.
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler

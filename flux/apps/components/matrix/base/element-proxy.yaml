@@ -1,33 +1,15 @@
-# Element Web NetBird reverse-proxy consumer: private tailnet path for the
-# element-web SPA alongside the §8.1 Gateway (public clients).
-# Upsert-only sidecar (own Terraform CR + proton-pass-sourced vars Secret +
-# `<app>-proxy-outputs`; it never touches the Deployment/Service/HTTPRoute).
-#
-# Owns ONLY this app's slice: one custom-domain registration (the element
-# hostname) + one wildcard CNAME + one reverse-proxy service, following the
-# flux/infra/components/netbird/examples/consumer-terraform.yaml skeleton.
-# Ordering mirrors the zitadel consumers: the fleet `apps` Kustomization
-# dependsOn `infra-configs`, so this reconciles after the NetBird/Cloudflare
-# credentials exist. NO Terraform dependsOn (Terraform-CR-only upstream).
-# Provider tokens (netbird_token, cloudflare_api_token) flow from Proton
-# Pass via the ESO-synced `element-proxy-vars` Secret (same-namespace
-# `varsFrom` below — through the cluster-scoped `proton-pass`
-# ClusterSecretStore; NO token literal in git, NO manual per-env fill).
-# Backend: in-cluster Kubernetes default (state Secrets in the matrix
-# namespace) — no backendConfig needed.
-# Outputs: service_id + service_domain + proxy_url land in
-# `element-proxy-outputs` (consumable via an in-cluster SecretStore if a
-# consumer ever needs the proxy URL — never Git, never Proton Pass).
-# POSITIONAL: the dev/prd overlays patch /spec/vars/0 (domain),
-# /spec/vars/2 (network_name) and /spec/vars/3 (service_lb_ip) by index,
-# so this order must not change without updating the overlays.
-# cloudflare_zone_id is intentionally absent (defaults to null = DNS
-# self-managed outside Cloudflare — the root skips the verification
-# CNAME).
-# First-run prerequisite (custom-domain path): after the first apply the
-# domain sits at Pending Verification — complete the dashboard Verify
-# within 48h (see flux/infra/components/netbird/terraform/README.md); until
-# then the CR retries on interval.
+# Element Web NetBird reverse-proxy consumer: private tailnet path alongside
+# the public Gateway (upsert-only sidecar; never touches Deployment/Service/HTTPRoute).
+# One custom-domain registration + wildcard CNAME + reverse-proxy service, per
+# flux/infra/components/netbird/examples/consumer-terraform.yaml. Reconciles after
+# NetBird/Cloudflare credentials (fleet `apps` dependsOn `infra-configs`); no Terraform
+# dependsOn (Terraform-CR-only upstream). Tokens flow from Proton Pass via the ESO-synced
+# `element-proxy-vars` Secret (same-namespace varsFrom). Backend: in-cluster default,
+# no backendConfig. Outputs land in `element-proxy-outputs`.
+# POSITIONAL: overlays patch /spec/vars/0 (domain), /spec/vars/2 (network_name),
+# /spec/vars/3 (service_lb_ip) by index — keep this order.
+# cloudflare_zone_id absent = DNS self-managed (root skips the verification CNAME).
+# First apply leaves the domain Pending Verification — dashboard Verify within 48h.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -55,42 +37,25 @@ metadata:
 spec:
   interval: 30m
   approvePlan: auto
-  # Upsert-only guard: `destroy` and `destroyResourcesOnDeletion` stay
-  # false, so no `tofu destroy` path exists via Flux.
+  # Upsert-only: no `tofu destroy` path via Flux.
   destroy: false
   destroyResourcesOnDeletion: false
-  # Shared reusable reverse-proxy root: the infra/netbird OCI artifact
-  # (namespace `netbird`) packs flux/infra/components/netbird/terraform/ at
-  # ./terraform. Cross-namespace sourceRef is allowed by
-  # allowCrossNamespaceRefs=true on the tofu-controller — no per-app
-  # terraform/ root, no git-SHA module pin.
+  # Shared reverse-proxy root: infra/netbird OCI artifact (namespace `netbird`), path ./terraform.
   sourceRef:
     kind: OCIRepository
     name: infra
     namespace: netbird
   path: ./terraform
-  # Plain (non-sensitive) per-env values; secrets (netbird_token,
-  # cloudflare_api_token) come from varsFrom below. varsFrom overrides vars
-  # on key collision (upstream GenerateVarsForTF).
-  # The service FQDN is fully rendered here (the shared root takes no
-  # app_host var): `__SERVICE_HOST__` is the per-env element hostname,
-  # replaced by the dev/prd overlay patches. The backend rides the shared
-  # Service-LB subnet target the root appends automatically; pass the
-  # per-env network_name + service_lb_ip below and tune target_* — no peer
-  # literal lives in git. Backend terminates TLS at the Gateway (the SPA is
-  # plain HTTP :80 in-cluster), so target_protocol http + target_port 80
-  # point the proxy at the in-cluster element-web Service.
+  # Plain per-env values; secrets from varsFrom (overrides vars on collision).
+  # `__SERVICE_HOST__` is the per-env element hostname (overlays replace).
+  # Backend is plain HTTP :80 (TLS terminates at the Gateway).
   vars:
     - name: domain
       value: __SERVICE_HOST__
     - name: service_name
       value: element-web
-    # NOTE: cloudflare_zone_id is intentionally ABSENT (defaults to null =
-    # DNS self-managed outside Cloudflare — the root skips the verification
-    # CNAME; see variables.tf). The dev/prd overlays patch network_name +
-    # service_lb_ip only (/spec/vars/2, /spec/vars/3 — positional, same
-    # convention as the zitadel login-proxy consumer: cluster name literal,
-    # Cilium LB VIP dev .249 / prd .199).
+    # cloudflare_zone_id ABSENT = DNS self-managed (root skips the verification
+    # CNAME). Overlays patch network_name + service_lb_ip (/spec/vars/2, /spec/vars/3).
     - name: network_name
       value: __CLUSTER_NAME__
     - name: service_lb_ip

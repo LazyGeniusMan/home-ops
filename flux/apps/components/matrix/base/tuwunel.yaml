@@ -1,46 +1,13 @@
-# Tuwunel Matrix homeserver (fresh install, federation-off).
-# Upstream reference (read-only): `/tmp/home-ops-docs/tuwunel-docs`.
-# - Deployment: replicas 1, strategy Recreate (RocksDB is single-writer; a
-#   second replica must never open the same database_path). Single RWO PVC
-#   (tuwunel-data, storageClassName local-ssd-nvme — the repo default class)
-#   mounted at /var/lib/tuwunel = TUWUNEL_DATABASE_PATH.
-# - Probes: exec ["tuwunel", "--health-check"] for all three (per the
-#   upstream kubernetes.md: startup failureThreshold 180 x 10s = 30 min
-#   migration budget — kubelet runs neither liveness nor readiness while
-#   startup fails, so migrations are never killed mid-flight; a pod with no
-#   readiness probe would route traffic before the listener opens, hence all
-#   three). terminationGracePeriodSeconds 600 (raised past the 30s default
-#   per the same doc — a kill mid-migration leaves RocksDB half-migrated).
-# - Service: single ClusterIP port 8008 (tuwunel default `port`; set
-#   explicitly via TUWUNEL_PORT so the listener never drifts from the route).
-# - Config is env-only (no ConfigMap/toml in git): every TUWUNEL_* var maps
-#   1:1 to a tuwunel-example.toml key (docs/configuration.mdc), including the
-#   indexed `TUWUNEL_IDENTITY_PROVIDER__0__*` array-table form verified in
-#   docs/authentication/providers/{keycloak,mas}.md and the
-#   `TUWUNEL_STORAGE_PROVIDER__MEDIA_ON_S3__S3__*` form verified in
-#   docs/media/storage.md. Base holds __PLACEHOLDERS__ (repo convention);
-#   dev/prd overlays patch real hosts. POSITIONAL: overlays patch
-#   /spec/template/spec/containers/0/env/{0,5,25,26}/value by index (the
-#   TUWUNEL_REGISTRATION_SHARED_SECRET_FILE entry inserted above shifts the
-#   post-insertion indices by +1 — ISSUER_URL moved 24->25, CALLBACK 25->26),
-#   so this order must not change without updating the overlays.
-# - Secrets (SSO client id/secret, S3 keys) arrive via explicit secretKeyRef
-#   envs + a read-only file mount from ESO Secrets — never literals in git,
-#   and never envFrom (the ESO keys contain dashes, which are invalid env
-#   names and would be silently skipped by kubelet). client_secret rides
-#   CLIENT_SECRET_FILE (read at startup and on each OAuth exchange).
-#   client_id rides secretKeyRef; the callback URL embeds it via
-#   k8s $(VAR) expansion so no generated id ever lands in git.
-# - server_name is IMMUTABLE (database wipe to change): per-env value
-#   patched by the overlays; prd tuwunel.matrix.home-ops.yansyah.my.id.
-# - Federation-off BEFORE first room: allow_federation +
-#   federate_created_rooms + federate_admin_room all false, plus the two
-#   assert-off keys; m.federate pin documented in README (rooms freeze the
-#   setting at creation).
-# - No HPA (singleton) — VPA owns sizing (tuwunel-vpa.yaml).
-# - Image pinned (ghcr.io/matrix-construct/tuwunel) tracked by
-#   update-policies/tuwunel.yaml via the $imagepolicy marker on the image
-#   (apps:tuwunel:tag).
+# Tuwunel Matrix homeserver (federation-off; upstream ref: `/tmp/home-ops-docs/tuwunel-docs`).
+# Singleton Deployment (replicas 1, Recreate — RocksDB single-writer) on one RWO PVC
+# (local-ssd-nvme) at /var/lib/tuwunel. Probes exec ["tuwunel", "--health-check"];
+# terminationGracePeriodSeconds 600 (migration budget). Service :8008.
+# Config is env-only (TUWUNEL_* maps 1:1 to tuwunel-example.toml keys); base holds
+# __PLACEHOLDERS__, overlays patch real hosts.
+# POSITIONAL: overlays patch env/{0,5,25,26} by index — keep this order.
+# Secrets via secretKeyRef + read-only file mounts (never literals, never envFrom —
+# ESO keys contain dashes). server_name IMMUTABLE. No HPA (singleton; VPA owns sizing).
+# Image tracked by update-policies/tuwunel.yaml ($imagepolicy apps:tuwunel:tag).
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -122,15 +89,8 @@ spec:
               value: '["media_on_s3"]'
             - name: TUWUNEL_MEDIA_STARTUP_CHECK
               value: "true"
-            # Admin-register shared secret (server side of the
-            # matrix-bot-bootstrap Job flow): read-only file mount from the
-            # ESO `tuwunel-registration-secret` Secret (vault-seeded per
-            # env — matrix/tuwunel-registration-secret). Upstream file-option
-            # contract: `registration_shared_secret_file` enables the
-            # Synapse-compat POST /_synapse/admin/v1/register endpoint the
-            # bootstrap Job calls; same *_FILE pattern as
-            # CLIENT_SECRET_FILE above (never a literal in git, never envFrom
-            # — the key contains a dash).
+            # Admin-register shared secret (server side of the bootstrap Job flow):
+            # file mount from the vault-seeded `tuwunel-registration-secret` Secret.
             - name: TUWUNEL_REGISTRATION_SHARED_SECRET_FILE
               value: /etc/tuwunel-registration/shared-secret
             - name: TUWUNEL_GRANT_ADMIN_TO_FIRST_USER

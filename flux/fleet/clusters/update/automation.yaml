@@ -1,7 +1,5 @@
-# Image update automation cluster: reconciles the infra/apps update policies
-# and pushes image-updates-* branches (workflow opens PRs).
-# The per-area GitRepository sourceRef names below must match the
-# metadata.name used for the monorepo GitRepository of that area.
+# Image update automation: reconciles the infra/apps update policies and
+# pushes image-updates-* branches (automation proposes, human merges).
 apiVersion: fluxcd.controlplane.io/v1
 kind: ResourceSet
 metadata:

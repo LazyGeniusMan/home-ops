@@ -1,21 +1,7 @@
-# Narrow cross-namespace handoff grant for the coder matrix-ESO reader.
-# ESO mirrors the matrix bot bootstrap kept Secret
-# (`matrix-bot-bootstrap-outputs` in the `matrix` namespace, minted by the
-# `matrix-bot-bootstrap` Job — matrix/base/matrix-bot-bootstrap.yaml) into
-# this namespace's `matrix-notify` Secret through the cross-namespace
-# `coder-matrix` SecretStore (base/coder-secrets.yaml).
-# The store authenticates as THIS namespace SA
-# `eso-matrix-handoff-reader`, so the SA needs get/list/watch on the kept
-# Secret only (resourceNames pins it) plus selfsubjectrulesreviews create
-# (ESO Kubernetes-provider validation) — and nothing else.
-# Ownership note: the Role + RoleBinding below carry explicit
-# `metadata.namespace: matrix` but are OWNED BY the coder component — they
-# ship in the coder base dir so they reconcile (and prune) with the app.
-# Same zitadel-consumer pattern as `zitadel-handoff-rbac.yaml`. One bot =
-# one token (@apprise-dev dev / @apprise prd delivers to every room; only
-# rooms differ), consumed from the bootstrap kept Secret. Sink base URL
-# literals stay decentralized in the `matrix-notify` ESO template
-# (base/coder-secrets.yaml); only the credential half centralizes.
+# Cross-namespace handoff grant: lets this namespace's `eso-matrix-handoff-reader`
+# SA read the matrix bot bootstrap kept Secret via the `coder-matrix` SecretStore
+# (coder-secrets.yaml). Role + RoleBinding carry `namespace: matrix` but are owned
+# by this component (ship here so they prune with the app).
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

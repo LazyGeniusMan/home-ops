@@ -12,17 +12,14 @@ tenants/overlays/
 ```
 
 Each overlay holds a single `kustomization.yaml` — no sidecar patch files —
-so every file under `overlays/` stays a plain valid Kubernetes/Kustomize
-manifest (CI `validate.sh` kubeconforms each `*.yaml` directly AND builds
-each `kustomization.yaml`). Example patches live as commented inline
-`patch: |-` blocks; enabling one is an uncomment, never a new file.
+so every file under `overlays/` stays a valid manifest. Patches are
+commented inline `patch: |-` blocks; enabling one is an uncomment.
 
 ## How it works
 
 Each `clusters/<name>/tenants.yaml` (a Flux Kustomization) syncs
-`path: ./tenants/overlays/<name>` (kustomize-style overlays — schema
-reference: `/tmp/home-ops-docs/kubectl-kustomize-docs`). Each overlay
-kustomization lists the three shared ResourceSets as resources:
+`path: ./tenants/overlays/<name>`. Each overlay kustomization lists the
+three shared ResourceSets as resources:
 
 ```yaml
 resources:
@@ -37,13 +34,10 @@ the `apps` ResourceSet); the prd overlay has no active patches.
 
 ## One mechanism for apps + infra + policies
 
-Per-cluster differences are inline RFC 6902 JSON patches (`patches:` entries in the
-overlay `kustomization.yaml`), applied uniformly to any of the three
-ResourceSets; list removals carry `test` guards on the tenant name and go highest index first.
-
-Patches are inline `patch: |-` YAML blocks (not separate `path:` files and
-not `*.json`) so the op list stays readable and every file remains a valid
-manifest.
+Per-cluster differences are inline RFC 6902 JSON patches (`patches:` entries in
+the overlay `kustomization.yaml`), applied uniformly to any of the three
+ResourceSets; list removals carry `test` guards on the tenant name, highest
+index first.
 
 ## Adding a per-cluster exception (onboarding)
 
@@ -52,8 +46,8 @@ manifest.
    list removals, highest index first).
 2. Verify locally:
    `kustomize build flux/fleet/tenants/overlays/<cluster> --load-restrictor=LoadRestrictionsNone`
-3. Open a PR; CI (`flux-fleet-validate`) auto-discovers the overlay
-   `kustomization.yaml` and builds it.
+   (the controller allows the `../../` parent traversal, as does
+   `validate.sh`).
 
 ## Adding a brand-new cluster
 
@@ -63,32 +57,15 @@ manifest.
    `path: ./tenants/overlays/<new-cluster>`.
 3. Extend this README's tree + the fleet README layout.
 
-## Verifying an overlay renders
-
-To confirm an overlay renders the expected set:
-
-```bash
-kustomize build flux/fleet/tenants/overlays/<cluster> \
-  --load-restrictor=LoadRestrictionsNone
-```
-
-(The `flux-system` OCIRepository `flux-system` built by the operator runs
-with `--load-restrictor=LoadRestrictionsNone` semantics — stock kustomize
-would reject the `../../` parent traversal, but the controller's embedded
-kustomize build allows it, matching how `validate.sh` builds overlays.)
-
 ## CLUSTER_NAME / CLUSTER_DOMAIN consumption
 
 `CLUSTER_NAME` / `CLUSTER_DOMAIN` (plus `ARTIFACT_TAG` / `ENVIRONMENT`) are
-already plumbed to every tenant namespace: each ResourceSet copies
+plumbed to every tenant namespace: each ResourceSet copies
 `flux-system/flux-runtime-info` into `<tenant>/flux-runtime-info` via
 `copyFrom`, and every tenant Kustomization declares
 `postBuild.substituteFrom` on that ConfigMap. Any component manifest can
-therefore consume `${CLUSTER_NAME}` / `${CLUSTER_DOMAIN}` today (e.g.
-HTTPRoute hostnames, per-cluster labels) with **zero
-fleet changes** — add the variable reference in the component's
-`base/` or `{dev,prd}/` overlay and the substitution happens at
-reconcile time. No manifest consumes the literal `${CLUSTER_NAME}` form
-today; the `__CLUSTER_NAME__` placeholder IS consumed (rclone backup
-destinations, element-proxy `network_name`), replaced by per-env overlay
-patches.
+consume `${CLUSTER_NAME}` / `${CLUSTER_DOMAIN}` (e.g. HTTPRoute hostnames,
+per-cluster labels) by referencing the variable in the component's
+`base/` or `{dev,prd}/` overlay. The `__CLUSTER_NAME__` placeholder is
+consumed (rclone backup destinations, element-proxy `network_name`),
+replaced by per-env overlay patches.

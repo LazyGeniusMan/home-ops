@@ -1,32 +1,25 @@
 # matrix tenant — vault seed checklist
 
 One-time `pass-cli item create` per env BEFORE first install. Git holds
-`remoteRef` keys only, never values. The dev/prd overlays patch every
-`remoteRef.key` below from the `__PROTON_PASS_BASE__` placeholder to the
-per-env vault path; the Deployment/StatefulSet only starts once ESO syncs
-the Secrets (pods pend + Flux retries until then).
+`remoteRef` keys only, never values. Overlays patch every `remoteRef.key`
+from the `__PROTON_PASS_BASE__` placeholder to the per-env vault path;
+workloads pend until ESO syncs the Secrets.
 
-Vault naming: `pass://acme-<env>-bdo1-talos-apps-01/<path>` where
-`<env>` is `dev` or `prd`. The `pass-cli item create` shape drops the `pass://`
-scheme (same convention as `matrix/terraform/README.md`):
+Vault naming: `pass://acme-<env>-bdo1-talos-apps-01/<path>` (`dev`/`prd`).
+The create shape drops the `pass://` scheme:
 
 ```shell
 pass-cli item create 'acme-<env>-bdo1-talos-apps-01/<path>'
 ```
 
-Field count per env: **12** Proton Pass fields (1 cert-manager + 1
-registration-secret + 8 mautrix-discord + 2 element-web). Matrix bot
-credentials are minted in-cluster by the bootstrap Job, and coder reads
-the kept Secret cross-namespace — neither needs vault seeding.
-Everything else in this tenant is minted in-cluster (COSI, Terraform
-outputs, CNPG, bootstrap kept Secret) and needs NO seeding — see
-"Not vault-seeded" below.
+**12** fields per env (1 cert-manager + 1 registration-secret +
+8 mautrix-discord + 2 element-web). Bot credentials are minted in-cluster
+by the bootstrap Job; everything else minted in-cluster (COSI, Terraform
+outputs, CNPG, kept Secret) needs NO seeding — see "Not vault-seeded".
 
 ## Per-env seed table
 
-Same 12 rows for `dev` (`acme-dev-bdo1-talos-apps-01`) and `prd`
-(`acme-prd-bdo1-talos-apps-01`); only the values differ per env (hosts,
-tokens). Env-specific value notes are in the last column.
+Same 12 rows for `dev` and `prd`; only values differ per env.
 
 | # | Vault field (`<prefix>/<path>`) | ExternalSecret → Secret (key) | Consumed by | Value notes |
 |---|---|---|---|---|
@@ -62,37 +55,16 @@ pass-cli item create 'acme-dev-bdo1-talos-apps-01/element-web/cloudflare-api-tok
 
 ## Not vault-seeded (in-cluster minted — DO NOT `pass-cli item create`)
 
-- **Tuwunel SSO `client_id`/`client_secret`**: NO `pass://` seeding.
-  The companion `tuwunel-sso` Terraform CR (Zitadel project + `tuwunel`
-  OIDC client, not in this tenant)
-  writes the `tuwunel-sso-outputs` Secret; ExternalSecret
-  `tuwunel-sso-client` reads it through the in-cluster `tuwunel-k8s`
-  SecretStore into `tuwunel-sso-client` (`client-id`, `client-secret`),
-  consumed via `secretKeyRef` + `CLIENT_SECRET_FILE` mount.
-- **Tuwunel S3 media keys** (`tuwunel-s3` Secret): COSI-minted. The
-  `tuwunel-media` BucketClaim/BucketAccess provision the live bucket +
-  `tuwunel-media-cosi-creds` BucketInfo JSON; ExternalSecret `tuwunel-s3`
-  extracts `bucketName`/`accessKeyID`/`accessSecretKey` through the
-  in-cluster `tuwunel-cosi` SecretStore.
-- **CNPG backup S3 keys** (`cnpg-s3-credentials` Secret): COSI-minted.
-  Same chain via `mautrix-discord-db` BucketClaim/Access +
-  `mautrix-discord-db-cosi-creds` through `mautrix-discord-cosi`.
-- **NetBird proxy outputs** (`element-proxy-outputs` Secret):
-  `writeOutputsToSecret` of the `element-proxy` Terraform CR. Never in
-  the vault, never in Git.
-- **matrix bot fields** (BOOTSTRAPPED — in-cluster minted, DO NOT
-  `pass-cli item create`): the `matrix-bot-bootstrap` Job (`base/matrix-bot-bootstrap.yaml`)
-  registers the per-env bot (`@apprise-dev` dev / `@apprise` prd, ONE bot
-  shared by all 3 rooms) + mints its token + writes the KEPT Secret
-  `matrix-bot-bootstrap-outputs` (keys `homeserver_url`/`access_token`/
-  `user_id` for the rooms.yaml Terraform CRs via same-namespace `varsFrom`;
-  keys `notifier-token`/`homeserver-host` for the apprise-stateless-urls ES
-  via the in-cluster `tuwunel-k8s` store). The `matrix/terraform/examples/`
-  files are copy-paste skeletons for TEAM namespaces only
-  (`team-terraform.yaml` stays example-only — no team room here).
-- **Coder notifier fields** (`coder/matrix-bot-token`, `coder/matrix-host`):
-  not seeded — coder's `matrix-notify` ES reads the kept Secret
-  (`notifier-token`/`homeserver-host`) cross-namespace (see the coder
-  README credentials section).
+- **Tuwunel SSO creds**: `tuwunel-sso` CR writes `tuwunel-sso-outputs`; ES reads
+  through `tuwunel-k8s`.
+- **Tuwunel S3 keys** (`tuwunel-s3`): COSI-minted (`tuwunel-media` claim + ES).
+- **CNPG backup S3 keys** (`cnpg-s3-credentials`): COSI-minted (same chain via
+  `mautrix-discord-cosi`).
+- **NetBird proxy outputs** (`element-proxy-outputs`): CR `writeOutputsToSecret`.
+  Never vault, never Git.
+- **matrix bot fields** (BOOTSTRAPPED, DO NOT seed): the bootstrap Job registers
+  the per-env bot (`@apprise-dev` dev / `@apprise` prd, ONE bot per env) + mints
+  its token into the KEPT Secret (rooms via `varsFrom`; apprise via `tuwunel-k8s`).
+- **Coder notifier fields**: coder's ES reads the kept Secret cross-namespace.
 - **In-namespace plumbing**: `eso-k8s-reader` RBAC, `kube-root-ca.crt`,
-  the wildcard TLS Secret minted by cert-manager. No seeding.
+  the wildcard TLS Secret. No seeding.

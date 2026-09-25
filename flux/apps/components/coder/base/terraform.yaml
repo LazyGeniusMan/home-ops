@@ -1,43 +1,14 @@
-# Coder SSO identity (§13.6), machine-applied by Tofu Controller.
-# Owns ONLY this app's slice: the `coder` Zitadel project + project-scoped
-# roles (coder-admin/coder-user) + user grants + the `coder` OIDC client.
-# Project-scoped means coder-admin NEVER implies org admin.
-#
-# Ordering: this object ships in the app Kustomization (fleet `apps`
-# Kustomization dependsOn `infra-configs`), so it only reconciles after the
-# Zitadel HelmRelease + FirstInstance setup Job are Ready. Terraform `dependsOn`
-# is Terraform-CR-only upstream (checkDependencies resolves every entry as
-# kind Terraform), so NO dependsOn entry here — the fleet ordering above is
-# the mechanism.
-# Upstream wiring: org_id + admin_user_id flow from the FirstInstance handoff
-# (`zitadel-bootstrap-outputs` Secret in the `zitadel` namespace, operator-created
-# once per the zitadel README runbook) via the ESO-synced `coder-terraform-vars`
-# Secret (same-namespace `varsFrom` below — varsKeys renames handoff keys onto the
-# module vars; the cross-namespace `coder-zitadel` SecretStore + narrow
-# `coder-zitadel-handoff-reader` Role in `zitadel-handoff-rbac.yaml` do the
-# mirroring). NO org_id literal in git, NO manual per-env fill, NO email lookups,
-# NO remote-state reads — all inputs arrive via ESO + plain vars. Provider auth likewise
-# flows from the chart handoff (`zitadel-bootstrap-credentials` key
-# `jwt_profile_json`) through the same Secret. Same-namespace `varsFrom` CANNOT
-# cross namespaces (no namespace field), which is why the ESO mirror + RBAC is
-# the mechanism here.
-# First-run prerequisite (zero-UI): chart setup Job mints the key + ESO mirrors
-# both handoff Secrets. Without the mirrored `coder-terraform-vars` the CR
-# retries on interval — no vault seeding, no console step.
-# Backend: in-cluster Kubernetes default (state Secrets in the coder
-# namespace) — no backendConfig needed. Drift detection stays on (default).
-# Outputs: client_id + client_secret land in `coder-sso-outputs` (sensitive);
-# the `coder-oidc` ExternalSecret consumes BOTH from that Secret through the
-# in-cluster `coder-k8s` SecretStore (base/coder-secrets.yaml) — never Git,
-# never Proton Pass.
+# `coder` Zitadel project + `coder-admin`/`coder-user` roles + grants + OIDC client,
+# machine-applied by Tofu Controller (project-scoped: never implies org admin).
+# Fleet ordering (`apps` after `infra-configs`) is the only ordering — no Terraform
+# `dependsOn`. IDs + provider auth mirror from the FirstInstance handoff via ESO
+# (no org literal, no vault seeding). Outputs land in `coder-sso-outputs` (via
+# `coder-k8s`, never Git/Pass). Upsert-only (`destroy` knobs false); in-cluster
+# state; drift on. Placeholders overlay-replaced (vars patched by index — keep order).
 ---
-# Cross-namespace handoff reader: mirrors the two chart-minted handoff Secrets
-# from the `zitadel` namespace into this namespace's `coder-terraform-vars`
-# Secret (remoteNamespace MUST be `zitadel` — ESO reads REMOTE secrets through
-# this namespace's `eso-zitadel-handoff-reader` SA; the narrow Role + RoleBinding
-# in `zitadel-handoff-rbac.yaml` grant get/list/watch on the two handoff Secrets
-# only). Same pattern as the in-namespace `coder-k8s` store in coder-secrets.yaml
-# (server.url omitted = kubernetes.default, kube-root-ca.crt supplies the API CA).
+# Cross-namespace handoff mirror: `zitadel` namespace handoff Secrets into
+# `coder-terraform-vars` via the `coder-zitadel` store (RBAC in
+# `zitadel-handoff-rbac.yaml`). `server.url` omitted (kubernetes.default).
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -66,11 +37,8 @@ spec:
         serviceAccount:
           name: eso-zitadel-handoff-reader
 ---
-# Zero-UI vars mirror: provider auth (`jwt_profile_json`) from the chart-kept
-# `zitadel-bootstrap-credentials`, IDs (`org_id`, `admin_user_id`) from the
-# operator-created `zitadel-bootstrap-outputs` — no Proton Pass seeding, no
-# manual vault step. Keys land under the module var names so `varsFrom` below
-# needs no varsKeys renames.
+# Vars mirror: provider auth from `zitadel-bootstrap-credentials`, IDs from
+# `zitadel-bootstrap-outputs` (keys land under module var names).
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
@@ -103,39 +71,20 @@ metadata:
 spec:
   interval: 30m
   approvePlan: auto
-  # Upsert-only guard (tofu-controller 0.16.5): the v1alpha2 CRD has no
-  # preventDestroy/destroyPlan field — `destroy` (destroy plan on reconcile)
-  # and `destroyResourcesOnDeletion` (destroy plan on CR deletion) are the
-  # only destroy knobs, both default false. Stated explicitly so no `tofu
-  # destroy` path exists via Flux; drift detection stays on (default).
+  # Upsert-only: `destroy` knobs stay false (default); no `tofu destroy` via Flux.
   destroy: false
   destroyResourcesOnDeletion: false
-  # Shared reusable SSO root: the infra/zitadel OCI artifact (namespace
-  # `zitadel`) packs flux/infra/components/zitadel/terraform/ at
-  # ./terraform. Cross-namespace sourceRef is allowed by
-  # allowCrossNamespaceRefs=true on the tofu-controller — no per-app
-  # terraform/ root, no git-SHA module pin.
+  # Shared zitadel SSO root (cross-namespace `infra` OCIRepository in `zitadel`,
+  # path ./terraform). Secrets arrive via `varsFrom` (overrides `vars` on
+  # collision). Redirect URIs fully rendered here (`__SERVICE_HOST__` replaced by
+  # overlays). Vars patched by index in overlays (keep order). No
+  # `user_initial_password` (default null = Zitadel invite/reset flow; never
+  # commit passwords).
   sourceRef:
     kind: OCIRepository
     name: infra
     namespace: zitadel
   path: ./terraform
-  # Plain (non-sensitive) per-env values; secrets (jwt_profile_json, org_id,
-  # admin_user_id) come from varsFrom below. varsFrom overrides vars on key
-  # collision (upstream GenerateVarsForTF).
-  # Redirect URIs are fully rendered here (the shared root takes no
-  # app_host var): `__SERVICE_HOST__` is the per-env app hostname, replaced
-  # by the dev/prd overlay patches. Normal users ride `vars` as an HCL list
-  # (tofu-controller renders nested YAML values as HCL — no JSON encoding
-  # needed).
-  # POSITIONAL: the dev/prd overlays patch /spec/vars/0 (domain) +
-  # /spec/vars/2/value/0 (redirect) + /spec/vars/3/value/0 (post-logout) by
-  # index, so this order must not change without updating the overlays.
-  # No `user_initial_password` var is set (shared-root default null = no
-  # initial password): first sign-in goes through the Zitadel invite/reset
-  # flow — never commit passwords; seed via varsFrom only if a shared
-  # initial password is ever wanted (same shape as the zitadel bootstrap
-  # `admin_initial_password`).
   vars:
     - name: domain
       value: __ZITADEL_HOST__
@@ -151,9 +100,8 @@ spec:
         - https://__SERVICE_HOST__/
     - name: create_user_role
       value: "true"
-    # user_emails is deliberately env-invariant: the same humans get access
-    # in dev+prd (source of truth: README "SSO identity → operator mapping"
-    # table). Do NOT add dev/prd overlay patches diverging the list.
+    # `user_emails` is env-invariant (same humans in dev+prd; README mapping
+    # table is the source of truth — never diverge via overlays).
     - name: user_emails
       value:
         - git@yansyah.my.id

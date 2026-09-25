@@ -1,15 +1,8 @@
-# COSI credential bridge: in-namespace Kubernetes SecretStore reading the
-# COSI-minted BucketInfo JSONs (Secrets ferretdb-cosi-creds +
-# clickstack-cosi-creds, key BucketInfo) via the SHARED `eso-k8s-reader`
-# ServiceAccount (the same SA backs the clickstack-k8s store in
-# clickstack-secrets.yaml, so the SA/Role/Binding ship here and stay
-# unrestricted: secrets get/list/watch with NO resourceNames +
-# selfsubjectrulesreviews create, in-namespace only). Same pattern as the
-# cnpg/clickhouse cosi-keys: server.url omitted (defaults to
-# kubernetes.default), kube-root-ca.crt supplies the API CA. One store
-# serves BOTH ExternalSecrets (cnpg-s3-credentials in ferretdb-postgres.yaml
-# + clickhouse-s3-backup in clickstack-secrets.yaml), which use GJSON
-# `property` (BucketInfo.spec.secretS3.accessKeyID/accessSecretKey).
+# COSI credential bridge: in-namespace `clickstack-cosi` SecretStore reading both
+# COSI BucketInfo JSONs via the shared `eso-k8s-reader` SA (ships here; also
+# backs `clickstack-k8s`). `server.url` omitted (defaults to kubernetes.default);
+# `kube-root-ca.crt` supplies the API CA. Consumers use GJSON `property` on
+# `BucketInfo.spec.secretS3`.
 ---
 apiVersion: v1
 kind: ServiceAccount

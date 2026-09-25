@@ -1,160 +1,74 @@
 # Flux bootstrap (Terraform)
 
-Bootstraps the Flux Operator on a cluster with OpenTofu/Terraform, then hands
-steady-state reconciliation to Flux. No workload content lives here — the
-desired state is `../clusters/<cluster_name>`.
+Bootstraps the Flux Operator with OpenTofu/Terraform; Flux owns steady state
+after. No workloads — desired state is `../clusters/<cluster_name>`.
+Upstream refs: `/tmp/home-ops-docs/flux-operator-bootstrap-terraform-docs`, `/tmp/home-ops-docs/helm-docs`.
 
-Upstream references (read-only): `/tmp/home-ops-docs/flux-operator-bootstrap-terraform-docs`
-(bootstrap module), `/tmp/home-ops-docs/helm-docs` (Helm provider chart-install contract).
+## Prerequisites
 
-## Why barebone Talos needs prerequisites
-
-The Talos base machine config ships with no pod networking, no ClusterIP
-DNAT, and no cluster DNS: `talos/clusters/_base/patches.yml` deletes the
-`KubeFlannelCNIConfig` (no CNI) and sets `KubeCoreDNSConfig{enabled:false}`,
-while per-cluster patches set `KubeProxyConfig{enabled:false}` (Cilium
-replaces kube-proxy). At `tofu apply` time a normally-networked bootstrap
-Pod can therefore never become Ready, so the module is wired for it:
-
-- `job.host_network = true` runs the bootstrap Job on the host stack —
-  the upstream escape hatch documented for installing a CNI from the Job
-  (implies `dnsPolicy: Default`, so `ghcr.io`/`quay.io` pulls resolve via
-  the Talos `ResolverConfig` upstream nameservers `1.1.1.1`/`8.8.8.8`).
-- `gitops_resources.prerequisites.charts` installs the Cilium Helm chart
-  **before** the Flux Operator, so pod networking + ClusterIP exist when
-  Flux takes over.
-
-What runs pre-Flux vs post-Flux:
-
-| Phase | What | Owner |
-| --- | --- | --- |
-| Pre-Flux (this module) | Cilium chart (node networking), Flux Operator chart, FluxInstance | Terraform / bootstrap Job |
-| Post-Flux (Flux tenants) | Cilium + CoreDNS HelmReleases via the infra ResourceSet (`../tenants/infra.yaml`, inputs #1/#2) | Flux (adopts the Cilium release + namespace via `flux_adoption_check`; Terraform then stops touching it) |
-
-CoreDNS is deliberately **not** a prerequisite: pre-Cilium the Job uses
-host DNS, and post-Cilium it keeps host DNS while Flux reconciles CoreDNS
-as a tenant with no ordering dependency on the Job — the Job never needs
-in-cluster DNS before CoreDNS lands.
-
-Per-cluster prerequisite differences: only `var.cilium_k8s_service_host`
-(the Talos K8s API VIP / Layer2VIP baked into the Cilium
-`k8sServiceHost` value) — `192.168.1.198` for prd, `192.168.1.248`
-for dev, matching the `controllers/<env>/` kustomization patches. It is
-not the LB pool VIP (`.199` prd / `.249` dev). The variable validates to
-one of the two known VIPs.
+Talos ships barebone (no CNI, no CoreDNS, no kube-proxy), so the bootstrap
+Job runs host-networked (`job.host_network = true`, `dnsPolicy: Default`)
+and installs the Cilium chart from `prerequisites.charts` before the Flux
+Operator; Cilium + CoreDNS then reconcile as infra tenants
+(`../tenants/infra.yaml`) with Flux adopting the Cilium release via
+`flux_adoption_check`. CoreDNS is not a prerequisite — the Job uses host
+DNS throughout. Only per-cluster difference: `var.cilium_k8s_service_host`
+(Talos API VIP `k8sServiceHost`: `.198` prd, `.248` dev; not the LB pool VIP `.199`/`.249`).
 
 ## Single source of truth
 
-`main.tf` reuses the same files Flux reconciles (no duplicated versions or
-values):
+`main.tf` reads the same files Flux reconciles (no duplicated versions/values):
 
-| Terraform input | Source file (also reconciled by Flux) |
-| --- | --- |
-| `gitops_resources.instance_yaml` | `../clusters/<cluster_name>/flux-system/flux-instance.yaml` |
-| `operator_chart.values_yaml` | `../clusters/<cluster_name>/flux-system/flux-operator-values.yaml` |
-| `operator_chart.repository` / `version` | `versions.yaml` (repository must match the `OCIRepository` url in `../clusters/<cluster_name>/flux-system/flux-operator.yaml`; the GitOps ref itself tracks semver `*` per D2, `versions.yaml` records the bootstrap install version) |
-| `prerequisites.charts[0]` (repository = OCI url minus `oci://`, version = ref tag, values = HelmRelease `spec.values`) | `../../infra/components/cilium/controllers/base/cilium.yaml` (the same OCIRepository + HelmRelease Flux reconciles; `k8sServiceHost` placeholder filled from `var.cilium_k8s_service_host`) |
+- `gitops_resources.instance_yaml` ← `../clusters/<cluster_name>/flux-system/flux-instance.yaml`
+- `operator_chart.values_yaml` ← `../clusters/<cluster_name>/flux-system/flux-operator-values.yaml`
+- `operator_chart.repository`/`version` ← `versions.yaml` (matches the `OCIRepository` url in `flux-operator.yaml`; GitOps floats semver `*`, `versions.yaml` pins the bootstrap install)
+- `prerequisites.charts[0]` ← `../../infra/components/cilium/controllers/base/cilium.yaml` (same OCIRepository + HelmRelease; `k8sServiceHost` from `var.cilium_k8s_service_host`)
 
-`tests/versions.tftest.hcl` asserts the operator mapping (plus the 0.8.0 /
-0.60.0 pins and the per-cluster instance/values single-source) and
-`tests/prerequisites.tftest.hcl` asserts the Cilium mapping (prd + dev
-VIPs, adoption check, host-networked Job, runtime seed, LB-pool guard);
-`tofu test` fails on drift.
+`tests/*.tftest.hcl` assert both mappings; `tofu test` fails on drift.
 
-## ENVIRONMENT / CLUSTER_NAME / CLUSTER_DOMAIN / CLUSTER_REGION flow
+## Runtime info flow
 
-No hardcoded env leakage: the per-cluster
-`clusters/<name>/flux-system/runtime-info.yaml` ConfigMap
-(`ARTIFACT_TAG`, `ENVIRONMENT`, `CLUSTER_NAME`, `CLUSTER_DOMAIN`,
-`CLUSTER_REGION`) is the single source. Pre-Flux, Terraform seeds the
-bootstrap Job's `flux-runtime-info` ConfigMap from the SAME file (plus
-`var.cluster_region`, which must match the file) so `flux envsubst
---strict` works inside the Job. Post-Flux, the GitOps file owns the
-ConfigMap; each infra/apps ResourceSet copies it into `<tenant>/flux-runtime-info`
-via `copyFrom`, and every tenant Kustomization declares
-`postBuild.substituteFrom` on it — so `${ENVIRONMENT}` selects
-`controllers/<env>/` paths and any component manifest can consume
-`${CLUSTER_NAME}` / `${CLUSTER_DOMAIN}` / `${CLUSTER_REGION}` with zero
-fleet changes. `tenants.yaml` per cluster wires `substituteFrom`; the
-The `update` cluster is out of scope (automation only).
+`clusters/<name>/flux-system/runtime-info.yaml` (`ARTIFACT_TAG`,
+`ENVIRONMENT`, `CLUSTER_NAME`, `CLUSTER_DOMAIN`, `CLUSTER_REGION`) is the
+single source: Terraform seeds the Job's ConfigMap pre-Flux
+(`var.cluster_region` must match the file); post-Flux the GitOps file owns
+it and ResourceSets fan it out via `copyFrom` + `postBuild.substituteFrom`
+(`${ENVIRONMENT}` selects `controllers/<env>/`). The `update` cluster is
+automation only.
 
-## First bootstrap order (the `stable` chicken-and-egg)
+## First bootstrap order
 
-The prd `FluxInstance` syncs `ref: stable`, but `stable` does not exist until
-the first `flux-fleet-vX.Y.Z` release is tagged — and cutting that release
-from never-bootstrapped fleet content is a blind bet. Resolve it dev-first:
+The prd `FluxInstance` syncs `ref: stable`, which exists only after the
+first `flux-fleet-vX.Y.Z` release — bootstrap dev first:
 
-1. **Bootstrap dev first.** `acme-dev-bdo1-talos-apps-01` syncs `ref: dev`,
-   published from every `main` commit by `flux-fleet-push.yaml` — no release
-   tag needed. `tofu apply` with `cluster_name=acme-dev-bdo1-talos-apps-01`
-   and `cilium_k8s_service_host=192.168.1.248`, then validate end to end on
-   the live cluster: Cilium prerequisite → Flux Operator → infra tenants
-   (Cilium adoption via `flux_adoption_check`, CoreDNS `kube-dns` answering
-   at `10.96.0.10`).
-2. **Publish stable.** Tag `flux-fleet-vX.Y.Z` once dev is green — the release
-   workflow pushes `stable` + bare `<version>` and cosigns them, which is
-   exactly what the prd verify pin
-   (`flux-instance.yaml` → `flux-fleet-release.yaml@refs/tags/...`) expects.
-3. **Bootstrap prd pinned to stable.** `tofu apply` with
-   `cluster_name=acme-prd-bdo1-talos-apps-01` and
-   `cilium_k8s_service_host=192.168.1.198`. The Job reads the prd
-   `instance_yaml` verbatim — it already says `stable`, now resolvable.
+1. **Bootstrap dev** (`cluster_name=acme-dev-bdo1-talos-apps-01`,
+   `cilium_k8s_service_host=192.168.1.248`; syncs `ref: dev` from every
+   `main` commit). Validate: Cilium → Operator → infra tenants.
+2. **Publish stable** (`flux-fleet-vX.Y.Z`; pushes cosigned `stable` + `<version>`).
+3. **Bootstrap prd** (`cluster_name=acme-prd-bdo1-talos-apps-01`,
+   `cilium_k8s_service_host=192.168.1.198`).
 
-The bootstrap Job itself is ref-agnostic (it consumes local files, never
-pulls the OCI tag), so this order is purely about making `stable` exist and
-trustworthy before prd points at it. Later bootstraps (recovery, new prd
-hardware) skip straight to step 3.
+The Job is ref-agnostic (local files only). Later bootstraps skip to step 3.
 
 ## Upgrading the operator
 
-Three pins move together — bump one, bump all three, then prove it:
-
-- `operator_chart_version` in `versions.yaml` (currently 0.60.0): the
-  bootstrap install version. The GitOps `OCIRepository`
-  (`flux-operator.yaml`) floats semver `*`, so this pin only governs fresh
-  bootstraps.
-- The chart tag consumed by `flux-operator-ui`
-  (`flux/apps/components/flux-operator-ui`): its update policy tracks the
-  same operator chart line (`>=0.60.0`) and opens PRs via `$imagepolicy`
-  markers — on bumps set the chart tag there AND `operator_chart_version`
-  here together (see the policy header).
-- `FluxInstance` `spec.distribution.version` (`2.x`, registry
-  `ghcr.io/fluxcd`, artifact `flux-operator-manifests:latest`): the 2.x Flux
-  line the operator installs; keep it on the 2.x major while bumping the chart.
-
-`tests/versions.tftest.hcl` asserts the mapping (bootstrap module 0.8.0,
-operator chart pin, per-cluster instance/values single-source, prd `stable` /
-dev `dev` refs), so `tofu test` fails on drift:
-
-```shell
-cd flux/fleet/terraform
-tofu init -backend=false
-tofu test
-```
+Three pins move together: `operator_chart_version` in `versions.yaml`
+(0.60.0, bootstrap installs only — GitOps floats semver `*`), the chart tag
+in `flux/apps/components/flux-operator-ui` (same line `>=0.60.0`,
+`$imagepolicy`), and `FluxInstance` `spec.distribution.version` (`2.x`,
+keep the major). `tests/versions.tftest.hcl` asserts the mapping (module
+0.8.0, chart 0.60.0, prd `stable` / dev `dev`); `tofu test` fails on drift.
 
 ## Usage (manual, no live apply in CI)
 
 ```shell
 cd flux/fleet/terraform
-tofu init -backend=false
-tofu validate
-tofu test
-tofu plan \
-  -var oci_token="${GITHUB_TOKEN}" \
+tofu init -backend=false && tofu validate && tofu test
+tofu plan -var oci_token="${GITHUB_TOKEN}" \
   -var cluster_name="acme-prd-bdo1-talos-apps-01" \
   -var cluster_region="home-lab" \
   -var cilium_k8s_service_host="192.168.1.198"
 ```
 
-Use `192.168.1.248` for `acme-dev-bdo1-talos-apps-01`. `tofu plan` needs
-no live cluster: providers read `var.kubeconfig_path` (default
-`~/.kube/config` for apply), and plan resolves local files only until
-apply. In CI or on a machine without a kubeconfig, point at any dummy
-file:
-
-```shell
-tofu plan -var kubeconfig_path=/tmp/dummy-kubeconfig ...
-```
-
-Bump `var.bootstrap_revision` to trigger a new bootstrap run (it flows
-into the module `revision`, which re-renders the Job annotation).
+Use `.248` for dev. `tofu plan` needs no live cluster (dummy kubeconfig OK).
+Bump `var.bootstrap_revision` for a new bootstrap run.

@@ -1,36 +1,11 @@
-# Flux notification wiring: every Flux-native event source emits via
-# apprise-go-api into per-purpose Matrix rooms. Full contract (room -> source
-# -> tag matrix, payload mapping, E2EE posture): base/NOTIFICATIONS.md.
-#
-# Provider type is generic (NOT generic-hmac): apprise-go-api has no HMAC
-# verification path (SECRET_KEY is internal-callback auth only), so an
-# X-Signature header would be silently ignored.
-#
-# Addressing: Providers post to the infra apprise-go-api tenant
-# (http://apprise-go-api.apprise-go-api.svc:80/notify — workload lives in
-# the infra namespace, NOT this tenant). The generic Provider address
-# carries the WHOLE apprise contract as query params (remap + fallback +
-# type + tag). Matrix credentials ride the APPRISE_STATELESS_URLS fallback
-# (ESO apprise-stateless-urls Secret — consumer-owned, still lives here),
-# NOT this address — secretRef holds headers only, and a token-embedded
-# apprise URL cannot ride a header. Per-request `urls` (body-only: JSON
-# `urls` key or form field) is LIVE for coder (first decoupled caller —
-# coder owns its credential, see the Coder section below); flux/tofu/team
-# stay on the fallback until their callers can inject creds the same way.
-# - `?:message=body&:reason=title`: Flux JSON Event -> apprise fields
-#   (remap engine: exact targets format|type|title|body|attachment|tag|tags|
-#   urls; failure -> HTTP 400 "Payload field mapping failed").
-# - `format=text`: Flux messages are plain text (see Flux docs example);
-#   markdown/html would carry a second fallback body for no benefit.
-# - `type=`: pinned per Provider — Flux `severity` (info|error) is NOT a
-#   valid apprise `type` (info|success|warning|failure only), so severity is
-#   NEVER remapped; the Alert eventSeverity selects the pipeline instead.
-# - `tag=`: selects the fallback-URL leg (flux|tofu|team server tags).
-#   Mismatch -> the whole request 204s (selection lost), so every Provider
-#   tag below MUST equal a tag baked into a STATELESS_URLS entry. `coder`
-#   is NOT a fallback tag: coder owns its credential and posts
-#   per-request `urls` in the POST body (see the Coder section below) — no
-#   matrix-tenant fallback leg, no apprise-coder Provider.
+# Flux notification wiring: every Flux-native event source emits via the infra
+# apprise-go-api sink into per-purpose Matrix rooms. Full contract: base/NOTIFICATIONS.md.
+# Provider type generic (NOT generic-hmac — apprise-go-api has no HMAC path).
+# Providers post to http://apprise-go-api.apprise-go-api.svc:80/notify (infra tenant);
+# credentials ride the APPRISE_STATELESS_URLS fallback, not this address.
+# `?:message=body&:reason=title` remap, `format=text`, pinned `type=`, `tag=` selects
+# the fallback leg (flux|tofu|team; every tag MUST match a STATELESS_URLS entry or the
+# request 204s; coder is NOT a fallback tag — it posts per-request `urls`).
 ---
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Provider
@@ -76,52 +51,18 @@ spec:
   type: generic
   address: "http://apprise-go-api.apprise-go-api.svc:80/notify/?:message=body&:reason=title&format=text&type=info&tag=team"
 ---
-# Coder -> apprise-go-api entrypoint (NOT Flux-driven — NO Provider ships
-# here; Alert eventSources cannot watch Coder). Coder posts directly via
-# CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT; no Provider here. The Coder
-# Deployment posts DIRECTLY to the infra sink via
-# CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT (see
-# flux/apps/components/coder/base/coder.yaml + coder-secrets.yaml): the
-# endpoint carries `?type=info&format=text` ONLY, and the matrix credential
-# rides per-request `urls` in the POST BODY (ESO-composed
-# `matrixs://{token}@{host}/%23coder-notifications?overflow=split&e2ee=false`
-# from the kept Secret matrix-bot-bootstrap-outputs (keys
-# notifier-token/homeserver-host) via the coder-owned handoff (SecretStore
-# coder-matrix remoteNamespace matrix + Role/Binding
-# coder-matrix-handoff-reader in ns matrix, owned by the coder component).
-# NO `tag=coder`
-# anywhere: the body urls select the
-# target directly, no fallback, no server-tag filtering. Mapping choice:
-# BARE (no `?:src=dst` remap) — Coder's fixed webhook payload already
-# carries top-level `title` + `body`, which ARE apprise field names, so the
-# sink binds them with zero remapping. `format=text` (Coder renders
-# plain-text bodies), `type=info` pinned (Coder has no severity the sink
-# could trust). Sink contract
-# (projects/apprise-go-api/internal/server/notify.go): `urls` is body-only
-# (JSON `urls` key or form field — NO `?urls=` query fallback exists; query
-# fallbacks cover tag/tags/format/type/title only), and the remap engine
-# cannot constant-assign onto `urls` (constant rules assign onto the SOURCE
-# name), so body injection from the coder-owned Secret is the decoupled
-# path for a fixed-payload caller. Fallback-leg ownership: flux/tofu/team
-# legs stay matrix-owned (those rooms are matrix-tenant-owned); coder is
-# coder-owned (see NOTIFICATIONS.md ownership table).
+# Coder entrypoint (NOT Flux-driven — no Provider; Alerts cannot watch Coder).
+# Coder posts directly to the infra sink via CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT
+# (`?type=info&format=text` only); the matrix credential rides per-request `urls` in
+# the POST body (coder-owned handoff from the kept Secret; bare mapping — Coder's
+# fixed payload already carries `title` + `body`). No `tag=coder`, no matrix fallback leg.
 ---
 # Alerts: which Flux events feed which Provider (room).
-# - flux-info: all-source info stream (creates/updates/health-pass/delays +
-#   errors — info severity includes errors) minus no-change noise via
-#   exclusionList. Exclusion regex is Golang RE2 against the event message.
-# - flux-errors: error-only leg into the SAME #flux-notifications room with
-#   apprise type=failure (distinct rendering) — ops sees failures twice
-#   (info stream + failure highlight) by design.
-# - tofu-runs: info leg filtered to Terraform messages via inclusionList.
-#   `Terraform` is NOT a valid Alert eventSources kind, so this watches
-#   Kustomization + HelmRelease and filters on message text. Intentional
-#   overlap with flux-info (tofu events post to BOTH rooms) — the tofu room
-#   is the quiet per-run log, the flux room is the ops overview.
-# - team-optin: SUSPENDED template for per-team rooms. Copy, set
-#   eventSources[].namespace to the team tenant namespace, point at a new
-#   apprise-team-tagged Provider if the team gets its own room (or reuse
-#   apprise-team once the team room URL carries ?tag=team), then unsuspend.
+# - flux-info: all-source info stream (info includes errors) minus no-change noise.
+# - flux-errors: error-only leg into the SAME room with type=failure (failures arrive twice).
+# - tofu-runs: info leg filtered to Terraform messages via inclusionList (`Terraform` is not
+#   a valid eventSources kind — watches Kustomization + HelmRelease). Overlaps flux-info by design.
+# - team-optin: SUSPENDED template for per-team rooms (copy, set namespace, unsuspend).
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Alert
 metadata:

@@ -1,17 +1,8 @@
-# Narrow cross-namespace handoff grant for the hubble-ui ESO reader (§11.3).
-# ESO mirrors the FirstInstance handoff Secrets (`zitadel-bootstrap-credentials`
-# + `zitadel-bootstrap-outputs`, both in the `zitadel` namespace) into this
-# namespace's `hubble-ui-terraform-vars` Secret through the cross-namespace
-# `hubble-ui-zitadel` SecretStore (base/terraform.yaml) — via this ESO mirror (no `data.terraform_remote_state` reads; no hubble-ui-terraform-remote-state-reader grant is used).
-# The store authenticates as THIS namespace SA `eso-zitadel-handoff-reader`,
-# so the SA needs get/list/watch on the two handoff Secrets only
-# (resourceNames pins both) plus selfsubjectrulesreviews create (ESO
-# Kubernetes-provider validation) — and nothing else.
-# Ownership note: the Role + RoleBinding below carry explicit
-# `metadata.namespace: zitadel` but are OWNED BY the hubble-ui component — they
-# ship in the hubble-ui base dir so they reconcile (and prune) with the app.
-# Same-namespace `varsFrom` CANNOT cross namespaces (no namespace field),
-# which is why the ESO mirror + this RBAC is the mechanism.
+# Narrow cross-namespace handoff grant for the ESO reader. Mirrors the two
+# FirstInstance handoff Secrets from the `zitadel` namespace into
+# `hubble-ui-terraform-vars` via the `hubble-ui-zitadel` SecretStore
+# (base/terraform.yaml). Owned by this component (explicit
+# `metadata.namespace: zitadel`) so it reconciles and prunes with the app.
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

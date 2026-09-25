@@ -1,18 +1,11 @@
-# Headlamp v0.45.0 (§13.3): Kubernetes web UI with native OIDC login via
-# Zitadel (§11.1) plus the locked plugin set (ai-assistant, flux, kubevirt).
-# Chart: OCI oci://chartproxy.container-registry.com/kubernetes-sigs.github.io/headlamp/headlamp
-# tag 0.45.0 (classic https://kubernetes-sigs.github.io/headlamp/ chart
-# headlamp, proxied to OCI; chart 0.45.0 carries app 0.45.0 — NO
-# chart↔app divergence, unlike §11.1 Zitadel; on bumps set the
-# OCIRepository ref.tag AND image.tag to the new version together). No
-# cosign verify block: proxied tarballs are live-translated by chartproxy,
-# so no upstream signature applies. App image ghcr.io/headlamp-k8s/headlamp:v0.45.0.
-# Telemetry: chart values carry no phone-home/analytics/usage-reporting knobs;
-# bundled static plugins stay on (pure UI, no reporting). No ServiceMonitor is shipped until monitoring.coreos.com CRDs
-# land (same §9 deviation).
-# Ordering: the headlamp-oidc ExternalSecret lives alongside the release in
-# this same Kustomization, so the first install attempt pends until ESO syncs
-# it and Flux retries (RetryOnFailure below).
+# Headlamp v0.45.0: Kubernetes web UI with native OIDC login via Zitadel plus
+# the locked plugin set (ai-assistant, flux, kubevirt).
+# Chart: oci://chartproxy.container-registry.com/kubernetes-sigs.github.io/headlamp/headlamp
+# tag 0.45.0 (proxy of classic chart https://kubernetes-sigs.github.io/headlamp/;
+# chart 0.45.0 carries app 0.45.0 — bump OCIRepository ref.tag AND image.tag
+# together). No cosign verify block (chartproxy live-translates tarballs, so no
+# upstream signature applies). App image ghcr.io/headlamp-k8s/headlamp:v0.45.0.
+# No telemetry knobs, no ServiceMonitor.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -48,12 +41,10 @@ spec:
       retryInterval: 5m
   # https://github.com/kubernetes-sigs/headlamp/tree/main/charts/headlamp
   values:
-    # Chart schema `replicaCount` (default 1). No autoscaling knob exists in
-    # chart 0.45.0, so static replicas stay at the env min (dev 1 / prd 2)
-    # and base/headlamp-hpa.yaml scales 1-2 dev / 2-4 prd via overlays.
+    # Chart has no autoscaling knob — static replicas stay at the env min;
+    # base/headlamp-hpa.yaml scales via overlays.
     replicaCount: 1 # placeholder - overridden by dev/prd
-    # Chart defaults `resources: {}` (empty) — requests are REQUIRED for the
-    # HPA CPU metric to work, so pin them here (limits cap noisy-neighbor).
+    # Chart defaults `resources: {}` — requests required for the HPA metric.
     resources:
       requests:
         cpu: 100m
@@ -61,18 +52,15 @@ spec:
       limits:
         cpu: 500m
         memory: 256Mi
-    # Chart 0.45.0 = app 0.45.0 (lockstep); image.tag defaults to
-    # v<appVersion>, pinned explicitly so update automation owns it via
-    # update-policies/headlamp.yaml (marker below). On automation PRs bump
-    # the chart version above to match.
+    # Chart 0.45.0 = app 0.45.0 (lockstep); image.tag pinned explicit for
+    # update automation (marker below) — bump the chart version to match.
     image:
       tag: v0.45.0 # {"$imagepolicy": "apps:headlamp:tag"}
     config:
-      # Hot-reload plugins the manager installs without recreating the Pod.
       watchPlugins: true
       oidc:
         # No chart-managed Secret — credentials come from the ESO-synced
-        # headlamp-oidc Secret (see base/headlamp-secrets.yaml).
+        # headlamp-oidc Secret.
         secret:
           create: false
         externalSecret:
@@ -80,11 +68,9 @@ spec:
           name: headlamp-oidc
           # The synced Secret carries OIDC_SCOPES, so pass -oidc-scopes.
           hasScopes: true
-    # Chart-owned ClusterRoleBinding (pod SA → cluster-admin) stays on: it
-    # authorizes the in-cluster `main` context only. Per-USER authorization
-    # is the hand-written bindings in base/headlamp-rbac.yaml.
-    # Chart-native httpRoute stays OFF — the §8.1 route is owned explicitly
-    # in base (same as §11.1 Zitadel).
+    # Chart-owned ClusterRoleBinding (pod SA → cluster-admin) authorizes the
+    # in-cluster `main` context only; per-user auth is base/headlamp-rbac.yaml.
+    # Chart-native httpRoute stays OFF — the route is owned explicitly in base.
     pluginsManager:
       enabled: true
       configContent: |

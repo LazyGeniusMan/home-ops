@@ -1,16 +1,11 @@
-# Update policy for the flux-operator-ui component (§11.4): tracks the Flux
-# Operator OCI Helm chart, and the ImageUpdateAutomation (update cluster) opens
-# PRs via markers in components/flux-operator-ui (see README). Follows the §7
-# update-policy contract (ImageRepository + ImagePolicy + $imagepolicy markers).
-# Tracks the OPERATOR release line (same chart+version as bootstrap): on bumps
-# set the chart tag here AND operator_chart_version in
-# flux/fleet/terraform/versions.yaml together. Bootstrap/Managed sync are NEVER
-# touched by this policy — the UI is serverOnly with installCRDs: false, so it
-# cannot own CRDs or the fleet sync path.
-# Changelog: https://github.com/controlplaneio-fluxcd/flux-operator/releases.
-# Changelog: oauth2-proxy chart + image — https://github.com/oauth2-proxy/manifests/releases (chart) + https://github.com/oauth2-proxy/oauth2-proxy/releases (image, shared marker).
-# Mode: auto (UI tag in lockstep with operator_chart_version in flux/fleet/terraform/versions.yaml — bump together; tests/versions.tftest.hcl asserts the mapping; proxy chart marker apps:oauth2-proxy-chart shared with clickstack + hubble-ui, image marker apps:oauth2-proxy shared with clickstack + hubble-ui — bump all apps together).
-# Coupled files: [components/flux-operator-ui/base/flux-operator-ui.yaml, base/oauth2-proxy.yaml (shared apps:oauth2-proxy + apps:oauth2-proxy-chart markers with clickstack + hubble-ui), ../../../fleet/terraform/versions.yaml (operator_chart_version)].
+# Update policy for the flux-operator-ui component: tracks the Flux Operator
+# OCI chart (same chart+version as bootstrap — bump the chart tag here AND
+# operator_chart_version in flux/fleet/terraform/versions.yaml together).
+# Never touches fleet sync (serverOnly + installCRDs: false).
+# Changelog: controlplaneio-fluxcd/flux-operator releases.
+# Changelog: oauth2-proxy chart + image — manifests releases (chart) + oauth2-proxy releases (image, shared marker).
+# Mode: auto (proxy chart marker apps:oauth2-proxy-chart and image marker apps:oauth2-proxy shared with clickstack + hubble-ui — bump together).
+# Coupled files: [components/flux-operator-ui/base/flux-operator-ui.yaml, base/oauth2-proxy.yaml, ../../../fleet/terraform/versions.yaml].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
