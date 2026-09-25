@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/external-dns/plan"
 
 	nbprovider "github.com/LazyGeniusMan/home-ops/projects/external-dns-netbird/internal/provider"
+	"github.com/LazyGeniusMan/home-ops/projects/external-dns-netbird/internal/tracing"
 	"github.com/LazyGeniusMan/home-ops/projects/external-dns-netbird/internal/version"
 )
 
@@ -141,11 +142,14 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.HandleFunc("POST /records", s.handleApplyChanges)
 	mux.HandleFunc("POST /adjustendpoints", s.handleAdjustEndpoints)
 
+	// One server span per webhook request, named from the matched pattern;
+	// ops endpoints (healthz/version/metrics) bypass tracing.
+	traced := tracing.Middleware("external-dns-netbird")(mux)
 	ops := s.opsHandler()
 
 	webhookSrv := &http.Server{
 		Addr:              s.webhookAddr,
-		Handler:           s.withLogging(mux),
+		Handler:           s.withLogging(traced),
 		ReadTimeout:       readTimeout,
 		WriteTimeout:      writeTimeout,
 		ReadHeaderTimeout: headerTimeout,
@@ -298,10 +302,12 @@ func (s *Server) withLogging(next http.Handler) http.Handler {
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rec, r)
 		s.log.InfoContext(r.Context(), "request",
-			slog.String("method", r.Method),
-			slog.String("route", requestRoute(r)),
-			slog.Int("status", rec.status),
-			slog.Duration("duration", time.Since(start)),
+			append([]any{
+				slog.String("method", r.Method),
+				slog.String("route", requestRoute(r)),
+				slog.Int("status", rec.status),
+				slog.Duration("duration", time.Since(start)),
+			}, tracing.TraceAttrs(r.Context())...)...,
 		)
 	})
 }

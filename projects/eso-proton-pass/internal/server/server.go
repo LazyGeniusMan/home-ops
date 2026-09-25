@@ -17,7 +17,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/LazyGeniusMan/home-ops/projects/eso-proton-pass/internal/provider"
+	"github.com/LazyGeniusMan/home-ops/projects/eso-proton-pass/internal/tracing"
 	"github.com/LazyGeniusMan/home-ops/projects/eso-proton-pass/internal/version"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // httpRequestsTotal counts webhook requests by method, route pattern, and
@@ -204,18 +210,43 @@ func NewWithProvider(p Provider, logger *slog.Logger) *Server {
 	}
 }
 
-// Handler returns the mux with all routes.
+// Handler returns the mux with all routes. Tracing wraps each domain route
+// with a span named from the literal route pattern (bounded cardinality);
+// /metrics and /healthz bypass tracing entirely.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	// Routes omit methods and dispatch on r.Method; metrics use literal
 	// patterns (never raw paths) to bound cardinality.
-	mux.HandleFunc("/get", s.withMetrics("/get", s.handleGetDispatch))
-	mux.HandleFunc("/", s.withMetrics("/", s.handleValidate))
+	mux.HandleFunc("/get", s.withTracing("/get", s.withMetrics("/get", s.handleGetDispatch)))
+	mux.HandleFunc("/", s.withTracing("/", s.withMetrics("/", s.handleValidate)))
 	mux.HandleFunc("/healthz", s.withMetrics("/healthz", s.handleHealthz))
-	mux.HandleFunc("/readyz", s.withMetrics("/readyz", s.handleReadyz))
-	mux.HandleFunc("/push", s.withMetrics("/push", s.handlePush))
+	mux.HandleFunc("/readyz", s.withTracing("/readyz", s.withMetrics("/readyz", s.handleReadyz)))
+	mux.HandleFunc("/push", s.withTracing("/push", s.withMetrics("/push", s.handlePush)))
 	mux.Handle("/metrics", promhttp.Handler())
 	return s.withLogging(mux)
+}
+
+// withTracing starts one server span named from the literal route pattern
+// (never the raw path) and extracts the inbound W3C trace context.
+func (s *Server) withTracing(route string, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, span := otel.Tracer("eso-proton-pass").Start(
+			tracing.Extract(r),
+			"HTTP "+r.Method+" "+route,
+			trace.WithSpanKind(trace.SpanKindServer),
+			trace.WithAttributes(
+				attribute.String("http.method", r.Method),
+				attribute.String("http.route", route),
+			),
+		)
+		defer span.End()
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next(rec, r.WithContext(ctx))
+		span.SetAttributes(attribute.Int("http.status_code", rec.status))
+		if rec.status >= 500 {
+			span.SetStatus(codes.Error, http.StatusText(rec.status))
+		}
+	}
 }
 
 type getResponse struct {
@@ -361,10 +392,12 @@ func (s *Server) withLogging(next http.Handler) http.Handler {
 			route = "unknown"
 		}
 		s.logger.InfoContext(r.Context(), "request",
-			slog.String("method", r.Method),
-			slog.String("route", route),
-			slog.Int("status", rec.status),
-			slog.Duration("duration", time.Since(start)),
+			append([]any{
+				slog.String("method", r.Method),
+				slog.String("route", route),
+				slog.Int("status", rec.status),
+				slog.Duration("duration", time.Since(start)),
+			}, tracing.TraceAttrs(r.Context())...)...,
 		)
 	})
 }

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/LazyGeniusMan/home-ops/projects/external-dns-netbird/internal/tracing"
 	"github.com/LazyGeniusMan/home-ops/projects/external-dns-netbird/internal/version"
 )
 
@@ -50,10 +51,12 @@ func (s *Server) withOpsLogging(next http.Handler) http.Handler {
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rec, r)
 		s.log.InfoContext(r.Context(), "request",
-			slog.String("method", r.Method),
-			slog.String("route", requestRoute(r)),
-			slog.Int("status", rec.status),
-			slog.Duration("duration", time.Since(start)),
+			append([]any{
+				slog.String("method", r.Method),
+				slog.String("route", requestRoute(r)),
+				slog.Int("status", rec.status),
+				slog.Duration("duration", time.Since(start)),
+			}, tracing.TraceAttrs(r.Context())...)...,
 		)
 	})
 }

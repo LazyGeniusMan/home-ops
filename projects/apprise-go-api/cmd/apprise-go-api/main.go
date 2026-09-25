@@ -1,6 +1,7 @@
 // Command apprise-go-api is a stateless-only Go port of Python apprise-api:
 // POST /notify, request-scoped attachments, webhook remap/callback. Config
-// from the environment (secrets via *_FILE); no telemetry of any kind.
+// from the environment (secrets via *_FILE); traces via OTLP, metrics via
+// Prometheus.
 package main
 
 import (
@@ -16,6 +17,8 @@ import (
 	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/config"
 	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/notify"
 	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/server"
+	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/tracing"
+	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/version"
 )
 
 func main() {
@@ -47,6 +50,14 @@ func run() error {
 	}
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 
+	// Traces export to the in-namespace OTLP collector (OTEL_EXPORTER_OTLP_ENDPOINT);
+	// Setup disables itself with OTEL_SDK_DISABLED=true.
+	shutdownTracing, err := tracing.Setup(context.Background(), "apprise-go-api", version.Version)
+	if err != nil {
+		log.Warn("tracing disabled", "err", err)
+		shutdownTracing = func(context.Context) error { return nil }
+	}
+
 	sender := notify.New(time.Duration(cfg.CallTimeoutSecs) * time.Second)
 	srv := server.New(cfg, sender, log)
 
@@ -65,7 +76,7 @@ func run() error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		log.Info("starting", "addr", cfg.Addr, "stateless_storage", cfg.StatelessStorage, "telemetry", "disabled")
+		log.Info("starting", "addr", cfg.Addr, "stateless_storage", cfg.StatelessStorage, "telemetry", "otlp")
 		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 			return
@@ -85,6 +96,8 @@ func run() error {
 	if err := httpSrv.Shutdown(shutdownCtx); err != nil {
 		return err
 	}
+	// Flush buffered spans before exit (bounded by the drain timeout).
+	_ = shutdownTracing(shutdownCtx)
 	// Shutdown drains in-flight requests; docker stop waits for this.
 	log.Info("drained")
 	return <-errCh

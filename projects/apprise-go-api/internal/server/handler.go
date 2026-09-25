@@ -18,6 +18,9 @@ import (
 	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/attach"
 	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/notify"
 	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/remap"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 var (
@@ -344,6 +347,7 @@ func fireWebhook(s *Server, r *http.Request, ok bool, sendErr error) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "Apprise-API")
+	otel.GetTextMapPropagator().Inject(r.Context(), propagation.HeaderCarrier(req.Header))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		s.log.Warn("notify: webhook delivery failed", "err", err)

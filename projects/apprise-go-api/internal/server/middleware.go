@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/tracing"
 )
 
 // withMetrics observes method/route/status/duration for every request and
@@ -19,6 +21,7 @@ func withMetrics(log *slog.Logger, next http.Handler) http.Handler {
 		log = slog.Default()
 	}
 	registerMetrics()
+	traced := tracing.Middleware("apprise-go-api", "/metrics", "/healthz")(next)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/metrics" {
 			next.ServeHTTP(w, r)
@@ -26,7 +29,7 @@ func withMetrics(log *slog.Logger, next http.Handler) http.Handler {
 		}
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
-		next.ServeHTTP(rec, r)
+		traced.ServeHTTP(rec, r)
 		// r.Pattern is set by the mux after dispatch: it holds the matched
 		// pattern (e.g. "/notify"), never the raw path. Unmatched requests
 		// (404, r.Pattern == "") use the bounded literal "notfound" so the
@@ -39,10 +42,12 @@ func withMetrics(log *slog.Logger, next http.Handler) http.Handler {
 		httpRequestsTotal.WithLabelValues(r.Method, route, status).Inc()
 		httpRequestDurationSeconds.WithLabelValues(r.Method, route).Observe(time.Since(start).Seconds())
 		log.InfoContext(r.Context(), "request",
-			slog.String("method", r.Method),
-			slog.String("route", route),
-			slog.Int("status", rec.status),
-			slog.Duration("duration", time.Since(start)),
+			append([]any{
+				slog.String("method", r.Method),
+				slog.String("route", route),
+				slog.Int("status", rec.status),
+				slog.Duration("duration", time.Since(start)),
+			}, tracing.TraceAttrs(r.Context())...)...,
 		)
 	})
 }
