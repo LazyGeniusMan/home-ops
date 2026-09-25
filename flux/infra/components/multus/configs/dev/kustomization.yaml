@@ -3,7 +3,8 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev (same NIC name as prd today) node NIC (enp45s0).
+  # Dev node NIC (ens18, QEMU/KVM virtio — same NIC as the Cilium dev
+  # L2AnnouncementPolicy and the Talos dev Layer2VIP link).
   - patch: |
       - op: replace
         path: /spec/config
@@ -11,7 +12,7 @@ patches:
             "cniVersion": "0.3.1",
             "name": "lan-dhcp",
             "type": "macvlan",
-            "master": "enp45s0",
+            "master": "ens18",
             "mode": "bridge",
             "ipam": { "type": "dhcp" }
           }'

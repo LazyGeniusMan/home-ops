@@ -36,7 +36,7 @@ pre-flight DaemonSet Ready, then delete it before landing the chart bump.
 | 192.168.1.199 | `CiliumLoadBalancerIPPool/default` LB VIP |
 
 Pool covers only `.199`, never `.198`. `CiliumL2AnnouncementPolicy`
-announces LB IPs on Talos NIC `enp45s0`.
+announces LB IPs on the Talos node NIC (`enp45s0` prd, `ens18` dev).
 
 ## Environments
 

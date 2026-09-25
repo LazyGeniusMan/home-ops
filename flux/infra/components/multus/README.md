@@ -40,8 +40,10 @@ This component owns `NetworkAttachmentDefinition/lan-dhcp`; `win11-vm` and
 `metadata.namespace` (the infra tenant applies configs with `targetNamespace:
 multus`); consumers reference it namespace-qualified as `multus/lan-dhcp`.
 L2: `macvlan` on the LAN uplink in `bridge` mode; guests DHCP against the
-router at 192.168.1.1. Base carries the `__NODE_NIC__` placeholder; both
-overlays target host NIC `enp45s0`. Secondary interfaces get addresses from the
+router at 192.168.1.1. Base carries the `__NODE_NIC__` placeholder; the dev
+overlay targets `ens18` (QEMU/KVM virtio, same NIC as the Talos dev
+Layer2VIP link and the Cilium dev L2AnnouncementPolicy) and prd targets
+`enp45s0`. Secondary interfaces get addresses from the
 LAN router's DHCP (no in-cluster IPAM) — if guests fail to get an address, check
 the router's DHCP pool first.
 
