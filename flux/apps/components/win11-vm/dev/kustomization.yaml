@@ -1,4 +1,6 @@
 # Dev is a passthrough of ../base (no static MAC).
+# BLOCKED until ISO staged: fresh boot CDI-import error-loops by design;
+# read ../README.md "Windows 11 ISO import" (kubectl -n win11-vm describe dv win11-vm-rootdisk shows the prestage annotation).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:

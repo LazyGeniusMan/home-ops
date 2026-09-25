@@ -19,15 +19,38 @@ flux resume kustomization apps -n win11-vm    # re-enable reconciliation
 The VM object itself stays managed by Flux (spec edits flow through git);
 only the power state is yours.
 
-## Windows 11 ISO import (documented prerequisite)
+## Windows 11 ISO import (BLOCKED until staged)
 
-The manifest ships with a PLACEHOLDER `spec.source` — the ISO URL is never
-committed (Microsoft licensing). Provision by downloading the Windows 11 ISO
-on a licensed workstation, staging it on local infra (or a PVC upload via
-`virtctl image-upload`, plus the virtio-win driver ISO), filling
-`spec.source` in `base/win11-vm.yaml`, and committing — CDI imports the ISO
-into `win11-vm-rootdisk` (80Gi, `local-ssd-nvme`). Attach via VNC/SPICE
-(`virtctl vnc`) for Windows Setup.
+win11-vm is intentionally blocked until the ISO is staged: `spec.source`
+ships as a `https://REPLACE-ME/Win11_xxH2_x64.iso` placeholder so a fresh
+boot fails closed — the CDI import error-loops on the placeholder instead of
+silently CrashLooping. The placeholder (and any staged ISO URL) is never
+committed (Microsoft licensing); version stays 24H2.
+
+Prestage steps:
+
+1. Download the Windows 11 24H2 x64 English ISO on a licensed workstation
+   (plus the virtio-win driver ISO).
+2. Stage it as `Win11_24H2_English_x64.iso` at
+   `https://files.home-ops.yansyah.my.id/iso/` (expected file:
+   `https://files.home-ops.yansyah.my.id/iso/Win11_24H2_English_x64.iso`,
+   per `flux/apps/update-policies/win11-vm.yaml`).
+3. Point `dataVolumeTemplates[].spec.source.http.url` in
+   `base/win11-vm.yaml` at the staged file locally (never commit the URL)
+   and let CDI import it into `win11-vm-rootdisk` (80Gi, `local-ssd-nvme`).
+   Attach via VNC/SPICE (`virtctl vnc`) for Windows Setup.
+
+Verify:
+
+```bash
+kubectl -n win11-vm get dv win11-vm-rootdisk
+kubectl -n win11-vm describe dv win11-vm-rootdisk   # import status + prestage annotation
+curl -sSI https://files.home-ops.yansyah.my.id/iso/Win11_24H2_English_x64.iso | head -3
+```
+
+Before staging, `describe dv` shows the import error against the REPLACE-ME
+URL plus the `home-ops.yansyah.my.id/iso-prestage` annotation pointing back
+here — that is the expected fail-closed signal.
 
 ## Network
 

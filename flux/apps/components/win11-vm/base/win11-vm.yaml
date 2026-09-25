@@ -3,8 +3,9 @@
 # UEFI + SecureBoot (features.smm.enabled required for SecureBoot; contrast talos-vm).
 # No `metadata.namespace` (apps tenant applies with targetNamespace). Secondary net:
 # NAD `multus/lan-dhcp` (multus-owned, single-writer). Storage: DataVolume on local-ssd-nvme.
-# Windows 11 ISO is a DOCUMENTED PREREQUISITE — fill `spec.source` per the README import
-# steps (placeholder below); never commit licensed ISO URLs.
+# BLOCKED until ISO staged: `spec.source` is a REPLACE-ME placeholder that fails
+# closed (CDI import error-loops by design) — follow README "Windows 11 ISO import"
+# to stage + fill; never commit licensed ISO URLs.
 # {"$imagepolicy": "apps:win11-vm:tag"}
 ---
 apiVersion: kubevirt.io/v1
@@ -67,6 +68,8 @@ spec:
   dataVolumeTemplates:
     - metadata:
         name: win11-vm-rootdisk
+        annotations:
+          home-ops.yansyah.my.id/iso-prestage: "BLOCKED: stage Win11_24H2_English_x64.iso per README, then set spec.source.http.url"
       spec:
         storage:
           storageClassName: local-ssd-nvme
@@ -74,7 +77,8 @@ spec:
             requests:
               storage: 80Gi
         source:
-          # PLACEHOLDER — fill per README "Windows 11 ISO import" steps
-          # (e.g. https://files.home-ops.yansyah.my.id/iso/Win11_24H2_English_x64.iso once staged).
+          # PLACEHOLDER — BLOCKED: fill per README "Windows 11 ISO import" steps
+          # (stage Win11_24H2_English_x64.iso at https://files.home-ops.yansyah.my.id/iso/,
+          # then set http.url to the staged file; never commit the filled URL).
           http:
             url: "https://REPLACE-ME/Win11_xxH2_x64.iso"

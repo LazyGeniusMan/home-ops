@@ -1,3 +1,5 @@
+# win11-vm base is BLOCKED until the Win11 ISO is staged (see README "Windows 11 ISO import");
+# spec.source stays a REPLACE-ME placeholder that fails closed (CDI import error-loops by design).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
