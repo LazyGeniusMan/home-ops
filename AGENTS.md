@@ -148,6 +148,7 @@ CI mirrors these gates per path (Go workflows, `flux-*-validate.yaml`, push/rele
 - Go: `gofmt`-clean, `go vet` + `golangci-lint` (v2.13.2 config) + `govulncheck` green; conventional layout (`cmd/`, `internal/`), wrapped errors, no dead code.
 - Terraform/OpenTofu: `tofu fmt`-clean, `init -backend=false` + `validate` + `test` green; `approvePlan: auto` + `destroy: false` on Flux-managed consumers; outputs that Flux needs go through `writeOutputsToSecret`.
 - Ansible: FQCN everywhere (`community.general.*`, `ansible.builtin.*`), no bare `shell:` when a module exists, group vars carry pins.
+- Shell: `shellcheck`-clean (v0.11.0 via Flox); `set -euo pipefail`, justified inline `disable=` with why-comment.
 - Dockerfiles: pinned `FROM` with digest where available, `ARG VERSION` threaded into labels/binary, nonroot distroless runtime.
 - Comments: Flux YAMLs that wrap a local project link back to the `projects/` source path; chartproxy mappings and singleton quirks carry a header comment stating the upstream classic source proxied (chartproxy) or the reason (singleton).
 
@@ -156,6 +157,6 @@ CI mirrors these gates per path (Go workflows, `flux-*-validate.yaml`, push/rele
 - Conventional Commits, all lowercase, imperative subject: `type(scope): subject`. Examples: `docs: add AGENTS.md contribution guide`, `feat(netbird): bound request-log route labels`, `fix(eso-proton-pass): bound log route`. Keep the subject under ~72 chars; explain the why in the body.
 - Image/chart tags are `<svc>-v*` (automation proposes, human merges); never tag or reference `:latest`.
 - One logical change per commit; docs travel with their code/config change (see Living doc).
-- Before pushing, run the gates for every scope you touched (Go vet/build/test + lint + vuln check; `helm lint`/`template` + `ci/verify.sh`; `flux/scripts/validate.sh -d flux/{apps,infra,fleet}` per scope; `tofu init -backend=false/validate/test`; `cosign sign` for published images; Ansible `--check --diff` + `talosctl validate -c <node file> -m metal` + FQCN lint). Report gate results in the PR.
+- Before pushing, run the gates for every scope you touched (Go vet/build/test + lint + vuln check; `helm lint`/`template` + `ci/verify.sh`; `flux/scripts/validate.sh -d flux/{apps,infra,fleet}` per scope; `tofu init -backend=false/validate/test`; `cosign sign` for published images; Ansible `--check --diff` + `talosctl validate -c <node file> -m metal` + FQCN lint; `shellcheck` on touched `*.sh`). Report gate results in the PR.
 - Workflows stay hardened: SHA-pinned `uses:`, deny-all `permissions: {}` default with per-job minimums (`contents: read` plus `packages: write` / `id-token: write` only where push/sign needs them), concurrency groups, path-gated triggers.
 - Open a PR for review; do not push to a protected branch.
