@@ -7,9 +7,11 @@ Zitadel app v4.18.0 (chart 10.0.4,
 client contract below.
 
 Chart 10.0.4 embeds app v4.15.3; the app image is pinned separately in values
-(`image.tag` + `login.image.tag` = v4.18.0). On chart bumps set both tags to the
-new chart's appVersion together. Policy floor `>=10.0.4` (marker
-`infra:zitadel:tag`).
+(`image.tag` + `login.image.tag` = v4.18.0). Fail-safe chart-bump checklist:
+1) read the new chart's appVersion, 2) set `image.tag` + `login.image.tag` to
+that appVersion together, 3) never bump the chart tag alone (a chart-only bump
+silently moves the app back to the embedded default). Policy floor `>=10.0.4`
+(marker `infra:zitadel:tag`).
 
 ## Layout
 
@@ -125,10 +127,12 @@ instance/schedule, `concurrencyPolicy: Forbid` — no scaling.
 
 No phone-home knobs in chart values. `metrics.enabled: true` +
 `serviceMonitor.enabled: true` (monitoring CRDs via the infra-crds tenant).
-Chart/app skew guard: chart 10.0.4 embeds app v4.15.3 — set `image.tag` +
-`login.image.tag` together on every bump (currently v4.18.0). Bumps:
-`update-policies/zitadel.yaml` -> PR automation (chart tag + both image tags
-together). Snapshot DB + cache before major bumps (`masterkey` immutable, never
-rotate on upgrade).
+Chart/app skew guard: chart 10.0.4 embeds app v4.15.3 — fail-safe bump
+checklist: 1) read the new chart's appVersion, 2) set `image.tag` +
+`login.image.tag` to it together (currently v4.18.0), 3) never bump the chart
+tag alone (a chart-only bump silently moves the app back to the embedded
+default). Bumps: `update-policies/zitadel.yaml` -> PR automation (chart tag +
+both image tags together). Snapshot DB + cache before major bumps (`masterkey`
+immutable, never rotate on upgrade).
 Changelogs: https://github.com/zitadel/zitadel-charts/releases,
 https://github.com/zitadel/zitadel/releases.

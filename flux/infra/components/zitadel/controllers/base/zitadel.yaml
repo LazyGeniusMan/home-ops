@@ -1,4 +1,4 @@
-# Zitadel app v4.18.0 (chart 10.0.4, app pinned separately; chart 10.0.4 embeds app v4.15.3 -- set image.tag + login.image.tag together on bumps).
+# Zitadel app v4.18.0 (chart 10.0.4, app pinned separately; chart 10.0.4 embeds app v4.15.3 -- fail-safe bump checklist: read the new chart's appVersion, set image.tag + login.image.tag to it together, never bump the chart tag alone).
 # Logins run on the separate NetBird-exposed login host. First install pends until the configs ExternalSecrets sync (RetryOnFailure).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1

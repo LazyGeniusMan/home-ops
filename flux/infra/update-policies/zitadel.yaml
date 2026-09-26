@@ -1,4 +1,4 @@
-# zitadel chart policy. Chart 10.0.4 embeds app v4.15.3, app pinned to v4.18.0: on bumps set chart tag + both image tags together.
+# zitadel chart policy. Chart 10.0.4 embeds app v4.15.3, app pinned to v4.18.0: fail-safe bump checklist — read the new chart's appVersion, set chart tag + both image tags together, never bump the chart tag alone.
 # Changelog: https://github.com/zitadel/zitadel-charts/releases, https://github.com/zitadel/zitadel/releases.
 # Coupled: controllers/base/zitadel.yaml.
 ---
