@@ -43,8 +43,12 @@ spec:
   path: ./terraform
   # Plain per-env values here; secrets come from varsFrom (overrides vars on
   # collision). Service FQDN is fully rendered (__SERVICE_HOST__, patched per
-  # env). Backend rides the shared Service-LB subnet target the root appends
-  # (pass network_name + service_lb_ip; tune via target_*). POSITIONAL: overlays
+  # env). Backend rides the shared Service-LB subnet target the root appends.
+  # service_lb_ip is REQUIRED (module has no default): pass the per-env Cilium
+  # LB VIP explicitly (dev 192.168.1.249, prd 192.168.1.199; overlays replace
+  # __SERVICE_LB_IP__). target_port is a per-consumer override of the 3000
+  # default — set the in-mesh backend listener port (e.g. 80 for plain-HTTP
+  # backends like element-web, 3000 for zitadel-login). POSITIONAL: overlays
   # patch /spec/vars/0 by index - keep this order.
   vars:
     - name: domain
@@ -58,7 +62,7 @@ spec:
     - name: service_lb_ip
       value: __SERVICE_LB_IP__
     - name: target_port
-      value: 8080
+      value: 8080 # example only: replace with the backend listener port
     - name: target_protocol
       value: https
   varsFrom:

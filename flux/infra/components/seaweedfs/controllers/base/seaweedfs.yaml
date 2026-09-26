@@ -18,6 +18,9 @@ spec:
     operation: copy
   ref:
     tag: 0.1.40
+  # No `verify:` block: chartproxy live-translates the classic upstream chart
+  # to OCI — no upstream cosign signature to verify; tracked by tag under the
+  # fleet source allowlist.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -31,6 +34,9 @@ spec:
     operation: copy
   ref:
     tag: 0.2.36
+  # No `verify:` block: chartproxy live-translates the classic upstream chart
+  # to OCI — no upstream cosign signature to verify; tracked by tag under the
+  # fleet source allowlist.
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease

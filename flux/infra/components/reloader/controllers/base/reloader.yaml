@@ -16,6 +16,9 @@ spec:
     operation: copy
   ref:
     tag: "2.2.17" # {"$imagepolicy": "infra:reloader:tag"}
+  # No `verify:` block: chartproxy live-translates the classic upstream chart
+  # to OCI — no upstream cosign signature to verify; tracked by tag +
+  # `$imagepolicy` under the fleet source allowlist.
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease

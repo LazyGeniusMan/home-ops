@@ -16,6 +16,9 @@ spec:
     operation: copy
   ref:
     semver: ">=0.123.1 <0.124.0" # {"$imagepolicy": "infra:otel-operator:tag"}
+  # No `verify:` block: chartproxy live-translates the classic upstream chart
+  # to OCI — no upstream cosign signature to verify; tracked by semver +
+  # `$imagepolicy` under the fleet source allowlist.
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease

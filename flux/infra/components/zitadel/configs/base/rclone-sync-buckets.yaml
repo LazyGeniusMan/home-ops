@@ -116,6 +116,8 @@ spec:
 # Chart tag MUST equal Chart.yaml version in projects/helm-rclone-sync; bump
 # Chart.yaml + all six consumers in one commit (no $imagepolicy marker on Helm
 # OCIRepositories).
+# No `verify:` block: first-party chart, allowlist-covered
+# (oci://ghcr.io/lazygeniusman/); no cosign signature published.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
@@ -151,6 +153,7 @@ spec:
   values:
     schedule: "15 1 * * *"
     activeDeadlineSeconds: 3600
+    concurrencyPolicy: Forbid
     resources:
       requests:
         cpu: 50m
@@ -219,6 +222,7 @@ spec:
   values:
     schedule: "15 2 * * *"
     activeDeadlineSeconds: 3600
+    concurrencyPolicy: Forbid
     resources:
       requests:
         cpu: 50m
@@ -287,6 +291,7 @@ spec:
   values:
     schedule: "15 3 * * *"
     activeDeadlineSeconds: 3600
+    concurrencyPolicy: Forbid
     resources:
       requests:
         cpu: 50m

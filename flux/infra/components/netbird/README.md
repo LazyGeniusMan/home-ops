@@ -31,8 +31,12 @@ still require those paths in the OCI artifact, hence the shells.
 Copy `examples/consumer-terraform.yaml` into the app's `base/` directory
 (`<app>-terraform-vars` ExternalSecret + `<app>-proxy` Terraform CR), then
 add per-env overlay patches for hosts/zone IDs (positional `/spec/vars/*`).
-Full contract in `terraform/README.md`. The shared root takes no per-app
-host var -- the service FQDN rides the consumer's `domain` var.
+`service_lb_ip` is required (no default): every consumer passes the per-env
+Cilium LB VIP explicitly (dev 192.168.1.249, prd 192.168.1.199). `target_port`
+defaults to 3000 — override with the in-mesh backend listener port per
+consumer (element-web 80). Full contract in `terraform/README.md`. The shared
+root takes no per-app host var -- the service FQDN rides the consumer's
+`domain` var.
 
 ## Credentials
 

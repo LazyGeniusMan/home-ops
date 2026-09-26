@@ -23,6 +23,20 @@ flux/infra/
 (+ `stable-<version>`, area releases tagged `flux-infra-v*`). Prd consumes
 `${ARTIFACT_TAG}` (`stable`) with cosign verification.
 
+## Image/chart pin norm (infra vs apps)
+
+Infra chart `OCIRepository` refs pin by **tag (+ `$imagepolicy` marker) —
+digests are NOT used in infra**. The tag floor lives in
+`update-policies/<name>.yaml`; ImageUpdateAutomation proposes bumps via the
+marker. Only charts with a published cosign identity carry a `verify:` block
+(infra: seaweedfs `ui-auth` oauth2-proxy only); every chart OCI without one
+carries an explicit `# No verify: <reason>` comment (unsigned upstream /
+first-party allowlist-covered / chartproxy live-translate) so the absence is
+deliberate, not an omission. Cosign `verify:` on the fleet tenant OCI sources
+(`flux/fleet/tenants/{infra,apps}.yaml`) covers the delivery artifacts
+themselves. Apps diverge: app workload images pin `tag@digest` (see each
+`flux/apps/components/<name>/README.md`); infra stays tags-only.
+
 ## Onboarding
 
 1. Create `components/<name>/` with `controllers/{base,dev,prd}/` and

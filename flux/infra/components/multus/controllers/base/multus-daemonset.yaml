@@ -3,6 +3,15 @@
 # Both images pinned together to ghcr.io/k8snetworkplumbingwg/multus-cni:<tag>-thick (never snapshot-thick). Thick mode serves KubeVirt secondary-net.
 # Node files + NAD CRD linger after DaemonSet deletion (sweep /opt/cni/bin, /etc/cni/net.d, /run, /var/lib/cni/multus; delete NADs/CRD explicitly).
 # {"$imagepolicy": "infra:multus:tag"}
+# RE-VENDOR CHECKLIST (run on every bump from the URL above):
+#   1. re-pin both image fields together (daemon + install-multus-binary init container);
+#   2. RE-APPLY the ClusterRole narrowing (upstream grants k8s.cni.cncf.io:* on verbs *;
+#      this repo keeps NAD get/list/watch + pods get/list/watch/update + pods/status
+#      get/update/patch + events create/patch — see the verbs comment below);
+#   3. keep privileged:true + hostNetwork/hostPID (CNI moves host netns interfaces);
+#   4. re-verify kube-system namespaces, DaemonSet mounts, initContainer -t thick arg.
+# No `verify:` block on the image refs: upstream publishes no cosign signature
+# for the vendored manifest images; the $imagepolicy marker above tracks the tag.
 # Note:
 #   This deployment file is designed for 'quickstart' of multus, easy installation to test it,
 #   hence this deployment yaml does not care about following things intentionally.

@@ -20,10 +20,16 @@ custom zones) is not in this root.
 - `variables.tf` — full contract (service identity, domain, DNS zone,
   mode/targets/auth, provider tokens, plus `network_name`, `service_lb_ip`,
   `target_port`/`target_protocol`/`target_path`). No `app_host`/`ui_host` vars:
-  callers pass the fully-rendered `domain` FQDN. `targets` defaults to `[]`
-  (extra backends only — the LB target is always on). See `variables.tf` for
-  the variable table (`versions.tf`: `required_version >= 1.11`,
-  `netbirdio/netbird ~> 0.0.10`, `cloudflare/cloudflare ~> 5.0`).
+  callers pass the fully-rendered `domain` FQDN. `service_lb_ip` has NO default
+  (required, validated as IPv4): every consumer passes its per-env Cilium LB
+  VIP explicitly (dev 192.168.1.249, prd 192.168.1.199) — the old prd-shaped
+  default is gone so a dev copy can never inherit the prd address.
+  `target_port` defaults to 3000 (zitadel-login shape) and every consumer
+  overrides it with its in-mesh backend listener port (element-web 80).
+  `targets` defaults to `[]` (extra backends only — the LB target is always
+  on). See `variables.tf` for the variable table (`versions.tf`:
+  `required_version >= 1.11`, `netbirdio/netbird ~> 0.0.10`,
+  `cloudflare/cloudflare ~> 5.0`).
 - `outputs.tf` — `service_id`, `service_domain`, `proxy_url`, `proxy_cluster`,
   `domain_id`, `domain_validated`, `dns_record_name`, plus
   `parent_network_id`, `guest_users_resources_group_id`,

@@ -13,6 +13,8 @@ spec:
     operation: copy
   ref:
     tag: 10.0.4 # {"$imagepolicy": "infra:zitadel:tag"}
+  # No `verify:` block: no cosign identity pinned for this upstream chart —
+  # tracked by tag + `$imagepolicy` under the fleet source allowlist.
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease

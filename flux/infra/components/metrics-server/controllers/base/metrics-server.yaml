@@ -15,6 +15,8 @@ spec:
     operation: copy
   ref:
     tag: "3.14.0" # {"$imagepolicy": "infra:metrics-server:tag"}
+  # No `verify:` block: no cosign identity pinned for this upstream chart —
+  # tracked by tag + `$imagepolicy` under the fleet source allowlist.
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease

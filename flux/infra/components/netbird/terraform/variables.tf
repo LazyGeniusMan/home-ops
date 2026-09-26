@@ -120,13 +120,17 @@ variable "network_name" {
 }
 
 variable "service_lb_ip" {
-  description = "Cilium Service LoadBalancer VIP the shared subnet target points at (per-env; passed by the consumer)"
+  description = "Cilium Service LoadBalancer VIP the shared subnet target points at (REQUIRED, no default: dev 192.168.1.249, prd 192.168.1.199 — a stale default would point a whole env at the wrong cluster)"
   type        = string
-  default     = "192.168.1.199"
+
+  validation {
+    condition     = can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}$", var.service_lb_ip))
+    error_message = "service_lb_ip must be an explicit per-env Cilium LB VIP (dev 192.168.1.249, prd 192.168.1.199)."
+  }
 }
 
 variable "target_port" {
-  description = "Backend port of the shared Service-LB subnet target"
+  description = "Backend port of the shared Service-LB subnet target (per-consumer override: zitadel-login 3000, element-web 80 — match the in-mesh backend listener, never the public port)"
   type        = number
   default     = 3000
 }

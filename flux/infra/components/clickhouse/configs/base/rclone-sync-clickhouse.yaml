@@ -57,6 +57,8 @@ spec:
     operation: copy
   # Chart tag MUST equal Chart.yaml version in projects/helm-rclone-sync; bump
   # Chart.yaml + all six consumers in one commit.
+  # No `verify:` block: first-party chart, allowlist-covered
+  # (oci://ghcr.io/lazygeniusman/); no cosign signature published.
   ref:
     tag: "0.1.0"
 ---
