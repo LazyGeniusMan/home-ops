@@ -101,9 +101,12 @@ same Proton Pass entry as cert-manager. No S3 keys live in this component.
 
 ## Telemetry / monitoring / updates
 
-Operator `serviceMonitor` + `grafanaDashboard` off; no usage-reporting knobs in
-either chart. Health via kubelet + kube-state-metrics. Operator chart 0.1.40 +
-CSI chart 0.2.36 hand-bumped; images auto-track via
-`update-policies/seaweedfs.yaml`. Sidecar/driver caps move together with
-`cosi.yaml`.
+Operator `serviceMonitor` on (monitoring CRDs via the infra-crds tenant) +
+`grafanaDashboard` off (no Grafana); no usage-reporting knobs in either
+chart. Operator chart 0.1.40 + CSI chart 0.2.36 hand-bumped (no chart
+ImagePolicy/marker by design — bump Chart versions + image tags together, see
+`update-policies/seaweedfs.yaml` header); images auto-track via
+`$imagepolicy` markers. Sidecar/driver caps move together with `cosi.yaml`.
+HPA workloads carry PDBs (`driver-pdb.yaml`, `ui-auth-pdb.yaml`); the COSI
+driver ClusterRole is narrowed from upstream (read + status-update only).
 Changelog: https://github.com/seaweedfs/seaweedfs/releases.

@@ -25,6 +25,14 @@ spec:
       serviceAccountName: seaweedfs-cosi-driver
       enableServiceLinks: false
       terminationGracePeriodSeconds: 10
+      # Pod hardening: non-root COSI driver (image runs as UID 65532) with
+      # RuntimeDefault seccomp. readOnlyRootFilesystem + drop ALL stay off:
+      # the driver writes the COSI unix socket into the shared emptyDir.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: seaweedfs-cosi-driver
           image: ghcr.io/seaweedfs/seaweedfs-cosi-driver:v0.3.1 # {"$imagepolicy": "infra:cosi-driver:tag"}

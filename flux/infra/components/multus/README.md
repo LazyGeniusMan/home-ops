@@ -29,7 +29,11 @@ uninstall = delete NADs first, then the DaemonSet, then the CRD explicitly.
 Re-download the upstream URL at the new tag and diff against
 `controllers/base/multus-daemonset.yaml`; re-pin both images together (never
 `snapshot-thick`, never a half-pinned pair); re-verify `kube-system` namespaces,
-DaemonSet mounts, and the initContainer `-t thick` arg. Bump the `$imagepolicy`
+DaemonSet mounts, and the initContainer `-t thick` arg; RE-APPLY the RBAC
+narrowing (upstream grants `k8s.cni.cncf.io:*` on `*` — this repo narrows to
+NAD read + pod annotate/status + events write, see the header comment).
+`privileged: true` stays (CNI moves host netns interfaces — hardening it
+would break the daemon). Bump the `$imagepolicy`
 marker (`infra:multus:tag`, `update-policies/multus.yaml >=4.3.0`);
 ImageUpdateAutomation opens the PR, human merges.
 

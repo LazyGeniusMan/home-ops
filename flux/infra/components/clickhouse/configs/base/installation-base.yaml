@@ -12,8 +12,13 @@ spec:
         layout:
           replicasCount: 3 # placeholder - overridden by dev/prd overlays
     settings:
+      # Keeper listens on all pod interfaces (quorum peers dial each other
+      # over the pod network; ClusterIP Services front clients). Pod traffic
+      # itself is encrypted at the CNI layer (Cilium WireGuard), not here.
       listen_host: "0.0.0.0"
-      keeper_server/four_letter_word_white_list: "*"
+      # Four-letter commands restricted to read-only diagnostics (stat/srvr/
+      # cons/mntr); `conf`/`envi` leak config, `stmk`/`srst`/kill paths stay off.
+      keeper_server/four_letter_word_white_list: "stat,srvr,cons,mntr"
       prometheus/endpoint: "/metrics"
       prometheus/port: "7000"
       prometheus/metrics: "true"

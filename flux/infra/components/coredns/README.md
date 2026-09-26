@@ -43,8 +43,11 @@ address of the new range.
 
 ## Telemetry / monitoring / updates
 
+The node-local cache runs hardened (non-root, `NET_BIND_SERVICE` only,
+RuntimeDefault seccomp). HPA workload carries a PDB (`pdb.yaml`).
+
 No reporting knobs in chart values (`prometheus.service` only adds scrape
-annotations). `ServiceMonitor` off. Chart bumps via
+annotations). `ServiceMonitor` on (monitoring CRDs via the infra-crds tenant). Chart bumps via
 `update-policies/coredns.yaml` -> PR automation (chart `ref.tag` marker +
 app image pin in the same file; node-cache image
 `registry.k8s.io/dns/k8s-dns-node-cache:1.26.8` in

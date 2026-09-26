@@ -17,6 +17,12 @@ Gateway exports to the shared infra CHI (`clickhouse-clickhouse.clickhouse`,
 `ExternalSecret/otel-clickhouse` (proton-pass `pass://<cluster>/otel-collectors/clickhouse-password`).
 ClusterIP only — no Ingress/Gateway (OTLP stays in-cluster).
 
+Trust boundary: agent->gateway `:4317` (`tls.insecure: true`), webhook `:4318`
+(`http://`), and gateway->ClickHouse `tcp://:9000` are cleartext by design —
+no in-cluster TLS; CNI-layer Cilium WireGuard encrypts pod traffic between
+nodes instead. Only outside-cluster access (Gateway API + cert-manager) is
+TLS-terminated.
+
 ## Environments
 
 | Env | Gateway replicas | Database |

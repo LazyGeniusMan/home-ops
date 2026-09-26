@@ -63,6 +63,20 @@ spec:
     k8sServicePort: 6443
     gatewayAPI:
       enabled: true
+    # Pod/node/cluster wire encryption (WireGuard): every service-domain
+    # `http://` endpoint in this repo (S3 :8333, OTLP :4317/:4318, ESO webhook
+    # :8080, Dragonfly :6379) stays cleartext by design — no in-cluster TLS
+    # termination — and Cilium WireGuard encrypts the pod traffic between
+    # nodes instead. Fully automatic key management (per-node keypairs via
+    # CiliumNode annotations); preferred over IPSec (manual
+    # cilium-ipsec-keys Secret + manual rotation). Outside-cluster access
+    # stays TLS-terminated at the Gateway API + cert-manager layer.
+    encryption:
+      enabled: true
+      type: wireguard
+      # nodeEncryption off: pod-to-pod encrypted, host traffic (metrics
+      # hostPorts, kubelet) stays plain on the trusted LAN.
+      nodeEncryption: false
     hubble:
       relay:
         enabled: true

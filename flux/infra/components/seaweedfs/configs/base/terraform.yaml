@@ -64,6 +64,8 @@ metadata:
   name: seaweedfs-sso
 spec:
   interval: 30m
+  # approvePlan auto: identity-plane CR (Zitadel project + OIDC client only —
+  # no network/fabric mutation); Matrix alert on Ready=False covers bad plans.
   approvePlan: auto
   # Upsert-only: destroy + destroyResourcesOnDeletion false (no destroy path via Flux).
   destroy: false
@@ -77,7 +79,10 @@ spec:
   # Plain per-env values; secrets come from varsFrom below.
   # Redirect URIs fully rendered: __SEAWEEDFS_UI_HOST__ replaced per env (exact https://<ui-host>/oauth2/callback, not a wildcard).
   # Admin-only gate: no user role, generated in-Terraform cookie secret.
-  # POSITIONAL: dev/prd overlays patch /spec/vars by index; keep this order.
+  # NAME-GUARDED positional patches: dev/prd overlays patch /spec/vars by
+  # index, but every patch carries a `test` op on the sibling /spec/vars/N/name
+  # first — a reorder fails loudly at build time instead of silently
+  # mis-assigning a value. Keep this order anyway.
   vars:
     - name: domain
       value: __ZITADEL_HOST__

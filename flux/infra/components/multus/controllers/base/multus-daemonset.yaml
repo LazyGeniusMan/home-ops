@@ -63,21 +63,35 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: multus
 rules:
+  # NARROWED from the upstream quickstart (which grants k8s.cni.cncf.io:* on
+  # verbs *): the thick daemon only reads NAD specs, annotates pods, and
+  # reports status/events. Re-vendor note: re-apply this narrowing on every
+  # bump from
+  # https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/<tag>/deployments/multus-daemonset-thick.yml.
   - apiGroups: ["k8s.cni.cncf.io"]
     resources:
-      - '*'
+      - network-attachment-definitions
     verbs:
-      - '*'
+      - get
+      - list
+      - watch
   - apiGroups:
       - ""
     resources:
       - pods
-      - pods/status
     verbs:
       - get
       - list
-      - update
       - watch
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - pods/status
+    verbs:
+      - get
+      - update
+      - patch
   - apiGroups:
       - ""
       - events.k8s.io
@@ -86,7 +100,6 @@ rules:
     verbs:
       - create
       - patch
-      - update
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -169,6 +182,10 @@ spec:
             limits:
               cpu: "100m"
               memory: "50Mi"
+          # privileged:true is REQUIRED (CNI moves host netns interfaces;
+          # seccomp/drop ALL/readOnlyRootFS would break the daemon).
+          # hostNetwork + hostPID + /hostroot stay: thick daemon configures
+          # the host CNI dirs directly.
           securityContext:
             privileged: true
           terminationMessagePolicy: FallbackToLogsOnError
@@ -218,6 +235,7 @@ spec:
             requests:
               cpu: "10m"
               memory: "15Mi"
+          # privileged:true REQUIRED (writes the host /opt/cni/bin binary).
           securityContext:
             privileged: true
           terminationMessagePolicy: FallbackToLogsOnError

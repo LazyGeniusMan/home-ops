@@ -27,6 +27,13 @@ pre-flight DaemonSet Ready, then delete it before landing the chart bump.
   for the pre-existing Talos namespace).
 - Single release identity with the Terraform bootstrap Job: release
   `cilium` in `kube-system` (`targetNamespace` + `storageNamespace`).
+- `encryption.enabled: true` + `type: wireguard` (automatic per-node keys;
+  `nodeEncryption: false` — pod-to-pod encrypted, host traffic plain on the
+  trusted LAN). This is the trust boundary for every cleartext
+  service-domain `http://` endpoint in the repo (S3 :8333, OTLP :4317/:4318,
+  ESO webhook :8080, Dragonfly :6379): no in-cluster TLS by design, CNI
+  encryption instead. Outside-cluster access stays TLS-terminated at the
+  Gateway API + cert-manager layer.
 
 ## VIP split
 

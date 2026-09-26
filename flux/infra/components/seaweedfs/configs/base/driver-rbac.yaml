@@ -1,4 +1,6 @@
-# SeaweedFS COSI driver RBAC (pairs with driver.yaml; mirrors upstream seaweedfs chart templates/cosi/cosi-cluster-role.yaml; SA namespace-local in the seaweedfs tenant).
+# SeaweedFS COSI driver RBAC (pairs with driver.yaml; NARROWED from the upstream seaweedfs chart templates/cosi/cosi-cluster-role.yaml:
+# read-only COSI inventory + status updates only, leases without delete, secrets read-only, events write-only —
+# the driver provisions from BucketInfo and never manages Secrets).
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -10,6 +12,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: seaweedfs-cosi-driver
 rules:
+  # Read-only COSI inventory for the driver (buckets/claims/accesses +
+  # classes + their /status subresources); the controller owns writes.
   - apiGroups: ["objectstorage.k8s.io"]
     resources:
       - "buckets"
@@ -24,29 +28,38 @@ rules:
       - "get"
       - "list"
       - "watch"
+  # Driver status updates only (sidecar leader election + COSI status
+  # writes); drops the upstream template's broad create/delete on leases.
+  - apiGroups: ["objectstorage.k8s.io"]
+    resources:
+      - "buckets/status"
+      - "bucketaccesses/status"
+      - "bucketclaims/status"
+      - "bucketaccessclasses/status"
+    verbs:
       - "update"
-      - "create"
-      - "delete"
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs:
       - "get"
       - "watch"
       - "list"
-      - "delete"
       - "update"
       - "create"
+  # Secrets read-only + events write-only: the driver reads provisioned
+  # BucketInfo credentials and emits events; it never manages Secrets.
   - apiGroups: [""]
     resources:
       - "secrets"
-      - "events"
     verbs:
       - "get"
       - "list"
       - "watch"
-      - "update"
+  - apiGroups: [""]
+    resources:
+      - "events"
+    verbs:
       - "create"
-      - "delete"
       - "patch"
 ---
 kind: ClusterRoleBinding

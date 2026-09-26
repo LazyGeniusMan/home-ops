@@ -20,6 +20,12 @@ spec:
         app: container-object-storage-interface-controller
     spec:
       serviceAccountName: controller-sa
+      # Non-root controller with RuntimeDefault seccomp.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: objectstorage-controller
           image: gcr.io/k8s-staging-sig-storage/objectstorage-controller:v0.2.2 # {"$imagepolicy": "infra:cosi-controller:tag"}
