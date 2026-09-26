@@ -1,0 +1,14 @@
+# PDB for the HPA-scaled CoreDNS Deployment: keep 1 replica during voluntary
+# disruption (cluster DNS must survive a node drain; the node-local DaemonSet
+# cache absorbs per-node loss but the upstream must stay up).
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: coredns
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coredns
+      app.kubernetes.io/instance: coredns
