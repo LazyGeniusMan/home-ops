@@ -39,8 +39,9 @@ type Config struct {
 	Debug bool
 	// BaseURL is the public base URL of the service (APPRISE_BASE_URL).
 	BaseURL string
-	// AllowedHosts limits Host header values (ALLOWED_HOSTS, comma-separated).
-	// Empty means any host is accepted.
+	// AllowedHosts is accepted but unenforced: no Host-header check exists
+	// (ALLOWED_HOSTS). The Gateway fronts user traffic; like PLUGIN_PATHS
+	// below, the variable is read for forward-compat but changes nothing.
 	AllowedHosts []string
 	// SecretKey authenticates internal callbacks, read only from SECRET_KEY_FILE.
 	SecretKey string
@@ -51,7 +52,9 @@ type Config struct {
 	// PUID/PGID record the desired runtime ownership (informational under distroless nonroot).
 	PUID int
 	PGID int
-	// WorkerCount bounds concurrent notify fan-out (WORKER_COUNT, 0 = GOMAXPROCS default).
+	// WorkerCount is accepted but unenforced: delivery is sequential per
+	// call (WORKER_COUNT, 0 = GOMAXPROCS default). Like PLUGIN_PATHS below,
+	// the variable is read for forward-compat but changes nothing.
 	WorkerCount int
 	// CallTimeoutSecs bounds a single notify call (TIMEOUT).
 	CallTimeoutSecs int
@@ -94,46 +97,98 @@ type Config struct {
 	AllowServices []string
 	// RecursionMax caps X-Apprise-Recursion-Count (APPRISE_RECURSION_MAX).
 	RecursionMax int
-	// InterpretEmojis enables emoji shortcode expansion (APPRISE_INTERPRET_EMOJIS).
+	// InterpretEmojis is accepted but unenforced: apprise-go exposes no
+	// emoji-expansion option (APPRISE_INTERPRET_EMOJIS). Like PLUGIN_PATHS,
+	// the variable is read for forward-compat but changes nothing.
 	InterpretEmojis bool
-	// HTTPRedirects enables following HTTP redirects (APPRISE_HTTP_REDIRECTS).
+	// HTTPRedirects is accepted but unenforced: apprise-go exposes no
+	// redirect-policy option (APPRISE_HTTP_REDIRECTS). Like PLUGIN_PATHS,
+	// the variable is read for forward-compat but changes nothing.
 	HTTPRedirects bool
 }
 
 // Load reads configuration from the environment and returns an error if
 // required values are missing or invalid.
 func Load() (Config, error) {
+	strict := func(set func(int), key string, fallback int) error {
+		v, err := envInt(key, fallback)
+		if err != nil {
+			return err
+		}
+		set(v)
+		return nil
+	}
+	strict64 := func(set func(int64), key string, fallback int64) error {
+		v, err := envInt64(key, fallback)
+		if err != nil {
+			return err
+		}
+		set(v)
+		return nil
+	}
+	strictBool := func(set func(bool), key string, fallback bool) error {
+		v, err := envBool(key, fallback)
+		if err != nil {
+			return err
+		}
+		set(v)
+		return nil
+	}
 	cfg := Config{
 		Addr:                addrFromPort(envOr("HTTP_PORT", "8080")),
 		LogLevel:            strings.ToLower(envOr("LOG_LEVEL", defaultLogLevel)),
-		Debug:               envBool("DEBUG", false),
 		BaseURL:             envOr("APPRISE_BASE_URL", ""),
 		AllowedHosts:        envCSV("ALLOWED_HOSTS"),
 		SecretKeyFile:       strings.TrimSpace(os.Getenv("SECRET_KEY_FILE")),
 		Timezone:            envOr("TZ", "UTC"),
-		WorkerCount:         envInt("WORKER_COUNT", 0),
-		CallTimeoutSecs:     envInt("TIMEOUT", defaultCallTimeoutSecs),
 		ShutdownTimeoutSecs: defaultShutdownTimeoutSecs,
 
-		StatefulMode:           envOr("APPRISE_STATEFUL_MODE", defaultStatefulMode),
-		StatelessURLs:          strings.TrimSpace(os.Getenv("APPRISE_STATELESS_URLS")),
-		StatelessStorage:       envOr("APPRISE_STATELESS_STORAGE", defaultStatelessStorage),
-		AttachDir:              envOr("APPRISE_ATTACH_DIR", defaultAttachDir),
-		AttachSizeMB:           envInt64("APPRISE_ATTACH_SIZE", defaultAttachSizeMB),
-		MaxAttachments:         envInt("APPRISE_MAX_ATTACHMENTS", defaultMaxAttachments),
-		UploadMaxMemorySizeMB:  envInt64("APPRISE_UPLOAD_MAX_MEMORY_SIZE", defaultUploadMaxMemorySize),
-		AttachAllowURL:         strings.TrimSpace(os.Getenv("APPRISE_ATTACH_ALLOW_URL")),
-		AttachRejectURL:        strings.TrimSpace(os.Getenv("APPRISE_ATTACH_REJECT_URL")),
-		AttachRejectSet:        envSet("APPRISE_ATTACH_REJECT_URL"),
-		WebhookMappingMaxDepth: envInt("APPRISE_WEBHOOK_MAPPING_MAX_DEPTH", defaultMappingMaxDepth),
-		WebhookURL:             strings.TrimSpace(os.Getenv("APPRISE_WEBHOOK_URL")),
-		PluginPaths:            strings.TrimSpace(os.Getenv("APPRISE_PLUGIN_PATHS")),
+		StatefulMode:     envOr("APPRISE_STATEFUL_MODE", defaultStatefulMode),
+		StatelessURLs:    strings.TrimSpace(os.Getenv("APPRISE_STATELESS_URLS")),
+		StatelessStorage: envOr("APPRISE_STATELESS_STORAGE", defaultStatelessStorage),
+		AttachDir:        envOr("APPRISE_ATTACH_DIR", defaultAttachDir),
+		AttachAllowURL:   strings.TrimSpace(os.Getenv("APPRISE_ATTACH_ALLOW_URL")),
+		AttachRejectURL:  strings.TrimSpace(os.Getenv("APPRISE_ATTACH_REJECT_URL")),
+		AttachRejectSet:  envSet("APPRISE_ATTACH_REJECT_URL"),
+		WebhookURL:       strings.TrimSpace(os.Getenv("APPRISE_WEBHOOK_URL")),
+		PluginPaths:      strings.TrimSpace(os.Getenv("APPRISE_PLUGIN_PATHS")),
 
-		DenyServices:    envCSV("APPRISE_DENY_SERVICES"),
-		AllowServices:   envCSV("APPRISE_ALLOW_SERVICES"),
-		RecursionMax:    envInt("APPRISE_RECURSION_MAX", defaultRecursionMax),
-		InterpretEmojis: envBool("APPRISE_INTERPRET_EMOJIS", defaultInterpretEmojis),
-		HTTPRedirects:   envBool("APPRISE_HTTP_REDIRECTS", defaultHTTPRedirects),
+		DenyServices:  envCSV("APPRISE_DENY_SERVICES"),
+		AllowServices: envCSV("APPRISE_ALLOW_SERVICES"),
+	}
+	// Strict numerics/bools: non-empty unparseable values fail startup
+	// instead of silently falling back (PUID/PGID already behave this way).
+	for _, step := range []func() error{
+		func() error { return strictBool(func(v bool) { cfg.Debug = v }, "DEBUG", false) },
+		func() error { return strict(func(v int) { cfg.WorkerCount = v }, "WORKER_COUNT", 0) },
+		func() error {
+			return strict(func(v int) { cfg.CallTimeoutSecs = v }, "TIMEOUT", defaultCallTimeoutSecs)
+		},
+		func() error {
+			return strict64(func(v int64) { cfg.AttachSizeMB = v }, "APPRISE_ATTACH_SIZE", defaultAttachSizeMB)
+		},
+		func() error {
+			return strict(func(v int) { cfg.MaxAttachments = v }, "APPRISE_MAX_ATTACHMENTS", defaultMaxAttachments)
+		},
+		func() error {
+			return strict64(func(v int64) { cfg.UploadMaxMemorySizeMB = v }, "APPRISE_UPLOAD_MAX_MEMORY_SIZE", defaultUploadMaxMemorySize)
+		},
+		func() error {
+			return strict(func(v int) { cfg.WebhookMappingMaxDepth = v }, "APPRISE_WEBHOOK_MAPPING_MAX_DEPTH", defaultMappingMaxDepth)
+		},
+		func() error {
+			return strict(func(v int) { cfg.RecursionMax = v }, "APPRISE_RECURSION_MAX", defaultRecursionMax)
+		},
+		func() error {
+			return strictBool(func(v bool) { cfg.InterpretEmojis = v }, "APPRISE_INTERPRET_EMOJIS", defaultInterpretEmojis)
+		},
+		func() error {
+			return strictBool(func(v bool) { cfg.HTTPRedirects = v }, "APPRISE_HTTP_REDIRECTS", defaultHTTPRedirects)
+		},
+	} {
+		if err := step(); err != nil {
+			return Config{}, err
+		}
 	}
 
 	if raw := strings.TrimSpace(os.Getenv("PUID")); raw != "" {
@@ -259,31 +314,40 @@ func envCSV(key string) []string {
 	return out
 }
 
-func envInt(key string, fallback int) int {
+// envInt reads key as an integer, failing fast on a non-empty unparseable
+// value (empty means the fallback). Silent fallbacks would hide typos, so
+// every numeric/bool knob parses strictly like PUID/PGID below.
+func envInt(key string, fallback int) (int, error) {
 	if raw := strings.TrimSpace(os.Getenv(key)); raw != "" {
-		if v, err := strconv.Atoi(raw); err == nil {
-			return v
+		v, err := strconv.Atoi(raw)
+		if err != nil {
+			return 0, fmt.Errorf("config: %s must be an integer, got %q", key, raw)
 		}
+		return v, nil
 	}
-	return fallback
+	return fallback, nil
 }
 
-func envInt64(key string, fallback int64) int64 {
+func envInt64(key string, fallback int64) (int64, error) {
 	if raw := strings.TrimSpace(os.Getenv(key)); raw != "" {
-		if v, err := strconv.ParseInt(raw, 10, 64); err == nil {
-			return v
+		v, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("config: %s must be an integer, got %q", key, raw)
 		}
+		return v, nil
 	}
-	return fallback
+	return fallback, nil
 }
 
-func envBool(key string, fallback bool) bool {
+func envBool(key string, fallback bool) (bool, error) {
 	if raw := strings.TrimSpace(os.Getenv(key)); raw != "" {
-		if v, err := strconv.ParseBool(strings.ToLower(raw)); err == nil {
-			return v
+		v, err := strconv.ParseBool(strings.ToLower(raw))
+		if err != nil {
+			return false, fmt.Errorf("config: %s must be a boolean, got %q", key, raw)
 		}
+		return v, nil
 	}
-	return fallback
+	return fallback, nil
 }
 
 func validLogLevel(level string) bool {

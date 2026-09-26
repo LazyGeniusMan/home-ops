@@ -126,8 +126,11 @@ an arg directly.
 Two fail-fast rules are enforced at render time with clear `required`/`fail`
 messages:
 
-- Missing required credential (e.g. S3 without `secretAccessKey`) aborts the
-  render naming the field (`…​ is required`).
+- Missing required credential (e.g. S3 without `secretAccessKey`), empty
+  values, and placeholder literals (`CHANGEME*`, `REPLACE-ME*`, `EXAMPLE*`)
+  abort the render naming the field (`…​ is required` / `got placeholder`).
+  `values.yaml` ships no placeholder defaults — set a real value or a
+  `secretRef`/`configMapRef`/`esoRef`.
 - PVC `uri` via `secretRef`/`configMapRef`/`esoRef` aborts: `claimName` cannot
   use `valueFrom`, so PVC claims must be literals naming the existing claim.
 

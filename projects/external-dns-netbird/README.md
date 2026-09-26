@@ -19,7 +19,7 @@ Public API calls plus the local webhook, health, and metrics listeners.
 | `METRICS_ADDR`     | no       | `:8080`             | Listen address for `/healthz`, `/readyz`, `/version`, and `/metrics` |
 | `DEFAULT_TTL`      | no       | `300`               | TTL applied to endpoints without an explicit TTL         |
 | `LOG_LEVEL`        | no       | `info`              | JSON log level (`debug`, `info`, `warn`, `error`)        |
-| `NETBIRD_AUTO_CREATE` | no | `true` | `false` turns missing zones into permanent errors instead of auto-creating them |
+| `NETBIRD_AUTO_CREATE` | no | `true` | Strict boolean (`maybe` fails startup); `false` turns missing zones into permanent errors instead of auto-creating them |
 
 The PAT is read from file content so it can be mounted from a Kubernetes
 secret (or ESO `SecretStore`) without ever appearing in env or args.
@@ -33,6 +33,11 @@ secret (or ESO `SecretStore`) without ever appearing in env or args.
   Other types are dropped by `AdjustEndpoints`, which also normalizes case
   and fills missing TTLs with `DEFAULT_TTL` so `Records`/`AdjustEndpoints`
   stay in parity and the planner sees no spurious diffs.
+- Update/delete paths iterate every entry backing an endpoint key: one
+  endpoint maps to N NetBird entries (one per target), so a rename deletes
+  all old entries and creates all new ones, a TTL refresh updates all kept
+  entries, and a key with entries in two zones fails instead of
+  half-applying (split-brain assumption documented in `update`).
 
 ## Zone auto-creation
 

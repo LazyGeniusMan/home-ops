@@ -3,9 +3,21 @@ package notify
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
+
+// newBlackholeServer delays past the per-call timeout before responding,
+// so the client gives up on timeout while the handler still finishes.
+func newBlackholeServer(d time.Duration) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		time.Sleep(d)
+		w.WriteHeader(http.StatusOK)
+	}))
+}
 
 func TestNewDefaultTimeout(t *testing.T) {
 	if got := New(0).Timeout(); got != 30*time.Second {
@@ -166,4 +178,54 @@ func TestHelpers(t *testing.T) {
 	if got := notifyTypeOrDefault("SUCCESS"); got != "success" {
 		t.Errorf("notifyTypeOrDefault(SUCCESS) = %q, want success", got)
 	}
+}
+
+func TestSendTimeoutCountsAndLogs(t *testing.T) {
+	before := ReportTimeouts()
+	srv := newBlackholeServer(2 * time.Second)
+	defer srv.Close()
+	s := New(50 * time.Millisecond)
+	block := "json://" + hostPort(srv.URL)
+	_, err := s.Send(context.Background(), Request{URLs: []string{block}, Body: "hi"})
+	if err == nil || !isTimeoutErr(err) {
+		t.Fatalf("Send(hung target) = %v, want timeout error", err)
+	}
+	if got := ReportTimeouts(); got != before+1 {
+		t.Errorf("ReportTimeouts() = %d, want %d", got, before+1)
+	}
+}
+
+func isTimeoutErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "timed out")
+}
+
+func TestSendOverloadFailsFast(t *testing.T) {
+	s := New(5 * time.Second)
+	inFlightMu.Lock()
+	inFlight = maxInFlight
+	inFlightMu.Unlock()
+	defer func() {
+		inFlightMu.Lock()
+		inFlight = 0
+		inFlightMu.Unlock()
+	}()
+	mux := newTestMux()
+	srv := newTestServer(mux)
+	defer srv.Close()
+	if _, err := s.Send(context.Background(), Request{URLs: []string{testURL(srv)}, Body: "hi"}); !isOverloadedErr(err) {
+		t.Errorf("Send(at cap) = %v, want ErrOverloaded", err)
+	}
+	if mux.count() != 0 {
+		t.Errorf("upstream calls = %d, want 0 (fail fast, no send)", mux.count())
+	}
+}
+
+func isOverloadedErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	return errors.Is(err, ErrOverloaded)
 }

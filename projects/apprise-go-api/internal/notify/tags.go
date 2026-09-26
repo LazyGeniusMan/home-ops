@@ -68,6 +68,17 @@ func (e *TagError) Error() string {
 	return "notify: unsupported characters found in tag definition"
 }
 
+// ValidateTagToken reports whether a single list-form tag token matches the
+// Python tag grammar (TAG_TOKEN_RE, views.py:82). List payloads skip the
+// expression parser in Python, so this is the only validation list tokens
+// get; callers map the error to a 400 naming the token.
+func ValidateTagToken(token string) error {
+	if !tagTokenRe.MatchString(token) {
+		return &TagError{Expr: token}
+	}
+	return nil
+}
+
 // MatchTags reports whether parsed filter groups match server tags.
 // Nil groups mean no filter (match everything).
 func MatchTags(groups []TagGroup, serverTags map[string]struct{}) bool {

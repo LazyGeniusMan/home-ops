@@ -270,11 +270,11 @@ Kubernetes projected volumes / ESO mounts).
 | `LOG_LEVEL` | `info` | `debug\|info\|warn\|warning\|error` |
 | `DEBUG` | `false` | Debug logging |
 | `APPRISE_BASE_URL` | — | Public base URL (informational) |
-| `ALLOWED_HOSTS` | — | Comma-separated Host-header allowlist |
+| `ALLOWED_HOSTS` | — | Accepted but unenforced no-op (no Host check; Gateway fronts traffic) |
 | `SECRET_KEY_FILE` | — | Internal callback auth (file only; no inline fallback) |
 | `TZ` | `UTC` | Log timestamp timezone |
 | `PUID` / `PGID` | `0` | Desired runtime ownership (informational under distroless nonroot) |
-| `WORKER_COUNT` | `0` | Concurrent notify fan-out bound (`0` = `GOMAXPROCS`) |
+| `WORKER_COUNT` | `0` | Accepted but unenforced no-op (delivery is sequential; `0` = `GOMAXPROCS` default) |
 | `TIMEOUT` | `30` | Seconds bounding a single notify call |
 | `APPRISE_STATEFUL_MODE` | `disabled` | Must be `disabled`; anything else fails startup |
 | `APPRISE_STATELESS_URLS` | — | Fallback URLs when a request carries none |
@@ -291,8 +291,15 @@ Kubernetes projected volumes / ESO mounts).
 | `APPRISE_DENY_SERVICES` | — | Block services by name/prefix (comma/whitespace separated) |
 | `APPRISE_ALLOW_SERVICES` | — | Exclusive allowlist; non-empty wins over deny |
 | `APPRISE_RECURSION_MAX` | `1` | Cap for `X-Apprise-Recursion-Count` (non-negative) |
-| `APPRISE_INTERPRET_EMOJIS` | `false` | Emoji shortcode expansion |
-| `APPRISE_HTTP_REDIRECTS` | `true` | Follow HTTP redirects |
+| `APPRISE_INTERPRET_EMOJIS` | `false` | Accepted but unenforced no-op (apprise-go has no emoji option) |
+| `APPRISE_HTTP_REDIRECTS` | `true` | Accepted but unenforced no-op (apprise-go has no redirect option) |
+
+Non-empty unparseable numerics/bools (`WORKER_COUNT`, `TIMEOUT`,
+`APPRISE_ATTACH_SIZE`, `APPRISE_MAX_ATTACHMENTS`,
+`APPRISE_UPLOAD_MAX_MEMORY_SIZE`, `APPRISE_WEBHOOK_MAPPING_MAX_DEPTH`,
+`APPRISE_RECURSION_MAX`, `DEBUG`, `APPRISE_INTERPRET_EMOJIS`,
+`APPRISE_HTTP_REDIRECTS`) fail startup instead of silently falling back —
+the same fail-fast rule as `PUID`/`PGID`.
 
 **Explicitly absent (stateful-only):** upstream persistence knobs are
 not read; non-`disabled` `APPRISE_STATEFUL_MODE` or non-`no`
@@ -359,5 +366,8 @@ Intentional differences from Python `apprise-api`:
 | Response logs | Records synthesized server-side as `[level, date, message]` |
 | Tag matching | `all` matches everything; other tokens match only URL `?tag=` values |
 | Form `urls` length | Same 1024-char cap; JSON path bypasses it |
+| `ALLOWED_HOSTS`, `WORKER_COUNT`, `APPRISE_INTERPRET_EMOJIS`, `APPRISE_HTTP_REDIRECTS` | Accepted no-ops like `APPRISE_PLUGIN_PATHS` (forward-compat only) |
 | `APPRISE_PLUGIN_PATHS` | Accepted no-op (no dynamic plugin loading in Go) |
-| Outbound webhook | Best-effort POST of `{source, status, output}`; failures logged only |
+| Outbound webhook | Best-effort POST of `{source, status, output}`; failures logged only; no trace headers (third-party endpoint) |
+| Send pipeline | Per-call `TIMEOUT` (metric `apprise_go_api_send_timeouts_total` + warn log), max 64 in-flight (`apprise_go_api_send_in_flight`, over-cap → `503`); list-form tags validated per token (invalid → `400`, Python parity note above) |
+| Probes | `/readyz` writability probe never creates the staging dir (missing dir → `503`), matching the request path which refuses to auto-create |

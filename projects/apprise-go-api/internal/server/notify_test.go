@@ -176,6 +176,13 @@ func TestNotifyValidationTable(t *testing.T) {
 			wantCalls:   1,
 		},
 		{
+			name:        "json invalid list tag token 400",
+			contentType: "application/json",
+			body:        `{"urls":"json://localhost","body":"hi","tag":["ok-tag","bad tag!!"]}`,
+			wantStatus:  http.StatusBadRequest,
+			wantCalls:   0,
+		},
+		{
 			name:        "json non-string tag 400",
 			contentType: "application/json",
 			body:        `{"urls":"json://localhost","body":"hi","tag":{"name":"family"}}`,

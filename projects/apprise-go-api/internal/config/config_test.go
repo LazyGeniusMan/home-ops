@@ -127,3 +127,23 @@ func TestEnvOr(t *testing.T) {
 		t.Errorf("envOr() = %q, want %q", got, "fallback")
 	}
 }
+
+func TestLoadRejectsUnparseableNumericsAndBools(t *testing.T) {
+	for _, kv := range [][2]string{
+		{"WORKER_COUNT", "many"},
+		{"TIMEOUT", "soon"},
+		{"APPRISE_ATTACH_SIZE", "big"},
+		{"APPRISE_MAX_ATTACHMENTS", "many"},
+		{"APPRISE_UPLOAD_MAX_MEMORY_SIZE", "big"},
+		{"APPRISE_WEBHOOK_MAPPING_MAX_DEPTH", "deep"},
+		{"APPRISE_RECURSION_MAX", "many"},
+		{"DEBUG", "maybe"},
+		{"APPRISE_INTERPRET_EMOJIS", "maybe"},
+		{"APPRISE_HTTP_REDIRECTS", "maybe"},
+	} {
+		t.Setenv(kv[0], kv[1])
+		if _, err := Load(); err == nil {
+			t.Errorf("Load(%s=%q) = nil, want error", kv[0], kv[1])
+		}
+	}
+}

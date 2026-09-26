@@ -13,6 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/notify"
 	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/version"
 	apprise "github.com/unraid/apprise-go"
 )
@@ -80,6 +81,24 @@ var (
 		Help:      "Number of notification service schemas supported.",
 	})
 
+	// sendTimeoutsTotal counts Send calls that gave up on the per-call
+	// timeout (notify.ReportTimeouts). PromQL sample:
+	//   rate(apprise_go_api_send_timeouts_total[5m])
+	sendTimeoutsTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: "apprise_go_api",
+		Name:      "send_timeouts_total",
+		Help:      "Total notify Send calls that timed out.",
+	})
+
+	// sendInFlight tracks concurrent Send calls (bounded by maxInFlight).
+	// PromQL sample:
+	//   apprise_go_api_send_in_flight
+	sendInFlight = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: "apprise_go_api",
+		Name:      "send_in_flight",
+		Help:      "Current in-flight notify Send calls.",
+	})
+
 	registerMetricsOnce sync.Once
 )
 
@@ -113,10 +132,30 @@ func registerMetrics() {
 		registerCollector(buildInfo)
 		registerCollector(attachWritable)
 		registerCollector(supportedServices)
+		registerCollector(sendTimeoutsTotal)
+		registerCollector(sendInFlight)
 	})
 	upGauge.Set(1)
 	buildInfo.WithLabelValues(version.Version).Set(1)
 	supportedServices.Set(float64(len(apprise.SupportedSchemas())))
+	refreshSendGauges()
+}
+
+// lastTimeouts tracks the notify timeout count already exported so the
+// counter only moves forward by the delta on each refresh.
+var lastTimeouts uint64
+
+// refreshSendGauges syncs the send pipeline gauges from the notify package
+// counters. It runs on every registerMetrics call (every request via the
+// middleware) so the timeout counter and in-flight gauge never go stale.
+func refreshSendGauges() {
+	if cur := notify.ReportTimeouts(); cur != lastTimeouts {
+		if cur > lastTimeouts {
+			sendTimeoutsTotal.Add(float64(cur - lastTimeouts))
+		}
+		lastTimeouts = cur
+	}
+	sendInFlight.Set(float64(notify.ReportInFlight()))
 }
 
 // metricsHandler registers metrics and serves GET /metrics via promhttp on
@@ -127,14 +166,18 @@ func metricsHandler() http.Handler {
 }
 
 // attachProbe reports whether the attachment staging directory is writable.
-// An empty AttachDir resolves to os.TempDir (see internal/attach). Each call
-// performs MkdirAll + CreateTemp, so callers must use cachedAttachProbe.
+// An empty AttachDir resolves to os.TempDir (see internal/attach). The
+// probe never creates directories: the staging path deliberately refuses to
+// auto-create on the request path (see stageStream), so a probe that called
+// MkdirAll would mask a misconfigured mount and report healthy while every
+// request fails. A missing dir is NOT_WRITABLE_ISSUE, not healthy.
 func attachProbe(dir string) (resolved string, canWrite bool, issue string) {
 	resolved = dir
 	if resolved == "" {
 		resolved = os.TempDir()
 	}
-	if err := os.MkdirAll(resolved, 0o750); err != nil {
+	st, err := os.Stat(resolved)
+	if err != nil || !st.IsDir() {
 		return resolved, false, "ATTACH_PERMISSION_ISSUE"
 	}
 	f, err := os.CreateTemp(resolved, ".writability-*")

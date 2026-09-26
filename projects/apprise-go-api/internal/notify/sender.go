@@ -6,8 +6,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	apprise "github.com/unraid/apprise-go"
@@ -55,9 +57,41 @@ type Result struct {
 // policy filtering (the server maps it to HTTP 204).
 var ErrNoTargets = errors.New("notify: no valid URLs provided to notify")
 
+// maxInFlight bounds concurrent Send calls: apprise-go clients are
+// synchronous with no context support, so without a bound every in-flight
+// /notify request would pile up its own worker goroutine per target.
+// Calls beyond the bound fail fast with ErrOverloaded instead of queueing.
+const maxInFlight = 64
+
+// ErrOverloaded reports that too many Send calls are in flight.
+var ErrOverloaded = errors.New("notify: server overloaded, too many concurrent sends")
+
+// inFlightTimeouts counts Send calls that gave up on the per-call timeout
+// (observed by sendTimeoutsTotal via ReportTimeouts).
+var (
+	inFlightMu       sync.Mutex
+	inFlight         int
+	inFlightTimeouts uint64
+)
+
+// ReportTimeouts returns the count of per-call timeouts since process start.
+func ReportTimeouts() uint64 {
+	inFlightMu.Lock()
+	defer inFlightMu.Unlock()
+	return inFlightTimeouts
+}
+
+// ReportInFlight returns the current number of in-flight Send calls.
+func ReportInFlight() int {
+	inFlightMu.Lock()
+	defer inFlightMu.Unlock()
+	return inFlight
+}
+
 // Sender sends Request values via apprise-go with a per-call timeout.
 type Sender struct {
 	timeout time.Duration
+	log     *slog.Logger
 }
 
 // New returns a Sender bounding each call to timeout. Non-positive timeouts
@@ -66,7 +100,7 @@ func New(timeout time.Duration) *Sender {
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
-	return &Sender{timeout: timeout}
+	return &Sender{timeout: timeout, log: slog.Default()}
 }
 
 // Timeout reports the per-call bound.
@@ -104,6 +138,18 @@ func (s *Sender) Send(ctx context.Context, req Request) (Result, error) {
 		delivered int
 		err       error
 	}
+	inFlightMu.Lock()
+	if inFlight >= maxInFlight {
+		inFlightMu.Unlock()
+		return Result{Attempted: len(targets)}, ErrOverloaded
+	}
+	inFlight++
+	inFlightMu.Unlock()
+	defer func() {
+		inFlightMu.Lock()
+		inFlight--
+		inFlightMu.Unlock()
+	}()
 	done := make(chan sendResult, 1)
 	go func() {
 		var errs []error
@@ -148,6 +194,10 @@ func (s *Sender) Send(ctx context.Context, req Request) (Result, error) {
 		}
 		return res, nil
 	case <-timer.C:
+		inFlightMu.Lock()
+		inFlightTimeouts++
+		inFlightMu.Unlock()
+		s.log.Warn("notify: send timed out", slog.Duration("timeout", timeout), slog.Int("targets", len(targets)))
 		return Result{Attempted: len(targets)}, fmt.Errorf("notify: send timed out after %s", timeout)
 	}
 }

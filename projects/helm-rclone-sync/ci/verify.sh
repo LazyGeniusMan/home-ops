@@ -156,9 +156,29 @@ grep -q 'configMapKeyRef' "$OUT/sources-all-four.yaml" \
 grep -q 'name: rclone-proton-eso' "$OUT/sources-all-four.yaml" \
   && ok "esoRef consumes ESO-synced Secret" || bad "esoRef consumes ESO-synced Secret"
 
-# version + schedule knobs
-grep -q 'image: "rclone/rclone:1.75.0"' "$OUT/dir-07.yaml" \
-  && ok "dir-07 rclone.version override renders" || bad "dir-07 rclone.version override renders"
+# version + schedule knobs (tag@digest: tag-only renders fail, see image helper)
+grep -q 'image: "rclone/rclone:1.75.0@sha256:' "$OUT/dir-07.yaml" \
+  && ok "dir-07 rclone.version override renders tag@digest" || bad "dir-07 rclone.version override renders tag@digest"
+if grep -q 'image: "rclone/rclone:[^"]*@sha256:' "$OUT/dir-07.yaml"; then
+  ok "dir-07 image carries digest pin"
+else
+  bad "dir-07 image carries digest pin"
+fi
+for f in "${RENDERED[@]}"; do
+  if grep -qE 'image: "rclone/rclone:[^"@]+"' "$f"; then
+    bad "$(basename "$f") image is tag-only (digest required)"
+  else
+    ok "$(basename "$f") image is tag@digest"
+  fi
+  grep -q 'activeDeadlineSeconds: 3600' "$f" \
+    && ok "$(basename "$f") activeDeadlineSeconds explicit" \
+    || bad "$(basename "$f") activeDeadlineSeconds explicit"
+  if grep -q 'CHANGEME\|REPLACE-ME' "$f"; then
+    bad "$(basename "$f") carries a placeholder credential"
+  else
+    ok "$(basename "$f") carries no placeholder credential"
+  fi
+done
 grep -q 'timeZone: "America/New_York"' "$OUT/dir-07.yaml" \
   && ok "dir-07 timeZone renders" || bad "dir-07 timeZone renders"
 grep -q 'schedule: "45 3' "$OUT/dir-07.yaml" \
@@ -190,6 +210,24 @@ expect_fail "bogus operation" \
   --set-json 'source={"type":"pvc-rwo","uri":{"value":"d"}}' \
   --set-json 'destination={"type":"s3","uri":{"value":"b"},"credentials":{"provider":{"value":"AWS"},"accessKeyId":{"value":"K"},"secretAccessKey":{"value":"S"},"region":{"value":"R"}}}' \
   --set rclone.operation=serve
+# Placeholder literals pass shape validation but must fail fast (values.yaml
+# ships no CHANGEME defaults; the guard rejects CHANGEME/REPLACE-ME/EXAMPLE*).
+expect_fail "placeholder credential" \
+  "" "got placeholder" \
+  --set-json 'source={"type":"pvc-rwo","uri":{"value":"d"}}' \
+  --set-json 'destination={"type":"s3","uri":{"value":"b"},"credentials":{"provider":{"value":"AWS"},"accessKeyId":{"value":"CHANGEME"},"secretAccessKey":{"value":"S"},"region":{"value":"R"}}}'
+# Tag-only images are rejected: a version override without its digest fails.
+expect_fail "tag-only version override" \
+  "" "image.digest" \
+  --set-json 'source={"type":"pvc-rwo","uri":{"value":"d"}}' \
+  --set-json 'destination={"type":"s3","uri":{"value":"b"},"credentials":{"provider":{"value":"AWS"},"accessKeyId":{"value":"K"},"secretAccessKey":{"value":"S"},"region":{"value":"R"}}}' \
+  --set rclone.version=1.75.1
+# Null deadline would wedge Forbid CronJobs: an explicit value is required.
+expect_fail "null activeDeadlineSeconds" \
+  "" "activeDeadlineSeconds is required" \
+  --set-json 'source={"type":"pvc-rwo","uri":{"value":"d"}}' \
+  --set-json 'destination={"type":"s3","uri":{"value":"b"},"credentials":{"provider":{"value":"AWS"},"accessKeyId":{"value":"K"},"secretAccessKey":{"value":"S"},"region":{"value":"R"}}}' \
+  --set activeDeadlineSeconds=null
 expect_fail "pvc uri via secretRef" \
   "" "cannot use valueFrom" \
   --set-json 'source={"type":"s3","uri":{"value":"b"},"credentials":{"provider":{"value":"AWS"},"accessKeyId":{"value":"K"},"secretAccessKey":{"value":"S"},"region":{"value":"R"}}}' \

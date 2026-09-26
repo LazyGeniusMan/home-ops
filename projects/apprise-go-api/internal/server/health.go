@@ -10,7 +10,7 @@ import (
 )
 
 // attachProbeTTL bounds writability-probe side effects: at most one
-// MkdirAll+CreateTemp per TTL window per process.
+// CreateTemp per TTL window per process (the probe never creates dirs).
 const attachProbeTTL = 30 * time.Second
 
 var attachCache struct {

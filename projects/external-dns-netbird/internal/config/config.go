@@ -43,6 +43,10 @@ type Config struct {
 // Load reads configuration from the environment and returns an error if
 // required values are missing or invalid.
 func Load() (Config, error) {
+	autoCreate, err := envBool("NETBIRD_AUTO_CREATE", true)
+	if err != nil {
+		return Config{}, err
+	}
 	cfg := Config{
 		PATFile:     strings.TrimSpace(os.Getenv("NETBIRD_PAT_FILE")),
 		BaseURL:     envOr("NETBIRD_BASE_URL", defaultBaseURL),
@@ -50,7 +54,7 @@ func Load() (Config, error) {
 		MetricsAddr: envOr("METRICS_ADDR", defaultMetricsAddr),
 		LogLevel:    envOr("LOG_LEVEL", defaultLogLevel),
 		DefaultTTL:  defaultTTL,
-		AutoCreate:  envBool("NETBIRD_AUTO_CREATE", true),
+		AutoCreate:  autoCreate,
 	}
 	if cfg.PATFile == "" {
 		return Config{}, fmt.Errorf("config: NETBIRD_PAT_FILE must be set to a file holding the NetBird personal access token")
@@ -87,11 +91,16 @@ func envOr(key, fallback string) string {
 	return fallback
 }
 
-func envBool(key string, fallback bool) bool {
+// envBool reads key strictly: a non-empty unparseable value fails Load
+// instead of silently falling back (a NETBIRD_AUTO_CREATE typo must not
+// silently flip zone auto-creation on or off).
+func envBool(key string, fallback bool) (bool, error) {
 	if raw := strings.TrimSpace(os.Getenv(key)); raw != "" {
-		if v, err := strconv.ParseBool(raw); err == nil {
-			return v
+		v, err := strconv.ParseBool(raw)
+		if err != nil {
+			return false, fmt.Errorf("config: %s must be a boolean, got %q", key, raw)
 		}
+		return v, nil
 	}
-	return fallback
+	return fallback, nil
 }

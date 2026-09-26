@@ -88,3 +88,12 @@ func TestLoadBadTTL(t *testing.T) {
 		t.Error("expected error for negative DEFAULT_TTL")
 	}
 }
+
+func TestLoadBadAutoCreate(t *testing.T) {
+	clearEnv(t)
+	t.Setenv("NETBIRD_PAT_FILE", writePAT(t, "pat"))
+	t.Setenv("NETBIRD_AUTO_CREATE", "maybe")
+	if _, err := Load(); err == nil {
+		t.Error("expected error for non-boolean NETBIRD_AUTO_CREATE")
+	}
+}

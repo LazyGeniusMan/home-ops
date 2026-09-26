@@ -129,7 +129,14 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 			tagFilter = groups
 		}
 	case []string:
-		tagFilter = listTagFilter(tag)
+		groups, err := listTagFilter(tag)
+		if err != nil {
+			tagErr := fmt.Errorf("%w: %w", errInvalidTag, err)
+			s.log.Warn("notify: invalid tag", "remote", remoteAddr(r), "err", redactCredentials(tagErr.Error()))
+			fail(http.StatusBadRequest, "Unsupported characters found in tag definition")
+			return
+		}
+		tagFilter = groups
 	case []any:
 		strs := make([]string, 0, len(tag))
 		for _, v := range tag {
@@ -141,7 +148,14 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 			}
 			strs = append(strs, sv)
 		}
-		tagFilter = listTagFilter(strs)
+		groups, err := listTagFilter(strs)
+		if err != nil {
+			tagErr := fmt.Errorf("%w: %w", errInvalidTag, err)
+			s.log.Warn("notify: invalid tag", "remote", remoteAddr(r), "err", redactCredentials(tagErr.Error()))
+			fail(http.StatusBadRequest, "Unsupported characters found in tag definition")
+			return
+		}
+		tagFilter = groups
 	default:
 		s.log.Warn("notify: invalid tag type", "remote", remoteAddr(r))
 		fail(http.StatusBadRequest, "Unsupported characters found in tag definition")
@@ -235,6 +249,11 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 	if sendErr != nil {
 		if errors.Is(sendErr, notify.ErrNoTargets) || isNoTargets(sendErr) {
 			fail(http.StatusNoContent, "There was no valid URLs provided to notify")
+			return
+		}
+		if errors.Is(sendErr, notify.ErrOverloaded) {
+			s.log.Warn("notify: overloaded", "remote", remoteAddr(r))
+			fail(http.StatusServiceUnavailable, "Server overloaded, retry later")
 			return
 		}
 		if attach.IsUnsupportedAttachments(sendErr) && len(urls) > 0 {

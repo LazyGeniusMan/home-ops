@@ -30,10 +30,26 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 
-{{/* Container image. rclone.version overrides image.tag; the result must be an exact pin, never "latest". */}}
+{{/* Container image. rclone.version overrides image.tag and rclone.digest
+overrides image.digest; the result must be tag@digest, never tag-only or
+"latest". A version override without its own digest fails instead of going
+tag-only: rclone.digest defaults to image.digest only when no version
+override is set. */}}
 {{- define "helm-rclone-sync.image" -}}
-{{- $tag := .Values.rclone.version | default .Values.image.tag -}}
-{{- printf "%s:%s" .Values.image.repository (required "image.tag (or rclone.version override) is required; pin an exact version, never \"latest\"" $tag) -}}
+{{- $versionOverride := .Values.rclone.version | default "" | toString -}}
+{{- $digest := .Values.rclone.digest | default "" | toString -}}
+{{- if eq $digest "" -}}
+{{- if eq $versionOverride "" -}}
+{{- $digest = .Values.image.digest | default "" | toString -}}
+{{- end -}}
+{{- end -}}
+{{- $tag := $versionOverride | default .Values.image.tag -}}
+{{- $tag = required "image.tag (or rclone.version override) is required; pin an exact version, never \"latest\"" $tag -}}
+{{- if or (eq ($tag | toString) "latest") (hasPrefix "latest" ($tag | toString)) -}}
+{{- fail "image tag must be an exact pin, never \"latest\"" -}}
+{{- end -}}
+{{- $digest = required "image.digest (or rclone.digest with rclone.version) is required; pin the registry digest, e.g. docker buildx imagetools inspect rclone/rclone:<tag>" $digest -}}
+{{- printf "%s:%s@%s" .Values.image.repository $tag $digest -}}
 {{- end -}}
 
 {{/* rclone.operation must be a one-shot transfer: sync (mirror) or copy. Never anything long-lived. */}}
@@ -124,14 +140,26 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
   {{- end -}}
 {{- end -}}
 
-{{/* Required credential field: fail fast on absent/null/empty, else render. Expects dict {name, creds, key, ctx, desc}. */}}
+{{/* Required credential field: fail fast on absent/null/empty/placeholder, else
+render. Accepts any ref source (value/secretRef/configMapRef/esoRef) but
+rejects literal placeholder sentinels that would otherwise pass validation. */}}
 {{- define "helm-rclone-sync.renderRequired" -}}
 {{- $ctx := printf "%s: %s" .ctx .desc -}}
 {{- if not (hasKey .creds .key) }}{{ fail (printf "%s is required" $ctx) }}{{ end -}}
 {{- $f := index .creds .key -}}
 {{- if kindIs "invalid" $f }}{{ fail (printf "%s is required (got null)" $ctx) }}{{ end -}}
 {{- if kindIs "string" $f }}{{ if eq $f "" }}{{ fail (printf "%s is required (got empty string)" $ctx) }}{{ end }}{{ end -}}
-{{- if and (kindIs "map" $f) (hasKey $f "value") }}{{ if eq ($f.value | toString) "" }}{{ fail (printf "%s is required (got empty value)" $ctx) }}{{ end }}{{ end -}}
+{{- $literal := "" -}}
+{{- $hasLiteral := false -}}
+{{- if kindIs "string" $f }}{{ $literal = $f }}{{ $hasLiteral = true }}{{ end -}}
+{{- if and (kindIs "map" $f) (hasKey $f "value") }}{{ $literal = ($f.value | toString) }}{{ $hasLiteral = true }}{{ end -}}
+{{- if and $hasLiteral (eq ($literal | toString | trim) "") }}{{ fail (printf "%s is required (got empty value)" $ctx) }}{{ end -}}
+{{- if $hasLiteral -}}
+{{- $upper := $literal | toString | upper | trim -}}
+{{- if or (eq $upper "CHANGEME") (hasPrefix "CHANGEME" $upper) (eq $upper "REPLACE-ME") (hasPrefix "REPLACE-ME" $upper) (hasPrefix "EXAMPLE" $upper) -}}
+{{- fail (printf "%s is required (got placeholder %q: set a real value or a secretRef/configMapRef/esoRef)" $ctx $literal) -}}
+{{- end -}}
+{{- end -}}
 {{ include "helm-rclone-sync.renderEnv" (dict "name" .name "field" $f "ctx" $ctx) }}
 {{- end -}}
 

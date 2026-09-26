@@ -41,9 +41,8 @@ spec:
       {{- if .Values.ttlSecondsAfterFinished }}
       ttlSecondsAfterFinished: {{ .Values.ttlSecondsAfterFinished }}
       {{- end }}
-      {{- if .Values.activeDeadlineSeconds }}
+      {{- if kindIs "invalid" .Values.activeDeadlineSeconds }}{{ fail "activeDeadlineSeconds is required: set an explicit deadline (e.g. 3600) so a wedged run cannot block every later schedule under concurrencyPolicy Forbid" }}{{ end }}
       activeDeadlineSeconds: {{ .Values.activeDeadlineSeconds }}
-      {{- end }}
       backoffLimit: {{ .Values.backoffLimit }}
       template:
         metadata:

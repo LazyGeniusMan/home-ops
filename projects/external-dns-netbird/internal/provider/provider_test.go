@@ -300,3 +300,56 @@ func TestGetDomainFilter(t *testing.T) {
 		t.Error("filter should not match other.net")
 	}
 }
+
+func TestApplyChangesUpdateRenameMovesAllEntries(t *testing.T) {
+	f := testFixture()
+	p := New(f, []string{"example.com"}, 300)
+	changes := &plan.Changes{
+		UpdateOld: []*endpoint.Endpoint{
+			endpoint.NewEndpointWithTTL("www.example.com", "A", 300, "192.168.1.1", "192.168.1.2"),
+		},
+		UpdateNew: []*endpoint.Endpoint{
+			endpoint.NewEndpointWithTTL("renamed.example.com", "A", 300, "192.168.1.1", "192.168.1.2"),
+		},
+	}
+	if err := p.ApplyChanges(context.Background(), changes); err != nil {
+		t.Fatalf("ApplyChanges: %v", err)
+	}
+	if len(f.deleted) != 2 {
+		t.Errorf("expected both old entries deleted on rename, got %v", f.deleted)
+	}
+	if len(f.created) != 2 {
+		t.Errorf("expected both entries created under the new name, got %+v", f.created)
+	}
+	if len(f.updated) != 0 {
+		t.Errorf("expected no in-place updates on rename, got %+v", f.updated)
+	}
+}
+
+func TestApplyChangesUpdateSplitBrainAcrossZonesErrors(t *testing.T) {
+	f := &fakeAPI{
+		zones: []netbird.Zone{
+			{ID: "zone-1", Domain: "example.com"},
+			{ID: "zone-2", Domain: "example.com"},
+		},
+		records: map[string][]netbird.Record{
+			"zone-1": {{ID: "r1", Name: "dup.example.com", Type: "A", Content: "10.0.0.1", TTL: 300}},
+			"zone-2": {{ID: "r2", Name: "dup.example.com", Type: "A", Content: "10.0.0.1", TTL: 300}},
+		},
+	}
+	p := New(f, []string{"example.com"}, 300)
+	changes := &plan.Changes{
+		UpdateOld: []*endpoint.Endpoint{
+			endpoint.NewEndpointWithTTL("dup.example.com", "A", 300, "10.0.0.1"),
+		},
+		UpdateNew: []*endpoint.Endpoint{
+			endpoint.NewEndpointWithTTL("dup.example.com", "A", 600, "10.0.0.2"),
+		},
+	}
+	if err := p.ApplyChanges(context.Background(), changes); err == nil {
+		t.Fatal("expected split-brain error when one key has refs in two zones")
+	}
+	if len(f.deleted) != 0 {
+		t.Errorf("must not half-apply on split-brain, deleted=%v", f.deleted)
+	}
+}

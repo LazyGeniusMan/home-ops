@@ -112,7 +112,7 @@ func TestReadyzReadyVsNotReady(t *testing.T) {
 
 // TestAttachProbeCached asserts the writability probe runs at most once per
 // TTL window: repeated /status calls after removing the dir still report
-// the cached writable result (no per-scrape MkdirAll+CreateTemp).
+// the cached writable result (no per-scrape CreateTemp).
 func TestAttachProbeCached(t *testing.T) {
 	resetAttachCache()
 	dir := t.TempDir()

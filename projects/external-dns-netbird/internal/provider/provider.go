@@ -323,13 +323,32 @@ func (p *Provider) update(ctx context.Context, idx index, old, new *endpoint.End
 	for _, t := range old.Targets {
 		oldTargets[t] = true
 	}
-	// Delete entries that disappeared.
+	// NetBird stores one entry per target, so one endpoint maps to N
+	// refs; delete/update paths must iterate ALL refs for a key, not just
+	// refs[0]. A key with refs in more than one zone is a split-brain the
+	// index cannot resolve safely, so it fails instead of half-applying.
+	mismatch := func(refs []recordRef) error {
+		zones := map[string]struct{}{}
+		for _, ref := range refs {
+			zones[ref.zoneID] = struct{}{}
+		}
+		if len(zones) > 1 {
+			return fmt.Errorf("netbird: update record failed: %q has entries in %d zones", old.DNSName, len(zones))
+		}
+		return nil
+	}
+	renamed := !strings.EqualFold(old.DNSName, new.DNSName) || !strings.EqualFold(old.RecordType, new.RecordType)
+	// Delete entries that disappeared (or every old entry on rename: the
+	// name/type key changes, so re-resolve under the old key).
 	for _, t := range old.Targets {
-		stillWanted := false
-		for _, nt := range new.Targets {
-			if nt == t && strings.EqualFold(old.DNSName, new.DNSName) && strings.EqualFold(old.RecordType, new.RecordType) {
-				stillWanted = true
-				break
+		stillWanted := !renamed
+		if stillWanted {
+			stillWanted = false
+			for _, nt := range new.Targets {
+				if nt == t {
+					stillWanted = true
+					break
+				}
 			}
 		}
 		if stillWanted {
@@ -339,8 +358,13 @@ func (p *Provider) update(ctx context.Context, idx index, old, new *endpoint.End
 		if len(refs) == 0 {
 			continue
 		}
-		if err := p.api.DeleteRecord(ctx, refs[0].zoneID, refs[0].recordID); err != nil {
-			return softOrHard("delete record", err)
+		if err := mismatch(refs); err != nil {
+			return err
+		}
+		for _, ref := range refs {
+			if err := p.api.DeleteRecord(ctx, ref.zoneID, ref.recordID); err != nil {
+				return softOrHard("delete record", err)
+			}
 		}
 	}
 	// Create new entries and refresh TTL/content of kept ones via update.
@@ -349,7 +373,7 @@ func (p *Provider) update(ctx context.Context, idx index, old, new *endpoint.End
 		ttl = p.defaultTTL
 	}
 	for _, t := range new.Targets {
-		kept := oldTargets[t] && strings.EqualFold(old.DNSName, new.DNSName) && strings.EqualFold(old.RecordType, new.RecordType)
+		kept := oldTargets[t] && !renamed
 		if !kept {
 			if err := p.create(ctx, endpoint.NewEndpointWithTTL(new.DNSName, new.RecordType, endpoint.TTL(ttl), t)); err != nil {
 				return err
@@ -360,14 +384,19 @@ func (p *Provider) update(ctx context.Context, idx index, old, new *endpoint.End
 		if len(refs) == 0 {
 			continue
 		}
-		_, err := p.api.UpdateRecord(ctx, refs[0].zoneID, refs[0].recordID, netbird.UpdateRecord{
-			Name:    strings.ToLower(strings.TrimSuffix(new.DNSName, ".")),
-			Type:    strings.ToUpper(new.RecordType),
-			Content: t,
-			TTL:     ttl,
-		})
-		if err != nil {
-			return softOrHard("update record", err)
+		if err := mismatch(refs); err != nil {
+			return err
+		}
+		for _, ref := range refs {
+			_, err := p.api.UpdateRecord(ctx, ref.zoneID, ref.recordID, netbird.UpdateRecord{
+				Name:    strings.ToLower(strings.TrimSuffix(new.DNSName, ".")),
+				Type:    strings.ToUpper(new.RecordType),
+				Content: t,
+				TTL:     ttl,
+			})
+			if err != nil {
+				return softOrHard("update record", err)
+			}
 		}
 	}
 	return nil

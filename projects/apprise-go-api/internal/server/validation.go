@@ -125,14 +125,28 @@ func attachStrings(v any) []string {
 	return nil
 }
 
-// listTagFilter passes list-form tags straight through (Python: list
-// payloads skip parse_tag_expression), one single-token OR group each.
-func listTagFilter(tags []string) []notify.TagGroup {
+// listTagFilter converts list-form tags to OR groups, validating each
+// token against the Python tag grammar (TAG_TOKEN_RE via
+// notify.ValidateTagToken). Python's list path (views.py
+// parse_tag_expression skip) passes tokens through unvalidated, so an
+// invalid token would silently never match; validating here turns typos
+// into a 400 naming the token instead of a silent 204. Empty/blank entries
+// are dropped; an all-blank list yields nil (no filter).
+func listTagFilter(tags []string) ([]notify.TagGroup, error) {
 	groups := make([]notify.TagGroup, 0, len(tags))
 	for _, t := range tags {
+		if strings.TrimSpace(t) == "" {
+			continue
+		}
+		if err := notify.ValidateTagToken(t); err != nil {
+			return nil, err
+		}
 		groups = append(groups, notify.TagGroup{t})
 	}
-	return groups
+	if len(groups) == 0 {
+		return nil, nil
+	}
+	return groups, nil
 }
 
 func validNotifyType(t string) bool {
