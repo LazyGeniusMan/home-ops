@@ -42,5 +42,9 @@ spec:
             value:
               provider: cosign
               matchOIDCIdentity:
+              # Dev syncs tag dev, pushed+signed per-commit by flux-fleet-push
+              # on refs/heads/main (not by flux-fleet-release): a release-only
+              # subject would deny every dev sync (see
+              # .github/workflows/flux-fleet-push.yaml).
               - issuer: ^https://token\.actions\.githubusercontent\.com$
-                subject: ^https://github\.com/LazyGeniusMan/home-ops/\.github/workflows/flux-fleet-release\.yaml@refs/tags/flux-fleet-v\d+\.\d+\.\d+$
+                subject: ^https://github\.com/LazyGeniusMan/home-ops/\.github/workflows/flux-fleet-push\.yaml@refs/heads/main$

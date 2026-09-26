@@ -15,15 +15,33 @@ spec:
         labels:
           fluxcd.controlplane.io/role: "policy"
       data:
+        # Tenant source allowlist: must prefix-match every spec.url that can
+        # appear as a gitrepositories/ocirepositories/helmrepositories object
+        # in a tenant namespace (component chart OCIRepositories reconcile
+        # inside their tenant namespace, so a missing prefix denies the sync).
+        # Onboarding a component with a new chart registry: add its org prefix
+        # here. Verified 2026-09-26 by scanning all spec.url in
+        # flux/{infra,apps}/components: chart sources below are exhaustive;
+        # ferretdb/headlamp-k8s/matrix-construct ship no OCIRepository
+        # spec.url (image refs / bundled manifests only), so no entries.
         sources: >-
           https://github.com/LazyGeniusMan/
           oci://ghcr.io/lazygeniusman/
+          oci://ghcr.io/coder/
+          oci://ghcr.io/oauth2-proxy/
+          oci://ghcr.io/coredns/
+          oci://ghcr.io/dragonflydb/
+          oci://ghcr.io/external-secrets/
+          oci://ghcr.io/cloudnative-pg/
+          oci://ghcr.io/rancher/
+          oci://ghcr.io/zitadel/
           oci://ghcr.io/controlplaneio-fluxcd/
           oci://ghcr.io/fluxcd/
           oci://ghcr.io/flux-iac/
           oci://ghcr.io/stefanprodan/charts/
           oci://quay.io/jetstack/charts/
           oci://quay.io/cilium/charts/
+          oci://registry-1.docker.io/altinity/
           oci://registry-1.docker.io/bitnamicharts/
           oci://chartproxy.container-registry.com/
     - apiVersion: admissionregistration.k8s.io/v1

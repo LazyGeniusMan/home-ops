@@ -40,8 +40,15 @@ prd `.198`, dev `.248`). Details in `terraform/README.md`.
 ## Artifacts
 
 `oci://ghcr.io/lazygeniusman/home-ops/fleet`: `dev` (+ `dev-<sha>`, main
-commits) and `stable` (+ bare `<version>`, `flux-fleet-v*` tags). Prd pins
-`stable` with cosign verification; the `update` cluster tracks `dev`.
+commits) and `stable` (+ bare `<version>`, `flux-fleet-v*` tags). Every
+artifact is cosigned at push time (`cosign sign` in each push/release
+workflow); dev verifies against the push-workflow identity
+(`flux-*-push.yaml` @ `refs/heads/main`), prd/stable against the release
+identity (`flux-*-release.yaml` @ version tags) — tenant OCIRepositories and
+the dev/prd FluxInstances each list the identity matching their tag, so a
+release-only subject never denies a dev sync. Prd pins `stable`; dev and the
+`update` cluster track `dev`. Same rule covers the per-component
+`infra/<tenant>` + `apps/<tenant>` OCI artifacts.
 
 ## Onboarding a component
 
@@ -51,6 +58,10 @@ commits) and `stable` (+ bare `<version>`, `flux-fleet-v*` tags). Prd pins
 3. Add the component to the workflow matrix in
    `.github/workflows/flux-infra-push.yaml` (or `flux-apps-push.yaml`).
 4. Create the update policy in the area's `update-policies/`.
+5. If the component's chart lives under a new registry org, add its
+   `oci://` prefix to the allowlist in `tenants/policies.yaml` (a missing
+   prefix denies the tenant sync via the ValidatingAdmissionPolicy); the
+   fleet validate CI asserts the committed prefixes (see terraform tests).
 
 ## Upgrades
 
@@ -67,6 +78,13 @@ Fleet promotes dev → prd through `ARTIFACT_TAG`:
    dev and `update` sync `dev` — validate there first.
 4. **Promote to prd.** Tag `flux-fleet-vX.Y.Z` (cosigned `stable` + bare
    `<version>`); prd pins `stable` with cosign verification.
+
+Gating: `tenants/apps.yaml` is one ResourceSet listing 19 infra
+`dependsOn` (single-gate risk, accepted — one NotReady infra tenant holds all
+apps; per-app gates are not expressible at the ResourceSet input level, so
+the finest granularity stays per-app in each `base/terraform.yaml`).
+`ImageUpdateAutomation` stays intact (30m interval, Setters push
+`image-updates-*` branches; automation proposes, human merges).
 
 Cadences: FluxInstance OCIRepository 10m (semver `*`), tenant
 `OCIRepository` 5m, tenant Kustomizations 30m, charts 1h,

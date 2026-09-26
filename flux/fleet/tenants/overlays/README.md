@@ -64,6 +64,13 @@ index first.
 
 ## CLUSTER_NAME / CLUSTER_DOMAIN consumption
 
+`ARTIFACT_TAG` selects the OCI tag each cluster syncs (`dev` on dev +
+update, `stable` on prd) and therefore which cosign identity verifies it
+(push-workflow `refs/heads/main` for `dev`, release-workflow version tags for
+`stable` — see the fleet README Artifacts section). The dev FluxInstance
+verifies `dev` against `flux-fleet-push`; the prd FluxInstance verifies
+`stable` against `flux-fleet-release`.
+
 `CLUSTER_NAME` / `CLUSTER_DOMAIN` (plus `ARTIFACT_TAG` / `ENVIRONMENT`) are
 plumbed to every tenant namespace: each ResourceSet copies
 `flux-system/flux-runtime-info` into `<tenant>/flux-runtime-info` via

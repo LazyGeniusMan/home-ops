@@ -202,6 +202,14 @@ spec:
         verify:
           provider: cosign
           matchOIDCIdentity:
+          # Dev (tag dev) is pushed+signed per-commit by flux-infra-push on
+          # refs/heads/main; stable is pushed+signed by the release workflow on
+          # version tags (see .github/workflows/flux-infra-push.yaml + flux-infra-release.yaml).
+          # Both identities are listed (OR): each tag carries only its own
+          # workflow's signature, so dev verifies on dev and prd on stable.
+          # A release-only subject would deny every dev sync.
+          - issuer: ^https://token\.actions\.githubusercontent\.com$
+            subject: ^https://github\.com/LazyGeniusMan/home-ops/\.github/workflows/flux-infra-push\.yaml@refs/heads/main$
           - issuer: ^https://token\.actions\.githubusercontent\.com$
             subject: ^https://github\.com/LazyGeniusMan/home-ops/\.github/workflows/<< inputs.artifactSubjectWorkflow >>\.yaml@<< inputs.artifactSubjectGitRef >>$
     # infra-crds: vendored-CRD delivery (gateway-api + cosi + otel-operator
