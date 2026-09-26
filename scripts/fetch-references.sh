@@ -281,6 +281,12 @@ fetch_repo coredns-docs https://github.com/coredns/coredns.io master || record_f
 # /tmp/home-ops-docs/external-secret-operator-docs/docs/index.md
 fetch_repo external-secret-operator-docs https://github.com/external-secrets/external-secrets main || record_fail external-secret-operator-docs
 
+# /tmp/home-ops-docs/reloader-helm-chart-docs/deployments/kubernetes/chart/reloader
+fetch_repo reloader-helm-chart-docs https://github.com/stakater/Reloader master || record_fail reloader-helm-chart-docs
+
+# /tmp/home-ops-docs/reloader-docs/content/index.md
+fetch_repo reloader-docs https://github.com/stakater/reloader-docs main || record_fail reloader-docs
+
 # /tmp/home-ops-docs/pass-cli-docs/docs/public/docs/index.md 
 fetch_repo pass-cli-docs https://github.com/protonpass/pass-cli main || record_fail pass-cli-docs
 
