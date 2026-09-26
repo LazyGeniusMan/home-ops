@@ -42,6 +42,7 @@ the proxy (`:4180`), which upstreams to `http://clickstack.clickstack.svc:3000`:
 | Client | `clickstack` (server-generated, via ESO — never Git) |
 | Redirect | `https://clickstack.home-ops.yansyah.my.id/oauth2/callback` |
 | Cookie domain | `.home-ops.yansyah.my.id` (secure, samesite=lax) |
+| Cookie name | `_oauth2_proxy_clickstack` (per-instance — shares the base-domain scope with hubble-ui/flux-operator-ui) |
 | Scopes | `openid profile email groups` |
 | Gate | `allowed-group=clickstack-admin` |
 | Flags | `reverse-proxy=true`, `skip-provider-button=true` |
@@ -69,6 +70,23 @@ HTTPRoute on the shared `main` Gateway (`https` section, cross-namespace parentR
 | `prd` | app 2, collector 2, oauth2-proxy 1, ferretdb 1, `ferretdb` Cluster 3, CHI 1x2 | vault refs, hostnames, endpoints + production counts |
 
 oauth2-proxy and FerretDB stay singletons (1) in every env — never scale them. Rclone sync (`ferretdb` + `clickstack`
-legs): 1 per instance/schedule, `concurrencyPolicy: Forbid` — no scaling.
+legs): 1 per instance/schedule, `concurrencyPolicy: Forbid`, `activeDeadlineSeconds: 3600` — no scaling.
+
+## Secret rotation
+
+All rotating creds arrive via ESO (hourly refresh): the app/collector/ferretdb
+Deployments carry `reloader.stakater.com/auto: "true"` (pod template) and the
+oauth2-proxy HelmRelease carries `podAnnotations` with the same key (infra
+reloader rolls workloads on rotation — safe no-op until it exists).
+
+## Singleton vs HPA
+
+HPA-scaled (`clickstack`, `clickstack-otel-collector`): PDB `minAvailable: 1`,
+VPA Off (recommender-only). Singletons (`oauth2-proxy`, `ferretdb` proxy, CHI
+1x1 dev / 1x2 prd, CNPG 1 dev / 3 prd): no PDB by design (a PDB cannot protect
+1 replica); scale-up is a documented future step, not this change. CNPG dev
+`instances: 1` with `synchronous.number: 1` never stalls (`standbyNames: ["*"]`
+tolerates zero standbys). CHI carries a preferred `podAntiAffinity` so the 2
+prd replicas spread when nodes allow (dev singletons stay schedulable).
 
 Upstream reference (read-only): `/tmp/home-ops-docs/clickstack-helm-charts-docs`.

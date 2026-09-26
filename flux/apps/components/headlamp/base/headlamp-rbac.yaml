@@ -2,7 +2,11 @@
 # authorization. Headlamp forwards the user's OIDC token (no claims-mapping
 # knob), so the mapping is explicit group subjects — reconcile subject
 # names with the API server's OIDC flags (userClaim/groupsClaim + prefix).
-# - `admin` group → cluster-admin.
+# ACCEPTED RISK: `admin` group → cluster-admin. The pod's own SA binding is
+# chart-owned (see headlamp.yaml); per-user auth here is limited to the two
+# Zitadel groups, and the `main` Gateway HTTPRoute is gated by native OIDC
+# (no anonymous path to the UI). Trim to a narrower ClusterRole once the
+# admin workflow no longer needs full cluster access.
 # - `users` group → view + headlamp-basic (namespace listing + self-review
 #   so the UI enumerates contexts).
 ---

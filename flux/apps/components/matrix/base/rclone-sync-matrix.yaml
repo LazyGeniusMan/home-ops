@@ -1,0 +1,372 @@
+# PVC + S3 offsite legs for the two file-based singletons (tuwunel-data 10Gi
+# RocksDB PVC, mautrix-discord-data 2Gi bridge PVC). Bare-minimum backup leg:
+# periodic copy to the in-cluster SeaweedFS S3 bucket (same `tuwunel-media`
+# BucketClaim that already holds media), then the trailing S3->Proton legs
+# carry the SAME bucket offsite with the CNPG WAL+base prefixes. Live bucket
+# names template from BucketInfo `spec.bucketName` (never hardcoded); S3 keys
+# via `tuwunel-cosi`, Proton creds via shared `rclone-proton-credentials`
+# (`esoRef`). Seed pass://<cluster>/matrix/rclone-proton-{username
+# (plain),password (rclone-obscured)}. `__PROTON_PASS_BASE__` /
+# `__CLUSTER_NAME__` are overlay-replaced placeholders.
+# Chart source: projects/helm-rclone-sync.
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: rclone-tuwunel-media-s3-path
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: tuwunel-cosi
+    kind: SecretStore
+  target:
+    name: rclone-tuwunel-media-s3-path
+    template:
+      data:
+        path: "{{ .bucketName }}/tuwunel-media/"
+  data:
+    - secretKey: bucketName
+      remoteRef:
+        key: tuwunel-media-cosi-creds
+        property: BucketInfo.spec.bucketName
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: rclone-tuwunel-media-s3
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: tuwunel-cosi
+    kind: SecretStore
+  target:
+    name: rclone-tuwunel-media-s3
+  data:
+    - secretKey: accessKeyId
+      remoteRef:
+        key: tuwunel-media-cosi-creds
+        property: BucketInfo.spec.secretS3.accessKeyID
+    - secretKey: secretAccessKey
+      remoteRef:
+        key: tuwunel-media-cosi-creds
+        property: BucketInfo.spec.secretS3.accessSecretKey
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: rclone-mautrix-discord-db-s3-path
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: mautrix-discord-cosi
+    kind: SecretStore
+  target:
+    name: rclone-mautrix-discord-db-s3-path
+    template:
+      data:
+        path: "{{ .bucketName }}/cnpg-backups/mautrix-discord/"
+  data:
+    - secretKey: bucketName
+      remoteRef:
+        key: mautrix-discord-db-cosi-creds
+        property: BucketInfo.spec.bucketName
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: rclone-mautrix-discord-db-s3
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: mautrix-discord-cosi
+    kind: SecretStore
+  target:
+    name: rclone-mautrix-discord-db-s3
+  data:
+    - secretKey: accessKeyId
+      remoteRef:
+        key: mautrix-discord-db-cosi-creds
+        property: BucketInfo.spec.secretS3.accessKeyID
+    - secretKey: secretAccessKey
+      remoteRef:
+        key: mautrix-discord-db-cosi-creds
+        property: BucketInfo.spec.secretS3.accessSecretKey
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: rclone-proton-credentials
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: rclone-proton-credentials
+    template:
+      data:
+        username: "{{ .username }}"
+        password: "{{ .password }}"
+  data:
+    - secretKey: username
+      remoteRef:
+        key: __PROTON_PASS_BASE__/rclone/proton-username
+    - secretKey: password
+      remoteRef:
+        key: __PROTON_PASS_BASE__/rclone/proton-password
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: helm-rclone-sync-chart
+spec:
+  interval: 1h
+  url: oci://ghcr.io/lazygeniusman/home-ops/projects/helm-rclone-sync
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  # Tag MUST equal Chart.yaml `version` in projects/helm-rclone-sync (bump
+  # Chart.yaml + all seven consumers together; no $imagepolicy marker — Helm
+  # OCIRepositories are untracked by image automation).
+  ref:
+    tag: "0.1.0"
+---
+# tuwunel RocksDB PVC (02:30) -> S3 bucket prefix (live data copy; restore =
+# scale tuwunel to 0, sync the prefix back, scale to 1).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: rclone-sync-tuwunel-data
+spec:
+  interval: 1h
+  releaseName: rclone-sync-tuwunel-data
+  serviceAccountName: flux
+  chartRef:
+    kind: OCIRepository
+    name: helm-rclone-sync-chart
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-rclone-sync
+  values:
+    schedule: "30 2 * * *"
+    activeDeadlineSeconds: 3600
+    concurrencyPolicy: Forbid
+    rclone:
+      operation: copy
+    source:
+      type: pvc-rwo
+      remoteName: ""
+      uri:
+        value: tuwunel-data
+    destination:
+      type: s3
+      remoteName: ""
+      uri:
+        esoRef:
+          name: rclone-tuwunel-media-s3-path
+          key: path
+      credentials:
+        provider:
+          value: AWS
+        accessKeyId:
+          esoRef:
+            name: rclone-tuwunel-media-s3
+            key: accessKeyId
+        secretAccessKey:
+          esoRef:
+            name: rclone-tuwunel-media-s3
+            key: secretAccessKey
+        region:
+          value: us-east-1
+        endpoint:
+          value: http://seaweed-main-s3.seaweedfs:8333
+---
+# Bridge PVC (02:45) -> S3 bucket prefix (config.yaml + registration.yaml;
+# restore = sync the prefix back, restart the bridge to re-register).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: rclone-sync-mautrix-discord-data
+spec:
+  interval: 1h
+  releaseName: rclone-sync-mautrix-discord-data
+  serviceAccountName: flux
+  chartRef:
+    kind: OCIRepository
+    name: helm-rclone-sync-chart
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-rclone-sync
+  values:
+    schedule: "45 2 * * *"
+    activeDeadlineSeconds: 3600
+    concurrencyPolicy: Forbid
+    rclone:
+      operation: copy
+    source:
+      type: pvc-rwo
+      remoteName: ""
+      uri:
+        value: mautrix-discord-data
+    destination:
+      type: s3
+      remoteName: ""
+      uri:
+        esoRef:
+          name: rclone-tuwunel-media-s3-path
+          key: path
+      credentials:
+        provider:
+          value: AWS
+        accessKeyId:
+          esoRef:
+            name: rclone-tuwunel-media-s3
+            key: accessKeyId
+        secretAccessKey:
+          esoRef:
+            name: rclone-tuwunel-media-s3
+            key: secretAccessKey
+        region:
+          value: us-east-1
+        endpoint:
+          value: http://seaweed-main-s3.seaweedfs:8333
+---
+# tuwunel S3 bucket (05:00, after the PVC legs land) -> Proton Drive offsite.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: rclone-sync-tuwunel-media
+spec:
+  interval: 1h
+  releaseName: rclone-sync-tuwunel-media
+  serviceAccountName: flux
+  chartRef:
+    kind: OCIRepository
+    name: helm-rclone-sync-chart
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-rclone-sync
+  values:
+    schedule: "0 5 * * *"
+    activeDeadlineSeconds: 3600
+    concurrencyPolicy: Forbid
+    rclone:
+      operation: sync
+    source:
+      type: s3
+      remoteName: ""
+      uri:
+        esoRef:
+          name: rclone-tuwunel-media-s3-path
+          key: path
+      credentials:
+        provider:
+          value: AWS
+        accessKeyId:
+          esoRef:
+            name: rclone-tuwunel-media-s3
+            key: accessKeyId
+        secretAccessKey:
+          esoRef:
+            name: rclone-tuwunel-media-s3
+            key: secretAccessKey
+        region:
+          value: us-east-1
+        endpoint:
+          value: http://seaweed-main-s3.seaweedfs:8333
+    destination:
+      type: proton-drive
+      remoteName: ""
+      uri:
+        value: /home-ops/backups/__CLUSTER_NAME__/matrix/tuwunel-media
+      credentials:
+        username:
+          esoRef:
+            name: rclone-proton-credentials
+            key: username
+        password:
+          esoRef:
+            name: rclone-proton-credentials
+            key: password
+---
+# mautrix-discord CNPG WAL+base prefix (05:30) -> Proton Drive offsite.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: rclone-sync-mautrix-discord-db
+spec:
+  interval: 1h
+  releaseName: rclone-sync-mautrix-discord-db
+  serviceAccountName: flux
+  chartRef:
+    kind: OCIRepository
+    name: helm-rclone-sync-chart
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-rclone-sync
+  values:
+    schedule: "30 5 * * *"
+    activeDeadlineSeconds: 3600
+    concurrencyPolicy: Forbid
+    rclone:
+      operation: sync
+    source:
+      type: s3
+      remoteName: ""
+      uri:
+        esoRef:
+          name: rclone-mautrix-discord-db-s3-path
+          key: path
+      credentials:
+        provider:
+          value: AWS
+        accessKeyId:
+          esoRef:
+            name: rclone-mautrix-discord-db-s3
+            key: accessKeyId
+        secretAccessKey:
+          esoRef:
+            name: rclone-mautrix-discord-db-s3
+            key: secretAccessKey
+        region:
+          value: us-east-1
+        endpoint:
+          value: http://seaweed-main-s3.seaweedfs:8333
+    destination:
+      type: proton-drive
+      remoteName: ""
+      uri:
+        value: /home-ops/backups/__CLUSTER_NAME__/matrix/mautrix-discord-db
+      credentials:
+        username:
+          esoRef:
+            name: rclone-proton-credentials
+            key: username
+        password:
+          esoRef:
+            name: rclone-proton-credentials
+            key: password

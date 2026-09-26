@@ -16,7 +16,7 @@ rules:
   - apiGroups: [""]
     resources: ["secrets"]
     resourceNames: ["zitadel-bootstrap-credentials", "zitadel-bootstrap-outputs"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["get"] # read-only: single-key remoteRef reads (name-pinned by resourceNames above)
   - apiGroups: ["authorization.k8s.io"]
     resources: ["selfsubjectrulesreviews"]
     verbs: ["create"]

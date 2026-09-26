@@ -28,8 +28,13 @@ resources:
   - element-web.yaml
   - element-web-hpa.yaml
   - element-web-vpa.yaml
+  - element-web-pdb.yaml
   - element-httproute.yaml
   - element-proxy.yaml
+  # PVC + S3 offsite legs for the two file-based singletons (bare-minimum backup
+  # leg: periodic copy to the in-cluster SeaweedFS S3 bucket, then rclone offsite
+  # with the CNPG WAL+base prefixes).
+  - rclone-sync-matrix.yaml
   # Bot bootstrap Job + kept Secret (rooms varsFrom + apprise ES read directly, same namespace).
   - matrix-bot-bootstrap.yaml
   # Live room provisioning (one Terraform CR per ops room; team room stays example-only).

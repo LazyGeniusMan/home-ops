@@ -51,10 +51,22 @@ image bump.
 
 Headlamp forwards the user's OIDC token (no claims-mapping knob), so the
 mapping is explicit bindings in `base/headlamp-rbac.yaml` against the
-`groups` claim: `admin` group → `cluster-admin` (`headlamp-admins`);
-`users` group → `view` + `headlamp-basic` (self-review + namespace list so the
-UI enumerates contexts). Subject names must match the API server's OIDC
-userClaim/groupsClaim.
+`groups` claim: `admin` group → `cluster-admin` (`headlamp-admins`,
+ACCEPTED RISK — scoped to the two Zitadel groups, UI gated by native OIDC
+with no anonymous path; trim to a narrower ClusterRole once the admin
+workflow allows it); `users` group → `view` + `headlamp-basic`
+(self-review + namespace list so the UI enumerates contexts). Subject names
+must match the API server's OIDC userClaim/groupsClaim.
+
+## Secret rotation
+
+`headlamp-oidc` refreshes hourly via ESO; the HelmRelease carries
+`podAnnotations: reloader.stakater.com/auto: "true"` (infra reloader rolls
+pods on rotation — safe no-op until it exists).
+
+## Singleton vs HPA
+
+HPA-scaled (`headlamp`): PDB `minAvailable: 1`, VPA Off (recommender-only).
 
 ## Routing / TLS
 

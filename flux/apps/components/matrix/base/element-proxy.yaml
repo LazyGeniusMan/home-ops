@@ -8,6 +8,8 @@
 # no backendConfig. Outputs land in `element-proxy-outputs`.
 # POSITIONAL: overlays patch /spec/vars/0 (domain), /spec/vars/2 (network_name),
 # /spec/vars/3 (service_lb_ip) by index — keep this order.
+# NAME-KEYED: overlay patches target kind: Terraform + name: element-proxy
+# (never bare kind-only) so sibling CRs can never cross-patch.
 # cloudflare_zone_id absent = DNS self-managed (root skips the verification CNAME).
 # First apply leaves the domain Pending Verification — dashboard Verify within 48h.
 ---

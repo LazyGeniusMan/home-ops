@@ -41,6 +41,10 @@ spec:
       retryInterval: 5m
   # https://github.com/kubernetes-sigs/headlamp/tree/main/charts/headlamp
   values:
+    # ESO rotates headlamp-oidc hourly; reloader rolls the pods so the new
+    # client mount takes effect (infra reloader component).
+    podAnnotations:
+      reloader.stakater.com/auto: "true"
     # Chart has no autoscaling knob — static replicas stay at the env min;
     # base/headlamp-hpa.yaml scales via overlays.
     replicaCount: 1 # placeholder - overridden by dev/prd

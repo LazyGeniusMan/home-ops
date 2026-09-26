@@ -10,6 +10,13 @@ patches:
         value: headlamp.home-ops.yansyah.my.id
     target:
       kind: HTTPRoute
+      name: headlamp-redirect
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: headlamp.home-ops.yansyah.my.id
+    target:
+      kind: HTTPRoute
       name: headlamp
   # No OIDC vault patch: client creds flow from the sso outputs Secret via the
   # in-cluster SecretStore. Prd OIDC issuer.

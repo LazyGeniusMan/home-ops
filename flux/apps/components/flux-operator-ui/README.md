@@ -49,6 +49,7 @@ Flux never manages user RBAC here.
 | Secrets (ESO) | `oauth2-proxy-oidc` syncs client-id + client-secret from `flux-operator-ui-sso-outputs` via the in-cluster `flux-operator-ui-k8s` SecretStore (no pass:// seeding for OIDC creds); `oauth2-proxy-cookie` syncs the cookie-secret from `pass://acme-<env>-bdo1-talos-apps-01/flux-operator-ui/oauth2-proxy-cookie-secret` |
 | Upstream | `http://flux-operator-ui.<ns>.svc:9080` (namespace-agnostic via `POD_NAMESPACE` env) |
 | Callback | `https://flux-operator.home-ops.yansyah.my.id/oauth2/callback` (covered by the shared wildcard redirect) |
+| Cookie name | `_oauth2_proxy_flux_operator_ui` (per-instance — shares the base-domain scope with clickstack/hubble-ui) |
 
 ## Routing
 
@@ -77,5 +78,18 @@ Changelog: https://github.com/controlplaneio-fluxcd/flux-operator/releases.
 | `prd` | UI chart default 1, oauth2-proxy 1 (singleton in every env) | hostnames, vault refs, proxy args |
 
 oauth2-proxy stays a singleton (1) in every env — never scale it.
+
+## Secret rotation
+
+The `oauth2-proxy-oidc` + `oauth2-proxy-cookie` ExternalSecrets refresh hourly
+via ESO; the oauth2-proxy HelmRelease carries `podAnnotations:
+reloader.stakater.com/auto: "true"` (infra reloader rolls the Deployment on
+rotation — safe no-op until it exists).
+
+## Singleton vs HPA
+
+HPA-scaled (`flux-operator-ui`): PDB `minAvailable: 1`, VPA Off
+(recommender-only). Singleton (`oauth2-proxy`): no PDB by design (cannot
+protect 1 replica); scale-up is a documented future step, not this change.
 
 Upstream reference (read-only): `/tmp/home-ops-docs/flux-operator-docs/docs/web`.

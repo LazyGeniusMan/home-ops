@@ -64,11 +64,18 @@ spec:
       email-domain: "*"
       scope: openid profile email groups
       cookie-domain: .__BASE_DOMAIN__
+      # Per-instance cookie name: shares the base-domain cookie scope with
+      # clickstack/flux-operator-ui — distinct names stop session clobber.
+      cookie-name: _oauth2_proxy_hubble_ui
       cookie-secure: "true"
       cookie-samesite: lax
       reverse-proxy: "true"
       skip-provider-button: "true"
       redirect-url: https://__SERVICE_HOST__/oauth2/callback
+    podAnnotations:
+      # ESO rotates the oauth2-proxy Secret hourly; reloader rolls the chart
+      # Deployment so new pods mount fresh creds (infra reloader component).
+      reloader.stakater.com/auto: "true"
     extraEnv:
       - name: OAUTH2_PROXY_CLIENT_ID
         valueFrom:

@@ -37,6 +37,7 @@ upstreams to `http://hubble-ui.hubble-ui.svc:80`:
 | Client | `hubble` (secret via ESO, never Git) |
 | Redirect | `https://hubble.home-ops.yansyah.my.id/oauth2/callback` (covered by `https://*/oauth2/callback`) |
 | Cookie domain | `.home-ops.yansyah.my.id` (secure, samesite=lax) |
+| Cookie name | `_oauth2_proxy_hubble_ui` (per-instance — shares the base-domain scope with clickstack/flux-operator-ui) |
 | Scopes | `openid profile email groups` |
 | Gate | `allowed-group=hubble-ui-admin` |
 | Flags | `reverse-proxy=true`, `skip-provider-button=true` |
@@ -71,5 +72,18 @@ at the Gateway via the in-namespace wildcard `Certificate`
 | `prd` | hubble-ui 2, oauth2-proxy 1 (singleton in every env) | hostnames, vault refs, proxy values + hubble-ui `replicas` → 2 |
 
 oauth2-proxy stays a singleton (1) in every env — never scale it.
+
+## Secret rotation
+
+The `oauth2-proxy` ExternalSecret refreshes hourly via ESO; the HelmRelease
+carries `podAnnotations: reloader.stakater.com/auto: "true"` and the
+`hubble-ui` Deployment carries the pod-template annotation (infra reloader
+rolls both on rotation — safe no-op until it exists).
+
+## Singleton vs HPA
+
+HPA-scaled (`hubble-ui`): PDB `minAvailable: 1`, VPA Off (recommender-only).
+Singleton (`oauth2-proxy`): no PDB by design (cannot protect 1 replica);
+scale-up is a documented future step, not this change.
 
 Upstream reference (read-only): `/tmp/home-ops-docs/cilium-docs`.

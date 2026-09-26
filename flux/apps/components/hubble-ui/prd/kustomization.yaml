@@ -10,6 +10,13 @@ patches:
         value: hubble.home-ops.yansyah.my.id
     target:
       kind: HTTPRoute
+      name: hubble-redirect
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: hubble.home-ops.yansyah.my.id
+    target:
+      kind: HTTPRoute
       name: hubble
   # No OIDC vault patch: client creds + cookie flow from the sso outputs Secret
   # via the in-cluster SecretStore.

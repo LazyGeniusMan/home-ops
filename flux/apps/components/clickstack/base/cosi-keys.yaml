@@ -19,6 +19,8 @@ metadata:
   labels:
     app.kubernetes.io/name: clickstack
     app.kubernetes.io/part-of: clickstack
+# ESO kubernetes provider watches Secrets through this SA (list/watch feed
+# the informer; get serves single-key reads).
 rules:
   - apiGroups: [""]
     resources: ["secrets"]

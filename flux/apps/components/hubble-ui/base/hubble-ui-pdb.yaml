@@ -1,0 +1,17 @@
+# PodDisruptionBudget for hubble-ui (HPA-scaled): minAvailable 1 keeps the UI
+# serving during voluntary disruptions. The oauth2-proxy front stays a
+# singleton by design — no PDB (cannot protect 1 replica; scale-up is a
+# documented future step).
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: hubble-ui
+  labels:
+    app.kubernetes.io/name: hubble-ui
+    app.kubernetes.io/part-of: hubble-ui
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hubble-ui

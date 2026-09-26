@@ -138,6 +138,7 @@ patches:
       name: coder-wildcard
   # Dev Coder URLs, OIDC issuer, mail domain, sign-in text (positional env
   # indices — keep order).
+  # NOTE: /env/10 is CODER_DISABLE_PASSWORD_AUTH (base-owned, never patched).
   - patch: |
       - op: replace
         path: /spec/values/coder/env/0/value
@@ -152,7 +153,7 @@ patches:
         path: /spec/values/coder/env/8/value
         value: home-ops-dev.yansyah.my.id
       - op: replace
-        path: /spec/values/coder/env/10/value
+        path: /spec/values/coder/env/11/value
         value: Sign in with home-ops-dev SSO
     target:
       kind: HelmRelease

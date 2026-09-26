@@ -196,6 +196,13 @@ patches:
         value: element.matrix.home-ops.yansyah.my.id
     target:
       kind: HTTPRoute
+      name: element-redirect
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: element.matrix.home-ops.yansyah.my.id
+    target:
+      kind: HTTPRoute
       name: element
   # Prd config.json: full-string replace (no-op anchor — base already carries prd hosts;
   # keeps prd explicit and gives future prd-only keys a landing patch).
@@ -281,6 +288,33 @@ patches:
     target:
       kind: HorizontalPodAutoscaler
       name: element-web
+  # Prd matrix backup identity: vault keys + destination cluster segments (base
+  # holds placeholders; one shared rclone-proton-credentials ExternalSecret
+  # covers all four releases).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/rclone/proton-username
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/rclone/proton-password
+    target:
+      kind: ExternalSecret
+      name: rclone-proton-credentials
+  - patch: |
+      - op: replace
+        path: /spec/values/destination/uri/value
+        value: /home-ops/backups/acme-prd-bdo1-talos-apps-01/matrix/tuwunel-media
+    target:
+      kind: HelmRelease
+      name: rclone-sync-tuwunel-media
+  - patch: |
+      - op: replace
+        path: /spec/values/destination/uri/value
+        value: /home-ops/backups/acme-prd-bdo1-talos-apps-01/matrix/mautrix-discord-db
+    target:
+      kind: HelmRelease
+      name: rclone-sync-mautrix-discord-db
   # ---- live room provisioning (tofu-controller; bootstrapped — no vault patch) ----
   # Prd bot identity (ONE bot per env; base holds __PLACEHOLDERS__).
   - patch: |

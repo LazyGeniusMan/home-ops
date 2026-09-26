@@ -17,6 +17,8 @@ metadata:
   labels:
     app.kubernetes.io/name: matrix
     app.kubernetes.io/part-of: matrix
+# ESO kubernetes provider watches Secrets through this SA (list/watch feed
+# the informer; get serves single-key reads).
 rules:
   - apiGroups: [""]
     resources: ["secrets"]

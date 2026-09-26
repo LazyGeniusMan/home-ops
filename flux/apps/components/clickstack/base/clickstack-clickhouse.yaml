@@ -3,7 +3,8 @@
 # empty password). Keeper reuses the shared infra `clickhouse-keeper` ensemble;
 # stand up a local CHK first if cross-namespace resolution fails.
 # `replicasCount` is a placeholder — overlays own the count.
-# Server image tracks the infra line (`infra:clickhouse-server:tag` marker).
+# Server image tracks the infra line (`infra:clickhouse-server:tag` marker —
+# reminder: bump WITH the infra clickhouse-server line, never alone).
 ---
 apiVersion: clickhouse.altinity.com/v1
 kind: ClickHouseInstallation
@@ -48,10 +49,23 @@ spec:
     podTemplates:
       - name: clickhouse-server
         spec:
+          # Spread the 2 prd replicas across nodes (singletons on 1-node dev
+          # stay schedulable: preferred, not required).
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    labelSelector:
+                      matchLabels:
+                        clickhouse.altinity.com/chi: clickstack
+                    topologyKey: kubernetes.io/hostname
           containers:
             - name: clickhouse-pod
-              # Server line owned by the infra policy (`infra:clickhouse-server:tag`),
-              # 26.8 LTS lockstep with installation-base.yaml + backup-cronjob.yaml.
+              # Server line owned by the infra policy (`infra:clickhouse-server:tag`,
+              # update-policies/clickstack.yaml carries NO clickhouse entry by
+              # design — 26.8 LTS lockstep with installation-base.yaml +
+              # backup-cronjob.yaml, hand-bumped in the same PR).
               image: clickhouse/clickhouse-server:26.8.10.6 # {"$imagepolicy": "infra:clickhouse-server:tag"}
               env:
                 - name: CLICKHOUSE_S3_ACCESS_KEY_ID

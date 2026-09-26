@@ -1,6 +1,7 @@
-# Tuwunel Matrix homeserver (federation-off; upstream ref: `/tmp/home-ops-docs/tuwunel-docs`).
+# Tuwunel Matrix homeserver (federation-off; upstream ref: `/tmp/home-ops-docs/tuwumel-docs`).
 # Singleton Deployment (replicas 1, Recreate — RocksDB single-writer) on one RWO PVC
-# (local-ssd-nvme) at /var/lib/tuwunel. Probes exec ["tuwunel", "--health-check"];
+# (local-ssd-nvme) at /var/lib/tuwunel. SSO + server_name are __PLACEHOLDERS__
+# (overlays patch real hosts; never commit per-env hosts here). Probes exec ["tuwunel", "--health-check"];
 # terminationGracePeriodSeconds 600 (migration budget). Service :8008.
 # Config is env-only (TUWUNEL_* maps 1:1 to tuwunel-example.toml keys); base holds
 # __PLACEHOLDERS__, overlays patch real hosts.
@@ -43,8 +44,17 @@ spec:
       labels:
         app.kubernetes.io/name: tuwunel
         app.kubernetes.io/part-of: tuwunel
+      annotations:
+        # ESO rotates tuwunel-sso-client + registration secret hourly; reloader
+        # rolls the singleton so new mounts take effect (infra reloader).
+        reloader.stakater.com/auto: "true"
     spec:
       terminationGracePeriodSeconds: 600
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: tuwunel
           image: ghcr.io/matrix-construct/tuwunel:v1.9.2 # {"$imagepolicy": "apps:tuwunel:tag"}
@@ -93,6 +103,9 @@ spec:
             # file mount from the vault-seeded `tuwunel-registration-secret` Secret.
             - name: TUWUNEL_REGISTRATION_SHARED_SECRET_FILE
               value: /etc/tuwunel-registration/shared-secret
+            # First-login bootstrap (see README "First-login runbook"): the FIRST
+            # SSO sign-in claims admin via this flag. Set to "false" right after
+            # the designated admin signs in (post-bootstrap step, never in git).
             - name: TUWUNEL_GRANT_ADMIN_TO_FIRST_USER
               value: "true"
             - name: TUWUNEL_CREATE_ADMIN_ROOM
@@ -181,6 +194,9 @@ spec:
             capabilities:
               drop:
                 - ALL
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
       volumes:
         - name: tuwunel-data
           persistentVolumeClaim:

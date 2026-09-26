@@ -92,6 +92,8 @@ spec:
   # (first sign-in via the Zitadel invite/reset flow — never commit passwords).
   # POSITIONAL: overlays patch /spec/vars/0 + /spec/vars/2 + /spec/vars/3 +
   # /spec/vars/4 by index — keep this order.
+  # NAME-KEYED: overlay patches target kind: Terraform + name: tuwunel-sso
+  # (never bare kind-only) so sibling CRs can never cross-patch.
   vars:
     - name: domain
       value: __ZITADEL_HOST__

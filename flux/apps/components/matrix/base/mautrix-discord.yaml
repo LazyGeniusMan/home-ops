@@ -76,7 +76,9 @@ data:
         custom_emoji_reactions: true
         delete_portal_on_channel_delete: false
         delete_guild_on_leave: true
-        federate_rooms: true
+        # Federation stays off (tuwunel ALLOW_FEDERATION=false): bridged rooms
+        # must not federate.
+        federate_rooms: false
         prefix_webhook_messages: true
         enable_webhook_avatars: false
         use_discord_cdn_upload: true
@@ -249,12 +251,19 @@ spec:
       labels:
         app.kubernetes.io/name: mautrix-discord
         app.kubernetes.io/part-of: mautrix-discord
+      annotations:
+        # ESO rotates the mautrix-discord secrets hourly; reloader rolls the
+        # singleton so new mounts take effect (infra reloader component).
+        reloader.stakater.com/auto: "true"
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1337
         runAsGroup: 1337
         fsGroup: 1337
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: bridge
           # Pinned; no $imagepolicy (dock.mau.dev upstream — manual bumps).
@@ -348,6 +357,9 @@ spec:
             capabilities:
               drop:
                 - ALL
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
       volumes:
         - name: data
           persistentVolumeClaim:

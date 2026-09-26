@@ -64,10 +64,17 @@ spec:
       oidc-groups-claim: groups
       allowed-group: flux-operator-ui-admin
       email-domain: "*"
+      # Per-instance cookie name: shares the base-domain cookie scope with
+      # clickstack/hubble-ui — distinct names stop session clobber.
+      cookie-name: _oauth2_proxy_flux_operator_ui
       cookie-secure: "true"
       cookie-samesite: lax
       reverse-proxy: "true"
       session-store-type: cookie
+    podAnnotations:
+      # ESO rotates the oauth2-proxy-credentials Secret hourly; reloader rolls
+      # the chart Deployment so new pods mount fresh creds (infra reloader).
+      reloader.stakater.com/auto: "true"
     extraEnv:
       - name: POD_NAMESPACE
         valueFrom:

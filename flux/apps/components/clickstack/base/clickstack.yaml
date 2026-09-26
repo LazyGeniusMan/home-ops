@@ -26,7 +26,16 @@ spec:
       labels:
         app.kubernetes.io/name: clickstack
         app.kubernetes.io/part-of: clickstack
+      annotations:
+        # ESO rotates clickstack-hyperdx + clickhouse-s3-backup hourly;
+        # reloader rolls the pods so new mounts take effect (infra reloader).
+        reloader.stakater.com/auto: "true"
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: hyperdx
           image: docker.hyperdx.io/hyperdx/hyperdx:v2.7.1 # {"$imagepolicy": "apps:hyperdx:tag"}
@@ -115,6 +124,9 @@ spec:
             capabilities:
               drop:
                 - ALL
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
 ---
 apiVersion: v1
 kind: Service
@@ -155,7 +167,16 @@ spec:
       labels:
         app.kubernetes.io/name: clickstack-otel-collector
         app.kubernetes.io/part-of: clickstack
+      annotations:
+        # ESO rotates clickstack-hyperdx hourly; reloader rolls the pod so the
+        # new API-key mount takes effect (infra reloader component).
+        reloader.stakater.com/auto: "true"
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: otel-collector
           image: docker.hyperdx.io/hyperdx/hyperdx-otel-collector:v2.7.1 # {"$imagepolicy": "apps:hyperdx-otel-collector:tag"}
@@ -235,6 +256,9 @@ spec:
             capabilities:
               drop:
                 - ALL
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
 ---
 apiVersion: v1
 kind: Service

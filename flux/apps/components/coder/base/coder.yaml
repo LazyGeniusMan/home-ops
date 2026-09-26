@@ -19,6 +19,9 @@ spec:
     operation: copy
   ref:
     tag: 2.37.3 # {"$imagepolicy": "apps:coder-chart:tag"}
+  # No `verify:` block: upstream publishes the chart OCI artifact unsigned
+  # (no cosign signature to check against). The app image line below carries
+  # the same lockstep tag; both move together via update-policies/coder.yaml.
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -41,6 +44,10 @@ spec:
       retryInterval: 5m
   values:
     coder:
+      # ESO rotates coder-oidc + matrix-notify hourly; reloader rolls coderd
+      # so new mounts take effect (infra reloader component).
+      podAnnotations:
+        reloader.stakater.com/auto: "true"
       replicaCount: 1 # placeholder - overridden by dev/prd
       image:
         repo: ghcr.io/coder/coder
@@ -97,6 +104,11 @@ spec:
         # (`groups` claim needs no groupField override — upstream default applies).
         - name: CODER_OIDC_ALLOWED_GROUPS
           value: coder-admin,coder-user
+        # Password-auth kill switch (see README "First-login runbook"): flip to
+        # "true" right after the first OIDC login succeeds so OIDC is the only
+        # sign-in path. Left "false" in base to avoid lockout on fresh installs.
+        - name: CODER_DISABLE_PASSWORD_AUTH
+          value: "false"
         - name: CODER_OIDC_SIGN_IN_TEXT
           value: __SSO_SIGN_IN_TEXT__
         # Notifications: single global webhook into the infra apprise-go-api sink

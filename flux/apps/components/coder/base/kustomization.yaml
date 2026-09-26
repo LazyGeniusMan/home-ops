@@ -10,6 +10,7 @@ resources:
   - coder.yaml
   - coder-hpa.yaml
   - coder-vpa.yaml
+  - coder-pdb.yaml
   - rclone-sync-coder-db.yaml
   - terraform.yaml
   - zitadel-handoff-rbac.yaml

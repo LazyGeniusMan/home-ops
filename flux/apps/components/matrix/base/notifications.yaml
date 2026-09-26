@@ -1,6 +1,12 @@
 # Flux notification wiring: every Flux-native event source emits via the infra
 # apprise-go-api sink into per-purpose Matrix rooms. Full contract: base/NOTIFICATIONS.md.
 # Provider type generic (NOT generic-hmac — apprise-go-api has no HMAC path).
+# ACCEPTED RISK: the sink accepts unauthenticated in-cluster POSTs (no HMAC
+# path upstream). Containment is the default-deny posture of the mesh: only
+# notification-controller (Flux Providers/Alerts) + coderd (CODER_*
+# webhook env) ever dial the sink Service; no other workload holds its DNS
+# name. Track upstream for an HMAC/signing option
+# (projects/apprise-go-api) and flip the Provider type when it lands.
 # Providers post to http://apprise-go-api.apprise-go-api.svc:80/notify (infra tenant);
 # credentials ride the APPRISE_STATELESS_URLS fallback, not this address.
 # `?:message=body&:reason=title` remap, `format=text`, pinned `type=`, `tag=` selects

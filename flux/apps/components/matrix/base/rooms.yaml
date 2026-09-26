@@ -11,6 +11,8 @@
 # Prerequisite: the bootstrap Job ran per env; without the kept Secret the CRs retry.
 # POSITIONAL: overlays patch /spec/vars/8 (members) + /spec/vars/9 (power_levels) by
 # index in EACH CR — keep this var order.
+# NAME-KEYED: overlay patches target kind: Terraform + name: <room> (never bare
+# kind-only) so the five CRs in this tenant can never cross-patch.
 ---
 # Room auth: kept Secret via same-namespace varsFrom; no ESO hop.
 ---

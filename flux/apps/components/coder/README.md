@@ -18,7 +18,7 @@ Coder speaks OIDC natively. SSO is owned by this app: the `coder-sso` Terraform 
 | Scopes / domain / groups | `openid,profile,email,groups` / `home-ops.yansyah.my.id` / `coder-admin,coder-user` (`CODER_OIDC_ALLOWED_GROUPS`) |
 | Identity map | `admin@…` → `admin`/`coder-admin`; `git@yansyah.my.id`, `git@lazygeniusman.my.id` → `git`/`coder-user` |
 
-`coder-admin` is project-scoped — never implies org admin. First OIDC login claims instance ownership — perform it as `admin@home-ops.yansyah.my.id` first. Both `git@…` addresses share the email prefix `git`, so username derivation may collide — if Coder rejects the second login, set `CODER_OIDC_USERNAME_FIELD=email`. After first login succeeds, set `CODER_DISABLE_PASSWORD_AUTH=true` so OIDC is the only sign-in path (left off in base to avoid lockout). Secret handoff (stored outputs, no vault seeding): `coder-sso` outputs `client_id` + `client_secret` into `coder-sso-outputs`; ESO `coder-oidc` consumes both via the in-cluster `coder-k8s` SecretStore. `org_id` + admin ID + provider auth mirror from the FirstInstance handoff via `coder-terraform-vars` (RBAC in `zitadel-handoff-rbac.yaml`) — no `org_id` literal in git.
+`coder-admin` is project-scoped — never implies org admin. First OIDC login claims instance ownership — perform it as `admin@home-ops.yansyah.my.id` first. Both `git@…` addresses share the email prefix `git`, so username derivation may collide — if Coder rejects the second login, set `CODER_OIDC_USERNAME_FIELD=email`. After first login succeeds, flip `CODER_DISABLE_PASSWORD_AUTH` to `"true"` (base ships `"false"` to avoid lockout; the knob is `base/coder.yaml` `/env/10`, never patched per-env) so OIDC is the only sign-in path — verified in rendered output via `kustomize build` (env order is load-bearing, see base comment). Secret handoff (stored outputs, no vault seeding): `coder-sso` outputs `client_id` + `client_secret` into `coder-sso-outputs`; ESO `coder-oidc` consumes both via the in-cluster `coder-k8s` SecretStore. `org_id` + admin ID + provider auth mirror from the FirstInstance handoff via `coder-terraform-vars` (RBAC in `zitadel-handoff-rbac.yaml`) — no `org_id` literal in git. Rotating creds (`coder-oidc`, `matrix-notify`) refresh hourly via ESO; `coder.podAnnotations` carries `reloader.stakater.com/auto: "true"` (infra reloader rolls coderd on rotation).
 
 ## Routing
 
@@ -44,7 +44,14 @@ Two in-namespace Certificates (cert-manager Secrets are namespace-local): `coder
 | `prd` | coderd `replicaCount` 2, `coder-db` Cluster 3 | vault refs, hostnames, chart values + `replicaCount` → 2, `instances` → 3 |
 
 Rclone sync (`rclone-sync-coder-db`): 1 per instance/schedule,
-`concurrencyPolicy: Forbid` — no scaling.
+`concurrencyPolicy: Forbid`, `activeDeadlineSeconds: 3600` — no scaling.
+
+## Singleton vs HPA
+
+HPA-scaled (`coderd`): PDB `minAvailable: 1`, VPA Off (recommender-only).
+Singleton-adjacent (`coder-db` CNPG 1 dev / 3 prd): CNPG-owned quorum, no PDB;
+dev `instances: 1` with `synchronous.number: 1` never stalls (`standbyNames:
+["*"]` tolerates zero standbys).
 
 Upstream reference (read-only): `/tmp/home-ops-docs/coder-docs`.
 

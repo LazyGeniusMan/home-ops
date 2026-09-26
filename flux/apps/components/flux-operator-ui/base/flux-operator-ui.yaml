@@ -18,6 +18,9 @@ spec:
     operation: copy
   ref:
     tag: 0.60.0 # {"$imagepolicy": "apps:flux-operator-ui:tag"}
+  # No `verify:` block: upstream publishes the chart OCI artifact unsigned
+  # (no cosign signature to check against). Tracks the operator release line
+  # in lockstep with `operator_chart_version` (fleet versions.yaml).
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease

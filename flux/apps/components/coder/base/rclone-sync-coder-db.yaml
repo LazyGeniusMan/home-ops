@@ -82,7 +82,7 @@ spec:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
   # Tag MUST equal Chart.yaml `version` in projects/helm-rclone-sync (bump
-  # Chart.yaml + all six consumers together; no $imagepolicy marker — Helm
+  # Chart.yaml + all seven consumers together; no $imagepolicy marker — Helm
   # OCIRepositories are untracked by image automation).
   ref:
     tag: "0.1.0"
@@ -109,6 +109,7 @@ spec:
   # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-rclone-sync
   values:
     schedule: "15 3 * * *"
+    activeDeadlineSeconds: 3600
     concurrencyPolicy: Forbid
     rclone:
       operation: sync

@@ -21,5 +21,6 @@ resources:
   - oauth2-proxy.yaml
   - clickstack-hpa.yaml
   - clickstack-vpa.yaml
+  - clickstack-pdb.yaml
   - rclone-sync-buckets.yaml
   - terraform.yaml

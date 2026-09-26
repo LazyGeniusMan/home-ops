@@ -4,6 +4,10 @@
 # (entrypoint copies it to the nginx-served staging dir), Service :80.
 # Stateless nginx static server — horizontal scaling safe; HPA owns runtime count
 # (base replicas: 1 is the create-time seed). Image bumps via update-policies/element-web.yaml.
+# TEMPLATIZED: base carries prd hostnames as the render default; dev overlays
+# replace the full config.json string (opaque value — sub-paths not
+# addressable); prd overlays carry a no-op anchor patch so future prd-only
+# keys have a landing patch.
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -73,7 +77,16 @@ spec:
       labels:
         app.kubernetes.io/name: element-web
         app.kubernetes.io/part-of: element-web
+      annotations:
+        # ConfigMap-driven SPA: reloader rolls pods when element-config
+        # changes so overlay config.json edits take effect (infra reloader).
+        reloader.stakater.com/auto: "true"
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: element
           image: vectorim/element-web:v1.12.29 # {"$imagepolicy": "apps:element-web:tag"}
@@ -109,6 +122,9 @@ spec:
             capabilities:
               drop:
                 - ALL
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
       volumes:
         - name: config-volume
           configMap:

@@ -1,0 +1,15 @@
+# PodDisruptionBudget for coderd (HPA-scaled): minAvailable 1 keeps the
+# dashboard serving during voluntary disruptions (HPA mins: dev 1 / prd 2).
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: coder
+  labels:
+    app.kubernetes.io/name: coder
+    app.kubernetes.io/part-of: coder
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coder

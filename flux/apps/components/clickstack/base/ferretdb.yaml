@@ -22,7 +22,16 @@ spec:
       labels:
         app.kubernetes.io/name: ferretdb
         app.kubernetes.io/part-of: clickstack
+      annotations:
+        # ESO rotates ferretdb-app-secret hourly; reloader rolls the pod so
+        # the new password mount takes effect (infra reloader component).
+        reloader.stakater.com/auto: "true"
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: ferretdb
           image: ghcr.io/ferretdb/ferretdb:2.7.0 # {"$imagepolicy": "apps:ferretdb:tag"}
@@ -75,6 +84,9 @@ spec:
             capabilities:
               drop:
                 - ALL
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
 ---
 apiVersion: v1
 kind: Service

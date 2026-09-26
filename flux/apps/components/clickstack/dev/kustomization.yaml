@@ -96,6 +96,13 @@ patches:
         value: clickstack.home-ops-dev.yansyah.my.id
     target:
       kind: HTTPRoute
+      name: clickstack-redirect
+  - patch: |
+      - op: replace
+        path: /spec/hostnames/0
+        value: clickstack.home-ops-dev.yansyah.my.id
+    target:
+      kind: HTTPRoute
       name: clickstack
   # Dev wildcard Certificate (placeholder -> dev values).
   - patch: |

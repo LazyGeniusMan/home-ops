@@ -1,0 +1,15 @@
+# PodDisruptionBudget for headlamp (HPA-scaled): minAvailable 1 keeps the UI
+# serving during voluntary disruptions (HPA mins: dev 1 / prd 2).
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: headlamp
+  labels:
+    app.kubernetes.io/name: headlamp
+    app.kubernetes.io/part-of: headlamp
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: headlamp

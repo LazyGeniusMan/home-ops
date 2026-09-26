@@ -103,8 +103,16 @@ spec:
       labels:
         app.kubernetes.io/name: hubble-ui
         app.kubernetes.io/part-of: hubble-ui
+      annotations:
+        # ESO rotates the oauth2-proxy Secret hourly; reloader rolls the pods
+        # so new mounts take effect (infra reloader component).
+        reloader.stakater.com/auto: "true"
     spec:
       serviceAccountName: hubble-ui
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: frontend
           image: quay.io/cilium/hubble-ui:v0.13.6 # {"$imagepolicy": "apps:hubble-ui:tag"}
@@ -138,6 +146,9 @@ spec:
             capabilities:
               drop:
                 - ALL
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
         - name: backend
           image: quay.io/cilium/hubble-ui-backend:v0.13.6 # {"$imagepolicy": "apps:hubble-ui-backend:tag"}
           imagePullPolicy: IfNotPresent
@@ -169,6 +180,9 @@ spec:
             capabilities:
               drop:
                 - ALL
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
       volumes:
         - name: hubble-ui-nginx-conf
           configMap:

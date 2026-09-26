@@ -8,5 +8,6 @@ resources:
   - headlamp.yaml
   - headlamp-hpa.yaml
   - headlamp-vpa.yaml
+  - headlamp-pdb.yaml
   - terraform.yaml
   - zitadel-handoff-rbac.yaml
