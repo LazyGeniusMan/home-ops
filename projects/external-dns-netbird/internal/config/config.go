@@ -35,6 +35,9 @@ type Config struct {
 	DefaultTTL int64
 	// LogLevel is the slog level name (LOG_LEVEL).
 	LogLevel string
+	// AutoCreate gates NetBird zone auto-creation (NETBIRD_AUTO_CREATE,
+	// default true; false turns missing zones into permanent errors).
+	AutoCreate bool
 }
 
 // Load reads configuration from the environment and returns an error if
@@ -47,6 +50,7 @@ func Load() (Config, error) {
 		MetricsAddr: envOr("METRICS_ADDR", defaultMetricsAddr),
 		LogLevel:    envOr("LOG_LEVEL", defaultLogLevel),
 		DefaultTTL:  defaultTTL,
+		AutoCreate:  envBool("NETBIRD_AUTO_CREATE", true),
 	}
 	if cfg.PATFile == "" {
 		return Config{}, fmt.Errorf("config: NETBIRD_PAT_FILE must be set to a file holding the NetBird personal access token")
@@ -79,6 +83,15 @@ func Load() (Config, error) {
 func envOr(key, fallback string) string {
 	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
 		return v
+	}
+	return fallback
+}
+
+func envBool(key string, fallback bool) bool {
+	if raw := strings.TrimSpace(os.Getenv(key)); raw != "" {
+		if v, err := strconv.ParseBool(raw); err == nil {
+			return v
+		}
 	}
 	return fallback
 }

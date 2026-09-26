@@ -66,10 +66,18 @@ func run() error {
 	prov := provider.New(client, logger)
 	srv := server.New(prov, logger)
 
+	// Timeouts mirror the external-dns-netbird webhook listener: header
+	// reads capped at 10s, full reads at 30s, writes at 60s, idle at
+	// 120s, 1 MiB header cap. The POST /get body has its own 64 KiB
+	// MaxBytesReader bound in the handler.
 	httpServer := &http.Server{
 		Addr:              cfg.ListenAddr,
 		Handler:           srv.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 20,
 	}
 
 	errCh := make(chan error, 1)

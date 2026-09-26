@@ -6,6 +6,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -73,7 +74,8 @@ var registerDefaultCollectorsOnce sync.Once
 // safe when the default registry already carries the collector.
 func registerCollector(c prometheus.Collector) {
 	if err := prometheus.Register(c); err != nil {
-		if _, ok := err.(prometheus.AlreadyRegisteredError); !ok {
+		var already prometheus.AlreadyRegisteredError
+		if !errors.As(err, &already) {
 			panic(err)
 		}
 	}
@@ -84,8 +86,9 @@ func registerCollector(c prometheus.Collector) {
 // process (e.g. one Server per test) so every Server's metrics stay live.
 func registerOrReuseVec(c *prometheus.CounterVec) *prometheus.CounterVec {
 	if err := prometheus.Register(c); err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-			if existing, ok := are.ExistingCollector.(*prometheus.CounterVec); ok {
+		var already prometheus.AlreadyRegisteredError
+		if errors.As(err, &already) {
+			if existing, ok := already.ExistingCollector.(*prometheus.CounterVec); ok {
 				return existing
 			}
 		}
@@ -97,8 +100,9 @@ func registerOrReuseVec(c *prometheus.CounterVec) *prometheus.CounterVec {
 // registerOrReuseHist registers c like registerOrReuseVec for histograms.
 func registerOrReuseHist(c *prometheus.HistogramVec) *prometheus.HistogramVec {
 	if err := prometheus.Register(c); err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-			if existing, ok := are.ExistingCollector.(*prometheus.HistogramVec); ok {
+		var already prometheus.AlreadyRegisteredError
+		if errors.As(err, &already) {
+			if existing, ok := already.ExistingCollector.(*prometheus.HistogramVec); ok {
 				return existing
 			}
 		}
@@ -110,8 +114,9 @@ func registerOrReuseHist(c *prometheus.HistogramVec) *prometheus.HistogramVec {
 // registerOrReuseGauge registers c like registerOrReuseVec for gauges.
 func registerOrReuseGauge(c prometheus.Gauge) prometheus.Gauge {
 	if err := prometheus.Register(c); err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-			if existing, ok := are.ExistingCollector.(prometheus.Gauge); ok {
+		var already prometheus.AlreadyRegisteredError
+		if errors.As(err, &already) {
+			if existing, ok := already.ExistingCollector.(prometheus.Gauge); ok {
 				return existing
 			}
 		}
@@ -123,8 +128,9 @@ func registerOrReuseGauge(c prometheus.Gauge) prometheus.Gauge {
 // registerOrReuseGaugeVec registers c like registerOrReuseVec for gauge vecs.
 func registerOrReuseGaugeVec(c *prometheus.GaugeVec) *prometheus.GaugeVec {
 	if err := prometheus.Register(c); err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-			if existing, ok := are.ExistingCollector.(*prometheus.GaugeVec); ok {
+		var already prometheus.AlreadyRegisteredError
+		if errors.As(err, &already) {
+			if existing, ok := already.ExistingCollector.(*prometheus.GaugeVec); ok {
 				return existing
 			}
 		}
@@ -286,8 +292,13 @@ type getPostBody struct {
 	} `json:"remoteRef"`
 }
 
+// maxGetPostBytes caps the POST /get JSON body (keys are short
+// pass:// URIs; anything larger is a client error).
+const maxGetPostBytes = 64 << 10
+
 // handleGetPost serves POST /get with {"remoteRef": {"key": ...}}.
 func (s *Server) handleGetPost(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxGetPostBytes)
 	var body getPostBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		s.writeError(w, r, errBadRequest)

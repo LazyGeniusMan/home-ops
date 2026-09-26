@@ -1,6 +1,7 @@
 package attach
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -67,6 +68,7 @@ func NewStager(lim Limits) *Stager {
 	if timeout <= 0 {
 		timeout = defaultFetchTimeout
 	}
+	lim.FetchTimeout = timeout
 	policy := NewPolicy(allow, lim.RejectURL)
 	client := &http.Client{
 		Timeout: timeout,
@@ -325,8 +327,12 @@ func (s *Stager) stageStream(name, mimeType string, r io.Reader, maxBytes int64)
 	if dir == "" {
 		dir = os.TempDir()
 	}
-	if err := os.MkdirAll(dir, 0o750); err != nil {
-		return Staged{}, BadAttachment("could not create directory %s", dir)
+	// Never create the staging dir on the request path: auto-creating a
+	// missing dir could mask a misconfigured mount or, worse, stage into
+	// an unintended location. The operator (or /readyz probe wiring) owns
+	// the dir; requests only fail with a 400 when it is absent.
+	if st, err := os.Stat(dir); err != nil || !st.IsDir() {
+		return Staged{}, BadAttachment("could not prepare %s attachment in %s", name, dir)
 	}
 	f, err := os.CreateTemp(dir, "apprise-attach-*")
 	if err != nil {
@@ -352,7 +358,11 @@ func (s *Stager) stageStream(name, mimeType string, r io.Reader, maxBytes int64)
 // fetch downloads a remote attachment after an early Content-Length
 // fast-fail. Non-2xx statuses and network errors are FetchFailed (400).
 func (s *Stager) fetch(rawURL, name string, maxBytes int64) (io.ReadCloser, string, error) {
-	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
+	// Context-bound (fetch timeout doubles as the request timeout) so a
+	// hung attachment host cannot wedge a worker.
+	ctx, cancel := context.WithTimeout(context.Background(), s.limits.FetchTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, "", FetchFailed(rawURL, err)
 	}

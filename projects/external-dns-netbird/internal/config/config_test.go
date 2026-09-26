@@ -17,7 +17,7 @@ func writePAT(t *testing.T, content string) string {
 
 func clearEnv(t *testing.T) {
 	t.Helper()
-	for _, k := range []string{"NETBIRD_PAT_FILE", "NETBIRD_BASE_URL", "DOMAIN_FILTER", "WEBHOOK_ADDR", "METRICS_ADDR", "DEFAULT_TTL", "LOG_LEVEL"} {
+	for _, k := range []string{"NETBIRD_PAT_FILE", "NETBIRD_BASE_URL", "DOMAIN_FILTER", "WEBHOOK_ADDR", "METRICS_ADDR", "DEFAULT_TTL", "LOG_LEVEL", "NETBIRD_AUTO_CREATE"} {
 		t.Setenv(k, "")
 		_ = os.Unsetenv(k)
 	}
@@ -41,6 +41,9 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if cfg.DefaultTTL != 300 || cfg.LogLevel != "info" {
 		t.Errorf("unexpected defaults: %+v", cfg)
+	}
+	if !cfg.AutoCreate {
+		t.Errorf("AutoCreate = false, want true default")
 	}
 }
 

@@ -19,6 +19,7 @@ Public API calls plus the local webhook, health, and metrics listeners.
 | `METRICS_ADDR`     | no       | `:8080`             | Listen address for `/healthz`, `/readyz`, `/version`, and `/metrics` |
 | `DEFAULT_TTL`      | no       | `300`               | TTL applied to endpoints without an explicit TTL         |
 | `LOG_LEVEL`        | no       | `info`              | JSON log level (`debug`, `info`, `warn`, `error`)        |
+| `NETBIRD_AUTO_CREATE` | no | `true` | `false` turns missing zones into permanent errors instead of auto-creating them |
 
 The PAT is read from file content so it can be mounted from a Kubernetes
 secret (or ESO `SecretStore`) without ever appearing in env or args.
@@ -36,16 +37,19 @@ secret (or ESO `SecretStore`) without ever appearing in env or args.
 ## Zone auto-creation
 
 - On create/update, the provider resolves the longest-suffix NetBird zone
-  matching the endpoint name. When no zone matches, it auto-creates the
-  zone (`POST /api/dns/zones`) with the longest `DOMAIN_FILTER` entry that
-  is a suffix of the name (falling back to the immediate parent domain when
-  no filter is configured) and retries the record creation in the same
-  apply — Gateway/Service records self-heal without manual zone setup.
+  matching the endpoint name. When no zone matches and `NETBIRD_AUTO_CREATE`
+  is true (default), it auto-creates the zone (`POST /api/dns/zones`) with
+  the longest `DOMAIN_FILTER` entry that is a suffix of the name (falling
+  back to the immediate parent domain when no filter is configured) and
+  retries the record creation in the same apply — Gateway/Service records
+  self-heal without manual zone setup. With `NETBIRD_AUTO_CREATE=false`,
+  missing zones are permanent errors instead.
 - The existing zone list is re-checked before creation, so concurrent
   applies stay idempotent (no duplicate zones). Names outside
-  `DOMAIN_FILTER` are rejected with a permanent error (no zone created);
-  NetBird API failures (including `429`/`5xx`) surface as soft errors so
-  ExternalDNS retries the apply.
+  `DOMAIN_FILTER` are rejected with a permanent error (no zone created).
+  NetBird API failures map soft (transient: transport errors, `429`/`5xx`)
+  or hard (permanent: other `4xx`) via `softOrHard`, so ExternalDNS retries
+  only what can succeed.
 
 ## Endpoints
 
@@ -66,7 +70,9 @@ surface as `502` (ExternalDNS retries); permanent failures (e.g.
 `ErrNoMatchingZone`) surface as `422`. Malformed payloads are `400`.
 Anything unmapped is `500`. Handlers log the full error chain once
 server-side and return only a sanitized `{"error"}` envelope with no
-traces, tokens, or paths.
+traces, tokens, or paths. NetBird API bodies never reach the envelope:
+`APIError.Error()` is status-only; detail is available via `Detail()`
+for operator logs only.
 
 Lifecycle: `docker stop` (SIGTERM) drains both listeners gracefully
 (`signal.NotifyContext` + `http.Server.Shutdown(10s)`); logs show

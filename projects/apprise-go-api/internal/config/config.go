@@ -40,8 +40,9 @@ type Config struct {
 	// BaseURL is the public base URL of the service (APPRISE_BASE_URL).
 	BaseURL string
 	// AllowedHosts limits Host header values (ALLOWED_HOSTS, comma-separated).
+	// Empty means any host is accepted.
 	AllowedHosts []string
-	// SecretKey authenticates internal callbacks, read from SECRET_KEY_FILE (SECRET_KEY).
+	// SecretKey authenticates internal callbacks, read only from SECRET_KEY_FILE.
 	SecretKey string
 	// SecretKeyFile is the path to the file holding the secret key (SECRET_KEY_FILE).
 	SecretKeyFile string
@@ -76,6 +77,9 @@ type Config struct {
 	AttachAllowURL string
 	// AttachRejectURL is the denylist for remote attachment URLs (APPRISE_ATTACH_REJECT_URL).
 	AttachRejectURL string
+	// AttachRejectSet reports whether APPRISE_ATTACH_REJECT_URL was
+	// explicitly set (empty disables denials; unset applies the default).
+	AttachRejectSet bool
 
 	// WebhookMappingMaxDepth caps ':' remap lookup depth (APPRISE_WEBHOOK_MAPPING_MAX_DEPTH).
 	WebhookMappingMaxDepth int
@@ -120,6 +124,7 @@ func Load() (Config, error) {
 		UploadMaxMemorySizeMB:  envInt64("APPRISE_UPLOAD_MAX_MEMORY_SIZE", defaultUploadMaxMemorySize),
 		AttachAllowURL:         strings.TrimSpace(os.Getenv("APPRISE_ATTACH_ALLOW_URL")),
 		AttachRejectURL:        strings.TrimSpace(os.Getenv("APPRISE_ATTACH_REJECT_URL")),
+		AttachRejectSet:        envSet("APPRISE_ATTACH_REJECT_URL"),
 		WebhookMappingMaxDepth: envInt("APPRISE_WEBHOOK_MAPPING_MAX_DEPTH", defaultMappingMaxDepth),
 		WebhookURL:             strings.TrimSpace(os.Getenv("APPRISE_WEBHOOK_URL")),
 		PluginPaths:            strings.TrimSpace(os.Getenv("APPRISE_PLUGIN_PATHS")),
@@ -151,8 +156,6 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("config: read SECRET_KEY_FILE %q: %w", cfg.SecretKeyFile, err)
 		}
 		cfg.SecretKey = strings.TrimSpace(string(secret))
-	} else if v := strings.TrimSpace(os.Getenv("SECRET_KEY")); v != "" {
-		cfg.SecretKey = v
 	}
 	if !validLogLevel(cfg.LogLevel) {
 		return Config{}, fmt.Errorf("config: LOG_LEVEL must be one of debug, info, warn, error, got %q", cfg.LogLevel)
@@ -213,9 +216,15 @@ func (c Config) AttachAllowURLOrDefault() string {
 	return c.AttachAllowURL
 }
 
-// AttachRejectURLOrDefault returns the configured SSRF denylist; empty
-// disables denials (callers wanting the default use DefaultAttachRejectURL).
-func (c Config) AttachRejectURLOrDefault() string { return c.AttachRejectURL }
+// AttachRejectURLOrDefault returns the configured SSRF denylist. An
+// explicitly empty APPRISE_ATTACH_REJECT_URL disables denials; when the
+// variable is unset the Python-parity default applies.
+func (c Config) AttachRejectURLOrDefault() string {
+	if !c.AttachRejectSet {
+		return DefaultAttachRejectURL
+	}
+	return c.AttachRejectURL
+}
 
 func addrFromPort(port string) string {
 	port = strings.TrimSpace(port)
@@ -231,6 +240,13 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// envSet reports whether key is present in the environment (even when its
+// value is empty), so callers can tell "unset" apart from "set empty".
+func envSet(key string) bool {
+	_, ok := os.LookupEnv(key)
+	return ok
 }
 
 func envCSV(key string) []string {

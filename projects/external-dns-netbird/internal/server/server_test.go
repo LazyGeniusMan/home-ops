@@ -55,7 +55,7 @@ func testLogger() *slog.Logger {
 
 func TestNegotiate(t *testing.T) {
 	s := testServer()
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	s.handleNegotiate(rec, req)
 	if rec.Code != http.StatusOK {
@@ -75,7 +75,7 @@ func TestNegotiate(t *testing.T) {
 
 func TestRecordsHandler(t *testing.T) {
 	s := testServer()
-	req := httptest.NewRequest(http.MethodGet, "/records", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/records", nil)
 	rec := httptest.NewRecorder()
 	s.handleRecords(rec, req)
 	if rec.Code != http.StatusOK {
@@ -92,7 +92,7 @@ func TestRecordsHandler(t *testing.T) {
 
 func TestApplyChangesHandler(t *testing.T) {
 	s := testServer()
-	req := httptest.NewRequest(http.MethodPost, "/records", strings.NewReader(`{}`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/records", strings.NewReader(`{}`))
 	rec := httptest.NewRecorder()
 	s.handleApplyChanges(rec, req)
 	if rec.Code != http.StatusNoContent {
@@ -102,7 +102,7 @@ func TestApplyChangesHandler(t *testing.T) {
 
 func TestApplyChangesHandlerBadJSON(t *testing.T) {
 	s := testServer()
-	req := httptest.NewRequest(http.MethodPost, "/records", strings.NewReader(`{invalid`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/records", strings.NewReader(`{invalid`))
 	rec := httptest.NewRecorder()
 	s.handleApplyChanges(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -116,7 +116,7 @@ func TestAdjustEndpointsHandler(t *testing.T) {
 		endpoint.NewEndpoint("txt.example.com", "TXT", "hello"),
 		endpoint.NewEndpointWithTTL("WWW.EXAMPLE.COM.", "a", 0, "10.0.0.1"),
 	})
-	req := httptest.NewRequest(http.MethodPost, "/adjustendpoints", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/adjustendpoints", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
 	s.handleAdjustEndpoints(rec, req)
 	if rec.Code != http.StatusOK {
@@ -135,7 +135,7 @@ func TestOpsHandler(t *testing.T) {
 	s := testServer()
 	h := s.opsHandler()
 
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -152,7 +152,7 @@ func TestOpsHandler(t *testing.T) {
 		t.Errorf("healthz status = %q, want ok", health["status"])
 	}
 
-	req = httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {

@@ -2,6 +2,7 @@ package notify
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -73,7 +74,7 @@ func isNoTargetsErr(err error) bool {
 	if err == nil {
 		return false
 	}
-	return err == ErrNoTargets
+	return errors.Is(err, ErrNoTargets)
 }
 
 func TestAllowWinsOverDeny(t *testing.T) {

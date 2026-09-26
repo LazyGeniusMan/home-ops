@@ -49,7 +49,7 @@ func testServer(f *fakeProvider) *Server {
 func TestGetPullPath(t *testing.T) {
 	f := &fakeProvider{value: "s3cret"}
 	srv := testServer(f).Handler()
-	req := httptest.NewRequest(http.MethodGet, "/get?key=pass://vault/item/password", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/get?key=pass://vault/item/password", nil)
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -69,7 +69,7 @@ func TestGetPullPath(t *testing.T) {
 
 func TestGetMissingKey(t *testing.T) {
 	srv := testServer(&fakeProvider{value: "x"}).Handler()
-	req := httptest.NewRequest(http.MethodGet, "/get", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/get", nil)
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -79,7 +79,7 @@ func TestGetMissingKey(t *testing.T) {
 
 func TestGetNotFoundMaps404(t *testing.T) {
 	srv := testServer(&fakeProvider{err: provider.ErrNotFound}).Handler()
-	req := httptest.NewRequest(http.MethodGet, "/get?key=pass://v/i/f", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/get?key=pass://v/i/f", nil)
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusNotFound {
@@ -89,7 +89,7 @@ func TestGetNotFoundMaps404(t *testing.T) {
 
 func TestGetBackendErrorMaps502(t *testing.T) {
 	srv := testServer(&fakeProvider{err: errors.New("boom")}).Handler()
-	req := httptest.NewRequest(http.MethodGet, "/get?key=pass://v/i/f", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/get?key=pass://v/i/f", nil)
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadGateway {
@@ -167,7 +167,7 @@ func TestHandlerErrorTable(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			srv := testServer(&fakeProvider{err: tc.err}).Handler()
-			req := httptest.NewRequest(http.MethodGet, "/get?key=pass://v/i/f", nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/get?key=pass://v/i/f", nil)
 			rec := httptest.NewRecorder()
 			srv.ServeHTTP(rec, req)
 			if rec.Code != tc.wantCode {
@@ -192,7 +192,7 @@ func TestHandlerErrorTable(t *testing.T) {
 func TestGetPostJSONBody(t *testing.T) {
 	srv := testServer(&fakeProvider{value: "v"}).Handler()
 	body := strings.NewReader(`{"remoteRef": {"key": "pass://vault/item/field"}}`)
-	req := httptest.NewRequest(http.MethodPost, "/get", body)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/get", body)
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -208,7 +208,7 @@ func TestValidateHealthMetrics(t *testing.T) {
 		{http.MethodGet, "/healthz"},
 		{http.MethodGet, "/metrics"},
 	} {
-		req := httptest.NewRequest(tc.method, tc.path, nil)
+		req := httptest.NewRequestWithContext(context.Background(), tc.method, tc.path, nil)
 		rec := httptest.NewRecorder()
 		srv.ServeHTTP(rec, req)
 		if rec.Code != http.StatusOK {
@@ -222,7 +222,7 @@ func TestValidateHealthMetrics(t *testing.T) {
 func TestHealthzZeroDownstreamCalls(t *testing.T) {
 	f := &fakeProvider{value: "x"}
 	srv := testServer(f).Handler()
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", nil)
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -245,7 +245,7 @@ func TestHealthzZeroDownstreamCalls(t *testing.T) {
 func TestReadyzUpAndDown(t *testing.T) {
 	up := &fakeProvider{value: "x"}
 	h := testServer(up).Handler()
-	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -264,7 +264,7 @@ func TestReadyzUpAndDown(t *testing.T) {
 
 	down := &fakeProvider{ready: errors.New("connection refused at /run/session token=abc")}
 	h = testServer(down).Handler()
-	req = httptest.NewRequest(http.MethodGet, "/readyz", nil)
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil)
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusServiceUnavailable {
@@ -292,11 +292,11 @@ func TestMetricsExposesRuntimeSeries(t *testing.T) {
 	srv := testServer(f).Handler()
 	// Generate one observation per route so all series exist.
 	for _, path := range []string{"/get?key=pass://v/i/f", "/healthz", "/readyz"} {
-		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, path, nil)
 		rec := httptest.NewRecorder()
 		srv.ServeHTTP(rec, req)
 	}
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -322,7 +322,7 @@ func TestMetricsExposesRuntimeSeries(t *testing.T) {
 
 func TestPushReturns501(t *testing.T) {
 	srv := testServer(&fakeProvider{value: "x"}).Handler()
-	req := httptest.NewRequest(http.MethodPost, "/push", strings.NewReader(`{}`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/push", strings.NewReader(`{}`))
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusNotImplemented {

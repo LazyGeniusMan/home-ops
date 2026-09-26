@@ -3,8 +3,6 @@
 package server
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -18,9 +16,6 @@ import (
 	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/attach"
 	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/notify"
 	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/remap"
-
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
 )
 
 var (
@@ -51,7 +46,7 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse the payload by content type.
-	payload, isJSON, rawFields, err := s.decodePayload(r)
+	payload, isJSON, rawFields, err := s.decodePayload(w, r)
 	if err != nil {
 		if errors.Is(err, errPayloadTooLarge) {
 			s.log.Warn("notify: payload too large", "remote", remoteAddr(r))
@@ -74,7 +69,7 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 		fields := rawFieldsForRemap(payload, rawFields, isJSON)
 		// Any Apply error → 400 "Payload field mapping failed".
 		if err := remap.Apply(fields, rules, s.cfg.WebhookMappingMaxDepth); err != nil {
-			mapped := fmt.Errorf("%w: %v", errRemapFailed, err)
+			mapped := fmt.Errorf("%w: %w", errRemapFailed, err)
 			s.log.Warn("notify: remap apply failed", "remote", remoteAddr(r), "err", redactCredentials(mapped.Error()))
 			fail(http.StatusBadRequest, "Payload field mapping failed")
 			return
@@ -126,7 +121,7 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 		if tag != "" {
 			groups, err := notify.ParseTagExpression(tag)
 			if err != nil {
-				tagErr := fmt.Errorf("%w: %v", errInvalidTag, err)
+				tagErr := fmt.Errorf("%w: %w", errInvalidTag, err)
 				s.log.Warn("notify: invalid tag", "remote", remoteAddr(r), "err", redactCredentials(tagErr.Error()))
 				fail(http.StatusBadRequest, "Unsupported characters found in tag definition")
 				return
@@ -308,15 +303,11 @@ func respondNotify(w http.ResponseWriter, r *http.Request, status int, errMsg st
 }
 
 // fireWebhook POSTs {"source","status":0|1,"output"} to APPRISE_WEBHOOK_URL
-// (transport errors logged only; output redacted).
+// via notify.HookClient (bounded timeouts, TLS verification always on;
+// validation and transport failures logged only; output redacted).
 func fireWebhook(s *Server, r *http.Request, ok bool, sendErr error) {
-	url := strings.TrimSpace(s.cfg.WebhookURL)
-	if url == "" {
-		return
-	}
-	lower := strings.ToLower(url)
-	if !strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") {
-		s.log.Warn("notify: invalid webhook url", "remote", remoteAddr(r))
+	rawURL := strings.TrimSpace(s.cfg.WebhookURL)
+	if rawURL == "" {
 		return
 	}
 	status := 0
@@ -328,26 +319,14 @@ func fireWebhook(s *Server, r *http.Request, ok bool, sendErr error) {
 		// Redact once more so the outbound hook never carries secrets.
 		output = redactCredentials(sendErr.Error())
 	}
-	body, _ := json.Marshal(map[string]any{
-		"source": remoteAddr(r),
-		"status": status,
-		"output": output,
+	// Bounded client timeouts and always-on TLS verification come from
+	// HookClient; trace propagation rides along via the request context.
+	client := &notify.HookClient{Log: s.log}
+	client.SendHook(r.Context(), rawURL, notify.HookPayload{
+		Source: remoteAddr(r),
+		Status: status,
+		Output: output,
 	})
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		s.log.Warn("notify: webhook build failed", "err", err)
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "Apprise-API")
-	otel.GetTextMapPropagator().Inject(r.Context(), propagation.HeaderCarrier(req.Header))
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		s.log.Warn("notify: webhook delivery failed", "err", err)
-		return
-	}
-	defer func() { _ = resp.Body.Close() }()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
 }
 
 // isNoTargets reports the zero-survivors condition (message-suffix match;

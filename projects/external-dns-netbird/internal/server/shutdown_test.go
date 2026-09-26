@@ -13,13 +13,14 @@ import (
 // cancelling the Run context shuts down BOTH listeners (webhook + ops)
 // with "shutting down" + "drained" log lines, and Run returns nil.
 func TestRunDrainsBothListeners(t *testing.T) {
-	webhookLn, err := net.Listen("tcp", "127.0.0.1:0")
+	lc := &net.ListenConfig{}
+	webhookLn, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("webhook listen: %v", err)
 	}
 	webhookAddr := webhookLn.Addr().String()
 	_ = webhookLn.Close()
-	opsLn, err := net.Listen("tcp", "127.0.0.1:0")
+	opsLn, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("ops listen: %v", err)
 	}
@@ -35,12 +36,15 @@ func TestRunDrainsBothListeners(t *testing.T) {
 	waitUp := func(url string) {
 		deadline := time.Now().Add(5 * time.Second)
 		for time.Now().Before(deadline) {
-			resp, err := http.Get(url) //nolint:gosec,noctx,bodyclose
-			if err == nil {
-				_, _ = io.Copy(io.Discard, resp.Body)
-				_ = resp.Body.Close()
-				if resp.StatusCode == http.StatusOK {
-					return
+			req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+			if reqErr == nil {
+				resp, err := http.DefaultClient.Do(req)
+				if err == nil {
+					_, _ = io.Copy(io.Discard, resp.Body)
+					_ = resp.Body.Close()
+					if resp.StatusCode == http.StatusOK {
+						return
+					}
 				}
 			}
 			time.Sleep(50 * time.Millisecond)
@@ -62,7 +66,7 @@ func TestRunDrainsBothListeners(t *testing.T) {
 
 	// Both listeners must be closed: dials fail after drain.
 	for _, addr := range []string{webhookAddr, opsAddr} {
-		conn, err := net.DialTimeout("tcp", addr, time.Second)
+		conn, err := (&net.Dialer{Timeout: time.Second}).DialContext(ctx, "tcp", addr)
 		if err == nil {
 			_ = conn.Close()
 			t.Errorf("listener %s still accepting after drain", addr)

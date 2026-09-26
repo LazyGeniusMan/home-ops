@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"sigs.k8s.io/external-dns/endpoint"
@@ -39,16 +40,25 @@ type Provider struct {
 	api        API
 	filter     *endpoint.DomainFilter
 	defaultTTL int64
+	autoCreate bool
 }
 
 var _ provider.Provider = (*Provider)(nil)
 
 // New builds a Provider; empty domainFilters serves all zones.
-func New(api API, domainFilters []string, defaultTTL int64) *Provider {
+// autoCreate gates zone auto-creation (NETBIRD_AUTO_CREATE): when false,
+// names without a matching zone are a permanent error instead of a
+// CreateZone call.
+func New(api API, domainFilters []string, defaultTTL int64, autoCreate ...bool) *Provider {
+	create := true
+	if len(autoCreate) > 0 {
+		create = autoCreate[0]
+	}
 	return &Provider{
 		api:        api,
 		filter:     endpoint.NewDomainFilter(domainFilters),
 		defaultTTL: defaultTTL,
+		autoCreate: create,
 	}
 }
 
@@ -68,7 +78,7 @@ type recordRef struct {
 func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 	zones, err := p.api.ListZones(ctx)
 	if err != nil {
-		return nil, softErrorf("list zones: %v", err)
+		return nil, softOrHard("list zones", err)
 	}
 	type key struct {
 		dnsName string
@@ -85,7 +95,7 @@ func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 		if records == nil {
 			records, err = p.api.ListRecords(ctx, z.ID)
 			if err != nil {
-				return nil, softErrorf("list records for zone %q: %v", z.ID, err)
+				return nil, softOrHard("list records", err)
 			}
 		}
 		for _, r := range records {
@@ -168,7 +178,7 @@ func indexKey(dnsName, recType, target string) string {
 func (p *Provider) buildIndex(ctx context.Context) (index, error) {
 	zones, err := p.api.ListZones(ctx)
 	if err != nil {
-		return nil, softErrorf("list zones: %v", err)
+		return nil, softOrHard("list zones", err)
 	}
 	idx := index{}
 	for _, z := range zones {
@@ -179,7 +189,7 @@ func (p *Provider) buildIndex(ctx context.Context) (index, error) {
 		if records == nil {
 			records, err = p.api.ListRecords(ctx, z.ID)
 			if err != nil {
-				return nil, softErrorf("list records for zone %q: %v", z.ID, err)
+				return nil, softOrHard("list records", err)
 			}
 		}
 		for _, r := range records {
@@ -191,13 +201,14 @@ func (p *Provider) buildIndex(ctx context.Context) (index, error) {
 }
 
 // zoneForName resolves the longest-suffix zone, auto-creating the
-// DOMAIN_FILTER candidate. Misses outside the filter are permanent; API
-// failures are soft.
+// DOMAIN_FILTER candidate when autoCreate is true. Misses outside the
+// filter are permanent; API failures map soft (transient) or hard
+// (permanent 4xx) via softOrHard.
 func (p *Provider) zoneForName(ctx context.Context, dnsName string) (string, error) {
 	name := strings.ToLower(strings.TrimSuffix(dnsName, "."))
 	zones, err := p.api.ListZones(ctx)
 	if err != nil {
-		return "", softErrorf("list zones: %v", err)
+		return "", softOrHard("list zones", err)
 	}
 	bestID := ""
 	bestLen := -1
@@ -232,6 +243,11 @@ func (p *Provider) zoneForName(ctx context.Context, dnsName string) (string, err
 	if !p.filter.Match(candidate) {
 		return "", fmt.Errorf("%w for %q (candidate zone %q outside domain filter)", ErrNoMatchingZone, dnsName, candidate)
 	}
+	// Auto-creation is opt-out via NETBIRD_AUTO_CREATE=false: without it a
+	// missing zone is a permanent error (no surprise zones from typos).
+	if !p.autoCreate {
+		return "", fmt.Errorf("%w for %q (zone auto-creation disabled)", ErrNoMatchingZone, dnsName)
+	}
 	created, err := p.api.CreateZone(ctx, netbird.CreateZoneRequest{
 		Name:               candidate,
 		Domain:             candidate,
@@ -239,13 +255,16 @@ func (p *Provider) zoneForName(ctx context.Context, dnsName string) (string, err
 		DistributionGroups: []string{},
 	})
 	if err != nil {
-		return "", softErrorf("create zone %q: %v", candidate, err)
+		return "", softOrHard("create zone", err)
 	}
 	if created == nil || created.ID == "" {
-		return "", softErrorf("create zone %q: empty response", candidate)
+		return "", softError("create zone", errEmptyZoneResponse)
 	}
 	return created.ID, nil
 }
+
+// errEmptyZoneResponse marks a zone-create call that returned no zone ID.
+var errEmptyZoneResponse = errors.New("netbird: empty zone response")
 
 // longestFilterSuffix picks the auto-create zone domain for dnsName: the
 // longest matching filter entry, else the immediate parent domain ("" for
@@ -293,7 +312,7 @@ func (p *Provider) create(ctx context.Context, ep *endpoint.Endpoint) error {
 			TTL:     ttl,
 		})
 		if err != nil {
-			return softErrorf("create record %s %s: %v", ep.DNSName, target, err)
+			return softOrHard("create record", err)
 		}
 	}
 	return nil
@@ -321,7 +340,7 @@ func (p *Provider) update(ctx context.Context, idx index, old, new *endpoint.End
 			continue
 		}
 		if err := p.api.DeleteRecord(ctx, refs[0].zoneID, refs[0].recordID); err != nil {
-			return softErrorf("delete record %s %s: %v", old.DNSName, t, err)
+			return softOrHard("delete record", err)
 		}
 	}
 	// Create new entries and refresh TTL/content of kept ones via update.
@@ -348,7 +367,7 @@ func (p *Provider) update(ctx context.Context, idx index, old, new *endpoint.End
 			TTL:     ttl,
 		})
 		if err != nil {
-			return softErrorf("update record %s %s: %v", new.DNSName, t, err)
+			return softOrHard("update record", err)
 		}
 	}
 	return nil
@@ -358,16 +377,49 @@ func (p *Provider) delete(ctx context.Context, idx index, ep *endpoint.Endpoint)
 	for _, t := range ep.Targets {
 		for _, ref := range idx[indexKey(ep.DNSName, ep.RecordType, t)] {
 			if err := p.api.DeleteRecord(ctx, ref.zoneID, ref.recordID); err != nil {
-				return softErrorf("delete record %s %s: %v", ep.DNSName, t, err)
+				return softOrHard("delete record", err)
 			}
 		}
 	}
 	return nil
 }
 
-// softErrorf wraps transient NetBird failures for external-dns interop.
-// The %w chain is preserved so errors.Is(err, provider.SoftError) holds;
-// messages stay lowercase per the error contract (see internal/server/errors.go).
-func softErrorf(format string, a ...any) error {
-	return provider.NewSoftError(fmt.Errorf(format, a...))
+// opError names a provider operation for soft-error messages.
+type opError struct {
+	op  string
+	err error
+}
+
+func (e *opError) Error() string { return "netbird: " + e.op + " failed" }
+
+func (e *opError) Unwrap() error { return e.err }
+
+// softError wraps a NetBird failure for external-dns interop as a
+// transient error. The message carries only the operation name (lowercase,
+// no identifiers or backend detail — see internal/server/errors.go); the
+// cause stays reachable via errors.As/Is for the Retryable check.
+func softError(op string, err error) error {
+	return provider.NewSoftError(&opError{op: op, err: err})
+}
+
+// apiStatus reports the NetBird API status code when err carries one.
+func apiStatus(err error) (int, bool) {
+	var apiErr *netbird.APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.StatusCode, true
+	}
+	return 0, false
+}
+
+// softOrHard maps a NetBird failure to soft (transient: transport errors,
+// 429/5xx) or hard (permanent: other 4xx) so ExternalDNS retries only what
+// can succeed. Unknown shapes are soft (retry-safe default).
+func softOrHard(op string, err error) error {
+	if code, ok := apiStatus(err); ok {
+		if code == http.StatusTooManyRequests || (code >= 500 && code <= 599) {
+			return softError(op, err)
+		}
+		return fmt.Errorf("netbird: %s failed", op)
+	}
+	return softError(op, err)
 }

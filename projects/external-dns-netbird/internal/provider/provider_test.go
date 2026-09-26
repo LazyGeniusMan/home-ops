@@ -278,6 +278,19 @@ func TestZoneForNameOutsideFilterIsPermanent(t *testing.T) {
 	}
 }
 
+func TestZoneForNameAutoCreateDisabledIsPermanent(t *testing.T) {
+	f := &fakeAPI{records: map[string][]netbird.Record{}}
+	p := New(f, []string{"example.com"}, 300, false)
+	if _, err := p.zoneForName(context.Background(), "host.example.com"); err == nil {
+		t.Fatal("expected error when auto-creation is disabled")
+	} else if got := err.Error(); !strings.Contains(got, "no matching zone") {
+		t.Fatalf("expected no-matching-zone error, got %v", err)
+	}
+	if len(f.createdZone) != 0 {
+		t.Fatalf("must not create zones when disabled, got %+v", f.createdZone)
+	}
+}
+
 func TestGetDomainFilter(t *testing.T) {
 	p := New(testFixture(), []string{"example.com"}, 300)
 	if !p.GetDomainFilter().Match("www.example.com") {

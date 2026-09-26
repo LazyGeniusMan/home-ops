@@ -18,7 +18,7 @@ Routes (see `internal/server/server.go`):
 | Method | Path      | Purpose                                              |
 | ------ | --------- | ---------------------------------------------------- |
 | GET    | `/get`    | Pull: `?key=pass://vault/item/field` → `{"value"}`   |
-| POST   | `/get`    | Pull (JSON body variant): `{"remoteRef":{"key":"…"}}` |
+| POST   | `/get`    | Pull (JSON body variant): `{"remoteRef":{"key":"…"}}` (body capped at 64 KiB) |
 | HEAD   | `/`       | Validate path (ESO `Validate`) → 200                 |
 | GET    | `/`       | Validate path → 200                                  |
 | GET    | `/healthz` | Liveness → `{"status":"ok"}` (zero downstream calls) |
@@ -90,7 +90,9 @@ Startup fails fast with `missing required env PROTON_PASS_PAT_FILE …` when the
 required `*_FILE` secret is absent — no default secrets.
 
 Probes: `/healthz` (liveness) and `/readyz` (readiness) on `:8080`
-(`LISTEN_ADDR`). Shutdown drains in-flight requests (10s bound).
+(`LISTEN_ADDR`). Listener timeouts: 10s header reads, 30s full reads,
+60s writes, 120s idle, 1 MiB header cap. Shutdown drains in-flight
+requests (10s bound).
 
 ## Telemetry-off evidence
 

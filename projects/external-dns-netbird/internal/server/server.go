@@ -67,7 +67,8 @@ var registerDefaultCollectorsOnce sync.Once
 // registerCollector tolerates AlreadyRegisteredError (shared test process).
 func registerCollector(c prometheus.Collector) {
 	if err := prometheus.Register(c); err != nil {
-		if _, ok := err.(prometheus.AlreadyRegisteredError); !ok {
+		var already prometheus.AlreadyRegisteredError
+		if !errors.As(err, &already) {
 			panic(err)
 		}
 	}
@@ -78,8 +79,9 @@ func registerCollector(c prometheus.Collector) {
 // (e.g. one Server per test) so every Server's counters stay live.
 func registerOrReuse(c prometheus.Counter) prometheus.Counter {
 	if err := prometheus.Register(c); err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-			if existing, ok := are.ExistingCollector.(prometheus.Counter); ok {
+		var already prometheus.AlreadyRegisteredError
+		if errors.As(err, &already) {
+			if existing, ok := already.ExistingCollector.(prometheus.Counter); ok {
 				return existing
 			}
 		}

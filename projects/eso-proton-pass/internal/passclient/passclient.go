@@ -90,12 +90,14 @@ func New(o Options) *Client {
 	}
 }
 
-// ReadPATFile reads the PAT from a file (must exist, non-empty).
+// ReadPATFile reads the PAT from a file (must exist, non-empty). The path
+// comes from operator config (PROTON_PASS_PAT_FILE), not request input
+// (gosec G304: no request-controlled file inclusion).
 func ReadPATFile(path string) (string, error) {
 	if path == "" {
 		return "", fmt.Errorf("PAT file path is empty (set PROTON_PASS_PAT_FILE)")
 	}
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(path) //nolint:gosec // operator-configured PAT path, never request input
 	if err != nil {
 		return "", fmt.Errorf("read PAT file: %w", err)
 	}
@@ -141,7 +143,9 @@ func (c *Client) run(ctx context.Context, args []string, stdin string, extraEnv 
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, c.binary, args...)
+	// gosec G204: binary/args are operator config (BinaryPath + fixed
+	// subcommands built inside this package), never request input.
+	cmd := exec.CommandContext(ctx, c.binary, args...) //nolint:gosec
 	env := os.Environ()
 	env = append(env, c.baseEnv()...)
 	env = append(env, extraEnv...)

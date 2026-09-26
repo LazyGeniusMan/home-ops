@@ -22,12 +22,6 @@ func statusCodeOf(err error) int {
 	if isSoft(err) {
 		return http.StatusBadGateway
 	}
-	var apiErr interface{ StatusCode() int }
-	if errors.As(err, &apiErr) {
-		if code := apiErr.StatusCode(); code >= 400 && code < 600 {
-			return code
-		}
-	}
 	if errors.Is(err, errBadRequest) {
 		return http.StatusBadRequest
 	}

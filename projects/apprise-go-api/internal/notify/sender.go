@@ -94,6 +94,12 @@ func (s *Sender) Send(ctx context.Context, req Request) (Result, error) {
 	if len(targets) == 0 {
 		return Result{}, ErrNoTargets
 	}
+	// The apprise-go engine is synchronous with no context support, so the
+	// send loop runs on a worker goroutine bounded by the per-call timeout
+	// (or the tighter request deadline). done is buffered (one send) so the
+	// worker never blocks reporting after the caller gave up on timeout or
+	// cancel — it finishes, reports into the buffer, and exits. The loop
+	// also stops early between targets once the request context ends.
 	type sendResult struct {
 		delivered int
 		err       error
@@ -103,6 +109,13 @@ func (s *Sender) Send(ctx context.Context, req Request) (Result, error) {
 		var errs []error
 		delivered := 0
 		for _, target := range targets {
+			select {
+			case <-ctx.Done():
+				errs = append(errs, fmt.Errorf("notify: context done: %w", ctx.Err()))
+				done <- sendResult{delivered: delivered, err: errors.Join(errs...)}
+				return
+			default:
+			}
 			client := apprise.New()
 			if err := client.Add(target); err != nil {
 				errs = append(errs, fmt.Errorf("notify: add target: %w", err))

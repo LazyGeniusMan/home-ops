@@ -1,6 +1,7 @@
 package notify
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -57,7 +58,8 @@ func TestParseTagExpressionInvalid(t *testing.T) {
 
 func mustParseErr(expr string) (error, bool) {
 	_, err := ParseTagExpression(expr)
-	_, ok := err.(*TagError)
+	var tagErr *TagError
+	ok := errors.As(err, &tagErr)
 	return err, ok
 }
 

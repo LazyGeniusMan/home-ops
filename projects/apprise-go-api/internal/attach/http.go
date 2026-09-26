@@ -47,12 +47,14 @@ func MapBodyError(err error, maxBytes int64) error {
 
 // ParseMultipart parses a multipart form: maxMemory bytes stay in RAM, the
 // rest spills to disk. Incomings preserve arrival order; the caller defers
-// r.MultipartForm.RemoveAll.
+// r.MultipartForm.RemoveAll. The memory budget also bounds the parse, so
+// callers must pass the configured APPRISE_UPLOAD_MAX_MEMORY_SIZE budget
+// (gosec G120: unbounded multipart parsing exhausts memory).
 func ParseMultipart(r *http.Request, maxMemoryBytes int64) ([]Incoming, error) {
 	if maxMemoryBytes <= 0 {
 		return nil, BadAttachment("max memory bytes must be positive, got %d", maxMemoryBytes)
 	}
-	if err := r.ParseMultipartForm(maxMemoryBytes); err != nil {
+	if err := r.ParseMultipartForm(maxMemoryBytes); err != nil { //nolint:gosec // bounded by the configured memory budget above
 		return nil, err
 	}
 	form := r.MultipartForm

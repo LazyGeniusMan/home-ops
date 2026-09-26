@@ -147,7 +147,10 @@ rclone:
 Job knobs (`concurrencyPolicy`, `restartPolicy`, `backoffLimit`,
 history limits, `ttlSecondsAfterFinished`, `activeDeadlineSeconds`)
 are configurable in `values.yaml`. Only `sync`/`copy` render; anything
-else fails fast.
+else fails fast. Containers default to requests (`50m`/`128Mi`) plus
+limits (`1` CPU/`512Mi`), non-root (`65532`), `RuntimeDefault` seccomp,
+no privilege escalation, read-only root, and dropped capabilities —
+`verify.sh` asserts each on every rendered fixture.
 
 ## Proton obscure step
 

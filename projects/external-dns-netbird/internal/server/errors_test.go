@@ -14,24 +14,12 @@ import (
 	nbprovider "github.com/LazyGeniusMan/home-ops/projects/external-dns-netbird/internal/provider"
 )
 
-// statusErr is a StatusCode()-carrying test error.
-type statusErr struct {
-	code int
-	msg  string
-	err  error
-}
-
-func (e *statusErr) Error() string   { return e.msg + ": " + e.err.Error() }
-func (e *statusErr) Unwrap() error   { return e.err }
-func (e *statusErr) StatusCode() int { return e.code }
-
 func TestStatusCodeOf(t *testing.T) {
 	soft := provider.NewSoftError(errors.New("netbird: connection reset"))
 	wrappedSoft := fmt.Errorf("records: %w", soft)
 	hard := fmt.Errorf("%w for %q", nbprovider.ErrNoMatchingZone, "host.other.net")
 	notFound := fmt.Errorf("lookup: %w", errNotFound)
 	badReq := fmt.Errorf("decode: %w", errBadRequest)
-	coded := &statusErr{code: http.StatusNotFound, msg: "attach", err: errors.New("missing")}
 	plain := errors.New("boom")
 
 	cases := []struct {
@@ -46,7 +34,6 @@ func TestStatusCodeOf(t *testing.T) {
 		{"plain hard", plain, http.StatusUnprocessableEntity},
 		{"sentinel 400", badReq, http.StatusBadRequest},
 		{"sentinel 404", notFound, http.StatusNotFound},
-		{"status coder 404", coded, http.StatusNotFound},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -42,7 +42,7 @@ func TestHealthzZeroDownstreamCalls(t *testing.T) {
 	s := New(p, testLogger(), "127.0.0.1:0", "127.0.0.1:0")
 	h := s.opsHandler()
 
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -74,7 +74,7 @@ func (e *errAPI) ListZones(context.Context) ([]netbird.Zone, error) {
 func TestReadyzUpAndDown(t *testing.T) {
 	up := testServer()
 	h := up.opsHandler()
-	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -93,7 +93,7 @@ func TestReadyzUpAndDown(t *testing.T) {
 		testLogger(), "127.0.0.1:0", "127.0.0.1:0",
 	)
 	hd := down.opsHandler()
-	req = httptest.NewRequest(http.MethodGet, "/readyz", nil)
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil)
 	rec = httptest.NewRecorder()
 	hd.ServeHTTP(rec, req)
 	if rec.Code != http.StatusServiceUnavailable {
@@ -117,7 +117,7 @@ func TestReadyzUpAndDown(t *testing.T) {
 func TestVersionEndpoint(t *testing.T) {
 	s := testServer()
 	h := s.opsHandler()
-	req := httptest.NewRequest(http.MethodGet, "/version", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/version", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {

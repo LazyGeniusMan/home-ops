@@ -44,7 +44,7 @@ func TestMiddlewareBypassSkipsTracing(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	h.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil))
 	if len(exp.GetSpans()) != 0 {
 		t.Fatalf("bypassed path exported %d spans, want 0", len(exp.GetSpans()))
 	}
@@ -58,7 +58,7 @@ func TestMiddlewareSpanNameUsesRoutePattern(t *testing.T) {
 	})
 	h := Middleware("test-svc", "/metrics")(mux)
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/notify", nil))
+	h.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/notify", nil))
 	spans := exp.GetSpans()
 	if len(spans) != 1 {
 		t.Fatalf("got %d spans, want 1", len(spans))
@@ -74,7 +74,7 @@ func TestMiddlewareUnmatchedUsesNotFound(t *testing.T) {
 	mux.HandleFunc("/notify", func(w http.ResponseWriter, _ *http.Request) {})
 	h := Middleware("test-svc")(mux)
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/evil-path-12345", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/evil-path-12345", nil)
 	// Undispatched: route falls back to the bounded literal.
 	h.ServeHTTP(rec, req)
 	spans := exp.GetSpans()

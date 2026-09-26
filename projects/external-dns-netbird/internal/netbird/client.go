@@ -149,15 +149,20 @@ func (c *Client) DeleteRecord(ctx context.Context, zoneID, recordID string) erro
 	return c.do(ctx, http.MethodDelete, path, nil, nil)
 }
 
-// APIError is a non-2xx response from the NetBird API.
+// APIError is a non-2xx response from the NetBird API. Body carries the
+// truncated response for operator logs via Detail; Error stays a fixed
+// status-only string so envelopes and %v chains never echo API content.
 type APIError struct {
 	StatusCode int
 	Body       string
 }
 
 func (e *APIError) Error() string {
-	return fmt.Sprintf("netbird: request failed with status %d: %s", e.StatusCode, e.Body)
+	return fmt.Sprintf("netbird: request failed with status %d", e.StatusCode)
 }
+
+// Detail returns the truncated response body for operator-side logs only.
+func (e *APIError) Detail() string { return e.Body }
 
 // Retryable reports whether the failure is transient (5xx or 429) and the
 // caller should surface a soft error so ExternalDNS retries.

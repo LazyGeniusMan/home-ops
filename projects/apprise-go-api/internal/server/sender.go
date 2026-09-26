@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -63,7 +64,7 @@ var errPayloadTooLarge = fmt.Errorf("notify: JSON payload too large")
 // decoded request, whether it was JSON, the raw field map (for remap), and
 // an error. JSON detection uses the content-type regex; everything else is
 // treated as form (urlencoded or multipart via r.ParseMultipartForm).
-func (s *Server) decodePayload(r *http.Request) (*notifyRequest, bool, map[string]any, error) {
+func (s *Server) decodePayload(w http.ResponseWriter, r *http.Request) (*notifyRequest, bool, map[string]any, error) {
 	ct := r.Header.Get("Content-Type")
 	if ct == "" {
 		ct = r.Header.Get("content-type")
@@ -71,8 +72,22 @@ func (s *Server) decodePayload(r *http.Request) (*notifyRequest, bool, map[strin
 	if mimeIsJSON.MatchString(ct) {
 		return decodeJSONPayload(r, uploadMaxBytes(s.cfg.UploadMaxMemorySizeMB))
 	}
-	return decodeFormPayload(r)
+	return decodeFormPayload(w, r, uploadMaxBytes(s.cfg.UploadMaxMemorySizeMB))
 }
+
+// errPayloadTooLargeFor maps a body-cap overflow to errPayloadTooLarge
+// (→ 431); other errors pass through for the caller's 400 path.
+func errPayloadTooLargeFor(err error) error {
+	if err != nil && attach.IsBodyTooLarge(err) {
+		return errPayloadTooLarge
+	}
+	return err
+}
+
+// maxJSONURLs is the cap on a JSON-path urls value (string length or list
+// entries); over-cap values are dropped (→ 204), mirroring the form-path
+// urlsMaxLen rule.
+const maxJSONURLs = 1024
 
 // decodeJSONPayload decodes a JSON stateless body. Unknown shapes, scalar
 // JSON, or empty objects yield nil (→ 400 "Bad FORM Payload"); oversize
@@ -89,9 +104,19 @@ func decodeJSONPayload(r *http.Request, maxBytes int64) (*notifyRequest, bool, m
 	if int64(len(raw)) > maxBytes {
 		return nil, true, nil, errPayloadTooLarge
 	}
+	// Cap the decoded value graph: without DisallowUnknownFields the shape
+	// is open, so bound depth (nesting), total entries, and string sizes to
+	// keep one request from exploding memory after the byte cap. Over-cap
+	// graphs are a 400 (malformed shape), not a 431 (byte budget).
+	const maxJSONDepth = 32
+	const maxJSONEntries = 10000
+	const maxJSONString = 1 << 20
 	var doc map[string]any
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	if err := dec.Decode(&doc); err != nil {
+		return nil, true, nil, err
+	}
+	if err := checkJSONValue(doc, 0, maxJSONDepth, maxJSONEntries, maxJSONString, new(int)); err != nil {
 		return nil, true, nil, err
 	}
 	if len(doc) == 0 {
@@ -99,7 +124,7 @@ func decodeJSONPayload(r *http.Request, maxBytes int64) (*notifyRequest, bool, m
 	}
 	out := &notifyRequest{}
 	if v, ok := doc["urls"]; ok {
-		out.URLs = v
+		out.URLs = capJSONURLs(v)
 	}
 	out.Body, _ = doc["body"].(string)
 	out.Title, _ = doc["title"].(string)
@@ -123,18 +148,94 @@ func decodeJSONPayload(r *http.Request, maxBytes int64) (*notifyRequest, bool, m
 	return out, true, doc, nil
 }
 
+// errJSONShape reports a JSON value graph that decoded within the byte
+// budget but exceeds the shape caps (depth, entry count, or string size) —
+// a 400 malformed shape, distinct from errPayloadTooLarge (431).
+var errJSONShape = fmt.Errorf("notify: JSON payload shape too large")
+
+// checkJSONValue walks a decoded JSON value, rejecting nesting deeper than
+// maxDepth, graphs larger than maxEntries values, or strings longer than
+// maxString bytes.
+func checkJSONValue(v any, depth, maxDepth, maxEntries, maxString int, seen *int) error {
+	*seen++
+	if *seen > maxEntries {
+		return errJSONShape
+	}
+	switch t := v.(type) {
+	case map[string]any:
+		if depth >= maxDepth {
+			return errJSONShape
+		}
+		for _, e := range t {
+			if err := checkJSONValue(e, depth+1, maxDepth, maxEntries, maxString, seen); err != nil {
+				return err
+			}
+		}
+	case []any:
+		if depth >= maxDepth {
+			return errJSONShape
+		}
+		for _, e := range t {
+			if err := checkJSONValue(e, depth+1, maxDepth, maxEntries, maxString, seen); err != nil {
+				return err
+			}
+		}
+	case string:
+		if len(t) > maxString {
+			return errJSONShape
+		}
+	}
+	return nil
+}
+
+// capJSONURLs applies the urls length cap to the JSON path: over-long
+// strings and over-count lists are dropped (nil → 204), matching the form
+// path's urlsMaxLen rule.
+func capJSONURLs(v any) any {
+	switch t := v.(type) {
+	case string:
+		if len(t) > maxJSONURLs {
+			return nil
+		}
+		return v
+	case []string:
+		if len(t) > maxJSONURLs {
+			return nil
+		}
+		return v
+	case []any:
+		if len(t) > maxJSONURLs {
+			return nil
+		}
+		return v
+	default:
+		return v
+	}
+}
+
 // decodeFormPayload parses urlencoded and multipart forms: first value
-// wins for scalars; the winning attach alias keeps all values. Unknown or
-// empty forms yield nil (→ 400); over-long FORM urls are dropped (→ 204).
-func decodeFormPayload(r *http.Request) (*notifyRequest, bool, map[string]any, error) {
+// wins for scalars; the winning attach alias keeps all values. Both paths
+// are bounded by maxBytes (APPRISE_UPLOAD_MAX_MEMORY_SIZE; the multipart
+// memory budget before spilling to disk). Unknown or empty forms yield nil
+// (→ 400); over-long FORM urls are dropped (→ 204).
+func decodeFormPayload(w http.ResponseWriter, r *http.Request, maxBytes int64) (*notifyRequest, bool, map[string]any, error) {
+	if maxBytes <= 0 {
+		maxBytes = 3 << 20
+	}
 	ct := r.Header.Get("Content-Type")
 	if strings.Contains(strings.ToLower(ct), "multipart/form-data") {
-		if err := r.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
-			return nil, false, nil, err
+		// gosec G120 is a false positive here: the parse is bounded by
+		// maxBytes (APPRISE_UPLOAD_MAX_MEMORY_SIZE); urlencoded forms are
+		// capped with MaxBytesReader below.
+		if err := r.ParseMultipartForm(maxBytes); err != nil && !errors.Is(err, http.ErrNotMultipart) { //nolint:gosec
+			return nil, false, nil, errPayloadTooLargeFor(err)
 		}
 	} else {
+		// ParseForm reads the whole urlencoded body; cap it so an
+		// unbounded form cannot bypass APPRISE_UPLOAD_MAX_MEMORY_SIZE.
+		r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
 		if err := r.ParseForm(); err != nil {
-			return nil, false, nil, err
+			return nil, false, nil, errPayloadTooLargeFor(err)
 		}
 	}
 	if r.PostForm == nil && r.MultipartForm == nil {

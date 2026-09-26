@@ -178,9 +178,11 @@ The winning alias is `attach` > `attachment` > `attachments`
 |---|---|---|
 | `APPRISE_ATTACH_SIZE` | `200` (MiB per file) | `<= 0` disables attachments entirely (any attachment content → `400`) |
 | `APPRISE_MAX_ATTACHMENTS` | `6` (per request) | `0` = unlimited; over-limit → `400` |
-| `APPRISE_UPLOAD_MAX_MEMORY_SIZE` | `3` (MiB body budget) | Oversize JSON body → `431` |
+| `APPRISE_UPLOAD_MAX_MEMORY_SIZE` | `3` (MiB body budget) | Bounds JSON, multipart, and urlencoded bodies; oversize → `431` |
+| JSON value shape | depth 32, 10000 entries, 1 MiB strings | Over-cap graph → `400` (malformed shape, not `431`) |
+| JSON `urls` | 1024 chars/entries | Over-cap dropped (→ `204`), mirroring the form path |
 | filename length | 250 chars | Longer → `400` |
-| multipart parse memory | 32 MiB | Spills to disk beyond this (server-internal, not configurable) |
+| multipart parse memory | `APPRISE_UPLOAD_MAX_MEMORY_SIZE` | Spills to disk beyond this |
 
 Per-file oversize, malformed entries, SSRF denials, and fetch failures
 are all `400 "Bad Attachment"`. A target that cannot carry attachments
@@ -198,7 +200,7 @@ plain hostname/IP, or a wildcard (`*` prefix match, `?` single char).
 | Knob | Default | Meaning |
 |---|---|---|
 | `APPRISE_ATTACH_ALLOW_URL` | `*` (allow all) | Empty means `*` |
-| `APPRISE_ATTACH_REJECT_URL` | `127.0.* localhost*` | Empty disables denials |
+| `APPRISE_ATTACH_REJECT_URL` | `127.0.* localhost*` (applied when unset) | Explicitly empty disables denials |
 
 The reserved token **`internal`** (opt-in, never default) DNS-resolves each
 host and blocks loopback, private, link-local, reserved, unspecified,
@@ -209,7 +211,9 @@ hosts are blocked.
 
 Staged files live under `APPRISE_ATTACH_DIR` (default `os.TempDir()`) as
 `apprise-attach-*` temp files, removed via deferred `CleanupAll` at
-request end; partial failures clean up already-staged files first.
+request end; partial failures clean up already-staged files first. The
+staging dir is never created on the request path — a missing dir fails
+the request (`400`); the operator owns the dir.
 
 ## Webhooks
 
@@ -250,16 +254,15 @@ success / `1` delivery failure, `output` = notify response detail).
 `User-Agent: Apprise-API`, `Content-Type: application/json`.
 
 The URL must be `http(s)` with a usable host. Embedded `user[:pass]`
-becomes basic auth; query keys control delivery: `?verify=` toggles TLS
-verification (default on), `?cto=` / `?rto=` set connect/read timeouts in
-seconds (default `4.0` each). Remaining query keys are forwarded as
-request params.
+becomes basic auth; query keys control delivery: `?cto=` / `?rto=` set
+connect/read timeouts in seconds (default `4.0` each). TLS verification
+is always on — a `?verify=` query value is rejected outright. Remaining
+query keys are forwarded as request params.
 
 ## Configuration
 
 Env-only; secrets via `*_FILE` (e.g. `SECRET_KEY_FILE`, suitable for
-Kubernetes projected volumes / ESO mounts). `SECRET_KEY` inline is also
-accepted as a fallback.
+Kubernetes projected volumes / ESO mounts).
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -268,7 +271,7 @@ accepted as a fallback.
 | `DEBUG` | `false` | Debug logging |
 | `APPRISE_BASE_URL` | — | Public base URL (informational) |
 | `ALLOWED_HOSTS` | — | Comma-separated Host-header allowlist |
-| `SECRET_KEY` / `SECRET_KEY_FILE` | — | Internal callback auth (`_FILE` wins) |
+| `SECRET_KEY_FILE` | — | Internal callback auth (file only; no inline fallback) |
 | `TZ` | `UTC` | Log timestamp timezone |
 | `PUID` / `PGID` | `0` | Desired runtime ownership (informational under distroless nonroot) |
 | `WORKER_COUNT` | `0` | Concurrent notify fan-out bound (`0` = `GOMAXPROCS`) |
@@ -281,7 +284,7 @@ accepted as a fallback.
 | `APPRISE_MAX_ATTACHMENTS` | `6` | Per-request cap; `0` = unlimited |
 | `APPRISE_UPLOAD_MAX_MEMORY_SIZE` | `3` | JSON/form body budget in MiB (negative values use their magnitude); oversize → `431` |
 | `APPRISE_ATTACH_ALLOW_URL` | `*` | SSRF allowlist (empty = `*`) |
-| `APPRISE_ATTACH_REJECT_URL` | — (empty disables denials) | `127.0.* localhost*` available as `DefaultAttachRejectURL`, not applied at load |
+| `APPRISE_ATTACH_REJECT_URL` | `127.0.* localhost*` when unset | Explicitly empty disables denials |
 | `APPRISE_WEBHOOK_MAPPING_MAX_DEPTH` | `5` | `:` remap depth cap (must be positive) |
 | `APPRISE_WEBHOOK_URL` | — | Outbound result callback (empty = disabled) |
 | `APPRISE_PLUGIN_PATHS` | — | **Documented no-op**: accepted but unsupported — Go has no dynamic plugin loading |

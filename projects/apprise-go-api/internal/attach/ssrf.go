@@ -139,22 +139,23 @@ func parseIPv4Alt(s string) (netip.Addr, bool) {
 		nums[i] = v
 	}
 	var b [4]byte
+	toByte := func(v uint64) byte { return byte(v & 0xff) } // gosec G115: operands range-checked below
 	switch len(nums) {
 	case 1:
 		if nums[0] > 0xffffffff {
 			return netip.Addr{}, false
 		}
-		b[0], b[1], b[2], b[3] = byte(nums[0]>>24), byte(nums[0]>>16), byte(nums[0]>>8), byte(nums[0])
+		b[0], b[1], b[2], b[3] = toByte(nums[0]>>24), toByte(nums[0]>>16), toByte(nums[0]>>8), toByte(nums[0])
 	case 2:
 		if nums[0] > 0xff || nums[1] > 0xffffff {
 			return netip.Addr{}, false
 		}
-		b[0], b[1], b[2], b[3] = byte(nums[0]), byte(nums[1]>>16), byte(nums[1]>>8), byte(nums[1])
+		b[0], b[1], b[2], b[3] = toByte(nums[0]), toByte(nums[1]>>16), toByte(nums[1]>>8), toByte(nums[1])
 	case 3:
 		if nums[0] > 0xff || nums[1] > 0xff || nums[2] > 0xffff {
 			return netip.Addr{}, false
 		}
-		b[0], b[1], b[2], b[3] = byte(nums[0]), byte(nums[1]), byte(nums[2]>>8), byte(nums[2])
+		b[0], b[1], b[2], b[3] = toByte(nums[0]), toByte(nums[1]), toByte(nums[2]>>8), toByte(nums[2])
 	default:
 		for i, v := range nums {
 			if v > 0xff {

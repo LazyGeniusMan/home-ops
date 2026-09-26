@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -55,7 +56,7 @@ func TestWithLoggingRouteLabels(t *testing.T) {
 	h := webhookHandler(s)
 
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/records", nil))
+	h.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/records", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("records status = %d", rec.Code)
 	}
@@ -79,7 +80,7 @@ func TestWithLoggingCatchAllHidesRawPath(t *testing.T) {
 	// pattern, never the raw path.
 	raw := "/totally-unknown-evil-path-12345"
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, raw, nil))
+	h.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, raw, nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("unknown GET status = %d, want 200 (GET / catch-all)", rec.Code)
 	}
@@ -105,7 +106,7 @@ func TestWithLoggingUnknownPathFallsBack(t *testing.T) {
 	// r.Pattern empty, so the log must show the bounded fallback.
 	raw := "/totally-unknown-evil-path-12345"
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodDelete, raw, nil))
+	h.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodDelete, raw, nil))
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("unknown status = %d, want 405", rec.Code)
 	}
@@ -128,7 +129,7 @@ func TestWithOpsLoggingRouteLabels(t *testing.T) {
 	h := s.opsHandler()
 
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	h.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("healthz status = %d", rec.Code)
 	}
@@ -151,7 +152,7 @@ func TestWithOpsLoggingFallbackDirect(t *testing.T) {
 	raw := "/ops-direct-evil-path-13579"
 	h := s.withOpsLogging(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {}))
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, raw, nil))
+	h.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, raw, nil))
 
 	routes := logRoutes(t, &buf)
 	if len(routes) != 1 {
@@ -175,7 +176,7 @@ func TestWithOpsLoggingUnknownPathUnlogged(t *testing.T) {
 	// — bounded by construction. Assert the raw path appears nowhere.
 	raw := "/ops-unknown-evil-path-67890"
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, raw, nil))
+	h.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, raw, nil))
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("unknown status = %d, want 404", rec.Code)
 	}

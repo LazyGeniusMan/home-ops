@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -26,7 +27,7 @@ func testServer() *Server {
 func TestNotifyGetIs405(t *testing.T) {
 	s := testServer()
 	for _, path := range []string{"/notify", "/notify/"} {
-		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, path, nil)
 		rec := httptest.NewRecorder()
 		s.Handler().ServeHTTP(rec, req)
 		if rec.Code != http.StatusMethodNotAllowed {
@@ -40,7 +41,7 @@ func TestNotifyGetIs405(t *testing.T) {
 
 func TestNotifyPostIsImplemented(t *testing.T) {
 	s := testServer()
-	req := httptest.NewRequest(http.MethodPost, "/notify", strings.NewReader(`{}`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/notify", strings.NewReader(`{}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, req)
@@ -51,7 +52,7 @@ func TestNotifyPostIsImplemented(t *testing.T) {
 
 func TestStatusOK(t *testing.T) {
 	s := testServer()
-	req := httptest.NewRequest(http.MethodGet, "/status", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/status", nil)
 	rec := httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -86,7 +87,7 @@ func TestStatusUnwritableAttachDir(t *testing.T) {
 	}
 	cfg.AttachDir = filepath.Join(blocker, "child")
 	s := New(cfg, notify.New(time.Second), slog.New(slog.NewJSONHandler(io.Discard, nil)))
-	req := httptest.NewRequest(http.MethodGet, "/status", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/status", nil)
 	rec := httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -106,7 +107,7 @@ func TestStatusUnwritableAttachDir(t *testing.T) {
 
 func TestDetailsOK(t *testing.T) {
 	s := testServer()
-	req := httptest.NewRequest(http.MethodGet, "/details", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/details", nil)
 	rec := httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -142,13 +143,13 @@ func TestMetricsPrometheus(t *testing.T) {
 	resetAttachCache()
 	s := testServer()
 	// Generate request series before scraping.
-	req := httptest.NewRequest(http.MethodGet, "/details", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/details", nil)
 	rec := httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET /details = %d, want 200", rec.Code)
 	}
-	req = httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
 	rec = httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -180,7 +181,7 @@ func TestMetricsPrometheus(t *testing.T) {
 func TestMetricsRouteLabelIsPattern(t *testing.T) {
 	resetAttachCache()
 	s := testServer()
-	req := httptest.NewRequest(http.MethodPost, "/notify/somekey", strings.NewReader(`{}`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/notify/somekey", strings.NewReader(`{}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, req)
@@ -197,14 +198,14 @@ func TestMetricsRouteLabelIsPattern(t *testing.T) {
 func TestStatelessOnlyRoutesAre404(t *testing.T) {
 	s := testServer()
 	for _, path := range []string{"/cfg", "/add/", "/json", "/notify/somekey", "/notify/somekey/"} {
-		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, path, nil)
 		rec := httptest.NewRecorder()
 		s.Handler().ServeHTTP(rec, req)
 		if rec.Code != http.StatusNotFound {
 			t.Errorf("GET %s = %d, want 404 (stateless-only)", path, rec.Code)
 		}
 	}
-	req := httptest.NewRequest(http.MethodPost, "/notify/somekey", strings.NewReader(`{}`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/notify/somekey", strings.NewReader(`{}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, req)

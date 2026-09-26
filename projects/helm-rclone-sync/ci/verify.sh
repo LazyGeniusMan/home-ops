@@ -74,6 +74,21 @@ for f in "${RENDERED[@]}"; do
   grep -q 'restartPolicy: OnFailure' "$f" \
     && ok "$(basename "$f") restartPolicy OnFailure" \
     || bad "$(basename "$f") restartPolicy OnFailure"
+  grep -q 'runAsNonRoot: true' "$f" \
+    && ok "$(basename "$f") pod runs as non-root" \
+    || bad "$(basename "$f") pod runs as non-root"
+  grep -q 'type: RuntimeDefault' "$f" \
+    && ok "$(basename "$f") seccomp RuntimeDefault" \
+    || bad "$(basename "$f") seccomp RuntimeDefault"
+  grep -q 'allowPrivilegeEscalation: false' "$f" \
+    && ok "$(basename "$f") no privilege escalation" \
+    || bad "$(basename "$f") no privilege escalation"
+  grep -q 'readOnlyRootFilesystem: true' "$f" \
+    && ok "$(basename "$f") read-only root filesystem" \
+    || bad "$(basename "$f") read-only root filesystem"
+  grep -q 'memory: 512Mi' "$f" \
+    && ok "$(basename "$f") memory limit set" \
+    || bad "$(basename "$f") memory limit set"
 done
 
 # remote-to-remote renders zero PVC volumes / zero volumeMounts

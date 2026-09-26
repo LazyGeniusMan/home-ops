@@ -61,7 +61,9 @@ func TestDummySecretNeverLogged(t *testing.T) {
 	dir := t.TempDir()
 	stub := filepath.Join(dir, "stub.sh")
 	script := "#!/bin/sh\nprintf '%s' '" + dummySecret + "'\n"
-	if err := os.WriteFile(stub, []byte(script), 0o700); err != nil {
+	// gosec G306: executable bit is required — the stub is a test-only
+	// script under t.TempDir(), never a secret-bearing file.
+	if err := os.WriteFile(stub, []byte(script), 0o700); err != nil { //nolint:gosec
 		t.Fatal(err)
 	}
 	var logs bytes.Buffer

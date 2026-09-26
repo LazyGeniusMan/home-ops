@@ -71,14 +71,33 @@ nodeSelector: {}
 affinity: {}
 tolerations: []
 
-# -- Resource requests/limits for the sync container.
+# -- Resource requests/limits for the sync container (both capped so one
+# runaway sync cannot starve the node; tune via values, not edits).
 resources:
   requests:
     cpu: 50m
     memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
 
-podSecurityContext: {}
-securityContext: {}
+# -- Pod-level security (run as non-root, restricted seccomp).
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Container-level security (no privilege escalation, read-only root,
+# all capabilities dropped).
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
 
 # -- Annotations added to the CronJob metadata.
 annotations: {}

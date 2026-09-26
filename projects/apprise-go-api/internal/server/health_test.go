@@ -39,7 +39,7 @@ func TestHealthzNoDownstreamCalls(t *testing.T) {
 	s := New(cfg, notify.New(time.Second), slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	s.sender = fake
 	start := time.Now()
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", nil)
 	rec := httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, req)
 	if elapsed := time.Since(start); elapsed >= 50*time.Millisecond {
@@ -68,7 +68,7 @@ func TestReadyzReadyVsNotReady(t *testing.T) {
 	}
 	// Ready: writable dir → 200 {"status":"ok"}.
 	s := newServer(t.TempDir())
-	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil)
 	rec := httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -89,7 +89,7 @@ func TestReadyzReadyVsNotReady(t *testing.T) {
 	}
 	s = newServer(filepath.Join(blocker, "child"))
 	rec = httptest.NewRecorder()
-	s.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+	s.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil))
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("GET /readyz (not ready) = %d, want 503", rec.Code)
 	}
@@ -118,7 +118,7 @@ func TestAttachProbeCached(t *testing.T) {
 	dir := t.TempDir()
 	cfg := config.Config{StatelessStorage: "no", StatefulMode: "disabled", CallTimeoutSecs: 30, AttachDir: dir}
 	s := New(cfg, notify.New(time.Second), slog.New(slog.NewJSONHandler(io.Discard, nil)))
-	req := httptest.NewRequest(http.MethodGet, "/status", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/status", nil)
 	rec := httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -128,7 +128,7 @@ func TestAttachProbeCached(t *testing.T) {
 		t.Fatal(err)
 	}
 	rec = httptest.NewRecorder()
-	s.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/status", nil))
+	s.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/status", nil))
 	var body map[string]any
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("GET /status body is not JSON: %v", err)

@@ -65,7 +65,7 @@ func run() error {
 	}()
 
 	api := netbird.NewClient(cfg.BaseURL, cfg.PAT)
-	p := provider.New(api, cfg.DomainFilter, cfg.DefaultTTL)
+	p := provider.New(api, cfg.DomainFilter, cfg.DefaultTTL, cfg.AutoCreate)
 	srv := server.New(p, log, cfg.WebhookAddr, cfg.MetricsAddr)
 	// signal.NotifyContext converts SIGINT/SIGTERM (docker stop) into
 	// context cancellation so Server.Run drains both listeners gracefully.

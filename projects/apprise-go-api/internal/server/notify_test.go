@@ -100,7 +100,7 @@ func doPost(h *notifyHarness, target, contentType, body string, headers map[stri
 	if body != "" {
 		reader = strings.NewReader(body)
 	}
-	req := httptest.NewRequest(http.MethodPost, target, reader)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, target, reader)
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}
@@ -371,7 +371,7 @@ func TestNotifyMethodsAndPaths(t *testing.T) {
 			t.Errorf("POST %s = %d, want 200", path, rec.Code)
 		}
 		for _, method := range []string{http.MethodGet, http.MethodPut, http.MethodDelete} {
-			req := httptest.NewRequest(method, path, nil)
+			req := httptest.NewRequestWithContext(context.Background(), method, path, nil)
 			rec := httptest.NewRecorder()
 			h.srv.Handler().ServeHTTP(rec, req)
 			if rec.Code != http.StatusMethodNotAllowed {
@@ -642,7 +642,7 @@ func TestNotifyMultipartAttachmentStaged(t *testing.T) {
 	if err := mw.Close(); err != nil {
 		t.Fatalf("close writer: %v", err)
 	}
-	req := httptest.NewRequest(http.MethodPost, "/notify", &buf)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/notify", &buf)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	rec := httptest.NewRecorder()
 	h.srv.Handler().ServeHTTP(rec, req)

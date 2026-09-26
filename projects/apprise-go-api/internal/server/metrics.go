@@ -4,6 +4,7 @@
 package server
 
 import (
+	"errors"
 	"net/http"
 	"os"
 	"sync"
@@ -91,7 +92,8 @@ var registerDefaultCollectorsOnce sync.Once
 // the default registry already carries the collector (shared test process).
 func registerCollector(c prometheus.Collector) {
 	if err := prometheus.Register(c); err != nil {
-		if _, ok := err.(prometheus.AlreadyRegisteredError); !ok {
+		var already prometheus.AlreadyRegisteredError
+		if !errors.As(err, &already) {
 			panic(err)
 		}
 	}

@@ -18,6 +18,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 // Hook timeout defaults mirror apprise URLBase socket defaults (seconds).
@@ -29,10 +32,10 @@ const (
 )
 
 // hookTemplateArgs mirrors apprise URLBase.template_args: query keys
-// consumed by URL handling itself (verify/redirect/cto/rto) are not
+// consumed by URL handling itself (redirect/cto/rto) are not
 // forwarded as request params.
 var hookTemplateArgs = map[string]struct{}{
-	"verify": {}, "redirect": {}, "cto": {}, "rto": {},
+	"redirect": {}, "cto": {}, "rto": {},
 }
 
 // HookPayload is the outbound result body posted to the webhook URL.
@@ -65,9 +68,6 @@ type parsedHook struct {
 	// password when only a user is present, mirroring request_auth).
 	username string
 	password *string
-	// verify controls TLS certificate verification ('?verify='; true
-	// unless the value parses false, mirroring apprise parse_bool).
-	verify bool
 	// connectTimeout/readTimeout bound dial and full-response reads.
 	connectTimeout time.Duration
 	readTimeout    time.Duration
@@ -76,7 +76,8 @@ type parsedHook struct {
 // ParseHookURL validates raw as an outbound webhook URL, mirroring the
 // send_webhook gate chain: the URL must carry a scheme, parse cleanly,
 // use http/https, and hold a usable host. It returns the stripped endpoint,
-// forwarded params, auth, verify flag, and timeouts.
+// forwarded params, auth, and timeouts. TLS verification is always on: a
+// '?verify=' query value is rejected outright so callers cannot disable it.
 func ParseHookURL(raw string) (*parsedHook, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
@@ -104,7 +105,11 @@ func ParseHookURL(raw string) (*parsedHook, error) {
 		return nil, fmt.Errorf("notify: webhook URL is not parseable")
 	}
 	query := u.Query()
-	verify := parseHookBool(query.Get("verify"), true)
+	for key := range query {
+		if strings.EqualFold(key, "verify") {
+			return nil, fmt.Errorf("notify: webhook URL must not carry ?verify= (TLS verification is always on)")
+		}
+	}
 	connectSecs := parseHookFloat(query.Get("cto"), defaultHookConnectTimeout)
 	readSecs := parseHookFloat(query.Get("rto"), defaultHookReadTimeout)
 	params := make(url.Values, len(query))
@@ -134,7 +139,6 @@ func ParseHookURL(raw string) (*parsedHook, error) {
 		params:         params,
 		username:       username,
 		password:       password,
-		verify:         verify,
 		connectTimeout: secondsToDuration(connectSecs),
 		readTimeout:    secondsToDuration(readSecs),
 	}, nil
@@ -173,6 +177,7 @@ func (c *HookClient) SendHook(ctx context.Context, rawURL string, payload HookPa
 	}
 	req.Header.Set("User-Agent", "Apprise-API")
 	req.Header.Set("Content-Type", "application/json")
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 	if hook.username != "" || hook.password != nil {
 		password := ""
 		if hook.password != nil {
@@ -196,13 +201,10 @@ func (c *HookClient) SendHook(ctx context.Context, rawURL string, payload HookPa
 }
 
 // hookTransport builds the default transport for hook: dial bound by the
-// connect timeout and TLS verification per '?verify='.
+// connect timeout with TLS verification always on.
 func hookTransport(hook *parsedHook) http.RoundTripper {
 	dialer := &net.Dialer{Timeout: hook.connectTimeout}
 	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12}
-	if !hook.verify {
-		tlsConfig.InsecureSkipVerify = true
-	}
 	base, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
 		return &http.Transport{DialContext: dialer.DialContext, TLSClientConfig: tlsConfig}
@@ -211,21 +213,6 @@ func hookTransport(hook *parsedHook) http.RoundTripper {
 	cloned.DialContext = dialer.DialContext
 	cloned.TLSClientConfig = tlsConfig
 	return cloned
-}
-
-// parseHookBool parses an apprise-style bool query value, mirroring
-// parse_bool: true unless the value is an explicit false spelling.
-func parseHookBool(raw string, fallback bool) bool {
-	trimmed := strings.ToLower(strings.TrimSpace(raw))
-	if trimmed == "" {
-		return fallback
-	}
-	switch trimmed {
-	case "no", "n", "false", "f", "0", "off", "disable", "disabled", "disallow", "deny":
-		return false
-	default:
-		return true
-	}
 }
 
 // parseHookFloat parses a timeout query value in seconds; unparseable or

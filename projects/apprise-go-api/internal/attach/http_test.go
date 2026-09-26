@@ -2,6 +2,7 @@ package attach
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -46,7 +47,7 @@ func TestMapBodyErrorPassthrough(t *testing.T) {
 		t.Errorf("MapBodyError(nil) = %v, want nil", err)
 	}
 	other := errors.New("boom")
-	if err := MapBodyError(other, 10); err != other {
+	if err := MapBodyError(other, 10); !errors.Is(err, other) {
 		t.Errorf("MapBodyError(other) = %v, want passthrough", err)
 	}
 }
@@ -63,7 +64,7 @@ func TestParseMultipartAnyField(t *testing.T) {
 	}
 	_ = w.WriteField("body", "hi")
 	_ = w.Close()
-	req := httptest.NewRequest(http.MethodPost, "/notify", &buf)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/notify", &buf)
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	parts, err := ParseMultipart(req, 32<<20)
 	if err != nil {
@@ -85,7 +86,7 @@ func TestParseMultipartAnyField(t *testing.T) {
 }
 
 func TestParseMultipartBadMemory(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/notify", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/notify", nil)
 	if _, err := ParseMultipart(req, 0); err == nil {
 		t.Error("ParseMultipart(0) = nil, want error")
 	}

@@ -54,9 +54,6 @@ func TestParseHookURLBasic(t *testing.T) {
 	if hook.username != "user" || hook.password == nil || *hook.password != "pass" {
 		t.Errorf("auth = %q/%v, want user/pass", hook.username, hook.password)
 	}
-	if !hook.verify {
-		t.Error("verify = false, want true default")
-	}
 	if len(hook.params) != 0 {
 		t.Errorf("params = %v, want empty", hook.params)
 	}
@@ -66,7 +63,7 @@ func TestParseHookURLBasic(t *testing.T) {
 }
 
 func TestParseHookURLQuery(t *testing.T) {
-	hook, err := ParseHookURL("http://user@localhost/webhook/here?verify=False&key=value&cto=2.0&rto=1.0")
+	hook, err := ParseHookURL("http://user@localhost/webhook/here?key=value&cto=2.0&rto=1.0")
 	if err != nil {
 		t.Fatalf("ParseHookURL() = %v", err)
 	}
@@ -76,14 +73,23 @@ func TestParseHookURLQuery(t *testing.T) {
 	if hook.username != "user" || hook.password != nil {
 		t.Errorf("auth = %q/%v, want user/<nil>", hook.username, hook.password)
 	}
-	if hook.verify {
-		t.Error("verify = true, want false")
-	}
 	if hook.params.Get("key") != "value" {
 		t.Errorf("params = %v, want key=value", hook.params)
 	}
 	if hook.connectTimeout != 2*time.Second || hook.readTimeout != time.Second {
 		t.Errorf("timeouts = %v/%v, want 2s/1s", hook.connectTimeout, hook.readTimeout)
+	}
+}
+
+func TestParseHookURLRejectsVerify(t *testing.T) {
+	for _, raw := range []string{
+		"https://localhost/webhook?verify=False",
+		"https://localhost/webhook?verify=true",
+		"https://localhost/webhook?VERIFY=",
+	} {
+		if _, err := ParseHookURL(raw); err == nil {
+			t.Errorf("ParseHookURL(%q) = nil, want verify rejection", raw)
+		}
 	}
 }
 
@@ -136,7 +142,7 @@ func TestSendHookParamsAndTimeouts(t *testing.T) {
 	cap := &captureRoundTripper{}
 	client := testHookClient(cap)
 	client.SendHook(context.Background(),
-		"http://user@localhost/webhook/here?verify=False&key=value&cto=2.0&rto=1.0",
+		"http://user@localhost/webhook/here?key=value&cto=2.0&rto=1.0",
 		HookPayload{Source: "s", Status: 0})
 	if cap.req == nil {
 		t.Fatal("no request captured")
@@ -145,7 +151,7 @@ func TestSendHookParamsAndTimeouts(t *testing.T) {
 	if query.Get("key") != "value" {
 		t.Errorf("query = %v, want key=value forwarded", query)
 	}
-	for _, reserved := range []string{"verify", "cto", "rto"} {
+	for _, reserved := range []string{"cto", "rto"} {
 		if _, ok := query[reserved]; ok {
 			t.Errorf("query forwards reserved key %q: %v", reserved, query)
 		}

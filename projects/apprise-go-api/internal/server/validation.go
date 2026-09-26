@@ -169,9 +169,16 @@ func validatedLogLevel(raw, def string) string {
 	}
 	return "WARNING"
 }
+
+// uploadMaxBytes converts the APPRISE_UPLOAD_MAX_MEMORY_SIZE MiB budget
+// to bytes (negative values use their magnitude; zero keeps the 3 MiB
+// floor the notify harness and decode paths assume).
 func uploadMaxBytes(mb int64) int64 {
-	if mb <= 0 {
+	if mb == 0 {
 		return 3 << 20
+	}
+	if mb < 0 {
+		mb = -mb
 	}
 	return mb << 20
 }
