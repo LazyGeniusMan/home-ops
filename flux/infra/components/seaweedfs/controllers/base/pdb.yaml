@@ -1,0 +1,26 @@
+# PDBs for the HPA-scaled seaweedfs-operator + csi-driver-controller
+# Deployments (both leader-elected): keep 1 replica during voluntary
+# disruption so storage provisioning stays up. Selectors mirror the chart
+# Deployment matchLabels (helm template: operator 0.1.40, CSI 0.2.36).
+# Dev runs min 1 — minAvailable 1 means "evict nothing" there.
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: seaweedfs-operator
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: seaweedfs-operator
+      app.kubernetes.io/instance: seaweedfs-operator
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: seaweedfs-csi-driver-controller
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: seaweedfs-csi-driver-controller

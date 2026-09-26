@@ -9,4 +9,5 @@ resources:
   - clustersecretstore.yaml
   - eso-proton-pass-webhook.yaml
   - eso-proton-pass-hpa.yaml
+  - eso-proton-pass-pdb.yaml
   - eso-proton-pass-vpa.yaml

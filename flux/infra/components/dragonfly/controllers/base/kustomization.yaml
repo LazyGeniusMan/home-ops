@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - dragonfly.yaml
   - hpa.yaml
+  - pdb.yaml
   - vpa.yaml
 patches:
   # Reloader opt-in: restart the chart-rendered operator Deployment when the

@@ -1,0 +1,15 @@
+# PDB for the HPA-scaled eso-proton-pass webhook Deployment: keep 1
+# replica during voluntary disruption so secret sync stays up. The
+# ESO chart admission webhook stays a PDB-free singleton by design (see
+# controllers/base/pdb.yaml header). Dev runs min 1 — minAvailable 1
+# means "evict nothing" there.
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: eso-proton-pass
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eso-proton-pass

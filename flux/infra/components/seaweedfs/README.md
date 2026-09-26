@@ -107,6 +107,7 @@ chart. Operator chart 0.1.40 + CSI chart 0.2.36 hand-bumped (no chart
 ImagePolicy/marker by design — bump Chart versions + image tags together, see
 `update-policies/seaweedfs.yaml` header); images auto-track via
 `$imagepolicy` markers. Sidecar/driver caps move together with `cosi.yaml`.
-HPA workloads carry PDBs (`driver-pdb.yaml`, `ui-auth-pdb.yaml`); the COSI
-driver ClusterRole is narrowed from upstream (read + status-update only).
+HPA workloads carry PDBs (`driver-pdb.yaml`, `ui-auth-pdb.yaml` in configs
+plus `pdb.yaml` for the operator + csi-driver-controller Deployments in
+controllers); the COSI driver ClusterRole is narrowed from upstream (read + status-update only).
 Changelog: https://github.com/seaweedfs/seaweedfs/releases.

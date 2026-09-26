@@ -72,6 +72,8 @@ the nested wildcard rides the existing `*.home-ops` wildcard A automation.
 
 Controllers inherit `../base` unchanged.
 `CronJob/rclone-sync-dragonfly-backups` uses `concurrencyPolicy: Forbid`.
+The HPA-scaled operator Deployment carries a PDB (`pdb.yaml`,
+`minAvailable: 1`).
 
 ## Telemetry / monitoring / updates
 

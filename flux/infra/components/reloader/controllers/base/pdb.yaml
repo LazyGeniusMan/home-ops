@@ -1,0 +1,15 @@
+# PDB for the HPA-scaled reloader Deployment: keep 1 replica during
+# voluntary disruption so Secret rotation keeps firing. Selector mirrors
+# the chart Deployment matchLabels (helm template, chart 2.2.17). Dev
+# runs min 1 — minAvailable 1 means "evict nothing" there.
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: reloader
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: reloader-reloader
+      release: "reloader"

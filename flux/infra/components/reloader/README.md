@@ -38,7 +38,8 @@ reconcile.
 | `prd` | HPA 2-4 (seed 2) | seed -> 2, HPA 2/4, podMonitor `otel-scrape: "true"` |
 
 Controllers inherit `../base` unchanged otherwise. Configs shells are empty
-(`resources: []`) — no component config ships here.
+(`resources: []`) — no component config ships here. The HPA-scaled
+Deployment carries a PDB (`pdb.yaml`, `minAvailable: 1`).
 
 ## Telemetry / monitoring / updates
 

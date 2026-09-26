@@ -3,4 +3,5 @@ kind: Kustomization
 resources:
   - reloader.yaml
   - hpa.yaml
+  - pdb.yaml
   - vpa.yaml

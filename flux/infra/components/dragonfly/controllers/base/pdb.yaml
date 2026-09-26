@@ -1,0 +1,16 @@
+# PDB for the HPA-scaled dragonfly-operator Deployment (leader-elected):
+# keep 1 replica during voluntary disruption so CR reconcile stays up.
+# Selector mirrors the chart Deployment matchLabels (helm template, chart
+# v1.6.1). Dev runs min 1 — minAvailable 1 means "evict nothing" there.
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: dragonfly-dragonfly-operator
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dragonfly-operator
+      app.kubernetes.io/instance: dragonfly
+      control-plane: controller-manager

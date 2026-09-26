@@ -55,10 +55,12 @@ Alert on a `Ready=False` ExternalSecret and on a `401` from the webhook.
 
 | Env | Replicas | Patches |
 | --- | --- | --- |
-| `dev` | controller HPA 1-2, webhook `eso-proton-pass` 1 (singleton) | controller + cert-controller seeds -> 1; webhook HPA 1 / 2; vault refs per env |
-| `prd` | controller HPA 2-4, webhook `eso-proton-pass` 1 (singleton) | controller + cert-controller seeds -> 2; webhook HPA 2 / 4; vault refs per env |
+| `dev` | controller HPA 1-2, webhook `eso-proton-pass` HPA 1-2 | controller + cert-controller seeds -> 1; webhook HPA 1 / 2; vault refs per env |
+| `prd` | controller HPA 2-4, webhook `eso-proton-pass` HPA 2-4 | controller + cert-controller seeds -> 2; webhook HPA 2 / 4; vault refs per env |
 
-The ESO chart webhook stays singleton 1 in both overlays -- never scale it.
+The ESO chart admission webhook stays singleton 1 in both overlays -- never scale it.
+The `eso-proton-pass` provider webhook is HPA-scaled and carries a PDB
+(`configs/base/eso-proton-pass-pdb.yaml`, `minAvailable: 1`).
 
 ## Telemetry / monitoring / updates
 
