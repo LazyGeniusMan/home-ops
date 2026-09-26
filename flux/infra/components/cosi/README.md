@@ -14,20 +14,24 @@ coder `coder-db`, clickstack `ferretdb`/`clickstack`.
 
 ## Layout
 
-`crds/base/` (5 vendored v0.2.2 CRDs, fleet prune:false `infra-crds`) +
-`controllers/base/` (`namespace`/`sa`/`rbac`/`deployment` + HPA/VPA, CRD-free so
+`crds/base/` (first-party `helm-cosi` OCI chart, 5 CRDs v0.2.2, fleet
+prune:false `infra-crds`) + `controllers/base/`
+(`namespace`/`sa`/`rbac`/`deployment` + HPA/VPA, CRD-free so
 `infra-controllers` keeps prune:true) + `configs/base/` (`resources: []`
 placeholder — driver lives in the seaweedfs component). Dev/prd inherit
 `../base` unchanged.
 
-## Sources (all vendored, no remote kustomize URLs)
+## Sources
 
-- `crds/base/objectstorage.k8s.io_*.yaml` (5 CRDs v1alpha1) +
-  `controllers/base/` manifests: from
-  `kubernetes-sigs/container-object-storage-interface` tag `v0.2.2`. Re-vendor
-  all 5 CRD files together to bump (never hand-edit); pins + caps move together
-  (`update-policies/cosi.yaml` + `seaweedfs.yaml`, all `<0.3.0`). Namespace
-  adapted `system`->`cosi` (including the lease `RoleBinding`), subjects
+- `crds/base/cosi-crds.yaml` (`OCIRepository` + `HelmRelease`, CRD
+  `CreateReplace`): `projects/helm-cosi` wraps the 5 upstream CRDs
+  (`objectstorage.k8s.io/v1alpha1`,
+  `kubernetes-sigs/container-object-storage-interface` tag `v0.2.2`,
+  fetched at publish time; no YAML committed in the chart). All 5 bump
+  together; pins + caps move together (`update-policies/cosi.yaml` +
+  `seaweedfs.yaml`, all `<0.3.0`).
+- `controllers/base/` manifests: from the same tag. Namespace adapted
+  `system`->`cosi` (including the lease `RoleBinding`), subjects
   `default`->`cosi`.
 - Driver + classes in the seaweedfs component mirror the upstream seaweedfs
   chart `templates/cosi/` (plain in-cluster gRPC, no auth/TLS branches —
@@ -92,6 +96,8 @@ through in-namespace Kubernetes-provider stores (`cosi-keys.yaml` beside each
 
 ## Telemetry / monitoring / updates
 
-No phone-home knobs in the vendored manifests. Images auto-track via
-`update-policies/cosi.yaml` (controller, `>=0.2.2 <0.3.0`) + `seaweedfs.yaml`
-(sidecar + driver), capped `<0.3.0`; bumps hand-bump pins + ranges together.
+No phone-home knobs upstream. Controller image auto-tracks via
+`update-policies/cosi.yaml` (`>=0.2.2 <0.3.0`) + `seaweedfs.yaml`
+(sidecar + driver), capped `<0.3.0`; CRDs bump via Chart.yaml +
+wrapper `ref.tag` together (no ImagePolicy/marker, atomic hand-bump),
+human merges.

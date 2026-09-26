@@ -7,11 +7,12 @@
 # healthChecks (CRDs are cluster-scoped, cross-namespace refs are valid);
 # otel-collectors additionally waits for the operator controllers + the
 # shared infra CHI configs. CRD delivery (gateway-api + cosi + otel-operator
-# only): CRDs render through a dedicated prune:false infra-crds Kustomization
-# (a removed CRD must never cascade-delete CRs) with per-tenant healthChecks
-# so one failing tenant cannot hold the others NotReady. Cilium/cert-manager
-# CRDs stay Helm-managed (CreateReplace / keep:true) outside the kustomize
-# prune inventory, so prune:true controllers cannot cascade-delete them.
+# only): first-party Helm OCI charts render through a dedicated prune:false
+# infra-crds Kustomization (a removed CRD must never cascade-delete CRs) with
+# per-tenant healthChecks so one failing tenant cannot hold the others
+# NotReady. Cilium/cert-manager/kubevirt/multus CRDs stay Helm-managed
+# (CreateReplace / keep:true) outside the kustomize prune inventory, so
+# prune:true controllers cannot cascade-delete them.
 # This file is a Go template rendered by the Flux
 # Operator — `<< if ... >>` blocks are comments until rendered.
 apiVersion: fluxcd.controlplane.io/v1
@@ -212,9 +213,9 @@ spec:
             subject: ^https://github\.com/LazyGeniusMan/home-ops/\.github/workflows/flux-infra-push\.yaml@refs/heads/main$
           - issuer: ^https://token\.actions\.githubusercontent\.com$
             subject: ^https://github\.com/LazyGeniusMan/home-ops/\.github/workflows/<< inputs.artifactSubjectWorkflow >>\.yaml@<< inputs.artifactSubjectGitRef >>$
-    # infra-crds: vendored-CRD delivery (gateway-api + cosi + otel-operator
-    # only; disabled for other tenants). prune:false so removed CRDs never
-    # delete CRs; healthChecks gate dependents on Established.
+    # infra-crds: first-party Helm OCI chart delivery (gateway-api + cosi +
+    # otel-operator only; disabled for other tenants). prune:false so removed
+    # CRDs never delete CRs; healthChecks gate dependents on Established.
     - apiVersion: kustomize.toolkit.fluxcd.io/v1
       kind: Kustomization
       metadata:
@@ -330,11 +331,14 @@ spec:
           name: infra
         path: "./controllers/<< inputs.environment >>"
         prune: true
-        # Cilium/cert-manager CRDs are Helm-managed (cilium CreateReplace,
+        # Cilium/cert-manager/kubevirt/multus CRDs are Helm-managed (CreateReplace,
         # cert-manager keep:true) and never enter the kustomize prune
         # inventory, so a prune:true controllers delete cannot cascade-delete
         # them; tenant deletion leaves the Helm-managed CRDs orphaned by
-        # design. Residual component-level work: none — nothing further is
+        # design. The infra-crds charts (gateway-api/cosi/monitoring-crds)
+        # carry the same CreateReplace guard inside the prune:false path, so
+        # HelmRelease deletion never cascade-deletes their CRs either.
+        # Residual component-level work: none — nothing further is
         # achievable purely from this ResourceSet.
         postBuild:
           substituteFrom:

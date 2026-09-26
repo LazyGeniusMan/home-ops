@@ -1,7 +1,9 @@
 # kubevirt
 
-KubeVirt v1.9.0: vendored pinned `kubevirt-operator.yaml` (controllers) +
-`KubeVirt` CR (configs) enabling virt-operator/api/controller.
+KubeVirt v1.9.0: operator via the first-party `helm-kubevirt` OCI chart
+(`controllers/base/kubevirt-operator.yaml`: `OCIRepository` + `HelmRelease`,
+CRD `CreateReplace`) + `KubeVirt` CR (configs) enabling
+virt-operator/api/controller.
 
 ## Talos prerequisites
 
@@ -11,16 +13,19 @@ bridge NIC; `local-path-provisioner` covers CDI scratch; shared storage is
 only for LiveMigration (single-node: not required). Day-0 check:
 `ls /dev/kvm` before first VM start.
 
-## Source: vendored, not charted
+## Source: first-party chart, not vendored
 
-No official upstream chart -- pinned release manifests:
+No official upstream chart — `projects/helm-kubevirt` wraps the release
+asset (`ci/fetch.sh` stages
+`https://github.com/kubevirt/kubevirt/releases/download/v1.9.0/kubevirt-operator.yaml`
+at publish time; no YAML committed in the chart). Flux consumes the published
+OCI artifact (`oci://ghcr.io/lazygeniusman/home-ops/projects/helm-kubevirt`,
+`ref.tag` = Chart.yaml `version`).
 
-- Operator:
-  `https://github.com/kubevirt/kubevirt/releases/download/v1.9.0/kubevirt-operator.yaml`
 - CR:
   `https://github.com/kubevirt/kubevirt/releases/download/v1.9.0/kubevirt-cr.yaml`
   (upstream CR is a near-empty skeleton; ours extends it per the Talos
-  guide -- see header in `configs/base/kubevirt-cr.yaml`).
+  guide — see header in `configs/base/kubevirt-cr.yaml`).
 
 ## The CR at a glance
 
@@ -52,21 +57,22 @@ by this CR. `LiveMigrate` only governs where running workloads go during
 KubeVirt upgrades -- with node-local `local-ssd-nvme` volumes there is
 nowhere to migrate to, so upgrade-time VMIs restart on this single node.
 
-## Upgrades (vendored re-download)
+## Upgrades (chart bump)
 
 Upgrades are supported only N-1 -> N, never skip a minor. Our CR sets no
 `spec.imageTag`, so the operand locks to the operator version: the operator
 roll is the upgrade.
 
-1. Re-download both URLs at the new tag, diff against the vendored files.
-2. RBAC check (mandatory, operator-first): the new operator applies before
+1. Daily check PR bumps `projects/helm-kubevirt` (Chart.yaml `version` +
+   `appVersion`); the publish workflow fetches the new asset and pushes OCI.
+2. Bump the wrapper `ref.tag` in `controllers/base/kubevirt-operator.yaml`
+   to the new Chart.yaml version (no `$imagepolicy` — atomic hand-bump,
+   human merges).
+3. RBAC check (mandatory, operator-first): the new operator applies before
    anything reads the CR. `infra-configs` already `dependsOn`
    `infra-controllers`; never reorder.
-3. Re-apply the locks onto the fresh CR skeleton (featureGates, smbios,
+4. Re-apply the locks onto the fresh CR skeleton (featureGates, smbios,
    workloadUpdateStrategy, no imageTag, monitors unset).
-4. Bump the `$imagepolicy` marker (`infra:kubevirt:tag`, resolving against
-   `quay.io/kubevirt/virt-operator`, `>=1.9.0`) in both vendored headers;
-   ImageUpdateAutomation opens the PR, human merges.
 
 ## Deletion order (CRs-first)
 

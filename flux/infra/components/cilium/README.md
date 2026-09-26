@@ -5,8 +5,9 @@ kube-proxy replacement, Gateway API support, Hubble observability, single-IP
 `LoadBalancer` pool.
 
 Minor => check the Gateway required version first: 1.20 requires Gateway
-API v1.6.1 (`gateway-api/crds/base/standard-install.yaml`). Upgrade Gateway
-CRDs before the Cilium chart. `upgradeCompatibility: "1.20"` pins datapath
+API v1.6.1 (`gateway-api/crds/base/standard-install.yaml`, first-party
+`helm-gateway-api` chart). Upgrade the Gateway chart before the Cilium chart.
+`upgradeCompatibility: "1.20"` pins datapath
 behaviour to the install minor; bump only per the Cilium upgrade guide.
 
 Preflight is a one-off imperative check -- never leave `preflight.enabled`

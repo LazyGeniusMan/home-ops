@@ -1,42 +1,41 @@
-# Gateway API standard-channel CRDs v1.6.1 as a first-party Helm OCI chart (no official upstream chart).
-# Chart source: projects/helm-gateway-api (Chart.yaml version = upstream release sans v;
-# ci/fetch.sh stages standard-install.yaml at publish time; no YAML committed in the chart).
-# Standard channel whole: 10 CRDs + safe-upgrades VAP/Binding (experimental not adopted).
+# ServiceMonitor + PodMonitor CRDs (prometheus-operator v0.93.1, monitoring scope ONLY)
+# as a first-party Helm OCI chart.
+# Chart source: projects/helm-otel-monitoring-crds (Chart.yaml version = upstream release
+# sans v; ci/fetch.sh stages both files at publish time; no YAML committed in the chart).
 # Rendered by the fleet through the prune:false infra-crds Kustomization — CRDs are
-# never garbage-collected (see flux/fleet/tenants/infra.yaml). Bump the chart
-# (daily check PR -> publish OCI -> bump wrapper ref.tag, human merges) together with
-# the Cilium minor pairing (see flux/infra/update-policies/cilium.yaml).
+# never garbage-collected (see flux/fleet/tenants/infra.yaml).
+# No Prometheus/PrometheusRule/Alertmanager/Grafana objects.
 # No $imagepolicy — first-party Helm OCI bumps atomically (Chart.yaml + wrapper ref.tag in one PR, cf. helm-rclone-sync).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
-  name: gateway-api-chart
+  name: monitoring-crds-chart
 spec:
   interval: 1h
-  url: oci://ghcr.io/lazygeniusman/home-ops/projects/helm-gateway-api
+  url: oci://ghcr.io/lazygeniusman/home-ops/projects/helm-otel-monitoring-crds
   layerSelector:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
-  # Tag MUST equal Chart.yaml `version` in projects/helm-gateway-api (bump
+  # Tag MUST equal Chart.yaml `version` in projects/helm-otel-monitoring-crds (bump
   # Chart.yaml + this ref.tag together; no $imagepolicy marker — Helm
   # OCIRepositories are untracked by image automation).
   ref:
-    tag: "1.6.1"
+    tag: "0.93.1"
   # No `verify:` block: first-party chart signed at publish time, no pinned
   # upstream identity — same shape as the helm-rclone-sync wrappers.
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: gateway-api
+  name: monitoring-crds
 spec:
   interval: 1h
-  releaseName: gateway-api
+  releaseName: monitoring-crds
   serviceAccountName: flux
   chartRef:
     kind: OCIRepository
-    name: gateway-api-chart
+    name: monitoring-crds-chart
   install:
     # CreateReplace: chart CRDs advance in place; HelmRelease deletion never
     # cascade-deletes CRs (replicates the prune:false infra-crds intent).
@@ -49,4 +48,4 @@ spec:
     strategy:
       name: RetryOnFailure
       retryInterval: 5m
-  # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-gateway-api
+  # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-otel-monitoring-crds

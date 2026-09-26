@@ -1,6 +1,7 @@
 # cosi controller image policy (driver + sidecar policies in seaweedfs.yaml). Capped <0.3.0 (v1alpha2 breaking for the driver); bump all three caps together.
 # Changelog: kubernetes-sigs/container-object-storage-interface.
-# Coupled: controllers/base/deployment.yaml, crds/base/objectstorage*.yaml (5, re-vendor together).
+# Coupled: controllers/base/deployment.yaml, crds/base/cosi-crds.yaml
+# (helm-cosi chart 0.2.2, Chart.yaml + ref.tag bump together, no ImagePolicy).
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

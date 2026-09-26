@@ -1,7 +1,7 @@
 # KubeVirt CR v1.9.0 (extends upstream kubevirt-cr.yaml at https://github.com/kubevirt/kubevirt/releases/download/v1.9.0/kubevirt-cr.yaml per the Talos install guide).
 # featureGates LiveMigration + NetworkBindingPlugins (multus); smbios TalosCloud block; workloadUpdateStrategy LiveMigrate (single-node VMIs restart on upgrade).
 # No storage knob in the CRD schema (default-class local-ssd-nvme implicit). Monitors unset. No spec.imageTag: operand locks to the operator version.
-# {"$imagepolicy": "infra:kubevirt:tag"}
+# Version tracks the helm-kubevirt chart (Chart.yaml 1.9.0 + controllers/base/kubevirt-operator.yaml ref.tag); bump together, operator-first.
 ---
 apiVersion: kubevirt.io/v1
 kind: KubeVirt

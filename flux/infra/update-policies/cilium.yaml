@@ -1,6 +1,7 @@
 # cilium chart policy. Minor upgrades need the manual preflight runbook first.
 # Changelog: https://github.com/cilium/cilium/releases.
-# Coupled: controllers/base/cilium.yaml, gateway-api/crds/base/standard-install.yaml (minor pairing), apps/update-policies/hubble-ui.yaml.
+# Coupled: controllers/base/cilium.yaml, gateway-api crds wrapper
+# (helm-gateway-api Chart.yaml + ref.tag, minor pairing), apps/update-policies/hubble-ui.yaml.
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

@@ -1,20 +1,24 @@
 # multus
 
-Multus v4.3.0 thick-plugin DaemonSet
-(`controllers/base/multus-daemonset.yaml`) plus the `lan-dhcp`
+Multus v4.3.0 thick-plugin DaemonSet (first-party `helm-multus` OCI chart in
+`controllers/base/multus-daemonset.yaml`: `OCIRepository` + `HelmRelease`,
+CRD `CreateReplace`) plus the `lan-dhcp`
 NetworkAttachmentDefinition (`configs/base/lan-dhcp.yaml`). Thick plugin:
 KubeVirt secondary-net (`NetworkBindingPlugins`) requires the per-node
 `multus-daemon`.
 
-## Source: vendored, not charted
+## Source: first-party chart, not vendored
 
-No official upstream chart — vendored pinned release manifest from
-`https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/v4.3.0/deployments/multus-daemonset-thick.yml`.
-Both image fields (daemon + `install-multus-binary` init container) pin to
-`ghcr.io/k8snetworkplumbingwg/multus-cni:v4.3.0-thick` (upstream tags the
-DaemonSet `snapshot-thick`, which floats — never track it). The `kube-system`
-ServiceAccount/ClusterRole(Binding)/ConfigMap/DaemonSet namespaces are
-upstream's and correct as-is.
+No official upstream chart — `projects/helm-multus` wraps the release asset
+(`ci/fetch.sh` stages
+`https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/v4.3.0/deployments/multus-daemonset-thick.yml`
+at publish time and re-applies the two local narrowings as script steps:
+ClusterRole narrowing + image re-pin to
+`ghcr.io/k8snetworkplumbingwg/multus-cni:v4.3.0-thick`; no YAML committed in
+the chart). Flux consumes the published OCI artifact
+(`oci://ghcr.io/lazygeniusman/home-ops/projects/helm-multus`, `ref.tag` =
+Chart.yaml `version`). The `kube-system` namespaces are upstream's and
+correct as-is.
 
 ## Node-file residue
 
@@ -24,18 +28,16 @@ the DaemonSet does not clean `/opt/cni/bin`, `/etc/cni/net.d`, `/run`
 re-install. The `NetworkAttachmentDefinition` CRD ships in this bundle: full
 uninstall = delete NADs first, then the DaemonSet, then the CRD explicitly.
 
-## Re-download
+## Bumps
 
-Re-download the upstream URL at the new tag and diff against
-`controllers/base/multus-daemonset.yaml`; re-pin both images together (never
-`snapshot-thick`, never a half-pinned pair); re-verify `kube-system` namespaces,
-DaemonSet mounts, and the initContainer `-t thick` arg; RE-APPLY the RBAC
-narrowing (upstream grants `k8s.cni.cncf.io:*` on `*` — this repo narrows to
-NAD read + pod annotate/status + events write, see the header comment).
-`privileged: true` stays (CNI moves host netns interfaces — hardening it
-would break the daemon). Bump the `$imagepolicy`
-marker (`infra:multus:tag`, `update-policies/multus.yaml >=4.3.0`);
-ImageUpdateAutomation opens the PR, human merges.
+Daily check PR bumps `projects/helm-multus` (Chart.yaml `version` +
+`appVersion`); the publish workflow fetches the new asset, re-applies the
+narrowings, and pushes OCI. Bump the wrapper `ref.tag` in
+`controllers/base/multus-daemonset.yaml` to the new Chart.yaml version (no
+`$imagepolicy` — atomic hand-bump, human merges). Re-verify `kube-system`
+namespaces, DaemonSet mounts, and the initContainer `-t thick` arg on every
+bump; `privileged: true` stays (CNI moves host netns interfaces — hardening
+it would break the daemon).
 
 ## The `lan-dhcp` contract (single-writer)
 
@@ -63,6 +65,6 @@ Controllers track `../base` with no patches in both envs.
 ## Telemetry / monitoring / updates
 
 No reporting knobs upstream. Metrics via plain prometheus annotations;
-ServiceMonitors wait for the monitoring stack. Bumps via
-`update-policies/multus.yaml` -> PR automation (marker in the header of
-`controllers/base/multus-daemonset.yaml`).
+ServiceMonitors wait for the monitoring stack. Bumps: Chart.yaml +
+wrapper `ref.tag` together (no ImagePolicy/marker, atomic hand-bump),
+human merges.

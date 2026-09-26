@@ -6,10 +6,13 @@ proxy of https://open-telemetry.github.io/opentelemetry-helm-charts) reconciling
 `OpenTelemetryCollector` CRs; webhooks via cert-manager. Own `ServiceMonitor` off
 (no Prometheus server in this repo).
 
-`crds/base` vendors ServiceMonitor + PodMonitor (prometheus-operator v0.93.1,
-monitoring scope ONLY — no Prometheus/PrometheusRule/Alertmanager/Grafana) so
+`crds/base` ships ServiceMonitor + PodMonitor (prometheus-operator v0.93.1,
+monitoring scope ONLY — no Prometheus/PrometheusRule/Alertmanager/Grafana) via
+the first-party `helm-otel-monitoring-crds` OCI chart (CreateReplace) so
 sibling charts can flip their `*_monitor` knobs to `skipIfMissing`; renders
-through the fleet's prune:false infra-crds Kustomization.
+through the fleet's prune:false infra-crds Kustomization. Bumps: Chart.yaml +
+wrapper `ref.tag` together (no ImagePolicy/marker, atomic hand-bump), human
+merges.
 
 ## Environments
 

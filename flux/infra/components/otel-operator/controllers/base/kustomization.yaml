@@ -1,9 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# CRD-FREE CONTRACT (shared with cosi, gateway-api): the vendored
-# monitoring.coreos.com CRDs live in crds/base (fleet prune:false
-# infra-crds) — this Kustomization must stay CRD-free so infra-controllers
-# keeps prune:true. Never add a CRD file here
+# CRD-FREE CONTRACT (shared with cosi, gateway-api): the
+# monitoring.coreos.com CRDs live in crds/base (first-party Helm OCI chart,
+# fleet prune:false infra-crds) — this Kustomization must stay CRD-free so
+# infra-controllers keeps prune:true. Never add a CRD file here
 # (see flux/fleet/tenants/infra.yaml).
 resources:
   - otel-operator.yaml

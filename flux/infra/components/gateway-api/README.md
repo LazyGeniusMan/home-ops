@@ -1,19 +1,17 @@
 # gateway-api
 
-Gateway API v1.6.1 standard channel (`crds/base/standard-install.yaml`: 10
-CRDs + 2 ValidatingAdmissionPolicies, vendored whole from the upstream
-release asset -- experimental not adopted), the shared
+Gateway API v1.6.1 standard channel (first-party `helm-gateway-api` OCI
+chart in `crds/base/`: 10 CRDs + 2 ValidatingAdmissionPolicies, standard
+channel whole — experimental not adopted), the shared
 `GatewayClass/cilium` (served by `io.cilium/gateway-controller`), the
 shared `Gateway/main` (HTTP 80 + HTTPS 443), and base `HTTPRoute`
 redirects. Per-service routes attach later.
 
-CRD delivery: the bundle lives in `crds/` and renders through the fleet's
-prune:false `infra-crds` Kustomization -- a removed CRD file never
-cascade-deletes CRs. `controllers/base` is an empty Kustomization so
-`infra-controllers` keeps prune:true; bumps re-vendor the whole file
-(marker + policy range move together, see the header in
-`crds/base/standard-install.yaml` and
-`flux/infra/update-policies/gateway-api.yaml` >=1.6.1).
+CRD delivery: the chart lives in `crds/` and renders through the fleet's
+prune:false `infra-crds` Kustomization (CreateReplace inside) — a removed
+CRD never cascade-deletes CRs. `controllers/base` is an empty Kustomization
+so `infra-controllers` keeps prune:true; bumps move Chart.yaml + wrapper
+`ref.tag` together (see the header in `crds/base/standard-install.yaml`).
 
 ## TLS: namespace-local wildcard Certificates
 
@@ -49,6 +47,7 @@ track `../base` with no patches.
 ## Telemetry / monitoring / updates
 
 No telemetry knobs in the upstream manifests. No ServiceMonitors ship;
-Gateway data-plane metrics come via Cilium. Bumps via
-`update-policies/gateway-api.yaml` -> PR automation (the `$imagepolicy`
-marker is the version comment in `crds/base/standard-install.yaml`).
+Gateway data-plane metrics come via Cilium. Bumps: Chart.yaml +
+wrapper `ref.tag` together (no ImagePolicy/marker, atomic hand-bump),
+human merges — paired with the Cilium minor (see
+`flux/infra/update-policies/cilium.yaml`).

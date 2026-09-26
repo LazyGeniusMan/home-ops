@@ -37,7 +37,7 @@ spec:
       retryInterval: 5m
     # Operator CRDs (OpenTelemetryCollector/TargetAllocator/Instrumentation) are
     # chart-managed templates; monitoring.coreos.com CRDs ship separately via
-    # crds/base (vendored, prune:false).
+    # crds/base (first-party Helm OCI chart, prune:false).
     crds: CreateReplace
   upgrade:
     strategy:

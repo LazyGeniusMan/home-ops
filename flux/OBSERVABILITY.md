@@ -8,9 +8,10 @@ into namespace-local ClickHouse and are read back in HyperDX. See
 
 ## OTel pipeline (landed)
 
-- **Operator** (`infra/components/otel-operator/`): `crds/base` vendors
+- **Operator** (`infra/components/otel-operator/`): `crds/base` ships
   ServiceMonitor + PodMonitor CRDs (prometheus-operator v0.93.1, monitoring
-  scope only) rendered through the fleet's `prune:false` infra-crds
+  scope only) via the first-party `helm-otel-monitoring-crds` OCI chart
+  (CreateReplace) rendered through the fleet's `prune:false` infra-crds
   Kustomization; `controllers/{base,dev,prd}` run the operator chart
   (0.123.1/app 0.159.0) with `infra:otel-operator:tag` update policy.
 - **Collectors** (`infra/components/otel-collectors/`): operator-managed

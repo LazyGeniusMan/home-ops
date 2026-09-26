@@ -1,4 +1,5 @@
-# Gateway API CRDs (vendored v1.6.1 standard-install.yaml). Rendered by the fleet
+# Gateway API CRDs (standard channel v1.6.1) as a first-party Helm OCI chart
+# (Chart source: projects/helm-gateway-api). Rendered by the fleet
 # through the prune:false infra-crds Kustomization — CRDs are never garbage-collected.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
