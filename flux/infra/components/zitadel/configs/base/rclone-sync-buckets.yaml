@@ -20,10 +20,10 @@ spec:
   data:
     - secretKey: username
       remoteRef:
-        key: __PROTON_PASS_BASE__/zitadel/rclone-proton-username
+        key: __PROTON_PASS_BASE__/rclone/proton-username
     - secretKey: password
       remoteRef:
-        key: __PROTON_PASS_BASE__/zitadel/rclone-proton-password-obscured
+        key: __PROTON_PASS_BASE__/rclone/proton-password-obscured
 ---
 # Per-bucket S3 source secrets: mirror BucketInfo JSON (keys plus bucketName
 # templated from BucketInfo.spec.bucketName for SRC_PATH esoRef).

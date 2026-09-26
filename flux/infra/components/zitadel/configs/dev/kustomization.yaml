@@ -8,10 +8,10 @@ patches:
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
-        value: pass://acme-dev-bdo1-talos-apps-01/zitadel/rclone-proton-username
+        value: pass://acme-dev-bdo1-talos-apps-01/rclone/proton-username
       - op: replace
         path: /spec/data/1/remoteRef/key
-        value: pass://acme-dev-bdo1-talos-apps-01/zitadel/rclone-proton-password-obscured
+        value: pass://acme-dev-bdo1-talos-apps-01/rclone/proton-password-obscured
     target:
       kind: ExternalSecret
       name: zitadel-rclone-proton

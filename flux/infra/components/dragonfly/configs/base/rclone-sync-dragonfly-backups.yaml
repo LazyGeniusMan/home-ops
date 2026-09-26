@@ -60,10 +60,10 @@ spec:
   data:
     - secretKey: username
       remoteRef:
-        key: __PROTON_PASS_BASE__/dragonfly/rclone-proton-username
+        key: __PROTON_PASS_BASE__/rclone/proton-username
     - secretKey: password
       remoteRef:
-        key: __PROTON_PASS_BASE__/dragonfly/rclone-proton-password
+        key: __PROTON_PASS_BASE__/rclone/proton-password
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

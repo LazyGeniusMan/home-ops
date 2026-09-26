@@ -56,10 +56,10 @@ patches:
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/clickhouse/rclone-proton-username
+        value: pass://acme-prd-bdo1-talos-apps-01/rclone/proton-username
       - op: replace
         path: /spec/data/1/remoteRef/key
-        value: pass://acme-prd-bdo1-talos-apps-01/clickhouse/rclone-proton-password
+        value: pass://acme-prd-bdo1-talos-apps-01/rclone/proton-password
     target:
       kind: ExternalSecret
       name: rclone-proton-credentials
