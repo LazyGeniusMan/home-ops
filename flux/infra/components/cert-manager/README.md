@@ -23,10 +23,18 @@ mints its own duplicate wildcard `Certificate` in its own namespace (same
 issuer, same dnsNames) because Gateway listeners need the TLS Secret
 namespace-local.
 
+Rate-limit math (why LE prod in dev too): dev mints ~10 wildcard Certificates
+(once each, then auto-renewal at 2/3 lifetime = ~60d), far below the LE
+certificates-per-domain (50/week) and duplicate-certificate (5/week) limits.
+LE staging stays off — staging certs are untrusted and would break the dev
+NetBird/OIDC trust chain; if dev ever exceeds ~20 certs, switch the dev
+overlay server to `https://acme-staging-v02.api.letsencrypt.org/directory`.
+
 ## Telemetry / monitoring / updates
 
 No reporting knobs in chart values (`prometheus.enabled` only adds scrape
-annotations). `ServiceMonitor` off. Renewal automatic (2/3 lifetime). Chart
+annotations). `ServiceMonitor` on (monitoring CRDs via the infra-crds tenant).
+Renewal automatic (2/3 lifetime). Chart
 bumps: `update-policies/cert-manager.yaml` (>=1.21.2, marker
 `infra:cert-manager:tag`) -> PR automation.
 Changelog: https://github.com/cert-manager/cert-manager/releases.

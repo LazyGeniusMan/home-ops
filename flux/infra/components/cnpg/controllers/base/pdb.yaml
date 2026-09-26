@@ -1,0 +1,13 @@
+# PDB for the HPA-scaled CNPG operator Deployment (leader-elected): keep 1
+# replica during voluntary disruption so database reconcile stays up.
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cnpg-cloudnative-pg
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudnative-pg
+      app.kubernetes.io/instance: cnpg

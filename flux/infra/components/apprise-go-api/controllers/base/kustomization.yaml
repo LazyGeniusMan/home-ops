@@ -4,3 +4,4 @@ resources:
   - apprise-go-api.yaml
   - apprise-go-api-hpa.yaml
   - apprise-go-api-vpa.yaml
+  - apprise-go-api-pdb.yaml

@@ -4,3 +4,4 @@ resources:
   - otel-operator.yaml
   - hpa.yaml
   - vpa.yaml
+  - pdb.yaml

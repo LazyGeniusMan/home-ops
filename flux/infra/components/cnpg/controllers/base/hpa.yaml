@@ -1,4 +1,4 @@
-# Out-of-band HPA for the CNPG operator Deployment (chart 0.29.0 exposes no
+# Out-of-band HPA for the CNPG operator Deployment (chart 0.29.1 exposes no
 # autoscaling knob; upstream HPA discouragement in resource_management.md
 # applies to database Cluster CRs, not this stateless operator). Min/max
 # patched per env (dev 1/2, prd 2/4); base carries the prd floor.

@@ -1,0 +1,13 @@
+# PDB for the HPA-scaled filer-UI proxy: keep 1 replica during voluntary
+# disruption (stateless cookie sessions — any replica serves any request).
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ui-auth
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: oauth2-proxy
+      app.kubernetes.io/instance: ui-auth

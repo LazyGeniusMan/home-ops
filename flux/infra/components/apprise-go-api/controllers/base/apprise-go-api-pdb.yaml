@@ -1,0 +1,12 @@
+# PDB for the HPA-scaled notification sink: keep 1 replica during voluntary
+# disruption so Matrix alerts keep flowing.
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: apprise-go-api
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: apprise-go-api

@@ -1,0 +1,13 @@
+# PDB for the HPA-scaled otel-operator Deployment (leader-elected): keep 1
+# replica during voluntary disruption so collector reconcile stays up.
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: otel-operator-opentelemetry-operator
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-operator
+      app.kubernetes.io/component: controller-manager

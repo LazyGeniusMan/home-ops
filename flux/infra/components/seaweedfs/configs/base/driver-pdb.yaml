@@ -1,0 +1,15 @@
+# PDB for the HPA-scaled COSI driver: keep 1 replica during voluntary
+# disruption (dev runs min 1 — maxUnavailable 0 there means "evict nothing";
+# prd min 2 keeps quorum). Singletons without HPA need no PDB (nothing to
+# protect beyond the single replica itself).
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: seaweedfs-cosi-driver
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: seaweedfs-cosi-driver
+      app.kubernetes.io/component: objectstorage-provisioner

@@ -5,3 +5,4 @@ resources:
   - kube-dns.yaml
   - hpa.yaml
   - vpa.yaml
+  - pdb.yaml

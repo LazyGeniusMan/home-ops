@@ -4,3 +4,4 @@ resources:
   - cnpg.yaml
   - hpa.yaml
   - vpa.yaml
+  - pdb.yaml

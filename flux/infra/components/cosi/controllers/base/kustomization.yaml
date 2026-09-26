@@ -12,3 +12,4 @@ resources:
   - deployment.yaml
   - controller-hpa.yaml
   - controller-vpa.yaml
+  - controller-pdb.yaml

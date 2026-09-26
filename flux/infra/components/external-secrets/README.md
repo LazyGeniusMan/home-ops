@@ -43,8 +43,9 @@ entry carries an expiry annotation as the reminder):
 1. Confirm the `external-secrets/proton-pass-pat` entry and its expiry.
 2. Create the replacement PAT, update the vault entry (`pat` + expiry).
 3. Recreate the Secret from stdin (never commit it).
-4. `rollout restart deploy/eso-proton-pass` (the webhook reads the PAT file
-   at startup).
+4. Reloader (`reloader.stakater.com/auto: "true"` on the Deployment) rolls
+   `eso-proton-pass` automatically — no manual `rollout restart` (the webhook
+   reads the PAT file at startup).
 5. Verify: webhook `/healthz` plus every proton-pass `ExternalSecret`
    `Ready=True`.
 

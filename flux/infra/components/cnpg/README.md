@@ -64,9 +64,8 @@ Controllers inherit `../base` unchanged.
 
 No phone-home knobs in chart values (local `:8080` metrics only). Postgres
 exporter on by default upstream but unscraped; `monitoring.podMonitorEnabled:
-false` and no PodMonitor/ServiceMonitor until `monitoring.coreos.com` CRDs
-land (prefer the standalone PodMonitor; upstream deprecates
-`.spec.monitoring.enablePodMonitor`). Bumps:
+true` (monitoring CRDs via the infra-crds tenant; prefer the standalone
+PodMonitor — upstream deprecates `.spec.monitoring.enablePodMonitor`). Bumps:
 `update-policies/cnpg.yaml` (marker `infra:cnpg:tag`) -> PR automation.
 Take a fresh base backup before bumping.
 Changelogs: https://github.com/cloudnative-pg/charts/releases,

@@ -1,4 +1,4 @@
-# CNPG operator 1.30.0 via chart 0.29.1 (chart embeds operator; see README mapping). Chart oci://ghcr.io/cloudnative-pg/charts/cloudnative-pg.
+# CNPG operator 1.30.0 via chart 0.29.1 (chart embeds operator; re-verify the Chart.yaml appVersion on every bump — skew guard in update-policies/cnpg.yaml). Chart oci://ghcr.io/cloudnative-pg/charts/cloudnative-pg.
 # PodMonitor on: monitoring CRDs arrive via the otel-operator infra-crds delivery (prune:false), and the
 # gateway TA scrapes monitors labeled `otel-scrape: "true"` (labels land via sibling; see the ESO
 # `renderMode: skipIfMissing` template in external-secrets/controllers/base/externalsecrets.yaml).

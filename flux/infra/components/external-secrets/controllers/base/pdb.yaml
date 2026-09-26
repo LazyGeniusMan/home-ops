@@ -1,0 +1,26 @@
+# PDBs for the HPA-scaled ESO controller + cert-controller (leader-elected):
+# keep 1 replica during voluntary disruption so secret sync stays up. The
+# admission webhook stays a PDB-free singleton by design (a second replica
+# adds risk without benefit — see hpa.yaml header).
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: external-secrets
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: external-secrets
+      app.kubernetes.io/instance: external-secrets
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: external-secrets-cert-controller
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cert-controller
+      app.kubernetes.io/instance: external-secrets

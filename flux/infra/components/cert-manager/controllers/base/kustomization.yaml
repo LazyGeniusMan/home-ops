@@ -4,3 +4,4 @@ resources:
   - cert-manager.yaml
   - hpa.yaml
   - vpa.yaml
+  - pdb.yaml
