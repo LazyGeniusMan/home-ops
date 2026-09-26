@@ -1,6 +1,7 @@
 # S3 -> Proton Drive backups of the `ferretdb` (03:30) + `clickstack` (04:00) COSI
-# buckets, one HelmRelease per bucket (`copy` — offsite legs never `sync`:
-# sync would delete extras on Proton Drive — `concurrencyPolicy: Forbid`). Live
+# buckets, one HelmRelease per bucket (`sync` — sync-mirror; source deletion
+# is the storage backend or db/app operator's job — `concurrencyPolicy:
+# Forbid`). Live
 # names template from BucketInfo `spec.bucketName` (never hardcoded); S3 keys via
 # `clickstack-cosi`, Proton creds via shared `rclone-proton-credentials` (`esoRef`).
 # Seed pass://<cluster>/clickstack/rclone-proton-{username (plain),password
@@ -154,7 +155,7 @@ spec:
     activeDeadlineSeconds: 3600
     concurrencyPolicy: Forbid
     rclone:
-      operation: copy # offsite leg: copy only, never sync (sync deletes extras)
+      operation: sync # sync-mirror; source deletion is the storage backend or db/app operator's job
     source:
       type: s3
       remoteName: ""
@@ -217,7 +218,7 @@ spec:
     activeDeadlineSeconds: 3600
     concurrencyPolicy: Forbid
     rclone:
-      operation: copy # offsite leg: copy only, never sync (sync deletes extras)
+      operation: sync # sync-mirror; source deletion is the storage backend or db/app operator's job
     source:
       type: s3
       remoteName: ""

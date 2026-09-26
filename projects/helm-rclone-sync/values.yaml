@@ -18,9 +18,10 @@ rclone:
   # -- Overrides image.digest when set. Empty = use image.digest (dropped when
   # rclone.version is set without it, so the render fails instead of going tag-only).
   digest: ""
-  # -- One-shot command: copy (offsite-safe default, never deletes) or sync
-  # (mirror, deletes extras at destination). Opt in to sync per release.
-  operation: copy
+  # -- One-shot command: sync (mirror default, deletes extras at
+  # destination; source deletion is the storage backend or db/app
+  # operator's job) or copy (additive, never deletes).
+  operation: sync
   # -- Extra CLI flags appended before the source/destination args,
   # e.g. ["--transfers=4", "--checkers=8", "--stats=60s", "--stats-one-line"]
   extraArgs: []

@@ -11,10 +11,12 @@ One generic CronJob template serves **all 10 sync directions** — each directio
 is expressed purely via `source.type` / `destination.type`. Shared logic
 lives in `templates/_helpers.tpl` behind the `helm-rclone-sync.*` prefix.
 
-Consumed in Flux by six wrappers pinning the exact chart version (no
+Consumed in Flux by seven wrappers pinning the exact chart version (no
 `$imagepolicy` marker — Helm OCIRepositories are untracked):
-`flux/apps/components/{coder,clickstack}/base/rclone-sync-*.yaml`,
+`flux/apps/components/{coder,clickstack,matrix}/base/rclone-sync-*.yaml`,
 `flux/infra/components/{zitadel,clickhouse,cnpg,dragonfly}/configs/base/rclone-sync*.yaml`.
+Every leg uses `operation: sync` (mirror; source deletion is the storage
+backend or db/app operator's job).
 
 ## Install / upgrade
 
@@ -143,7 +145,7 @@ suspend: false            # true pauses the schedule without uninstalling
 image: {repository: rclone/rclone, tag: "1.75.0"}  # exact pin, never "latest"
 rclone:
   version: ""             # overrides image.tag when set (exact pin, never "latest")
-  operation: sync         # sync (mirror, deletes extras) or copy; nothing long-lived
+  operation: sync         # sync (mirror default, deletes extras at destination; source deletion is the storage backend or db/app operator's job) or copy; nothing long-lived
   extraArgs: []           # e.g. ["--transfers=4", "--stats-one-line"]
 ```
 

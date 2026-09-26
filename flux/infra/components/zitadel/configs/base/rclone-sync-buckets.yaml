@@ -1,6 +1,6 @@
 # S3 to ProtonDrive backups for zitadel-db, zitadel-cache, zitadel-assets (one helm-rclone-sync CronJob per bucket, direction 05; chart 0.1.0).
 # Chart source: projects/helm-rclone-sync.
-# Source is the live bc-<uuid> bucket via BucketInfo.spec.bucketName (assets sync reads the account root with --include "zitadel-assets*/**"). Destination /home-ops/backups/<cluster>/zitadel/<bucket>. Schedules db 01:15, cache 02:15, assets 03:15 UTC (staggered off the 00:00 CNPG base + 03:00 ClickHouse backup); copy (never sync — off-site keeps history), Forbid.
+# Source is the live bc-<uuid> bucket via BucketInfo.spec.bucketName (assets sync reads the account root with --include "zitadel-assets*/**"). Destination /home-ops/backups/<cluster>/zitadel/<bucket>. Schedules db 01:15, cache 02:15, assets 03:15 UTC (staggered off the 00:00 CNPG base + 03:00 ClickHouse backup); sync-mirror (source deletion is the storage backend or db/app operator's job), Forbid.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -158,7 +158,7 @@ spec:
       limits:
         memory: 256Mi
     rclone:
-      operation: copy
+      operation: sync
       extraArgs:
         - --fast-list
         - --checksum
@@ -226,7 +226,7 @@ spec:
       limits:
         memory: 256Mi
     rclone:
-      operation: copy
+      operation: sync
       extraArgs:
         - --fast-list
         - --checksum
@@ -294,7 +294,7 @@ spec:
       limits:
         memory: 256Mi
     rclone:
-      operation: copy
+      operation: sync
       extraArgs:
         - --fast-list
         - --checksum

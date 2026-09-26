@@ -1,6 +1,6 @@
-# S3 -> Proton Drive backup of the `coder-db` COSI bucket (daily 03:15, `copy`
-# (offsite legs never `sync`: sync would delete extras on Proton Drive),
-# `concurrencyPolicy: Forbid`). Live bucket name templates from BucketInfo
+# S3 -> Proton Drive backup of the `coder-db` COSI bucket (daily 03:15, `sync`
+# (sync-mirror; source deletion is the storage backend or db/app operator's
+# job), `concurrencyPolicy: Forbid`). Live bucket name templates from BucketInfo
 # `spec.bucketName` via `rclone-coder-db-s3-path` (never hardcoded); S3 keys via
 # `coder-cosi`, Proton creds via `rclone-proton-credentials` (consumed via
 # `esoRef`). Seed pass://<cluster>/coder/rclone-proton-{username (plain),password
@@ -114,7 +114,7 @@ spec:
     activeDeadlineSeconds: 3600
     concurrencyPolicy: Forbid
     rclone:
-      operation: copy # offsite leg: copy only, never sync (sync deletes extras)
+      operation: sync # sync-mirror; source deletion is the storage backend or db/app operator's job
     source:
       type: s3
       remoteName: ""

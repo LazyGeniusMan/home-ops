@@ -1,4 +1,4 @@
-# S3 to ProtonDrive backup of the clickhouse bucket (nightly snapshots): copies <bc-uuid>/clickhouse to /home-ops/backups/<cluster>/clickhouse/<bucket>. Schedule 30 4 * * * (after the 03:00 backup), copy (never sync — sync would delete off-site history Proton Drive is meant to keep), Forbid. Chart helm-rclone-sync 0.1.0 (direction 05).
+# S3 to ProtonDrive backup of the clickhouse bucket (nightly snapshots): mirrors <bc-uuid>/clickhouse to /home-ops/backups/<cluster>/clickhouse/<bucket>. Schedule 30 4 * * * (after the 03:00 backup), sync-mirror (source deletion is the storage backend or db/app operator's job), Forbid. Chart helm-rclone-sync 0.1.0 (direction 05).
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -93,7 +93,7 @@ spec:
       limits:
         memory: 256Mi
     rclone:
-      operation: copy
+      operation: sync
     source:
       type: s3
       uri:

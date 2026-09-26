@@ -52,7 +52,7 @@ override is set. */}}
 {{- printf "%s:%s@%s" .Values.image.repository $tag $digest -}}
 {{- end -}}
 
-{{/* rclone.operation must be a one-shot transfer: sync (mirror) or copy. Never anything long-lived. */}}
+{{/* rclone.operation must be a one-shot transfer: sync (mirror default) or copy. Never anything long-lived. */}}
 {{- define "helm-rclone-sync.operation" -}}
 {{- if not (has .Values.rclone.operation (list "sync" "copy")) -}}
 {{- fail (printf "rclone.operation %q is invalid: must be \"sync\" or \"copy\" (one-shot only)" (.Values.rclone.operation | toString)) -}}

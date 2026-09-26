@@ -1,6 +1,6 @@
 # PVC + S3 offsite legs for the two file-based singletons (tuwunel-data 10Gi
 # RocksDB PVC, mautrix-discord-data 2Gi bridge PVC). Bare-minimum backup leg:
-# periodic copy to the in-cluster SeaweedFS S3 bucket (same `tuwunel-media`
+# periodic sync-mirror to the in-cluster SeaweedFS S3 bucket (same `tuwunel-media`
 # BucketClaim that already holds media), then the trailing S3->Proton legs
 # carry the SAME bucket offsite with the CNPG WAL+base prefixes. Live bucket
 # names template from BucketInfo `spec.bucketName` (never hardcoded); S3 keys
@@ -132,7 +132,7 @@ spec:
   ref:
     tag: "0.1.0"
 ---
-# tuwunel RocksDB PVC (02:30) -> S3 bucket prefix (live data copy; restore =
+# tuwunel RocksDB PVC (02:30) -> S3 bucket prefix (live data mirror; restore =
 # scale tuwunel to 0, sync the prefix back, scale to 1).
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -159,7 +159,7 @@ spec:
     activeDeadlineSeconds: 3600
     concurrencyPolicy: Forbid
     rclone:
-      operation: copy
+      operation: sync
     source:
       type: pvc-rwo
       remoteName: ""
@@ -215,7 +215,7 @@ spec:
     activeDeadlineSeconds: 3600
     concurrencyPolicy: Forbid
     rclone:
-      operation: copy
+      operation: sync
     source:
       type: pvc-rwo
       remoteName: ""
@@ -270,7 +270,7 @@ spec:
     activeDeadlineSeconds: 3600
     concurrencyPolicy: Forbid
     rclone:
-      operation: copy # offsite leg: copy only, never sync (sync deletes extras)
+      operation: sync # sync-mirror; source deletion is the storage backend or db/app operator's job
     source:
       type: s3
       remoteName: ""
@@ -334,7 +334,7 @@ spec:
     activeDeadlineSeconds: 3600
     concurrencyPolicy: Forbid
     rclone:
-      operation: copy # offsite leg: copy only, never sync (sync deletes extras)
+      operation: sync # sync-mirror; source deletion is the storage backend or db/app operator's job
     source:
       type: s3
       remoteName: ""
