@@ -1,5 +1,6 @@
 # Zitadel Dragonfly cache: namespace-local Dragonfly (3 replicas, failover, local-ssd-nvme, hourly S3 snapshots to s3://dragonfly-backups/zitadel-cache/).
-# Host zitadel-cache.zitadel.svc.cluster.local:6379, no password/TLS; Zitadel-dedicated.
+# Host zitadel-cache.zitadel.svc.cluster.local:6379, AUTH password from the ESO-synced `zitadel-cache-auth` Secret
+# (cache-password.yaml); wire stays cleartext by design — Cilium WireGuard covers pod traffic (see cilium/controllers/base/cilium.yaml). Zitadel-dedicated.
 # Credentials: dragonfly-s3-credentials from the COSI BucketInfo (zitadel-cache-cosi-creds) via in-namespace zitadel-cosi SecretStore.
 ---
 apiVersion: external-secrets.io/v1
@@ -33,6 +34,13 @@ metadata:
   name: zitadel-cache
 spec:
   replicas: 3 # placeholder - overridden by dev/prd overlays
+
+  # AUTH password from the ESO-synced Secret (cache-password.yaml); the
+  # operator injects DFLY_requirepass from it. Same-namespace Secret.
+  authentication:
+    passwordFromSecret:
+      name: zitadel-cache-auth
+      key: password
 
   tiering:
     persistentVolumeClaimSpec:

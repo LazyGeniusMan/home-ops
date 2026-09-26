@@ -1,6 +1,7 @@
 # Reusable Dragonfly HA cache template (not a live instance): copy into a namespace-local Dragonfly object.
 # 3 replicas (1 primary + 2), failover; tiering PVC on local-ssd-nvme; hourly S3 snapshots (plain HTTP: --s3_use_https=false with bare-host --s3_endpoint).
-# Host <name>.<namespace>.svc.cluster.local:6379.
+# Host <name>.<namespace>.svc.cluster.local:6379. AUTH password from the ESO-synced `dragonfly-auth` Secret
+# (cache-password.yaml); wire stays cleartext by design — Cilium WireGuard covers pod traffic (see cilium/controllers/base/cilium.yaml).
 ---
 apiVersion: dragonflydb.io/v1alpha1
 kind: Dragonfly
@@ -8,6 +9,13 @@ metadata:
   name: dragonfly-base
 spec:
   replicas: 3 # placeholder - overridden by dev/prd overlays
+
+  # AUTH password from the ESO-synced Secret (cache-password.yaml); the
+  # operator injects DFLY_requirepass from it. Same-namespace Secret.
+  authentication:
+    passwordFromSecret:
+      name: dragonfly-auth
+      key: password
 
   # Tiered-entries disk (S3 owns snapshots, no snapshot PVC).
   tiering:

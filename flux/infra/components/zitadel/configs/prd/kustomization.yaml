@@ -67,6 +67,14 @@ patches:
     target:
       kind: ExternalSecret
       name: zitadel-masterkey
+  # Prd cache AUTH password vault ref (base holds the placeholder).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/zitadel/cache-password
+    target:
+      kind: ExternalSecret
+      name: zitadel-cache-auth
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key
@@ -103,13 +111,23 @@ patches:
       kind: ExternalSecret
       name: zitadel-login-proxy-vars
   # Prd login-proxy domain + mesh attach (cloudflare_zone_id absent = null).
+  # Name-guarded positional (test-before-replace; see base header).
   - patch: |
+      - op: test
+        path: /spec/vars/0/name
+        value: domain
       - op: replace
         path: /spec/vars/0/value
         value: login.zitadel.home-ops.yansyah.my.id
+      - op: test
+        path: /spec/vars/2/name
+        value: network_name
       - op: replace
         path: /spec/vars/2/value
         value: acme-prd-bdo1-talos-apps-01
+      - op: test
+        path: /spec/vars/3/name
+        value: service_lb_ip
       - op: replace
         path: /spec/vars/3/value
         value: 192.168.1.199

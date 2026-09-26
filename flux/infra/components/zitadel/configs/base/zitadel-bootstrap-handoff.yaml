@@ -1,5 +1,19 @@
 # Bootstrap handoff: mirrors the setup-Job kept Secrets into zitadel-bootstrap-credentials (jwt_profile_json + pat) via the in-namespace zitadel-bootstrap SecretStore.
 # zitadel-bootstrap-outputs (org_id + admin_user_id) is a plain Secret created once by the operator. zitadel-asset-storage mirrors the zitadel-assets claim via the zitadel-cosi store.
+#
+# BOOTSTRAP OBTAIN (first install):
+# 1. Flux applies controllers -> chart setup Job creates org home-ops + IAM_OWNER machine user (zitadel-bootstrap-sa, non-expiring key JSON + PAT)
+#    and the kept Secrets `zitadel-bootstrap-sa` / `zitadel-bootstrap-sa-pat`.
+# 2. ESO mirrors them into `zitadel-bootstrap-credentials` (jwt_profile_json + pat); the operator records
+#    `zitadel-bootstrap-outputs` (org_id + admin_user_id) once.
+# 3. Invite the human admin via the console; per-app Terraform slices consume the handoff via same-namespace varsFrom.
+#
+# ROTATE (every 90 days; Reloader restarts consumers on Secret change):
+# 1. Create a new machine key + PAT for zitadel-bootstrap-sa in the Zitadel console (90-day expiry).
+# 2. Patch the kept Secrets (`zitadel-bootstrap-sa.json` / `zitadel-bootstrap-sa-pat:pat`) with the new values.
+# 3. ESO syncs within 1h into `zitadel-bootstrap-credentials`; Reloader (annotation on consumer workloads)
+#    rolls the Zitadel Deployments + Terraform runners. Verify login + one per-app plan, then delete the old key/PAT.
+# 4. Never rotate by reinstalling (cleanupJob stays disabled — reinstall would orphan the handoff mirror).
 ---
 apiVersion: v1
 kind: ServiceAccount

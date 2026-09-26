@@ -3,3 +3,29 @@ kind: Kustomization
 resources:
   - zitadel.yaml
   - vpa.yaml
+patches:
+  # Reloader opt-in: restart the chart-rendered API + login Deployments when
+  # the ESO-synced Secrets rotate (zitadel-db-credentials DSN,
+  # zitadel-cache-auth password, zitadel-asset-storage keys). Strategic-merge:
+  # both Deployments only exist inside the HelmRelease render (release name
+  # `zitadel` renders Deployments `zitadel` + `zitadel-login`, chart 10.0.4).
+  - target:
+      kind: Deployment
+      name: zitadel
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: zitadel
+        annotations:
+          reloader.stakater.com/auto: "true"
+  - target:
+      kind: Deployment
+      name: zitadel-login
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: zitadel-login
+        annotations:
+          reloader.stakater.com/auto: "true"

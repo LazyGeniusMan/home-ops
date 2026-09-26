@@ -20,11 +20,16 @@ Service always selects the current primary. Preferred pod anti-affinity
 
 - Host: `<name>.<namespace>.svc.cluster.local` (e.g.
   `zitadel-cache.<namespace>.svc.cluster.local`).
-- Port 6379 (RESP; `redis-cli -h <host>` works).
-- No password/TLS by default: the base ships neither
-  `spec.authentication.passwordFromSecret` nor `spec.tlsSecretRef`. The
-  `wildcard-dragonfly-tls` Secret is the `tlsSecretRef` candidate (must
-  carry `tls.crt`/`tls.key` in the Dragonfly namespace).
+- Port 6379 (RESP; `redis-cli -h <host> -a` works).
+- AUTH password required: every `Dragonfly` object sets
+  `spec.authentication.passwordFromSecret` from its ESO-synced Secret
+  (`dragonfly-auth` in `dragonfly`, `zitadel-cache-auth` in `zitadel`;
+  `pass://<cluster>/dragonfly/password` and
+  `pass://<cluster>/zitadel/cache-password`). Wire stays cleartext by design
+  — no `spec.tlsSecretRef`; CNI-layer Cilium WireGuard encrypts pod traffic.
+  Bootstrap/rotate per the header in `configs/base/cache-password.yaml`.
+- The operator Deployment carries `reloader.stakater.com/auto: "true"` so
+  password rotation rolls it (operator reconcile propagates to the CR pods).
 
 ## Backup / restore
 
@@ -71,9 +76,9 @@ Controllers inherit `../base` unchanged.
 ## Telemetry / monitoring / updates
 
 No phone-home knobs in chart values (local metrics endpoint `:8080` behind
-the `:8443` kube-rbac-proxy sidecar). No `ServiceMonitor` shipped;
-`serviceMonitor.enabled`/`grafanaDashboard.enabled` stay `false` until
-`monitoring.coreos.com` CRDs land. Bumps: `update-policies/dragonfly.yaml`
+the `:8443` kube-rbac-proxy sidecar). `serviceMonitor.enabled: true`
+(monitoring CRDs via the infra-crds tenant); `grafanaDashboard.enabled` stays
+`false` (no Grafana). Bumps: `update-policies/dragonfly.yaml`
 (>=1.6.1, marker `infra:dragonfly:tag`) -> PR automation. Take a fresh
 snapshot before bumping.
 Changelog: https://github.com/dragonflydb/dragonfly-operator/releases.

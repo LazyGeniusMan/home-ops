@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - zitadel-secrets.yaml
   - zitadel-db.yaml
+  - cache-password.yaml
   - zitadel-cache.yaml
   - cosi-keys.yaml
   - bucketclaims.yaml

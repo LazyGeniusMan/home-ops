@@ -30,6 +30,14 @@ patches:
     target:
       kind: Dragonfly
       name: dragonfly-base
+  # Dev cache AUTH password vault ref (base holds the placeholder).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-dev-bdo1-talos-apps-01/dragonfly/password
+    target:
+      kind: ExternalSecret
+      name: dragonfly-auth
   - patch: |
       - op: replace
         path: /metadata/name

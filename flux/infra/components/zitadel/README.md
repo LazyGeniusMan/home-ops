@@ -25,8 +25,10 @@ intent + bootstrap handoff + COSI claims).
   to SeaweedFS S3). dbname/owner `zitadel`. Connection via DSN
   (`ZITADEL_DATABASE_POSTGRES_DSN`, `sslmode=require`).
 - Cache: `configs/base/zitadel-cache.yaml` — namespace-local Dragonfly (3
-  replicas, tiered persistence, hourly S3 snapshots). Host
-  `zitadel-cache.zitadel.svc.cluster.local`, port 6379, no auth.
+  replicas, tiered persistence, hourly S3 snapshots, AUTH password from the
+  ESO-synced `zitadel-cache-auth` Secret). Host
+  `zitadel-cache.zitadel.svc.cluster.local`, port 6379, `AUTH <password>`
+  (wire cleartext by design — Cilium WireGuard covers pod traffic).
 - Routing: `configs/base/zitadel-httproute.yaml` — two HTTPRoutes on the shared
   `Gateway/main` (cross-namespace parentRef): `/` -> `zitadel` (8080, h2c) and
   `/ui/v2/login` -> `zitadel-login` (3000). Chart-native ingress/gateway
@@ -40,7 +42,10 @@ All secrets sync from Proton Pass via ESO (Git holds `remoteRef`s only):
 `pass://<cluster>/zitadel/masterkey` (32-byte, immutable — loss means loss of
 all encrypted data), `pass://<cluster>/zitadel/db-password` (single source for
 the DSN and the CNPG app secret — rotate in one place),
-`pass://<cluster>/zitadel/smtp-*` (unwired until a relay exists). S3 keys are
+`pass://<cluster>/zitadel/smtp-*` (unwired until a relay exists),
+`pass://<cluster>/zitadel/cache-password` (Dragonfly AUTH, 32+ chars).
+Rotating credentials live behind Reloader: the `zitadel` + `zitadel-login`
+Deployments carry `reloader.stakater.com/auto: "true"`. S3 keys are
 COSI-minted, not Proton Pass (claims `zitadel-db` / `zitadel-cache` /
 `zitadel-assets` through the in-namespace `zitadel-cosi` SecretStore).
 `pass://<cluster>/cert-manager/cloudflare-api-token` mirrors the DNS-01 secret
@@ -70,8 +75,10 @@ Post-logout redirects point at each app's root.
 ## Identity bootstrap (Helm FirstInstance, zero-UI)
 
 No Tofu Controller for initial setup — the chart's setup Job creates the
-`home-ops` org + IAM_OWNER machine user (`zitadel-bootstrap-sa`, non-expiring
-key JSON + PAT; `cleanupJob.enabled: false` so both survive reinstalls).
+`home-ops` org + IAM_OWNER machine user (`zitadel-bootstrap-sa`; key JSON +
+PAT ship non-expiring ONLY for first install, then rotate to 90-day expiries
+per the runbook in `configs/base/zitadel-bootstrap-handoff.yaml`;
+`cleanupJob.enabled: false` so both survive reinstalls).
 `configs/base/zitadel-bootstrap-handoff.yaml` mirrors them via ESO into
 `zitadel-bootstrap-credentials` (consumed by per-app slices via same-namespace
 `varsFrom` or cross-namespace Role/RoleBinding); the colocated
@@ -116,8 +123,10 @@ instance/schedule, `concurrencyPolicy: Forbid` — no scaling.
 
 ## Telemetry / monitoring / updates
 
-No phone-home knobs in chart values. `metrics.enabled: false`, no
-`ServiceMonitor` until `monitoring.coreos.com` CRDs land. Bumps:
+No phone-home knobs in chart values. `metrics.enabled: true` +
+`serviceMonitor.enabled: true` (monitoring CRDs via the infra-crds tenant).
+Chart/app skew guard: chart 10.0.4 embeds app v4.15.3 — set `image.tag` +
+`login.image.tag` together on every bump (currently v4.18.0). Bumps:
 `update-policies/zitadel.yaml` -> PR automation (chart tag + both image tags
 together). Snapshot DB + cache before major bumps (`masterkey` immutable, never
 rotate on upgrade).

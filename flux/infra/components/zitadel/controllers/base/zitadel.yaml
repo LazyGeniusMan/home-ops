@@ -79,11 +79,13 @@ spec:
         TLS:
           Enabled: false # terminated at the §8 Gateway, not in-pod
         # FirstInstance zero-UI bootstrap: setup Job creates org home-ops + IAM_OWNER machine user into kept Secrets.
-        # Non-expiring auth: both ExpirationDate null (NOT omitted — omission falls back to the chart
-        # values.yaml default of 2029-01-01 via Helm coalesce). Null renders
-        # as an absent key, which Zitadel decodes to the zero time and
-        # internal/domain/expiration.go ValidateExpirationDate maps to
-        # 9999-12-31 (effectively never expires; matches "leave empty for no
+        # BOOTSTRAP-ONLY non-expiring auth: both ExpirationDate null (NOT
+        # omitted — omission falls back to the chart values.yaml default via
+        # Helm coalesce; null renders as an absent key, which Zitadel maps to
+        # effectively never expires). This non-expiry is intentional ONLY for
+        # first install: the setup Job runs once, then these credentials are
+        # rotated to 90-day expiries via the runbook in configs/base/
+        # zitadel-bootstrap-handoff.yaml (bootstrap obtain + rotate steps).
         # Scopes: [] keeps PAT wiring rendered (a bare Pat: {} would drop it).
         FirstInstance:
           Org:
@@ -99,7 +101,11 @@ spec:
                 ExpirationDate: null
                 Scopes: []
     cleanupJob:
-      enabled: false # keep bootstrap Secrets across reinstalls
+      # Keep bootstrap Secrets across reinstalls: the kept Secrets feed the
+      # ESO handoff mirror (zitadel-bootstrap-credentials); enabling cleanup
+      # would delete the only copy of the bootstrap machine key + PAT. Rotate
+      # them via the handoff runbook instead, never by reinstalling.
+      enabled: false
     env:
       # DSN mode: Zitadel reads the connection string from this secret key.
       - name: ZITADEL_DATABASE_POSTGRES_DSN
@@ -107,7 +113,14 @@ spec:
           secretKeyRef:
             name: zitadel-db-credentials
             key: dsn
-      # Dragonfly cache (host zitadel-cache.zitadel:6379, no auth).
+      # Dragonfly cache AUTH password (ESO-synced `zitadel-cache-auth`, key
+      # `password`; see configs/base/cache-password.yaml). Wire stays
+      # cleartext redis:// by design — Cilium WireGuard covers pod traffic.
+      - name: ZITADEL_CACHES_CONNECTORS_REDIS_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: zitadel-cache-auth
+            key: password
       - name: ZITADEL_CACHES_CONNECTORS_REDIS_URL
         value: "redis://zitadel-cache.zitadel:6379"
       - name: ZITADEL_CACHES_CONNECTORS_REDIS_ENABLED

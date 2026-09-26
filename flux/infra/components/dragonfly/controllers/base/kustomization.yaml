@@ -4,3 +4,20 @@ resources:
   - dragonfly.yaml
   - hpa.yaml
   - vpa.yaml
+patches:
+  # Reloader opt-in: restart the chart-rendered operator Deployment when the
+  # ESO-synced cache passwords rotate (dragonfly-auth / zitadel-cache-auth).
+  # The operator reconcile propagates DFLY_requirepass to the Dragonfly
+  # StatefulSets on pod restart. Strategic-merge (not a duplicate Deployment
+  # resource): the operator Deployment only exists inside the HelmRelease
+  # render. Dragonfly CR pods are operator-owned — annotate here only.
+  - target:
+      kind: Deployment
+      name: dragonfly-dragonfly-operator
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: dragonfly-dragonfly-operator
+        annotations:
+          reloader.stakater.com/auto: "true"
