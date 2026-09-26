@@ -1,0 +1,20 @@
+apiVersion: v2
+name: helm-gateway-api
+description: >-
+  Gateway API standard-channel CRDs fetched at publish time from the
+  upstream release asset (no CRD YAML committed).
+type: application
+# Chart version tracks the upstream Gateway API release (sans leading v);
+# appVersion is the same upstream (with leading v); ci/fetch.sh downloads it.
+version: 1.6.1
+appVersion: "v1.6.1"
+keywords:
+  - gateway-api
+  - crds
+home: https://github.com/lazygeniusman/home-ops
+sources:
+  - https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-gateway-api
+  - https://github.com/kubernetes-sigs/gateway-api/releases
+maintainers:
+  - name: lazygeniusman
+kubeVersion: ">= 1.27"

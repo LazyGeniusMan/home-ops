@@ -1,0 +1,20 @@
+apiVersion: v2
+name: helm-multus
+description: >-
+  Multus thick-plugin DaemonSet fetched at publish time from the upstream raw asset (no YAML committed).
+type: application
+# Chart version tracks the upstream release (sans leading v);
+# appVersion is the same upstream (with leading v); ci/fetch.sh downloads it.
+version: 4.3.0
+appVersion: "v4.3.0"
+keywords:
+  - multus
+  - cni
+  - multus-cni
+home: https://github.com/lazygeniusman/home-ops
+sources:
+  - https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-multus
+  - https://github.com/k8snetworkplumbingwg/multus-cni/releases
+maintainers:
+  - name: lazygeniusman
+kubeVersion: ">= 1.27"

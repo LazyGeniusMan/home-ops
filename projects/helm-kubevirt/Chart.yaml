@@ -1,0 +1,19 @@
+apiVersion: v2
+name: helm-kubevirt
+description: >-
+  KubeVirt operator bundle fetched at publish time from the upstream release asset (no YAML committed).
+type: application
+# Chart version tracks the upstream release (sans leading v);
+# appVersion is the same upstream (with leading v); ci/fetch.sh downloads it.
+version: 1.9.0
+appVersion: "v1.9.0"
+keywords:
+  - kubevirt
+  - virtualization
+home: https://github.com/lazygeniusman/home-ops
+sources:
+  - https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-kubevirt
+  - https://github.com/kubevirt/kubevirt/releases
+maintainers:
+  - name: lazygeniusman
+kubeVersion: ">= 1.27"

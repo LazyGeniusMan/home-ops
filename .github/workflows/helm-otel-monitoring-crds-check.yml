@@ -1,0 +1,62 @@
+# Daily check: compares Chart.yaml version against the latest upstream release;
+# opens a PR bumping Chart.yaml version + appVersion when upstream is newer.
+# GitHub releases API (prometheus-operator, tag v<X.Y.Z> -> chart <X.Y.Z>).
+name: helm-otel-monitoring-crds-check
+
+on:
+  schedule:
+    - cron: '0 6 * * *' # daily 06:00 UTC
+  workflow_dispatch:
+
+permissions: {} # deny-all default; check scope granted per job below.
+
+concurrency:
+  group: helm-otel-monitoring-crds-check
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # open version-bump PRs with gh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup yq
+        uses: fluxcd/pkg/actions/yq@6d8d5d9e03f8da11e9685652e205f20aeb99c4ba # SHA-pinned
+
+      - name: Compare Chart.yaml version with upstream latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CURRENT="$(yq '.version' projects/helm-otel-monitoring-crds/Chart.yaml)"
+          LATEST="$(gh api repos/prometheus-operator/prometheus-operator/releases/latest --jq '.tag_name')"
+          LATEST="${LATEST#v}" # strip leading v: tag v<X.Y.Z> -> chart <X.Y.Z>
+          echo "current=${CURRENT} latest=${LATEST}"
+          if [ -z "${LATEST}" ]; then
+            echo "Could not resolve latest upstream release" >&2
+            exit 1
+          fi
+          if [ "${LATEST}" = "${CURRENT}" ]; then
+            echo "Up to date: Chart.yaml already at ${CURRENT}."
+            exit 0
+          fi
+          BRANCH="helm-otel-monitoring-crds-bump-${LATEST}"
+          if gh pr list --head "${BRANCH}" --json number --jq '.[0].number' | grep -qE '[0-9]+'; then
+            echo "Bump PR for ${LATEST} already open; skipping."
+            exit 0
+          fi
+          git checkout -b "${BRANCH}"
+          yq -i '.version = "${LATEST}" | .appVersion = "v${LATEST}"' projects/helm-otel-monitoring-crds/Chart.yaml
+          bash projects/helm-otel-monitoring-crds/ci/fetch.sh --check
+          git add projects/helm-otel-monitoring-crds/Chart.yaml
+          git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
+            commit -m "chore(helm-otel-monitoring-crds): bump to ${LATEST}"
+          git push -u origin "${BRANCH}"
+          gh pr create --fill --head "${BRANCH}" \
+            --title "chore(helm-otel-monitoring-crds): bump to ${LATEST}" \
+            --body "Upstream prometheus-operator/prometheus-operator released ${LATEST}" \
+              " (Chart.yaml was ${CURRENT})" \
+                "Verify with `bash projects/helm-otel-monitoring-crds/ci/verify.sh` before merging."

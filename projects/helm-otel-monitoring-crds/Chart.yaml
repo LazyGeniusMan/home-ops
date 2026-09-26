@@ -1,0 +1,20 @@
+apiVersion: v2
+name: helm-otel-monitoring-crds
+description: >-
+  Prometheus-operator monitoring CRDs (ServiceMonitor + PodMonitor only) fetched at publish time (no YAML committed).
+type: application
+# Chart version tracks the upstream release (sans leading v);
+# appVersion is the same upstream (with leading v); ci/fetch.sh downloads it.
+version: 0.93.1
+appVersion: "v0.93.1"
+keywords:
+  - prometheus-operator
+  - monitoring
+  - crds
+home: https://github.com/lazygeniusman/home-ops
+sources:
+  - https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-otel-monitoring-crds
+  - https://github.com/prometheus-operator/prometheus-operator/releases
+maintainers:
+  - name: lazygeniusman
+kubeVersion: ">= 1.27"

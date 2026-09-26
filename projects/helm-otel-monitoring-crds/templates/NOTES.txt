@@ -1,0 +1,7 @@
+helm-otel-monitoring-crds {{ .Chart.Version }} installed as {{ include "helm-otel-monitoring-crds.fullname" . }}.
+
+Upstream prometheus-operator/prometheus-operator ({{ .Chart.AppVersion }}) staged at publish
+time from the upstream release asset; no YAML is committed in this chart.
+
+Next: point the fleet at the published OCI artifact
+(oci://ghcr.io/lazygeniusman/home-ops/projects/helm-otel-monitoring-crds).

@@ -1,0 +1,12 @@
+# Default values for helm-otel-monitoring-crds.
+# The upstream bundle has no tunable knobs; this file only documents the
+# fetch contract (ci/fetch.sh reads Chart.yaml, not values).
+
+# -- Upstream release fetched at publish time (version pinned by
+# Chart.yaml version; forge a full URL only via ci/fetch.sh).
+upstream:
+  repo: prometheus-operator/prometheus-operator
+  asset: example/prometheus-operator-crd/monitoring.coreos.com_{servicemonitors,podmonitors}.yaml
+
+nameOverride: ""
+fullnameOverride: ""

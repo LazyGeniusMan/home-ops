@@ -33,3 +33,6 @@ cover.out
 **/secrets.bundle.yml
 **/proton-pass-pat
 *.tgz
+# Staged upstreams fetched at publish time by projects/helm-*/ci/fetch.sh; never commit.
+projects/helm-*/upstream/
+projects/helm-*/.fetch-staging/

@@ -1,0 +1,7 @@
+helm-multus {{ .Chart.Version }} installed as {{ include "helm-multus.fullname" . }}.
+
+Upstream k8snetworkplumbingwg/multus-cni ({{ .Chart.AppVersion }}) staged at publish
+time from the upstream release asset; no YAML is committed in this chart.
+
+Next: point the fleet at the published OCI artifact
+(oci://ghcr.io/lazygeniusman/home-ops/projects/helm-multus).

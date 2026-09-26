@@ -1,0 +1,136 @@
+# Publishes helm-gateway-api chart to GHCR OCI (verify, fetch upstream, package/push/sign).
+# Paths: projects/helm-gateway-api/**, helm-gateway-api-v* tags.
+# Branch: 0.0.0-dev.<sha> + dev aliases; tag: <semver> + stable.
+# Upstream is fetched at publish time by ci/fetch.sh (no YAML committed); the
+# staged bundle is bundled by helm package.
+name: helm-gateway-api
+
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'projects/helm-gateway-api/**'
+    tags:
+      - 'helm-gateway-api-v*'
+  workflow_dispatch:
+
+permissions: {} # deny-all default; test/publish scopes granted per job below.
+
+concurrency:
+  group: helm-gateway-api-publish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5
+        with:
+          version: v4.3.0 # match .flox kubernetes-helm pin
+
+      - name: Verify (lint + fetch dry-run + guards)
+        run: bash projects/helm-gateway-api/ci/verify.sh
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write # helm push + oras tag
+      id-token: write # cosign keyless signing
+    env:
+      OCI_REPO: ghcr.io/lazygeniusman/home-ops/projects/helm-gateway-api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5
+        with:
+          version: v4.3.0 # match .flox kubernetes-helm pin
+
+      - name: Set up ORAS
+        uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d # v2.0.1
+        with:
+          # setup-oras v2.0.1 bundles oras up to 1.3.3; 1.3.4 installs the
+          # standalone binary instead (version takes no `v` prefix).
+          version: 1.3.4 # match .flox oras pin
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+        with:
+          cosign-release: v3.1.3 # match .flox cosign pin
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve chart version
+        id: version
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          if [ "${REF_TYPE}" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME#helm-gateway-api-v}" # helm-gateway-api-v<X.Y.Z> -> <X.Y.Z>
+          else
+            # Dev leg must stay semver: fetch script requires Chart.yaml
+            # version, so stage the Chart.yaml pin (dev aliases applied below).
+            VERSION="$(yq '.version' projects/helm-gateway-api/Chart.yaml)"
+          fi
+          SEMVER='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
+          if ! echo "${VERSION}" | grep -Eq "${SEMVER}"; then
+            echo "Refusing to publish non-semver chart version: ${VERSION}" >&2
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch upstream and package
+        id: push
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          bash projects/helm-gateway-api/ci/fetch.sh
+          helm package projects/helm-gateway-api --version "${VERSION}"
+          # `helm push` appends the chart name, so push to the parent to land exactly at OCI_REPO.
+          PUSH_OUT="$(helm push "helm-gateway-api-${VERSION}.tgz" "oci://${OCI_REPO%/*}" 2>&1)"
+          echo "${PUSH_OUT}"
+          PUSHED_REF="$(echo "${PUSH_OUT}" | grep -Eo 'Pushed: [^[:space:]]+' | awk '{print $2}' | head -n 1)"
+          if [ "${PUSHED_REF%:*}" != "${OCI_REPO}" ]; then
+            echo "Pushed ref '${PUSHED_REF}' does not match OCI_REPO '${OCI_REPO}'" >&2
+            exit 1
+          fi
+          DIGEST="$(echo "${PUSH_OUT}" | grep -Eo 'sha256:[0-9a-f]{64}' | head -n 1)"
+          if [ -z "${DIGEST}" ]; then
+            echo "Could not extract pushed digest from helm push output" >&2
+            exit 1
+          fi
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Sign chart artifact
+        shell: bash
+        run: cosign sign --yes "${OCI_REPO}@${DIGEST}"
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+
+      - name: Apply floating tags
+        # Branch leg retags dev + dev-<sha>; tag leg retags stable.
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if [ "${REF_TYPE}" = "tag" ]; then
+            oras tag "${OCI_REPO}:${VERSION}" stable
+          else
+            oras tag "${OCI_REPO}:${VERSION}" dev
+            oras tag "${OCI_REPO}:${VERSION}" "dev-${GITHUB_SHA::7}"
+          fi

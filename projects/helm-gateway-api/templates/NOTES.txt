@@ -1,0 +1,7 @@
+helm-gateway-api {{ .Chart.Version }} installed as {{ include "helm-gateway-api.fullname" . }}.
+
+Gateway API standard-channel CRDs ({{ .Chart.AppVersion }}) staged at publish
+time from the upstream release asset; no CRD YAML is committed in this chart.
+
+Next: point the fleet at the published OCI artifact
+(oci://ghcr.io/lazygeniusman/home-ops/projects/helm-gateway-api).

@@ -1,5 +1,5 @@
 # Shell + Ansible gate (shellcheck, yamllint, ansible syntax/FQCN lint, talosctl validate).
-# Paths: scripts/**, talos/**, projects/**/ci/**, flux/scripts/**, .github/workflows/**.
+# Paths: scripts/**, talos/**, projects/**/ci/** (incl. new helm-* charts), flux/scripts/**, .github/workflows/**.
 name: lint-shell-ansible
 
 on:
@@ -37,7 +37,7 @@ jobs:
         uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
         with:
           # Vendored .terraform/module + .agents skill scripts are third-party, not owned.
-          check_together: 'scripts/*.sh flux/scripts/*.sh projects/helm-rclone-sync/ci/*.sh'
+          check_together: 'scripts/*.sh flux/scripts/*.sh projects/helm-*/ci/*.sh'
           version: v0.11.0 # match .flox shellcheck pin
           severity: warning
 
