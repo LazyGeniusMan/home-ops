@@ -3,23 +3,13 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Dev scaling: replica seed -> 1; out-of-band HPA owns the count (min 1/max 2).
+  # Dev fixed replicas: 1 (no HPA — self-scaling is circular, see base).
   - patch: |
       - op: replace
         path: /spec/values/replicas
         value: 1
     target:
       kind: HelmRelease
-      name: metrics-server
-  - patch: |
-      - op: replace
-        path: /spec/minReplicas
-        value: 1
-      - op: replace
-        path: /spec/maxReplicas
-        value: 2
-    target:
-      kind: HorizontalPodAutoscaler
       name: metrics-server
   # TA discovery: the otel-gateway TargetAllocator object + namespace
   # selectors both match `otel-scrape: "true"` (tenant namespace carries it

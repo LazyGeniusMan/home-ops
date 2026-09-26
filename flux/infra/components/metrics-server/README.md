@@ -8,13 +8,17 @@ Metrics Server app v0.9.0 (chart 3.14.0,
 
 | Env | Replicas |
 | --- | --- |
-| `dev` | HPA 1-2; replica seed 1 |
-| `prd` | HPA 2-4 (base values); replica seed 2 |
+| `dev` | fixed 1 (no HPA) |
+| `prd` | fixed 2 (no HPA) |
+
+No HPA/VPA by design: metrics-server feeds the Metrics API every sibling HPA
+consumes, so an HPA on itself is circular (a Metrics API outage would freeze
+its own scaling).
 
 ## Telemetry / monitoring / updates
 
 Upstream chart exposes no reporting knobs; values set only `apiService`,
 `metrics`, `serviceMonitor`. `/metrics` exposed (`metrics.enabled`);
-`ServiceMonitor` off. Bumps: `update-policies/metrics-server.yaml`
+`ServiceMonitor` on (monitoring CRDs via the infra-crds tenant). Bumps: `update-policies/metrics-server.yaml`
 (>=3.14.0, marker `infra:metrics-server:tag`) -> PR automation.
 Changelog: https://github.com/kubernetes-sigs/metrics-server/releases.

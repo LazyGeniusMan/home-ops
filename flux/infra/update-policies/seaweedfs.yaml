@@ -1,4 +1,8 @@
-# seaweedfs images policy. Charts hand-bump (operator 0.1.40 + CSI 0.2.36); only image tags automate.
+# seaweedfs images policy. Operator 0.1.40 + CSI 0.2.36 chart pins hand-bump
+# (no chart ImagePolicy/marker by design — HELM OCIRepositories are untracked;
+# automation notes: to automate, add ImageRepository+ImagePolicy on the
+# chartproxy image + `# {"$imagepolicy": ...}` on the OCIRepository tag, same
+# shape as reloader.yaml). Only image tags automate today.
 # Changelog: https://github.com/seaweedfs/seaweedfs/releases (ui-auth: oauth2-proxy chart + image).
 # Coupled: controllers/base/seaweedfs.yaml, configs/base/cluster.yaml, configs/base/driver.yaml, configs/base/ui-auth.yaml, cosi.yaml (caps move together).
 ---

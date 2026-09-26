@@ -3,8 +3,7 @@ kind: Kustomization
 resources:
   - ../base
 patches:
-  # Prd HA scaling: replica seed -> 2; out-of-band HPA owns the count
-  # (min 2/max 4, base values).
+  # Prd fixed replicas: 2 (no HPA — self-scaling is circular, see base).
   - patch: |
       - op: replace
         path: /spec/values/replicas

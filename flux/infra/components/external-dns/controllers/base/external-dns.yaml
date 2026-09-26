@@ -114,12 +114,17 @@ spec:
               path: pat
     extraArgs:
       webhook-provider-url: http://localhost:8888
+    # Sync sources narrowed to what this repo serves: Gateway API routes
+    # (user-facing hostnames on the shared `main` Gateway) + the gateway's
+    # Service LB record. `service` covers the Gateway's LB Service itself;
+    # `ingress` stays as a guard (no Ingress exists — the chart requires at
+    # least one classic source alongside the gateway set); `crd` covers
+    # DNSEndpoint CRs if ever added. grpcroute/tlsroute dropped (no such
+    # routes in flux/ — nothing to sync, smaller blast radius).
     sources:
       - service
       - ingress
       - gateway-httproute
-      - gateway-grpcroute
-      - gateway-tlsroute
       - crd
     policy: sync
     registry: txt

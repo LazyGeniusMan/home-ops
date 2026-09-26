@@ -1,6 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+# No HPA/VPA: metrics-server feeds the Metrics API every sibling HPA consumes
+# (self-scaling is circular); VPA-apply on the Metrics API server risks
+# evict-restart blindness. Fixed replicas only (dev 1, prd 2).
 resources:
   - metrics-server.yaml
-  - hpa.yaml
-  - vpa.yaml

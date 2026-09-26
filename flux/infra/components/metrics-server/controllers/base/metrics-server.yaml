@@ -37,13 +37,13 @@ spec:
       retryInterval: 5m
   # https://github.com/kubernetes-sigs/metrics-server/blob/master/charts/metrics-server/values.yaml
   values:
-    # Replica seed (chart key is `replicas`) - the out-of-band HPA in hpa.yaml
-    # owns the count at runtime (the chart has no autoscaling knob). Dev seeds
-    # 1, prd seeds 2. metrics-server feeds the Metrics API every other HPA
-    # consumes — keep it Ready (apiService.create stays true).
+    # Fixed replicas (chart key is `replicas`): NO HPA — metrics-server feeds
+    # the Metrics API every other HPA consumes, so an HPA on itself is
+    # circular (a Metrics API outage would freeze its own scaling). Dev pins
+    # 1, prd pins 2. Keep it Ready (apiService.create stays true).
     replicas: 1 # placeholder - overridden by dev/prd overlays
     # Resources: upstream chart defaults pinned explicit (no limits per
-    # upstream intent). CPU requests REQUIRED for the targetCPU HPA.
+    # upstream intent). No HPA consumes these (fixed replicas by design).
     resources:
       requests:
         cpu: 100m

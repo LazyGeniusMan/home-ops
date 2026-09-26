@@ -12,8 +12,8 @@ override) over `home-ops.yansyah.my.id` -- the NetBird-only DNS path:
 
 TXT ownership: `txtOwnerId`/`txtPrefix` pin the single txt registry
 (`home-ops-prd-netbird`/`extdns-nb-`); `policy: sync`, `registry: txt`.
-Sources: `service`, `ingress`, `gateway-httproute`, `gateway-grpcroute`,
-`gateway-tlsroute`, `crd`.
+Sources: `service`, `ingress`, `gateway-httproute`, `crd` (grpcroute/tlsroute
+dropped — no such routes in `flux/`, smaller blast radius).
 
 ## Ordering
 
@@ -47,7 +47,7 @@ each hostname syncs with no file overlap. Seed the vault entry
 ## Telemetry / monitoring / updates
 
 ExternalDNS reports nothing upstream; the sidecar documents no telemetry.
-`ServiceMonitor` off. Bumps: `update-policies/external-dns.yaml`
+`ServiceMonitor` on (monitoring CRDs via the infra-crds tenant). Bumps: `update-policies/external-dns.yaml`
 (chart >=1.22.0 marker `infra:external-dns:tag` + sidecar `:dev` marker
 `infra:external-dns-netbird:tag`, range >=0.0.0) -> PR automation; keep
 chart and sidecar in the same PR.
