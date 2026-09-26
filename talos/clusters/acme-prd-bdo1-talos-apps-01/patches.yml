@@ -26,6 +26,8 @@ kind: Layer2VIPConfig
 name: 192.168.1.198 # K8s API VIP, advertised from the control-plane node
 link: enp45s0 # RTL8125 2.5GbE (pre-flight: talosctl get links --insecure -n 192.168.1.101)
 ---
+# Registry creds rotate in Proton Pass (own-vault `talos` item), then pick up
+# via day-2 -e reapply_configs=true (RUNBOOK §3.6) — never committed plaintext.
 apiVersion: v1alpha1
 kind: RegistryAuthConfig
 name: docker.io

@@ -2,8 +2,10 @@
 
 Declarative machine configuration for all Talos clusters. No CNI, no CoreDNS,
 and no bootstrap manifests ship from this tree — Cilium, DNS, and workloads
-arrive later via GitOps. Telemetry is off and cluster discovery is disabled in `_base/patches.yml`,
-so nodes never auto-join anything.
+arrive later via GitOps. No telemetry, SideroLink, or discovery config ships
+anywhere in this tree (cluster discovery is deleted in `_base/patches.yml`),
+so nodes never auto-join anything. Verify: `grep -rni
+'telemetry\|siderolink\|TelemetryConfig' talos/clusters/` returns nothing.
 
 ## Layout convention
 

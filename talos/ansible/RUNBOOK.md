@@ -28,10 +28,10 @@ cd talos/ansible            # all playbook commands run from here
 ansible-galaxy install -r requirements.yml
 ```
 
-Provides `community.general >= 9.0.0,<14.0.0` (§1.0b `terraform` module +
-`random_string` lookup; floor, not a pin — galaxy installs the newest in range,
-tested with 13.4.0). Re-run after a fresh checkout or when `requirements.yml`
-changes.
+Provides `community.general` exact-pinned at `13.4.0` in `requirements.yml`
+(§1.0b `terraform` module + `random_string` lookup). Re-run after a fresh
+checkout or when `requirements.yml` changes; bump the pin only after
+re-testing §1.0b with the new version.
 
 ### 0.3 Authenticate to Proton Pass
 
@@ -256,7 +256,8 @@ export PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_...
 pass-cli login
 ```
 
-Expiration enum: `1h, 1d, 1w, 1m, 3m, 6m, 1y` (default `1y`).
+Expiration enum: `1h, 1d, 1w, 1m, 3m, 6m, 1y` (default `1y` — the maximum; no
+long-lived non-expiring PAT exists, so calendar-renew before expiry per §3.7).
 
 ### 2.2 What "insecure-first-boot" means
 
@@ -330,7 +331,9 @@ ansible-playbook playbooks/day2.yml -i localhost, -e talos_cluster=<cluster>
 Runs `talosctl health` (control-plane nodes + `--init-node nodes[0]`) and
 `talosctl etcd members` (against `nodes[0]`), both `failed_when: false` — report only,
 never fail. No changes without a §3.2 flag. Health runs on **every** invocation;
-skip with `-e skip_health=true`.
+skip with `-e skip_health=true` (break-glass only: it also bypasses the
+mutating-plane health gate, so an unhealthy cluster accepts pushes — use it
+solely to recover a cluster too sick to pass health, then re-run without it).
 
 ### 3.2 Flags (opt-in upgrades, regen, re-apply)
 
@@ -550,7 +553,8 @@ Both clusters run ONE control-plane node today — accepted with eyes open:
   per upgraded node until `rc==0`; multi-node operators additionally watch each
   node `Ready` before the next proceeds (`kubectl --kubeconfig
   build/<c>/kubeconfig get nodes -w`).
-- **Time + DNS**: single NTP `time.cloudflare.com` (base patch) and public DNS
+- **Time + DNS**: dual NTP `time.cloudflare.com` + `time.google.com` (base
+  patch — chrony fails over when one is unreachable) and public DNS
   `1.1.1.1`/`8.8.8.8` (cluster patches) are intentional — no LAN
   NTP/DNS exists yet. Revisit when the LAN grows one.
 

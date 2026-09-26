@@ -1,11 +1,13 @@
 # Node patch: bdo-r01-cp-002 (Talos v1.15.0-alpha.0). QEMU/KVM VM: virtio NIC ens18,
 # install /dev/sda (20 GiB OS), data /dev/sdb (960 GB).
-# Volume math on the 20 GiB system disk: EPHEMERAL maxSize -30GiB (negative =
-# disk size minus 30 GiB, i.e. EPHEMERAL never takes the last 30 GiB) and
-# nvme-data maxSize 30GiB (capped claim inside the same 20 GiB disk — the two
-# bounds overlap by design so leftover space, not a fixed split, decides the
-# final sizes). sata-data (min 10 GiB, grow) takes /dev/sdb (960 GB).
+# Volume math on the 20 GiB system disk: EPHEMERAL maxSize -8GiB (negative =
+# disk size minus 8 GiB, i.e. ~12 GiB ceiling for EPHEMERAL) and nvme-data
+# maxSize 8GiB (capped claim inside the same 20 GiB disk — EPHEMERAL's ~12 GiB
+# + nvme-data's 8 GiB ≈ full disk by design, same pattern as prd's 112+400).
+# sata-data (min 10 GiB, grow) takes /dev/sdb (960 GB).
 # nvme-data + sata-data are XFS. Pre-flight: talosctl get links/disks --insecure -n 192.168.1.201.
+# NFS tuning is single-client-LAN sized (32 slots/threads); prd runs 64 for
+# the larger bare-metal fleet — see the SysctlConfig/nfs.conf docs below.
 ---
 apiVersion: v1alpha1
 kind: HostnameConfig
@@ -36,7 +38,7 @@ provisioning:
   diskSelector:
     match: system_disk
   grow: false
-  maxSize: -30GiB
+  maxSize: -8GiB
 ---
 apiVersion: v1alpha1
 kind: UserVolumeConfig
@@ -45,7 +47,7 @@ provisioning:
   diskSelector:
     match: system_disk
   grow: true
-  maxSize: 30GiB
+  maxSize: 8GiB
 filesystem:
   type: xfs
 ---

@@ -5,7 +5,9 @@
 # maxSize 400GiB (capped claim inside the same 512 GiB disk — EPHEMERAL's
 # ~112 GiB + nvme-data's 400 GiB ≈ full disk by design). sata-data (min 64 GiB,
 # grow) takes /dev/sda (size unrecorded — confirm with the disks pre-flight).
-# Pre-flight: talosctl get links --insecure -n 192.168.1.101.
+# Pre-flight: talosctl get links/disks --insecure -n 192.168.1.101.
+# NFS tuning is bare-metal sized (64 slots/threads); dev runs 32 for the
+# single-client QEMU VM — see the SysctlConfig/nfs.conf docs below.
 ---
 apiVersion: v1alpha1
 kind: HostnameConfig
@@ -96,7 +98,7 @@ apiVersion: v1alpha1
 kind: ExtensionServiceConfig
 name: nfs-server
 environment:
-  - RPCNFSDCOUNT=32
+  - RPCNFSDCOUNT=64 # matches [nfsd] threads above (bare-metal size; dev runs 32)
 ---
 # NFS exports for the nvme-data + sata-data volumes above (<name> mounts at
 # /var/mnt/<name>). Data volumes only (no bare /var root — clients mount each

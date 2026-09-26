@@ -29,9 +29,11 @@
     - item.content is defined
 
 - name: Assert schematic IDs resolve when auto-building upgrade images
+  # 64-hex shape gate (same pattern as the render plane schematic.yml:129-132):
+  # a truncated/garbled factory response must fail here, not render a bad image.
   ansible.builtin.assert:
     that:
-      - (talos_operate_upgrade_ids | default({})).get(item.name, '') | length > 0
+      - (talos_operate_upgrade_ids | default({})).get(item.name, '') is match(talos_schematic_id_pattern)
     fail_msg: >-
       Missing schematic ID for {{ item.name }}
       (build/{{ talos_cluster }}/schematic-{{ item.name }}.id); re-run day-0

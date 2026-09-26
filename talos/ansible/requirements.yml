@@ -1,7 +1,7 @@
 ---
 collections:
-  # Floor, not a pin: galaxy installs the newest >= 9.0.0. The floor exists
-  # because day-0 needs the terraform module + random_string lookup; Flox pins
-  # nothing here, so re-run §0.2 after a fresh checkout (tested with 13.4.0).
+  # Exact pin: galaxy installs exactly this build. Day-0 needs the terraform
+  # module + random_string lookup; bump only after re-testing §0.2 with the new
+  # version (current: 13.4.0).
   - name: community.general
-    version: ">=9.0.0,<14.0.0"
+    version: "13.4.0"

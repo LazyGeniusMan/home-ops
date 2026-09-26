@@ -1,4 +1,6 @@
 # PAT source for acme-dev-bdo1-talos-apps-01: day-0 injects this into
 # ansible/build/acme-dev-bdo1-talos-apps-01/proton-pass-pat (0600, gitignored).
 # Requires item `eso-proton-pass`, field `pat` in the own vault.
+# 1y max lifetime (pass-cli expiration enum caps at 1y) — renew before expiry
+# via day-2 -e pat_apply=true -e pat_renew=true (RUNBOOK §3.7).
 {{ pass://acme-dev-bdo1-talos-apps-01/eso-proton-pass/pat }}

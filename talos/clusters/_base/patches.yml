@@ -23,6 +23,9 @@ $patch: delete
 ---
 apiVersion: v1alpha1
 kind: TimeSyncConfig
+# Two NTP sources: chrony falls over to the second when the first is
+# unreachable (single-node clusters have no LAN NTP yet — see RUNBOOK §4.5).
 ntp:
   servers:
     - time.cloudflare.com
+    - time.google.com
