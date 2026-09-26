@@ -4,8 +4,9 @@
 # disk size minus 400 GiB, i.e. ~112 GiB ceiling for EPHEMERAL) and nvme-data
 # maxSize 400GiB (capped claim inside the same 512 GiB disk — EPHEMERAL's
 # ~112 GiB + nvme-data's 400 GiB ≈ full disk by design). sata-data (min 64 GiB,
-# grow) takes /dev/sda (size unrecorded — confirm with the disks pre-flight).
-# Pre-flight: talosctl get links/disks --insecure -n 192.168.1.101.
+# grow) takes /dev/sda (size unrecorded — run the disks pre-flight and record
+# it here before first apply; never guess).
+# Pre-flight (required): talosctl get links/disks --insecure -n 192.168.1.101.
 # NFS tuning is bare-metal sized (64 slots/threads); dev runs 32 for the
 # single-client QEMU VM — see the SysctlConfig/nfs.conf docs below.
 ---

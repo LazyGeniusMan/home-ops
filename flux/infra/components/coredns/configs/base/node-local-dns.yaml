@@ -145,6 +145,8 @@ spec:
                 - NET_BIND_SERVICE
               drop:
                 - ALL
+          # No CPU limit so the node cache never throttles under lookup
+          # bursts; the memory limit caps the cache.
           resources:
             requests:
               cpu: 25m

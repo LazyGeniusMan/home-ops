@@ -67,6 +67,8 @@ spec:
             - batch
           exporters:
             - otlp
+  # CPU limit 10x request absorbs filelog burst spikes; the memory_limiter
+  # (512MiB, see config above) owns OOM safety, not the cgroup limit.
   resources:
     requests:
       cpu: 100m
@@ -233,6 +235,8 @@ spec:
             - k8sattributes
           exporters:
             - clickhouse
+  # CPU limit 10x request absorbs tail-sampling bursts; 2Gi backs the
+  # sampling buffer while the memory_limiter owns OOM safety.
   resources:
     requests:
       cpu: 200m

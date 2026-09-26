@@ -48,7 +48,8 @@ spec:
     # only the leader reconciles (use fixed 2-3 if HA is ever wanted).
     replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
     concurrency: 24
-    # Resource envelope mirrors upstream docs/release.yaml.
+    # Resource envelope mirrors upstream docs/release.yaml. CPU limit 2.5x
+    # request absorbs plan/apply bursts without wedging the node.
     resources:
       limits:
         cpu: 1000m

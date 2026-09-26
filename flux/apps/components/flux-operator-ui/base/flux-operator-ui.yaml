@@ -52,6 +52,7 @@ spec:
     # this to true would duplicate CRD ownership and risk the fleet sync path.
     installCRDs: false
     # Resources pinned explicit; CPU requests required for the HPA denominator.
+    # CPU limit 20x request is UI burst headroom (never the HPA signal).
     resources:
       requests:
         cpu: 100m

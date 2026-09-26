@@ -17,7 +17,7 @@ One direction only: `talos/` renders machines, `flux/` delivers workloads,
 | [`flux/fleet/`](flux/fleet/README.md) | Day 2 — wiring | Per-cluster tenant wiring, update automation (`ResourceSet` + `ImageUpdateAutomation`), Terraform bootstrap of the Flux Operator |
 | [`projects/`](projects/) | Sources | Go services (`apprise-go-api`, `eso-proton-pass`, `external-dns-netbird`) and the `helm-rclone-sync` chart — published as images/charts, consumed by Flux only |
 | [`.github/`](.github/WORKFLOW.md) | CI | Per-path validation and release workflows |
-| [`scripts/`](scripts/) | Docs tooling | Manual reference-docs refresh (`fetch-references.sh`) |
+| [`scripts/`](scripts/) | Release + docs tooling | Manual release tagging (`tag-release.sh`) and reference-docs refresh (`fetch-references.sh`) |
 
 Conventions, pins, and contribution rules live in [`AGENTS.md`](AGENTS.md).
 Machine inventory (clusters, nodes) lives under `talos/` — hardware specifics stay

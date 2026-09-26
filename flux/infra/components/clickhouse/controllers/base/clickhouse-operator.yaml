@@ -45,7 +45,8 @@ spec:
   # double-reconcile.
   values:
     # Resources: chart defaults {}; operator sized with Go watch-cache
-    # headroom; exporter is a light sidecar.
+    # headroom (CPU limit 5x request caps watch-relist bursts); exporter is
+    # a light sidecar (limit 4x request for scrape bursts only).
     operator:
       resources:
         requests:

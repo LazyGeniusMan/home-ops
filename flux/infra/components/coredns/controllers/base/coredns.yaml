@@ -46,7 +46,8 @@ spec:
     # (Chart already defaults CPU requests 100m, so targetCPU has a denominator.)
     replicaCount: 1 # placeholder - overridden by dev/prd overlays
     # Resources: chart 1.47.1 defaults pinned explicit. CPU requests
-    # REQUIRED for the targetCPU HPA denominator.
+    # REQUIRED for the targetCPU HPA denominator. CPU limit == request:
+    # DNS latency is throttle-sensitive, so no burst headroom above request.
     resources:
       requests:
         cpu: 100m

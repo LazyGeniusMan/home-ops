@@ -50,7 +50,8 @@ spec:
     # (the chart has no autoscaling knob). Dev seeds 1, prd seeds 2.
     replicaCount: 1 # placeholder - overridden by dev/prd overlays
     # Resources pinned explicit (chart defaults {}); operator sized with
-    # watch-cache headroom for collector + targetallocator CRs.
+    # watch-cache headroom for collector + targetallocator CRs. CPU limit 5x
+    # request caps reconcile-storm bursts without throttling steady state.
     manager:
       resources:
         requests:

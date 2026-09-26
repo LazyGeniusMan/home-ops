@@ -85,7 +85,7 @@ with the PKI bundle (§6.1); never committed or deleted between runs (see
 NFS server stack per node: `siderolabs/nfsd` + `nfs-utils` + `nfs-server` in the node
 schematic, `EtcFileConfig` `exports` (two data-volume LAN-only `192.168.1.0/24`
 `all_squash` lines, `fsid=1/2`) + `netconfig` + `ExtensionServiceConfig`
-`nfs-server` (`RPCNFSDCOUNT=32`); exports resolve against the `nvme-data` +
+`nfs-server` (`RPCNFSDCOUNT`: dev 32 / prd 64, matching `[nfsd] threads` in the node header); exports resolve against the `nvme-data` +
 `sata-data` volumes (`RUNBOOK.md` §1.6).
 
 ## Inventory (local-only — no node inventory)
