@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+patches:
+  # Prd scaling: replica seed -> 2; out-of-band HPA owns the count (min 2/max 4).
+  - patch: |
+      - op: replace
+        path: /spec/values/reloader/deployment/replicas
+        value: 2
+    target:
+      kind: HelmRelease
+      name: reloader
+  - patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 4
+    target:
+      kind: HorizontalPodAutoscaler
+      name: reloader
+  # TA discovery: the otel-gateway TargetAllocator object + namespace
+  # selectors both match `otel-scrape: "true"` (tenant namespace carries it
+  # from the fleet tenants/infra.yaml template). Reloader renders a PodMonitor
+  # (not ServiceMonitor); the label lands via this overlay patch — base
+  # values stay untouched.
+  - patch: |
+      - op: add
+        path: /spec/values/podMonitor/labels
+        value:
+          otel-scrape: "true"
+    target:
+      kind: HelmRelease
+      name: reloader

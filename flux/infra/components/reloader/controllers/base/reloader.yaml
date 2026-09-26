@@ -1,0 +1,80 @@
+# Reloader chart 2.2.17 (app v1.4.22) via chartproxy OCI (proxy of https://stakater.github.io/stakater-charts, classic-only upstream).
+# Restarts Deployments/StatefulSets/DaemonSets when ESO-synced Secrets rotate (CronJobs + Jobs watched too, ignoreJobs/ignoreCronJobs stay false).
+# reloadStrategy annotations (not env-vars): Flux v2 SSA leaves Reloader's pod-template annotation alone (local docs reloader-docs/content/how-to-guides/use-reloader-with-flux.md).
+# watchGlobally true: one global ClusterRole watches every tenant namespace; other slices opt in with reloader.stakater.com/auto: "true".
+# Telemetry: no phone-home knobs in chart values (logs stay local; metrics only via the podMonitor below when the TA scrapes it).
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: reloader-chart
+spec:
+  interval: 1h
+  url: oci://chartproxy.container-registry.com/stakater.github.io/stakater-charts/reloader
+  layerSelector:
+    mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+    operation: copy
+  ref:
+    tag: "2.2.17" # {"$imagepolicy": "infra:reloader:tag"}
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: reloader
+spec:
+  interval: 1h
+  releaseName: reloader
+  serviceAccountName: flux
+  chartRef:
+    kind: OCIRepository
+    name: reloader-chart
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  # https://github.com/stakater/Reloader/tree/master/deployments/kubernetes/chart/reloader
+  values:
+    # Replica seed - the out-of-band HPA in hpa.yaml owns the count at runtime
+    # (the chart has no autoscaling knob; enableHA stays false — Reloader is a
+    # stateless watcher, a second replica only needs leader election when HA is
+    # wanted). Dev seeds 1, prd seeds 2.
+    # CPU requests REQUIRED for the targetCPU HPA (chart defaults resources {}).
+    reloader:
+      watchGlobally: true
+      # annotations strategy: Reloader patches pod-template annotations, which
+      # Flux SSA does not own — env-vars injection would be reverted on the
+      # next reconcile (see header).
+      reloadStrategy: annotations
+      autoReloadAll: false
+      ignoreSecrets: false
+      ignoreConfigMaps: false
+      ignoreJobs: false
+      ignoreCronJobs: false
+      enableHA: false
+      enableMetricsByNamespace: false
+      deployment:
+        replicas: 1 # placeholder - overridden by dev/prd overlays
+        revisionHistoryLimit: 2
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65534
+          seccompProfile:
+            type: RuntimeDefault
+        containerSecurityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 128Mi
+    podMonitor:
+      enabled: true

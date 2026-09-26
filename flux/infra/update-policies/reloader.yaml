@@ -1,0 +1,23 @@
+# reloader chart policy (chartproxy OCI proxy of the classic-only https://stakater.github.io/stakater-charts).
+# Changelog: https://github.com/stakater/Reloader/releases.
+# Coupled: controllers/base/reloader.yaml.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: reloader
+spec:
+  image: "chartproxy.container-registry.com/stakater.github.io/stakater-charts/reloader"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: reloader
+spec:
+  imageRepositoryRef:
+    name: reloader
+  policy:
+    semver:
+      range: ">=2.2.17"
