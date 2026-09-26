@@ -145,7 +145,7 @@ suspend: false            # true pauses the schedule without uninstalling
 image: {repository: rclone/rclone, tag: "1.75.0"}  # exact pin, never "latest"
 rclone:
   version: ""             # overrides image.tag when set (exact pin, never "latest")
-  operation: sync         # sync (mirror default, deletes extras at destination; source deletion is the storage backend or db/app operator's job) or copy; nothing long-lived
+  operation: sync         # sync default (mirror; deletes extras at destination; source deletion: storage backend or db/app operator's job); copy opt-in per release; nothing long-lived
   extraArgs: []           # e.g. ["--transfers=4", "--stats-one-line"]
 ```
 
