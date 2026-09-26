@@ -31,6 +31,7 @@ helm push helm-kubevirt-<version>.tgz oci://ghcr.io/lazygeniusman/home-ops/proje
 bash projects/helm-kubevirt/ci/verify.sh          # lint + fetch dry-run + no-CRD-committed guard
 ```
 
-Tag releases as `helm-kubevirt-v<semver>` (see `scripts/tag-release.sh`);
-the publish workflow runs `ci/fetch.sh` before `helm package`, signs with
-cosign, and moves the `stable`/`dev` floating tags.
+Publish is push-only (no git tags): the publish workflow resolves the version
+purely from `Chart.yaml`, runs `ci/fetch.sh` before `helm package`, signs with
+cosign, and moves the `stable`/`dev` floating tags. Re-publishing an unchanged
+`Chart.yaml` version overwrites the same OCI tag (idempotent).

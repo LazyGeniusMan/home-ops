@@ -31,5 +31,7 @@ helm push helm-gateway-api-<version>.tgz oci://ghcr.io/lazygeniusman/home-ops/pr
 bash projects/helm-gateway-api/ci/verify.sh          # lint + fetch dry-run + no-CRD-committed guard
 ```
 
-Tag releases as `helm-gateway-api-v<semver>` (see `scripts/tag-release.sh`);
-the publish workflow signs with cosign and moves the `stable`/`dev` floating tags.
+Publish is push-only (no git tags): the publish workflow resolves the version
+purely from `Chart.yaml`, signs with cosign, and moves the `stable`/`dev`
+floating tags. Re-publishing an unchanged `Chart.yaml` version overwrites
+the same OCI tag (idempotent).

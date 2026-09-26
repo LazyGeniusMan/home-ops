@@ -34,6 +34,7 @@ helm push helm-multus-<version>.tgz oci://ghcr.io/lazygeniusman/home-ops/project
 bash projects/helm-multus/ci/verify.sh          # lint + fetch dry-run + no-CRD-committed guard
 ```
 
-Tag releases as `helm-multus-v<semver>` (see `scripts/tag-release.sh`);
-the publish workflow runs `ci/fetch.sh` before `helm package`, signs with
-cosign, and moves the `stable`/`dev` floating tags.
+Publish is push-only (no git tags): the publish workflow resolves the version
+purely from `Chart.yaml`, runs `ci/fetch.sh` before `helm package`, signs with
+cosign, and moves the `stable`/`dev` floating tags. Re-publishing an unchanged
+`Chart.yaml` version overwrites the same OCI tag (idempotent).

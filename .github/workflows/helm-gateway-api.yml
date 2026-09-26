@@ -1,6 +1,7 @@
 # Publishes helm-gateway-api chart to GHCR OCI (verify, fetch upstream, package/push/sign).
-# Paths: projects/helm-gateway-api/**, helm-gateway-api-v* tags.
-# Branch: 0.0.0-dev.<sha> + dev aliases; tag: <semver> + stable.
+# Trigger: push to main on projects/helm-gateway-api/** + workflow_dispatch (no git tags;
+# version resolves purely from Chart.yaml). Re-publish of an unchanged Chart
+# version overwrites the same OCI tag (helm push OCI replace semantics).
 # Upstream is fetched at publish time by ci/fetch.sh (no YAML committed); the
 # staged bundle is bundled by helm package.
 name: helm-gateway-api
@@ -11,8 +12,6 @@ on:
       - 'main'
     paths:
       - 'projects/helm-gateway-api/**'
-    tags:
-      - 'helm-gateway-api-v*'
   workflow_dispatch:
 
 permissions: {} # deny-all default; test/publish scopes granted per job below.
@@ -77,16 +76,9 @@ jobs:
 
       - name: Resolve chart version
         id: version
-        env:
-          REF_TYPE: ${{ github.ref_type }}
         run: |
-          if [ "${REF_TYPE}" = "tag" ]; then
-            VERSION="${GITHUB_REF_NAME#helm-gateway-api-v}" # helm-gateway-api-v<X.Y.Z> -> <X.Y.Z>
-          else
-            # Dev leg must stay semver: fetch script requires Chart.yaml
-            # version, so stage the Chart.yaml pin (dev aliases applied below).
-            VERSION="$(yq '.version' projects/helm-gateway-api/Chart.yaml)"
-          fi
+          # Version resolves purely from Chart.yaml (no git-tag leg).
+          VERSION="$(yq '.version' projects/helm-gateway-api/Chart.yaml)"
           SEMVER='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
           if ! echo "${VERSION}" | grep -Eq "${SEMVER}"; then
             echo "Refusing to publish non-semver chart version: ${VERSION}" >&2
@@ -102,6 +94,7 @@ jobs:
           bash projects/helm-gateway-api/ci/fetch.sh
           helm package projects/helm-gateway-api --version "${VERSION}"
           # `helm push` appends the chart name, so push to the parent to land exactly at OCI_REPO.
+          # Re-publish overwrites the same OCI tag (helm push OCI replace semantics).
           PUSH_OUT="$(helm push "helm-gateway-api-${VERSION}.tgz" "oci://${OCI_REPO%/*}" 2>&1)"
           echo "${PUSH_OUT}"
           PUSHED_REF="$(echo "${PUSH_OUT}" | grep -Eo 'Pushed: [^[:space:]]+' | awk '{print $2}' | head -n 1)"
@@ -123,14 +116,11 @@ jobs:
           DIGEST: ${{ steps.push.outputs.digest }}
 
       - name: Apply floating tags
-        # Branch leg retags dev + dev-<sha>; tag leg retags stable.
+        # Push publish tracks stable + dev aliases from the Chart version;
+        # re-runs overwrite the same OCI tags (idempotent, no git tags).
         env:
-          REF_TYPE: ${{ github.ref_type }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          if [ "${REF_TYPE}" = "tag" ]; then
-            oras tag "${OCI_REPO}:${VERSION}" stable
-          else
-            oras tag "${OCI_REPO}:${VERSION}" dev
-            oras tag "${OCI_REPO}:${VERSION}" "dev-${GITHUB_SHA::7}"
-          fi
+          oras tag "${OCI_REPO}:${VERSION}" stable
+          oras tag "${OCI_REPO}:${VERSION}" dev
+          oras tag "${OCI_REPO}:${VERSION}" "dev-${GITHUB_SHA::7}"

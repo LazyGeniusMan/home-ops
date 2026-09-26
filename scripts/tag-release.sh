@@ -31,11 +31,6 @@ PREFIX_ENTRIES=(
   "flux-fleet-v|flux-fleet-release.yaml"
   "flux-infra-v|flux-infra-release.yaml"
   "helm-rclone-v|helm-rclone.yml"
-  "helm-cosi-v|helm-cosi.yml"
-  "helm-gateway-api-v|helm-gateway-api.yml"
-  "helm-kubevirt-v|helm-kubevirt.yml"
-  "helm-multus-v|helm-multus.yml"
-  "helm-otel-monitoring-crds-v|helm-otel-monitoring-crds.yml"
 )
 
 SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'

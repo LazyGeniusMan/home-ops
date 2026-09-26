@@ -29,6 +29,7 @@ helm push helm-otel-monitoring-crds-<version>.tgz oci://ghcr.io/lazygeniusman/ho
 bash projects/helm-otel-monitoring-crds/ci/verify.sh          # lint + fetch dry-run + no-CRD-committed guard
 ```
 
-Tag releases as `helm-otel-monitoring-crds-v<semver>` (see `scripts/tag-release.sh`);
-the publish workflow runs `ci/fetch.sh` before `helm package`, signs with
-cosign, and moves the `stable`/`dev` floating tags.
+Publish is push-only (no git tags): the publish workflow resolves the version
+purely from `Chart.yaml`, runs `ci/fetch.sh` before `helm package`, signs with
+cosign, and moves the `stable`/`dev` floating tags. Re-publishing an unchanged
+`Chart.yaml` version overwrites the same OCI tag (idempotent).
