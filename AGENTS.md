@@ -16,7 +16,7 @@ flux/     → Day 2: everything running inside Kubernetes, delivered only by Flu
 projects/ → In-repo sources consumed by Flux (Go services, one Helm chart)
 ```
 
-Supporting dirs: `scripts/` (manual-only `fetch-references.sh`), `.flox/` (pinned dev toolchain, source of truth), `.github/` (SHA-pinned CI workflows). There is no other app code in this repo.
+Supporting dirs: `scripts/` (manual-only `fetch-references.sh` + `tag-release.sh`), `.flox/` (pinned dev toolchain, source of truth), `.github/` (SHA-pinned CI workflows). There is no other app code in this repo.
 
 Key facts:
 
@@ -99,7 +99,7 @@ scripts/fetch-references.sh -m zip   # manual-only refresh of /tmp/home-ops-docs
 pass-cli info                        # must succeed (logged in) before any secret injection
 ```
 
-CI mirrors these gates per path (Go workflows, `flux-*-validate.yaml`, push/release/image-update flows use `contents: read`, concurrency groups, and path filters). Ansible changes require the `--check --diff` dry run plus `talosctl validate` and FQCN lint (no CI gate). Never run `kubectl` or `helm` against a cluster directly; only the Terraform-bootstrapped Flux Operator mutates cluster state.
+CI mirrors these gates per path (Go workflows, `flux-*-validate.yaml`, `lint-shell-ansible.yaml`, push/release/image-update flows use deny-all `permissions: {}` with per-job minimums, concurrency groups, and path filters). Ansible changes require the `--check --diff` dry run plus `talosctl validate` and FQCN lint (syntax + lint in CI, `--check --diff` stays local — day-2 needs a live `pass-cli` session). Never run `kubectl` or `helm` against a cluster directly; only the Terraform-bootstrapped Flux Operator mutates cluster state.
 
 ## Patterns
 
@@ -154,7 +154,7 @@ CI mirrors these gates per path (Go workflows, `flux-*-validate.yaml`, push/rele
 - Go: `gofmt`-clean, `go vet` + `golangci-lint` (v2.13.2 config) + `govulncheck` green; conventional layout (`cmd/`, `internal/`), wrapped errors, no dead code.
 - Terraform/OpenTofu: `tofu fmt`-clean, `init -backend=false` + `validate` + `test` green; `approvePlan: auto` + `destroy: false` on Flux-managed consumers; outputs that Flux needs go through `writeOutputsToSecret`.
 - Ansible: FQCN everywhere (`community.general.*`, `ansible.builtin.*`), no bare `shell:` when a module exists, group vars carry pins.
-- Shell: `shellcheck`-clean (v0.11.0 via Flox); `set -euo pipefail`, justified inline `disable=` with why-comment.
+- Shell: `shellcheck`-clean (v0.11.0 via Flox); `set -euo pipefail` (documented `set -uo pipefail` exception: `scripts/fetch-references.sh:17`), justified inline `disable=` with why-comment.
 - Dockerfiles: pinned `FROM` with digest where available, `ARG VERSION` threaded into labels/binary, nonroot distroless runtime.
 - Comments: Flux YAMLs that wrap a local project link back to the `projects/` source path; chartproxy mappings and singleton quirks carry a header comment stating the upstream classic source proxied (chartproxy) or the reason (singleton).
 

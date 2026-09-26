@@ -1,0 +1,98 @@
+# Shell + Ansible gate (shellcheck, yamllint, ansible syntax/FQCN lint, talosctl validate).
+# Paths: scripts/**, talos/**, projects/**/ci/**, flux/scripts/**, .github/workflows/**.
+name: lint-shell-ansible
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/**'
+      - 'talos/**'
+      - 'projects/**/ci/**'
+      - 'flux/scripts/**'
+      - '.github/workflows/**'
+  push:
+    branches: ['main']
+    paths:
+      - 'scripts/**'
+      - 'talos/**'
+      - 'projects/**/ci/**'
+      - 'flux/scripts/**'
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-shell-ansible-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shell:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Run shellcheck (first-party scripts only)
+        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
+        with:
+          # Vendored .terraform/module + .agents skill scripts are third-party, not owned.
+          check_together: 'scripts/*.sh flux/scripts/*.sh projects/helm-rclone-sync/ci/*.sh'
+          version: v0.11.0 # match .flox shellcheck pin
+          severity: warning
+
+  yaml:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Run yamllint
+        uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c # v3.1.1
+        with:
+          config_data: |
+            extends: default
+            rules:
+              line-length: {max: 120}
+              document-start: disable
+              truthy: {allowed-values: ['true', 'false', 'on']}
+
+  ansible:
+    runs-on: ubuntu-latest
+    env:
+      ANSIBLE_CONFIG: talos/ansible/ansible.cfg
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.14' # match .flox python3 pin
+      - name: Install Ansible toolchain
+        shell: bash
+        # Pins match .flox ansible/ansible-lint + group_vars/all.yml
+        # talos_version + .flox on-activate talos_sha256.
+        run: |
+          pip install 'ansible-core==2.21.4' 'ansible-lint==25.8.2'
+          ansible-galaxy collection install -r talos/ansible/requirements.yml
+          curl -fSL --retry 3 -o /tmp/talosctl \
+            "https://github.com/siderolabs/talos/releases/download/v1.15.0-alpha.0/talosctl-linux-amd64"
+          echo "d0779b799815aeebccc18cf98851928ff1b050434c96831259b2e4ceafdb5399  /tmp/talosctl" | sha256sum -c -
+          chmod +x /tmp/talosctl
+          echo "/tmp" >> "$GITHUB_PATH"
+      - name: Ansible syntax check (all day playbooks)
+        shell: bash
+        run: >-
+          ansible-playbook --syntax-check
+          talos/ansible/playbooks/day0.yml talos/ansible/playbooks/day1.yml
+          talos/ansible/playbooks/day2.yml
+          -i localhost, -e talos_cluster=acme-dev-bdo1-talos-apps-01
+      - name: Ansible lint (FQCN, no bare shell)
+        shell: bash
+        run: ansible-lint talos/ansible/playbooks/ talos/ansible/roles/
+      - name: Validate talosctl client pin
+        shell: bash
+        run: talosctl version --client
+      # Day-2 needs a live pass-cli session, so the check-mode dry run stays
+      # a local gate (AGENTS.md): ansible-playbook
+      # talos/ansible/playbooks/day2.yml -i localhost,
+      # -e talos_cluster=<cluster> --check --diff.
