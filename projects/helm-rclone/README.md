@@ -1,4 +1,4 @@
-# helm-rclone-sync
+# helm-rclone
 
 Env-only rclone periodic sync as a Kubernetes CronJob. Every rclone remote is
 built exclusively from `RCLONE_CONFIG_*` environment variables — this chart
@@ -9,7 +9,7 @@ creates **no `rclone.conf` file** (no ConfigMap, Secret, volume, mount, or
 
 One generic CronJob template serves **all 10 sync directions** — each direction
 is expressed purely via `source.type` / `destination.type`. Shared logic
-lives in `templates/_helpers.tpl` behind the `helm-rclone-sync.*` prefix.
+lives in `templates/_helpers.tpl` behind the `helm-rclone.*` prefix.
 
 Consumed in Flux by seven wrappers pinning the exact chart version (no
 `$imagepolicy` marker — Helm OCIRepositories are untracked):
@@ -21,12 +21,12 @@ backend or db/app operator's job).
 ## Install / upgrade
 
 Published as an OCI artifact at
-`ghcr.io/lazygeniusman/home-ops/projects/helm-rclone-sync` (chart version = SemVer,
+`ghcr.io/lazygeniusman/home-ops/projects/helm-rclone` (chart version = SemVer,
 e.g. `0.1.0`):
 
 ```bash
 helm upgrade --install rclone-nightly \
-  oci://ghcr.io/lazygeniusman/home-ops/projects/helm-rclone-sync \
+  oci://ghcr.io/lazygeniusman/home-ops/projects/helm-rclone \
   --version 0.1.0 \
   --values my-sync-values.yaml
 ```
@@ -34,15 +34,15 @@ helm upgrade --install rclone-nightly \
 From a local checkout:
 
 ```bash
-helm upgrade --install rclone-nightly ./projects/helm-rclone-sync \
+helm upgrade --install rclone-nightly ./projects/helm-rclone \
   --values my-sync-values.yaml
 ```
 
 Verify before applying:
 
 ```bash
-helm lint projects/helm-rclone-sync
-bash projects/helm-rclone-sync/ci/verify.sh   # lint + all 10 directions + guards
+helm lint projects/helm-rclone
+bash projects/helm-rclone/ci/verify.sh   # lint + all 10 directions + guards
 ```
 
 ## Sync directions
@@ -66,8 +66,8 @@ Each direction has a proof fixture under `ci/` (`values-direction-01-…​` thr
 `values-direction-10-…​`); render one with e.g.:
 
 ```bash
-helm template demo ./projects/helm-rclone-sync \
-  -f projects/helm-rclone-sync/ci/values-direction-05-s3-to-proton.yaml
+helm template demo ./projects/helm-rclone \
+  -f projects/helm-rclone/ci/values-direction-05-s3-to-proton.yaml
 ```
 
 ## Endpoint model
@@ -232,10 +232,10 @@ whole-file `-f` values (like the `ci/` fixtures) over `--set`. See
 ## Verifying
 
 ```bash
-helm lint projects/helm-rclone-sync
-bash projects/helm-rclone-sync/ci/verify.sh
+helm lint projects/helm-rclone
+bash projects/helm-rclone/ci/verify.sh
 # env-only proof for all renders:
-for f in projects/helm-rclone-sync/ci/values-*.yaml; do
-  helm template demo ./projects/helm-rclone-sync -f "$f"
+for f in projects/helm-rclone/ci/values-*.yaml; do
+  helm template demo ./projects/helm-rclone -f "$f"
 done | grep -ri rclone.conf   # must print nothing
 ```

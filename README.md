@@ -15,7 +15,7 @@ One direction only: `talos/` renders machines, `flux/` delivers workloads,
 | [`flux/infra/`](flux/infra/README.md) | Day 2 — platform | ~22 shared platform components (`controllers/` + `configs/`, `base` + `dev`/`prd` overlays) |
 | [`flux/apps/`](flux/apps/README.md) | Day 2 — workloads | 8 user-facing apps on the same base/overlay shape; each `dependsOn` infra |
 | [`flux/fleet/`](flux/fleet/README.md) | Day 2 — wiring | Per-cluster tenant wiring, update automation (`ResourceSet` + `ImageUpdateAutomation`), Terraform bootstrap of the Flux Operator |
-| [`projects/`](projects/) | Sources | Go services (`apprise-go-api`, `eso-proton-pass`, `external-dns-netbird`) and the `helm-rclone-sync` chart — published as images/charts, consumed by Flux only |
+| [`projects/`](projects/) | Sources | Go services (`apprise-go-api`, `eso-proton-pass`, `external-dns-netbird`) and the `helm-rclone` chart — published as images/charts, consumed by Flux only |
 | [`.github/`](.github/WORKFLOW.md) | CI | Per-path validation and release workflows |
 | [`scripts/`](scripts/) | Release + docs tooling | Manual release tagging (`tag-release.sh`) and reference-docs refresh (`fetch-references.sh`) |
 
@@ -52,7 +52,7 @@ chart `OCIRepositories` every 1h. Apps declare `dependsOn` infra and wait for
 `stable` tracks. Image automation (`ImageRepository` scan 12h +
 `ImageUpdateAutomation` 30m with Setters) opens `image-updates-*` branches against
 dev; a human merges; dev greens first, then `stable` promotes to prd. The
-`helm-rclone-sync` chart is the exception: bumped atomically by hand (Chart version
+`helm-rclone` chart is the exception: bumped atomically by hand (Chart version
 + all consumer pins together, no image policy).
 
 ## Core platform
@@ -69,7 +69,7 @@ What `flux/infra/` guarantees before any app lands:
   cert-manager `letsencrypt` ClusterIssuer mints the wildcards via Cloudflare
   DNS-01. Talos-level secrets use `pass://<cluster>/talos/<field>`.
 - **Data.** S3 via SeaweedFS claimed per-bucket through COSI (`Claim` + `Access`
-  per bucket), each backed up to Proton Drive by a `helm-rclone-sync` cron.
+  per bucket), each backed up to Proton Drive by a `helm-rclone` cron.
   Postgres via CloudNativePG (S3 backups), Redis API via Dragonfly, Mongo API via
   FerretDB backed by CNPG, analytics via the Altinity ClickHouse operator (S3
   backups). Local-path storage covers single-node volumes.
@@ -113,7 +113,7 @@ An app is a thin layer over platform contracts:
    (refresh 1h); TLS comes free from the namespace wildcard Certificate.
 3. **State** via a COSI `Claim` (+ `Access`) for S3, CNPG `Cluster` for Postgres,
    Dragonfly/FerretDB/ClickHouse operators above that — each with its
-   `helm-rclone-sync` backup cron.
+   `helm-rclone` backup cron.
 4. **Login** via Zitadel OIDC (native or `oauth2-proxy` sidecar); **alerts** via
    `apprise-go-api` webhooks to Matrix.
 5. **Images** carry `$imagepolicy` markers so update automation tracks them;

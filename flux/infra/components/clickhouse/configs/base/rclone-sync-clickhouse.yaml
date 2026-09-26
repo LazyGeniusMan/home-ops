@@ -1,4 +1,4 @@
-# S3 to ProtonDrive backup of the clickhouse bucket (nightly snapshots): mirrors <bc-uuid>/clickhouse to /home-ops/backups/<cluster>/clickhouse/<bucket>. Schedule 30 4 * * * (after the 03:00 backup), sync-mirror (source deletion is the storage backend or db/app operator's job), Forbid. Chart helm-rclone-sync 0.1.0 (direction 05).
+# S3 to ProtonDrive backup of the clickhouse bucket (nightly snapshots): mirrors <bc-uuid>/clickhouse to /home-ops/backups/<cluster>/clickhouse/<bucket>. Schedule 30 4 * * * (after the 03:00 backup), sync-mirror (source deletion is the storage backend or db/app operator's job), Forbid. Chart helm-rclone 0.1.0 (direction 05).
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -48,14 +48,14 @@ spec:
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
-  name: helm-rclone-sync-chart
+  name: helm-rclone-chart
 spec:
   interval: 1h
-  url: oci://ghcr.io/lazygeniusman/home-ops/projects/helm-rclone-sync
+  url: oci://ghcr.io/lazygeniusman/home-ops/projects/helm-rclone
   layerSelector:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
-  # Chart tag MUST equal Chart.yaml version in projects/helm-rclone-sync; bump
+  # Chart tag MUST equal Chart.yaml version in projects/helm-rclone; bump
   # Chart.yaml + all six consumers in one commit.
   # No `verify:` block: first-party chart, allowlist-covered
   # (oci://ghcr.io/lazygeniusman/); no cosign signature published.
@@ -72,7 +72,7 @@ spec:
   serviceAccountName: flux
   chartRef:
     kind: OCIRepository
-    name: helm-rclone-sync-chart
+    name: helm-rclone-chart
   install:
     strategy:
       name: RetryOnFailure
@@ -81,7 +81,7 @@ spec:
     strategy:
       name: RetryOnFailure
       retryInterval: 5m
-  # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-rclone-sync
+  # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-rclone
   values:
     schedule: "30 4 * * *"
     concurrencyPolicy: Forbid

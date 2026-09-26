@@ -1,5 +1,5 @@
-# S3 to ProtonDrive backups for zitadel-db, zitadel-cache, zitadel-assets (one helm-rclone-sync CronJob per bucket, direction 05; chart 0.1.0).
-# Chart source: projects/helm-rclone-sync.
+# S3 to ProtonDrive backups for zitadel-db, zitadel-cache, zitadel-assets (one helm-rclone CronJob per bucket, direction 05; chart 0.1.0).
+# Chart source: projects/helm-rclone.
 # Source is the live bc-<uuid> bucket via BucketInfo.spec.bucketName (assets sync reads the account root with --include "zitadel-assets*/**"). Destination /home-ops/backups/<cluster>/zitadel/<bucket>. Schedules db 01:15, cache 02:15, assets 03:15 UTC (staggered off the 00:00 CNPG base + 03:00 ClickHouse backup); sync-mirror (source deletion is the storage backend or db/app operator's job), Forbid.
 ---
 apiVersion: external-secrets.io/v1
@@ -113,7 +113,7 @@ spec:
         key: zitadel-assets-cosi-creds
         property: BucketInfo.spec.secretS3.accessSecretKey
 ---
-# Chart tag MUST equal Chart.yaml version in projects/helm-rclone-sync; bump
+# Chart tag MUST equal Chart.yaml version in projects/helm-rclone; bump
 # Chart.yaml + all six consumers in one commit (no $imagepolicy marker on Helm
 # OCIRepositories).
 # No `verify:` block: first-party chart, allowlist-covered
@@ -121,10 +121,10 @@ spec:
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
-  name: helm-rclone-sync-chart
+  name: helm-rclone-chart
 spec:
   interval: 1h
-  url: oci://ghcr.io/lazygeniusman/home-ops/projects/helm-rclone-sync
+  url: oci://ghcr.io/lazygeniusman/home-ops/projects/helm-rclone
   layerSelector:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
@@ -141,7 +141,7 @@ spec:
   serviceAccountName: flux
   chartRef:
     kind: OCIRepository
-    name: helm-rclone-sync-chart
+    name: helm-rclone-chart
   install:
     strategy:
       name: RetryOnFailure
@@ -210,7 +210,7 @@ spec:
   serviceAccountName: flux
   chartRef:
     kind: OCIRepository
-    name: helm-rclone-sync-chart
+    name: helm-rclone-chart
   install:
     strategy:
       name: RetryOnFailure
@@ -279,7 +279,7 @@ spec:
   serviceAccountName: flux
   chartRef:
     kind: OCIRepository
-    name: helm-rclone-sync-chart
+    name: helm-rclone-chart
   install:
     strategy:
       name: RetryOnFailure

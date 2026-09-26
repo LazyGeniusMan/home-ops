@@ -19,7 +19,7 @@
   opens a PR to main per `image-updates-infra/apps` branch.
 - Projects: `apprise-go-api.yml`, `eso-proton-pass.yml`,
   `external-dns-netbird.yml` (test + GHCR publish/sign),
-  `helm-rclone-sync.yml` (verify + chart OCI publish/sign).
+  `helm-rclone.yml` (verify + chart OCI publish/sign).
 
 All `uses:` are SHA-pinned, deny-all `permissions: {}` default with per-job
 minimums, concurrency groups, path-gated triggers. Vendored `.github` copies

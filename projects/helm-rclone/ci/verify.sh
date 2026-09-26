@@ -2,10 +2,10 @@
 # shellcheck disable=SC2015  # `grep -q ... && ok ... || bad ...` assertion idiom used throughout: ok/bad only echo and bump counters and cannot fail, so the A&&B||C pitfall cannot trigger; if/else would triple the line count.
 # Verification: lint, render all 10 directions + fixtures, assert env-only
 # (no rclone.conf), volume/env shape, and fail-fast errors.
-# Run from the repo root: bash projects/helm-rclone-sync/ci/verify.sh
+# Run from the repo root: bash projects/helm-rclone/ci/verify.sh
 set -euo pipefail
 
-CHART=projects/helm-rclone-sync
+CHART=projects/helm-rclone
 CI="$CHART/ci"
 OUT=$(mktemp -d)
 trap 'rm -rf "$OUT"' EXIT

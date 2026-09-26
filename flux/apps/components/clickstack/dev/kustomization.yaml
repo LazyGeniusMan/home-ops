@@ -19,7 +19,7 @@ patches:
       kind: ExternalSecret
       name: clickstack-hyperdx
   # (S3 keys COSI-minted — no per-env vault patch for S3 ExternalSecrets.)
-  # Dev rclone identity (chart source: projects/helm-rclone-sync): vault keys +
+  # Dev rclone identity (chart source: projects/helm-rclone): vault keys +
   # destination cluster segments (base holds placeholders; one shared
   # rclone-proton-credentials ExternalSecret covers both releases).
   - patch: |

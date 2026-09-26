@@ -12,7 +12,7 @@
 # /run, /var/lib/cni/multus; delete NADs/CRD explicitly). privileged:true +
 # hostNetwork/hostPID stay (CNI moves host netns interfaces). kube-system namespaces,
 # DaemonSet mounts, and the initContainer -t thick arg are owned by the chart now.
-# No $imagepolicy — first-party Helm OCI bumps atomically (Chart.yaml + wrapper ref.tag in one PR, cf. helm-rclone-sync).
+# No $imagepolicy — first-party Helm OCI bumps atomically (Chart.yaml + wrapper ref.tag in one PR, cf. helm-rclone).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -30,7 +30,7 @@ spec:
   ref:
     tag: "4.3.0"
   # No `verify:` block: first-party chart signed at publish time, no pinned
-  # upstream identity — same shape as the helm-rclone-sync wrappers.
+  # upstream identity — same shape as the helm-rclone wrappers.
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease

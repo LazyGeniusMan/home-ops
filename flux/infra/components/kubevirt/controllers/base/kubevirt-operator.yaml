@@ -7,7 +7,7 @@
 # Deletion order CR-first: delete the KubeVirt CR and wait for operands to drain before
 # removing this release — deleting the operator first strands the CR Terminating
 # behind its finalizer (recovery: strip the finalizer).
-# No $imagepolicy — first-party Helm OCI bumps atomically (Chart.yaml + wrapper ref.tag in one PR, cf. helm-rclone-sync).
+# No $imagepolicy — first-party Helm OCI bumps atomically (Chart.yaml + wrapper ref.tag in one PR, cf. helm-rclone).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -25,7 +25,7 @@ spec:
   ref:
     tag: "1.9.0"
   # No `verify:` block: first-party chart signed at publish time, no pinned
-  # upstream identity — same shape as the helm-rclone-sync wrappers.
+  # upstream identity — same shape as the helm-rclone wrappers.
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease

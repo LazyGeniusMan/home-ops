@@ -1,4 +1,4 @@
-# Default values for helm-rclone-sync: env-only periodic sync. Remotes are
+# Default values for helm-rclone: env-only periodic sync. Remotes are
 # built exclusively from RCLONE_CONFIG_* env; no rclone.conf exists anywhere
 # (RCLONE_CONFIG=/dev/null blocks file read/auto-create).
 

@@ -1,21 +1,21 @@
-# Publishes helm-rclone-sync chart to GHCR OCI (verify, then package/push/sign).
-# Paths: projects/helm-rclone-sync/**, helm-rclone-sync-v* tags. Branch: 0.0.0-dev.<sha> + dev aliases; tag: <semver> + stable.
-name: helm-rclone-sync
+# Publishes helm-rclone chart to GHCR OCI (verify, then package/push/sign).
+# Paths: projects/helm-rclone/**, helm-rclone-v* tags. Branch: 0.0.0-dev.<sha> + dev aliases; tag: <semver> + stable.
+name: helm-rclone
 
 on:
   push:
     branches:
       - 'main'
     paths:
-      - 'projects/helm-rclone-sync/**'
+      - 'projects/helm-rclone/**'
     tags:
-      - 'helm-rclone-sync-v*'
+      - 'helm-rclone-v*'
   workflow_dispatch:
 
 permissions: {} # deny-all default; test/publish scopes granted per job below.
 
 concurrency:
-  group: helm-rclone-sync-publish-${{ github.ref }}
+  group: helm-rclone-publish-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
           version: v4.3.0 # match .flox kubernetes-helm pin
 
       - name: Verify (lint + fixtures + assertions)
-        run: bash projects/helm-rclone-sync/ci/verify.sh
+        run: bash projects/helm-rclone/ci/verify.sh
 
   publish:
     runs-on: ubuntu-latest
@@ -43,7 +43,7 @@ jobs:
       packages: write # helm push + oras tag
       id-token: write # cosign keyless signing
     env:
-      OCI_REPO: ghcr.io/lazygeniusman/home-ops/projects/helm-rclone-sync
+      OCI_REPO: ghcr.io/lazygeniusman/home-ops/projects/helm-rclone
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -78,7 +78,7 @@ jobs:
           REF_TYPE: ${{ github.ref_type }}
         run: |
           if [ "${REF_TYPE}" = "tag" ]; then
-            VERSION="${GITHUB_REF_NAME#helm-rclone-sync-v}" # helm-rclone-sync-v<X.Y.Z> -> <X.Y.Z>
+            VERSION="${GITHUB_REF_NAME#helm-rclone-v}" # helm-rclone-v<X.Y.Z> -> <X.Y.Z>
           else
             # Dev leg must stay semver: package 0.0.0-dev.<sha>; dev/dev-<sha> aliases applied below.
             SHORT_SHA="$(echo "${GITHUB_SHA}" | cut -c1-7)"
@@ -96,9 +96,9 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          helm package projects/helm-rclone-sync --version "${VERSION}"
+          helm package projects/helm-rclone --version "${VERSION}"
           # `helm push` appends the chart name, so push to the parent to land exactly at OCI_REPO.
-          PUSH_OUT="$(helm push "helm-rclone-sync-${VERSION}.tgz" "oci://${OCI_REPO%/*}" 2>&1)"
+          PUSH_OUT="$(helm push "helm-rclone-${VERSION}.tgz" "oci://${OCI_REPO%/*}" 2>&1)"
           echo "${PUSH_OUT}"
           PUSHED_REF="$(echo "${PUSH_OUT}" | grep -Eo 'Pushed: [^[:space:]]+' | awk '{print $2}' | head -n 1)"
           if [ "${PUSHED_REF%:*}" != "${OCI_REPO}" ]; then

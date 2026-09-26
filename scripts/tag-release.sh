@@ -30,7 +30,7 @@ PREFIX_ENTRIES=(
   "flux-apps-v|flux-apps-release.yaml"
   "flux-fleet-v|flux-fleet-release.yaml"
   "flux-infra-v|flux-infra-release.yaml"
-  "helm-rclone-sync-v|helm-rclone-sync.yml"
+  "helm-rclone-v|helm-rclone.yml"
   "helm-cosi-v|helm-cosi.yml"
   "helm-gateway-api-v|helm-gateway-api.yml"
   "helm-kubevirt-v|helm-kubevirt.yml"

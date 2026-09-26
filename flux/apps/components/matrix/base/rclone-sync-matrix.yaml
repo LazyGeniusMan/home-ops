@@ -8,7 +8,7 @@
 # (`esoRef`). Seed pass://<cluster>/matrix/rclone-proton-{username
 # (plain),password (rclone-obscured)}. `__PROTON_PASS_BASE__` /
 # `__CLUSTER_NAME__` are overlay-replaced placeholders.
-# Chart source: projects/helm-rclone-sync.
+# Chart source: projects/helm-rclone.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -118,14 +118,14 @@ spec:
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
-  name: helm-rclone-sync-chart
+  name: helm-rclone-chart
 spec:
   interval: 1h
-  url: oci://ghcr.io/lazygeniusman/home-ops/projects/helm-rclone-sync
+  url: oci://ghcr.io/lazygeniusman/home-ops/projects/helm-rclone
   layerSelector:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
-  # Tag MUST equal Chart.yaml `version` in projects/helm-rclone-sync (bump
+  # Tag MUST equal Chart.yaml `version` in projects/helm-rclone (bump
   # Chart.yaml + all seven HelmRelease consumers together (2 clickstack + 1
   # coder + 4 here); no $imagepolicy marker — Helm OCIRepositories are
   # untracked by image automation).
@@ -144,7 +144,7 @@ spec:
   serviceAccountName: flux
   chartRef:
     kind: OCIRepository
-    name: helm-rclone-sync-chart
+    name: helm-rclone-chart
   install:
     strategy:
       name: RetryOnFailure
@@ -153,7 +153,7 @@ spec:
     strategy:
       name: RetryOnFailure
       retryInterval: 5m
-  # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-rclone-sync
+  # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-rclone
   values:
     schedule: "30 2 * * *"
     activeDeadlineSeconds: 3600
@@ -200,7 +200,7 @@ spec:
   serviceAccountName: flux
   chartRef:
     kind: OCIRepository
-    name: helm-rclone-sync-chart
+    name: helm-rclone-chart
   install:
     strategy:
       name: RetryOnFailure
@@ -209,7 +209,7 @@ spec:
     strategy:
       name: RetryOnFailure
       retryInterval: 5m
-  # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-rclone-sync
+  # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-rclone
   values:
     schedule: "45 2 * * *"
     activeDeadlineSeconds: 3600
@@ -255,7 +255,7 @@ spec:
   serviceAccountName: flux
   chartRef:
     kind: OCIRepository
-    name: helm-rclone-sync-chart
+    name: helm-rclone-chart
   install:
     strategy:
       name: RetryOnFailure
@@ -264,7 +264,7 @@ spec:
     strategy:
       name: RetryOnFailure
       retryInterval: 5m
-  # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-rclone-sync
+  # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-rclone
   values:
     schedule: "0 5 * * *"
     activeDeadlineSeconds: 3600
@@ -319,7 +319,7 @@ spec:
   serviceAccountName: flux
   chartRef:
     kind: OCIRepository
-    name: helm-rclone-sync-chart
+    name: helm-rclone-chart
   install:
     strategy:
       name: RetryOnFailure
@@ -328,7 +328,7 @@ spec:
     strategy:
       name: RetryOnFailure
       retryInterval: 5m
-  # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-rclone-sync
+  # https://github.com/lazygeniusman/home-ops/tree/main/projects/helm-rclone
   values:
     schedule: "30 5 * * *"
     activeDeadlineSeconds: 3600
