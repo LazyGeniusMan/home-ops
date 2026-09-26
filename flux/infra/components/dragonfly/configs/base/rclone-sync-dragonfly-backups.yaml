@@ -1,4 +1,4 @@
-# S3 to Proton Drive backup of the dragonfly-backups bucket (hourly snapshots): mirrors <live-bucket>/dragonfly-backups/dragonfly/ to /home-ops/backups/<cluster>/dragonfly/dragonfly-backups (sync, hourly at :30, Forbid; rclone 1.75.0).
+# S3 to Proton Drive backup of the dragonfly-backups bucket (hourly snapshots): copies <live-bucket>/dragonfly-backups/dragonfly/ to /home-ops/backups/<cluster>/dragonfly/dragonfly-backups (copy — never sync, off-site keeps history; hourly at :30, Forbid; rclone 1.75.0).
 # Live bucket via BucketInfo.spec.bucketName through the dragonfly-cosi store.
 ---
 apiVersion: external-secrets.io/v1
@@ -103,8 +103,15 @@ spec:
   values:
     schedule: "30 * * * *"
     concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 3600
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
     rclone:
-      operation: sync
+      operation: copy
     source:
       type: s3
       remoteName: ""

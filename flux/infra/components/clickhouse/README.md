@@ -50,9 +50,13 @@ annotation or Gateway HTTPRoute.
 
 ## Telemetry / monitoring / updates
 
+Keeper 4LW restricted to read-only diagnostics (`stat,srvr,cons,mntr`; `conf`
+leaks config — stays off). Keeper listens on all pod interfaces (quorum peers
+dial over the pod network); wire encrypted at the CNI layer (Cilium WireGuard).
+
 No usage-reporting keys in chart values. Metrics exporter on
-(`metrics.enabled: true` + prometheus.io annotations). `ServiceMonitor` off
-until `monitoring.coreos.com` CRDs land. Bumps:
+(`metrics.enabled: true` + prometheus.io annotations). `ServiceMonitor` on
+(monitoring CRDs via the infra-crds tenant). Bumps:
 `update-policies/clickhouse.yaml` (operator >=0.27.3, server/keeper
 >=26.8.0; markers `infra:clickhouse:tag` + server/keeper markers) -> PR
 automation. Confirm nightly `BACKUP ALL` completed before bumping; keep

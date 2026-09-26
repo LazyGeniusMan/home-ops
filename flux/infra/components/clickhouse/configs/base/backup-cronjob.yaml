@@ -1,4 +1,6 @@
 # Nightly full-cluster backup to SeaweedFS S3 (immutable snapshots under nightly/; retention via bucket lifecycle). Uses the CHI Service clickhouse (8123/9000).
+# Schedule 03:00 (off-site rclone leg follows at 04:30; CNPG base runs 00:00, Zitadel legs 01:15-03:15 — staggered so S3 + Proton Drive never spike together).
+# Failure alert: CronJob `Ready=False`/missed-schedule surfaces via the tenant Kustomization health + Matrix alert on Ready=False (no PrometheusRule in this scope).
 ---
 apiVersion: batch/v1
 kind: CronJob
@@ -8,11 +10,21 @@ spec:
   schedule: "0 3 * * *"
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
   jobTemplate:
     spec:
+      # Kill a stuck clickhouse-client run after 1h (BACKUP is single-shot; longer means wedged).
+      activeDeadlineSeconds: 3600
+      backoffLimit: 3
       template:
         spec:
           restartPolicy: OnFailure
+          # Non-root backup client with RuntimeDefault seccomp.
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
           containers:
             - name: backup
               image: clickhouse/clickhouse-server:26.8.10.6 # {"$imagepolicy": "infra:clickhouse-server:tag"}
@@ -20,3 +32,9 @@ spec:
               args:
                 - --host=clickhouse
                 - --query=BACKUP ALL ON CLUSTER 'main' TO Disk('backups_s3', 'nightly/')
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  memory: 512Mi

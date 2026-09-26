@@ -1,4 +1,4 @@
-# S3 to ProtonDrive backup of the clickhouse bucket (nightly snapshots): syncs <bc-uuid>/clickhouse to /home-ops/backups/<cluster>/clickhouse/<bucket>. Schedule 30 4 * * * (after the 03:00 backup), sync, Forbid. Chart helm-rclone-sync 0.1.0 (direction 05).
+# S3 to ProtonDrive backup of the clickhouse bucket (nightly snapshots): copies <bc-uuid>/clickhouse to /home-ops/backups/<cluster>/clickhouse/<bucket>. Schedule 30 4 * * * (after the 03:00 backup), copy (never sync — sync would delete off-site history Proton Drive is meant to keep), Forbid. Chart helm-rclone-sync 0.1.0 (direction 05).
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -83,8 +83,17 @@ spec:
   values:
     schedule: "30 4 * * *"
     concurrencyPolicy: Forbid
+    # Bound a stuck off-site run (Proton Drive stalls wedge rclone); alert on
+    # CronJob Ready=False via the tenant health + Matrix path (no PrometheusRule here).
+    activeDeadlineSeconds: 3600
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
     rclone:
-      operation: sync
+      operation: copy
     source:
       type: s3
       uri:

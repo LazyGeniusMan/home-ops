@@ -1,4 +1,4 @@
-# ClickHouse operator 0.27.3. Chart oci://registry-1.docker.io/altinity/clickhouse-operator.
+# ClickHouse operator 0.27.3 (chart == operator line; server/keeper images pinned separately on the 26.8 LTS line — skew guard in update-policies/clickhouse.yaml: keep all three together). Chart oci://registry-1.docker.io/altinity/clickhouse-operator.
 # ServiceMonitors on (operator + keeper): monitoring CRDs arrive via the otel-operator infra-crds delivery
 # (prune:false), and the gateway TA scrapes monitors labeled `otel-scrape: "true"` (labels land via sibling;
 # see the ESO `renderMode: skipIfMissing` template in external-secrets/controllers/base/externalsecrets.yaml).
