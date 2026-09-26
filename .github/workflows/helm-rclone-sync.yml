@@ -54,8 +54,9 @@ jobs:
       - name: Set up ORAS
         uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d # v2.0.1
         with:
-          # setup-oras v2.0.1 bundles oras up to 1.3.3; version takes no `v` prefix.
-          version: 1.3.3
+          # setup-oras v2.0.1 bundles oras up to 1.3.3; 1.3.4 installs the
+          # standalone binary instead (version takes no `v` prefix).
+          version: 1.3.4
 
       - name: Install cosign
         uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1

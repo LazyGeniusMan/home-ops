@@ -218,6 +218,11 @@
       -o {{ talos_build_dir }}/{{ talos_cluster }}/talosconfig
   changed_when: true
 
+- name: Lock down cluster talosconfig permissions
+  ansible.builtin.file:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/talosconfig"
+    mode: "0600"
+
 - name: Generate per-node machine configs
   ansible.builtin.command:
     cmd: >-
@@ -238,6 +243,14 @@
   loop_control:
     label: "{{ item.name }}"
   changed_when: true
+
+- name: Lock down per-node machine config permissions
+  ansible.builtin.file:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/nodes/{{ item.name }}/{{ talos_machine_roles[item.role] }}.yaml"
+    mode: "0600"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
 
 - name: Validate generated per-node configs
   ansible.builtin.command:

@@ -1,12 +1,19 @@
 # Dedicated Talos NetBird access-fabric root — Ansible-managed only (RUNBOOK §1.0b), never Flux.
 # Upsert-only: `prevent_destroy` on every resource (delete/replace plans fail closed; no destroy path).
 # Staged at build/<cluster>/netbird-tf/ with persistent local state (re-applies upsert — never delete).
-# PAT rides NB_PAT env only (never -var); setup key is reusable, expiry/usage 0, plaintext only via
-# the sensitive talos_setup_key output; routing via netbird_network_router peer_groups
-# (netbird_route unused); admin peer + LAN chains ride two policies (one rule per policy).
+# PAT rides NB_PAT env only (provider reads it straight from the environment;
+# there is no token variable by design); setup key is reusable but scoped
+# (90d expiry, usage_limit 3 — rotate before expiry, RUNBOOK §1.0b), plaintext
+# only via the sensitive talos_setup_key output; routing via
+# netbird_network_router peer_groups (netbird_route unused); admin peer + LAN
+# chains ride two policies (one rule per policy).
 # No Service-LB resource (LB VIP owned by the Flux consumer).
+# Single-writer rule: both clusters share one NetBird account, so the
+# account-global groups/policies below are managed by exactly one cluster root
+# at a time (whichever cluster applied first). Before applying a second
+# cluster, import the globals into its state (see README.md) or the apply
+# fails on duplicates.
 provider "netbird" {
-  token          = var.netbird_token
   management_url = var.management_url
 }
 
@@ -68,11 +75,14 @@ resource "netbird_network" "cluster" {
 
 # Reusable setup key: peers minted through it land in the per-cluster nodes group.
 # Plaintext leaves ONLY via the sensitive talos_setup_key output.
+# Scoped, not eternal: 90d expiry + tight usage_limit (credential rule — every
+# credential carries an expiration). Rotate well before expiry (RUNBOOK §1.0b);
+# raise usage_limit when adding nodes (1 active peer + rejoin headroom today).
 resource "netbird_setup_key" "talos" {
   name           = var.cluster_name
   type           = "reusable"
-  expiry_seconds = 0
-  usage_limit    = 0
+  expiry_seconds = 7776000
+  usage_limit    = 3
   auto_groups    = [netbird_group.cluster_nodes.id]
 
   lifecycle {

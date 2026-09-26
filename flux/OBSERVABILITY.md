@@ -116,7 +116,22 @@ recommendations apply at pod (re)start only, never mid-run eviction.
 
 ## ClickHouse retention
 
-Table retention follows the ClickHouse/HyperDX chart defaults.
+Table retention follows the ClickHouse/HyperDX chart defaults, which the
+operators have reviewed and accept as an explicit bound:
+
+- **Signal tables:** `HYPERDX_OTEL_EXPORTER_TABLES_TTL` default `720h` (30
+  days) across logs/traces/metrics/sessions (per-signal overrides unset; the
+  collector reconciles TTLs on existing tables). Upstream default in
+  `charts/clickstack/values.yaml` of the ClickStack chart.
+- **System tables** (`query_log`, `part_log`, `text_log`, `metric_log`,
+  `asynchronous_metric_log`): `event_date + INTERVAL 7 DAY DELETE` via the
+  chart's `extraConfig`, plus `logger` capped at `information` / `100M` x 10
+  files. Without this the operator's trace-level logging + TTL-less system
+  tables fill the 10Gi default volume within days and the OTel collector
+  starts dropping every batch (see the chart CHANGELOG).
+- **Follow-up to revisit:** raise `HYPERDX_OTEL_EXPORTER_LOGS_TTL` /
+  `_TRACES_TTL` per signal (e.g. 180d for compliance) once prd disk headroom
+  is measured. No unbounded-retention risk today — both TTL layers are set.
 
 ## HyperDX route / Gateway pattern
 

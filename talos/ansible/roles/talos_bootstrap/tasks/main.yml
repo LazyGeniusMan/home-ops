@@ -127,3 +127,8 @@
   until: talos_bootstrap_kubeconfig.rc == 0
   retries: "{{ talos_bootstrap_kubeconfig_retries }}"
   delay: "{{ talos_bootstrap_kubeconfig_delay }}"
+
+- name: Lock down admin kubeconfig permissions
+  ansible.builtin.file:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/kubeconfig"
+    mode: "0600"

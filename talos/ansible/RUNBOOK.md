@@ -28,8 +28,10 @@ cd talos/ansible            # all playbook commands run from here
 ansible-galaxy install -r requirements.yml
 ```
 
-Provides `community.general >= 9.0.0` (§1.0b `terraform` module + `random_string`
-lookup). Re-run after a fresh checkout or when `requirements.yml` changes.
+Provides `community.general >= 9.0.0,<14.0.0` (§1.0b `terraform` module +
+`random_string` lookup; floor, not a pin — galaxy installs the newest in range,
+tested with 13.4.0). Re-run after a fresh checkout or when `requirements.yml`
+changes.
 
 ### 0.3 Authenticate to Proton Pass
 
@@ -51,7 +53,9 @@ commands. A missed login fails day-0 with `No authenticated pass-cli session...`
 - Inject errors name the unresolved ref (`pass://<vault>/talos/<field>` + field
   message): fix the field name (case-sensitive) or the source `pass://` ref, delete
   the stale `build/<cluster>/` render, re-run day-0. Inject tasks carry no `no_log`
-  (`--out-file` mode prints no values, only the ref).
+  (`--out-file` mode prints no values, only the ref). `--file-mode 0600` needs
+  pass-cli ≥ 1.x with `inject --file-mode` support (Flox pins `proton-pass-cli`
+  2.3.3 — verified); older binaries reject the flag and fail the render.
 
 ### 0.4 Network + node state
 
@@ -68,8 +72,9 @@ talosctl get disks --insecure -n 192.168.1.201
 ```
 
 Confirm the link name matches the node patch (`ens18` dev/QEMU, `enp45s0` prd/bare metal)
-and the disk layout matches (dev: `/dev/sda` 20 GiB OS + `/dev/sdb` 960 GB data;
-prd: `/dev/nvme0n1` 512 GiB NVMe).
+and the disk layout matches (dev: `/dev/sda` 20 GiB OS + `/dev/sdb` 960 GB data —
+volume math in the node header; prd: `/dev/nvme0n1` 512 GiB NVMe + `/dev/sda`
+data of unrecorded size — volume math in the node header).
 
 ---
 
@@ -87,11 +92,14 @@ Per cluster vault: a `talos` item with `netbird-pat` (NetBird management PAT, §
 naming the unresolved ref.
 
 Role order (`talos_render`): `mkdir build/<cluster> 0700` → login check →
-`pass-cli inject` cluster + per-node patches → `pass-cli inject` PAT render
+`pass-cli inject` cluster + per-node patches (`--file-mode 0600`; needs a
+pass-cli with `inject --file-mode` support, §0.3) → `pass-cli inject` PAT render
 (`pat.yml.template` → `proton-pass-pat`, `0600`, `creates:` guard; path pinned by
-`talos_pat_filename`) → NetBird plane (§1.0b) → schematic merge/upload/ID-rewrite →
-`gen secrets` → `mkdir nodes/<node>` → `gen config -t talosconfig` →
-per-node `gen config -t <role>` with `--install-image` → `validate -m metal`.
+`talos_pat_filename`) → NetBird plane (§1.0b, `tofu plan` gate first) →
+schematic merge/upload/ID-rewrite (single factory URL from group_vars,
+30s timeout, 64-hex ID gate) → `gen secrets` → `mkdir nodes/<node>` →
+`gen config -t talosconfig` (`0600`) → per-node `gen config -t <role>` with
+`--install-image` (`0600`) → `validate -m metal`.
 
 ### 1.0b NetBird setup key (PAT-driven Terraform, never vault-seeded)
 
@@ -100,21 +108,44 @@ system extension, minted by Terraform:
 
 1. **Proton Pass supplies the PAT only** — `talos` item, `netbird-pat` field, own
    cluster vault. Resolved via `pass-cli item view` (`no_log`, never on disk),
-   passed only as `NB_PAT` env on the `community.general.terraform` call.
+   passed only as `NB_PAT` env on the `community.general.terraform` call (the
+   provider reads `NB_PAT` straight from the environment — the root declares no
+   token variable by design, so the PAT never lands in TFVARS or state).
 2. **Terraform mints the setup key** — dedicated root
    (`roles/talos_render/files/netbird/`, staged at `build/<cluster>/netbird-tf/`
-   with persistent state so re-applies upsert; `prevent_destroy` on every
-   resource). Fabric shape (groups, network, router, policies) is documented in
-   `roles/talos_render/files/netbird/README.md`. Key is reusable, no expiry,
+   with persistent plaintext local state so re-applies upsert — state shares the
+   §6.1 backup class; `prevent_destroy` on every resource). Fabric shape
+   (groups, network, router, policies) is documented in
+   `roles/talos_render/files/netbird/README.md`. Key is reusable but SCOPED
+   (credential rule): `expiry_seconds = 7776000` (90d), `usage_limit = 3`,
    `auto_groups = [<cluster>-nodes]`; returned as sensitive `talos_setup_key`
-   output (never `tofu output -raw`). Never delete `netbird-tf/` between runs
-   (see §6.3); never run raw `tofu apply` on this plane.
+   output (never `tofu output -raw`). Gate: `tofu -chdir=build/<c>/netbird-tf
+   plan` first — the only expected replace is the setup key itself (rotation
+   REPLACES the value, so re-key peers afterwards). Never delete `netbird-tf/`
+   between runs (see §6.3); never run raw `tofu apply` on this plane. Both
+   clusters share one NetBird account: account-global groups/policies are
+   single-writer (first cluster owns them; the second imports them — see the
+   root README).
 3. **Ansible rewrites the placeholder** — `NB_SETUP_KEY=__TALOS_NETBIRD_SETUP_KEY__`
    → resolved key (`ansible.builtin.replace`, `no_log`, `0600`), UUID shape-gated,
    baked into `build/<cluster>/nodes/*/*.yaml` by `gen config`.
 
-Rotation: replace `netbird_setup_key.talos`, then re-run day-0
-(`rm build/<c>/patches.yml` first) or day-2 `-e reapply_configs=true`.
+Rotation (credential rule — the 90d key expires on its own, so rotate early):
+
+```bash
+# Working dir: talos/ansible/
+C=<cluster>
+tofu -chdir=build/$C/netbird-tf plan    # expect REPLACE on netbird_setup_key.talos only
+tofu -chdir=build/$C/netbird-tf apply   # replace mints a NEW key value
+rm build/$C/patches.yml build/$C/nodes-*-patches.yml
+ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=$C   # new key baked in
+# Installed cluster: day-2 -e reapply_configs=true pushes the new key (§3.6).
+```
+
+Revocation drill (lost key): NetBird admin console → Setup Keys → revoke, then
+rotate as above; joined peers STAY connected, only new joins stop. Watch
+`setup_key_expires` before the 90d mark and `setup_key_used_times` /
+`setup_key_last_used` for unexpected peer joins after every apply.
 
 ### 1.1 Dry run (recommended first)
 
@@ -149,7 +180,7 @@ and every node file is validated (`talosctl validate -c <file> -m metal`).
 ```bash
 # Working dir: talos/ansible/
 C=<cluster>   # e.g. acme-dev-bdo1-talos-apps-01
-ls -l build/$C build/$C/nodes/*/                                # all files present, 0600/0700 modes
+ls -l build/$C build/$C/nodes/*/                                # all files present, 0600 files / 0700 dirs
 cat build/$C/schematic-*.id                                     # 64-hex factory ID per node (no "pending-schematic-upload")
 grep -r PLACEHOLDER_SCHEMATIC_ID build/$C && echo STALE || echo "IDs rewritten OK"
 grep -o 'factory.talos.dev/metal-installer/[0-9a-f]*' build/$C/nodes-*-patches.yml build/$C/nodes/*/*.yaml | sort -u
@@ -163,9 +194,10 @@ Three pieces, all in the node sources:
 
 - **Schematic** (node `schematics.yml`): `siderolabs/nfsd` + `nfs-utils` +
   `nfs-server` together (changed bytes → new factory ID next day-0).
-- **Config** (node `patches.yml`): `EtcFileConfig` `exports` (three LAN-only
-  `192.168.1.0/24` `all_squash` lines, `fsid=0/1/2`) + `EtcFileConfig` `netconfig`
-  + `ExtensionServiceConfig` `nfs-server` (`RPCNFSDCOUNT=32`).
+- **Config** (node `patches.yml`): `EtcFileConfig` `exports` (two data-volume
+  LAN-only `192.168.1.0/24` `all_squash` lines, `fsid=1/2` — no bare `/var`
+  root) + `EtcFileConfig` `netconfig` + `ExtensionServiceConfig` `nfs-server`
+  (`RPCNFSDCOUNT=32`).
 - **Backing store**: none dedicated — exports resolve against the `nvme-data` +
   `sata-data` `UserVolumeConfig` volumes (`<name>` mounts at `/var/mnt/<name>`).
 
@@ -277,9 +309,16 @@ Expect the node `Ready`, VIP endpoint serving the API.
 ## 3. Day 2 — operate (`playbooks/day2.yml`)
 
 Default (no flags) is read-only health/etcd, but still checks the `pass-cli`
-session first (re-apply/renew need it). Flags opt into regen, re-apply, upgrades,
-and the ESO PAT Secret plane. Order: auth probe → regen → re-apply → Talos upgrade
-→ Kubernetes upgrade → PAT apply/renew (§3.7). Talos always precedes k8s.
+session first (re-apply/renew need it). Flags opt into regen, secrets refresh,
+re-apply, upgrades, and the ESO PAT Secret plane. Order: auth probe → health
+gate → regen → secrets refresh → re-apply → Talos upgrade → Kubernetes upgrade
+→ PAT apply/renew (§3.7). Talos always precedes k8s. Every mutating plane
+requires the health probe to return `rc==0` this run (or explicit
+`-e skip_health=true`, which bypasses the gate at your own risk). The group pin
+`talos_kubernetes_pinned_version` is record-only — Kubernetes upgrades are
+explicit `-e kubernetes_version=<ver>` opt-in; a pin bump alone never mutates
+the live cluster. Re-apply diffs rendered configs against LIVE node state
+(`apply-config` compares server-side), never build timestamps alone.
 
 ### 3.1 Read-only (safe anytime)
 
@@ -299,10 +338,11 @@ skip with `-e skip_health=true`.
 | --- | --- | --- |
 | `upgrade_image` | Explicit installer per node; wins when both image flags are set | `-e upgrade_image=factory.talos.dev/metal-installer/<id>:v1.15.0` |
 | `upgrade_talos_version` | Auto-builds installer per node from `build/<cluster>/schematic-<node>.id` (slurp, never re-uploads) | `-e upgrade_talos_version=v1.15.0` |
-| `kubernetes_version` | `--dry-run` plan first, then `upgrade-k8s --to`; runs only on drift vs rendered kubelet image | `-e kubernetes_version=1.38.0` |
+| `kubernetes_version` | Opt-in only (never defaulted from the group pin): `--dry-run` plan first, then `upgrade-k8s --to`; runs only on drift vs rendered kubelet image | `-e kubernetes_version=1.38.0` |
 | `regen_talosconfig` | Rebuilds `talosconfig` from existing secrets bundle (never mints new PKI) | `-e regen_talosconfig=true` |
 | `regen_kubeconfig` | Re-fetches admin kubeconfig via `talosctl kubeconfig -f` | `-e regen_kubeconfig=true` |
-| `reapply_configs` (+ `reapply_mode`, default `staged`) | Re-renders patches (bypasses day-0 `creates:` guards), regenerates machine configs, `apply-config --mode <reapply_mode>` | `-e reapply_configs=true` |
+| `refresh_secrets` | Re-renders patches + PAT from the vault, regenerates + validates machine configs, but NEVER pushes (vault-rotation pickup without a push; implied by `reapply_configs`) | `-e refresh_secrets=true` |
+| `reapply_configs` (+ `reapply_mode`, default `staged`) | Runs the `refresh_secrets` render path, then pushes via `apply-config --mode <reapply_mode>` (diffs live node state server-side) | `-e reapply_configs=true` |
 | `pat_apply` | Applies the stored PAT to the ESO Secret (post-Flux only; skips + explains when the `external-secrets` ns is missing) | `-e pat_apply=true` |
 | `pat_renew` (needs `pat_apply=true`) | Attempts `pass-cli ... renew` first, refreshes the local store when a new `pst_` token parses; blocked PAT/agent sessions skip with the interactive command | `-e pat_apply=true -e pat_renew=true` |
 | `pat_name` | PAT identity for renew (default `home-ops-eso`) | `-e pat_name=home-ops-eso` |
@@ -359,14 +399,29 @@ ansible-playbook playbooks/day2.yml -i localhost, \
   -e talos_cluster=<cluster> -e regen_talosconfig=true -e regen_kubeconfig=true
 ```
 
+### 3.6a Secrets refresh without a push (vault rotations)
+
+```bash
+# Working dir: talos/ansible/
+ansible-playbook playbooks/day2.yml -i localhost, \
+  -e talos_cluster=<cluster> -e refresh_secrets=true
+```
+
+Re-renders patches + PAT from the vault (rotations flow into `build/`),
+rewrites the NetBird placeholder (§1.0b), refreshes schematic IDs, regenerates
++ validates machine configs — but NEVER runs `apply-config`. Inspect the diff,
+then push explicitly with §3.6.
+
 ### 3.6 Re-apply machine configs (installed cluster)
 
 Day-0 re-render does **not** push to nodes; day-1 insecure apply is maintenance-only.
-This is the installed-cluster path: forced re-render of edited patches (needs the PAT,
-like day-0) + forced PAT re-render (vault rotations flow) + NetBird rewrite (§1.0b) +
-live schematic refresh (changed schematics re-upload) + regen + authenticated
-`apply-config --mode <reapply_mode>` (default `staged`; one of `auto`, `no-reboot`,
-`staged`, `try`). Asserts each node's `.id` resolves (re-run day-0 if missing).
+This is the installed-cluster path: the §3.6a render half (forced re-render of
+edited patches, needs the PAT like day-0; forced PAT re-render so vault
+rotations flow; NetBird rewrite §1.0b; live schematic refresh where changed
+schematics re-upload) + regen + authenticated `apply-config --mode
+<reapply_mode>` (default `staged`; one of `auto`, `no-reboot`, `staged`, `try`;
+diffs live node state server-side). Asserts each node's `.id` is 64-hex
+(re-run day-0 if missing).
 
 ```bash
 # Working dir: talos/ansible/
@@ -478,15 +533,56 @@ talosctl apply-config --talosconfig build/$C/talosconfig -n $N \
   -f build/$C/nodes/$NODE/controlplane.yaml --mode auto
 ```
 
-### 4.5 Multi-node notes
+### 4.5 Single-node production posture (accepted) + node-list notes
+
+Both clusters run ONE control-plane node today — accepted with eyes open:
+
+- **Accepted RTO**: any node failure = full control-plane + workload outage until
+  the node returns (no etcd quorum survives a single-node loss). Mitigation is
+  the §6 backup (PKI bundle + `netbird-tf/` state off-machine) plus reinstall
+  from the same bundle.
+- **Control-plane taint removal is intentional**: single-node clusters must
+  schedule workloads on the control-plane (`taints: $patch: delete` in each
+  cluster patch); re-add the taint when scaling past one node.
+- **VIP is a single speaker** (no HA today) and stays the stable API endpoint
+  across the §4.6 scale-up — clients never re-point.
+- **Ready-gate between upgrades**: day-2 polls authenticated `talosctl version`
+  per upgraded node until `rc==0`; multi-node operators additionally watch each
+  node `Ready` before the next proceeds (`kubectl --kubeconfig
+  build/<c>/kubeconfig get nodes -w`).
+- **Time + DNS**: single NTP `time.cloudflare.com` (base patch) and public DNS
+  `1.1.1.1`/`8.8.8.8` (cluster patches) are intentional — no LAN
+  NTP/DNS exists yet. Revisit when the LAN grows one.
+
+Node-list mechanics (shared with the scale-up path):
 
 - `nodes[0]` is the bootstrap node, kubeconfig source, health `--init-node`, and etcd
   query target. Keep the intended bootstrap node first in the list.
 - Day-1 insecure apply loops over **all** nodes in list order.
-- Day-2 upgrade loops over **all** nodes sequentially in list order. Watch each return
-  `Ready` before the next proceeds (`kubectl --kubeconfig build/<c>/kubeconfig get nodes -w`).
-- Both clusters are single control-plane; `role: worker` is handled (→ `worker.yaml`
-  via `--config-patch-worker`, role-aware apply, upgrade loop covers all roles).
+- Day-2 upgrade loops over **all** nodes sequentially in list order.
+- `role: worker` is handled (→ `worker.yaml` via `--config-patch-worker`,
+  role-aware apply, upgrade loop covers all roles).
+
+### 4.6 Scale-up path: single control-plane → 3 control-plane (+ workers)
+
+When the single node outgrows itself (or RTO stops being acceptable):
+
+1. Add two control-plane entries (then optional workers) to
+   `talos_clusters[<cluster>].nodes` in `group_vars/all.yml` (keep the current
+   bootstrap node at `nodes[0]`), with matching `nodes/<new>/patches.yml`
+   (hostname, LinkConfig IP, disk selectors) + `schematics.yml` (node-only
+   extensions).
+2. Day-0 render for the cluster (new nodes get their own schematic IDs +
+   machine configs); pre-flight links/disks per node (§0.4). The VIP
+   (`Layer2VIPConfig`) stays the endpoint — new nodes join behind it.
+3. Day-1 style join per new node: `talosctl apply-config --insecure` against
+   the NEW node only (maintenance boot), wait for its Talos API, then let it
+   join etcd via the VIP (never `talosctl bootstrap` again — one bootstrap per
+   cluster lifetime, §6.3).
+4. Verify etcd quorum (`talosctl etcd members`: 3 voters), `talosctl health`,
+   `kubectl get nodes -o wide` (all `Ready`).
+5. Restore the control-plane taint (remove the `$patch: delete` from the
+   cluster patch, re-apply) and re-check workload placement.
 
 ---
 
@@ -501,7 +597,10 @@ talosctl apply-config --talosconfig build/$C/talosconfig -n $N \
 
 Per-node extensions (base → cluster → node): prd `intel-ucode, i915,
 realtek-firmware` + `netbird` + nfsd stack; dev `qemu-guest-agent` + `netbird` +
-nfsd stack. VIP advertises from the control-plane node (`Layer2VIPConfig`).
+nfsd stack. VIP advertises from the control-plane node (`Layer2VIPConfig`,
+single speaker — stable endpoint across the §4.6 scale-up). NFS exports are the
+two data volumes only (`/var/mnt/nvme-data`, `/var/mnt/sata-data`; LAN-only
+`192.168.1.0/24`, `all_squash`); node labels carry `env: dev/prd` per cluster.
 
 ### 5.2 `build/<cluster>/` file table (all gitignored)
 
@@ -513,11 +612,12 @@ nfsd stack. VIP advertises from the control-plane node (`Layer2VIPConfig`).
 | `schematic-<node>.id` (`0600`) | day-0 factory upload / reuse | 64-hex Image Factory schematic ID |
 | `schematic-<node>.sha256` (`0600`) | day-0 hash persist | Upload-idempotency hash |
 | `secrets.bundle.yml` (`0600`) | day-0 `gen secrets` (once) | Cluster PKI bundle — never commit |
-| `talosconfig` | day-0 `gen config -t talosconfig` | Cluster admin Talos API config |
-| `nodes/<node>/controlplane.yaml` | day-0 `gen config -t controlplane` | Machine config (control-plane nodes) |
-| `nodes/<node>/worker.yaml` | day-0 `gen config -t worker` | Machine config (worker nodes; no worker nodes defined) |
-| `kubeconfig` | day-1 `talosctl kubeconfig -f` | Admin kubeconfig |
-| `proton-pass-pat` (`0600`) | day-0 `pass-cli inject` from `pat.yml.template` (`creates:`); day-2 re-render is forced on `reapply_configs` | Rendered PAT for the day-2 ESO Secret apply — never committed (see §6 for backup) |
+| `talosconfig` (`0600`) | day-0 `gen config -t talosconfig` | Cluster admin Talos API config |
+| `nodes/<node>/controlplane.yaml` (`0600`) | day-0 `gen config -t controlplane` | Machine config (control-plane nodes) |
+| `nodes/<node>/worker.yaml` (`0600`) | day-0 `gen config -t worker` | Machine config (worker nodes; no worker nodes defined) |
+| `kubeconfig` (`0600`) | day-1 `talosctl kubeconfig -f` | Admin kubeconfig |
+| `proton-pass-pat` (`0600`) | day-0 `pass-cli inject` from `pat.yml.template` (`creates:`); day-2 re-render is forced on `refresh_secrets` / `reapply_configs` | Rendered PAT for the day-2 ESO Secret apply — never committed (see §6 for backup) |
+| `netbird-tf/` (`0700` dir, `terraform.tfstate` plaintext) | day-0 NetBird plane (§1.0b), persistent across runs | Terraform state holding the setup-key secret — backup class with the PKI bundle (§6.1) |
 | `.installed-<node>` (`0600`) | day-1 marker | Insecure apply done for that node |
 | `.bootstrapped` (`0600`) | day-1 marker | Etcd bootstrap done (nodes[0]) |
 
@@ -529,11 +629,12 @@ nfsd stack. VIP advertises from the control-plane node (`Layer2VIPConfig`).
 | `talos_bootstrap_mode` | day-1 | `auto` | `--mode` for insecure `apply-config` (`auto` / `no-reboot` / …). |
 | `upgrade_image` | day-2 | `""` (no upgrade) | Maps to `talos_operate_upgrade_image`; when set, each node runs `talosctl upgrade -n <ip> -i <image>`. Example: `factory.talos.dev/metal-installer/<id-from-build-schematic-*.id>:v1.15.0-alpha.0`. |
 | `upgrade_talos_version` | day-2 | `""` (no upgrade) | Auto-builds installer per node from `build/<cluster>/schematic-<node>.id`. Adjacent minors only. Example: `v1.15.0` (see §3.3). |
-| `kubernetes_version` | day-2 | `1.37.0` (group default) | `--dry-run` plan then `upgrade-k8s --to`; drift-only. Example: `1.38.0` (see §3.4). |
+| `kubernetes_version` | day-2 | `""` (opt-in only; `talos_kubernetes_pinned_version: 1.37.0` is record-only) | `--dry-run` plan then `upgrade-k8s --to`; drift-only. Example: `1.38.0` (see §3.4). |
 | `regen_talosconfig` | day-2 | `false` | Rebuilds talosconfig from existing secrets bundle (see §3.5). |
 | `regen_kubeconfig` | day-2 | `false` | Re-fetches admin kubeconfig (see §3.5). |
-| `reapply_configs` (+ `reapply_mode`, default `staged`) | day-2 | `false` | Re-renders patches + pushes via `apply-config --mode` (see §3.6). |
-| `skip_health` | day-2 | `false` | Skips the always-on `talosctl health` probe. |
+| `refresh_secrets` | day-2 | `false` | Re-renders + regenerates without pushing (see §3.6a; implied by `reapply_configs`). |
+| `reapply_configs` (+ `reapply_mode`, default `staged`) | day-2 | `false` | Runs the refresh render path, then pushes via `apply-config --mode` (see §3.6). |
+| `skip_health` | day-2 | `false` | Skips the always-on `talosctl health` probe AND the mutating-plane health gate (bypass at your own risk). |
 | `pat_apply` | day-2 | `false` (stays read-only) | Applies stored PAT to `external-secrets/proton-pass-pat` + conditional webhook restart (see §3.7). |
 | `pat_renew` | day-2 | `false` (needs `pat_apply=true`) | Attempts `pass-cli agent renew` first; blocked agent sessions skip with the interactive command (see §3.7). |
 | `pat_name` | day-2 | `home-ops-eso` | PAT identity for renew. |
@@ -550,6 +651,7 @@ bundle cannot be re-created — back up off-machine (encrypted) after every day-
 | File (`build/<cluster>/...`) | Class | Why |
 | --- | --- | --- |
 | `secrets.bundle.yml` | **CRITICAL** | Cluster PKI root. A fresh bundle does NOT match an installed cluster (rotation orphans it). |
+| `netbird-tf/` (whole dir: `terraform.tfstate` + lock) | **CRITICAL** | Plaintext local state holding the setup-key secret. Without it the next apply re-CREATEs the account fabric (duplicates) or mints a new key (re-key every peer). |
 | `talosconfig` | Convenience | Rebuildable via `-e regen_talosconfig=true` (§3.5); keep a copy anyway. |
 | `kubeconfig` | Convenience | Re-fetchable via `-e regen_kubeconfig=true` (§3.5); keep a copy anyway. |
 | `proton-pass-pat` | Re-mintable | Re-renders via day-0 inject; keep a copy for offline `pat_apply`. |
@@ -562,7 +664,7 @@ see §6.3 caveat).
 # Working dir: talos/ansible/
 C=<cluster>
 tar -czf - build/$C/secrets.bundle.yml build/$C/talosconfig \
-  build/$C/kubeconfig build/$C/proton-pass-pat | \
+  build/$C/kubeconfig build/$C/proton-pass-pat build/$C/netbird-tf | \
   gpg --symmetric --cipher-algo AES256 -o ~/talos-$C-backup.tgz.gpg
 # Store OFF this machine. Verify: gpg -d ~/talos-$C-backup.tgz.gpg | tar -tz
 ```
@@ -575,8 +677,8 @@ Restore the backup, re-render the rest with day-0, then continue with day-1
 ```bash
 # Working dir: talos/ansible/
 C=<cluster>
-gpg -d ~/talos-$C-backup.tgz.gpg | tar -xzf -   # restores bundle + talosconfig + kubeconfig + PAT
-ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=$C   # re-renders patches, .id files, node yamls
+gpg -d ~/talos-$C-backup.tgz.gpg | tar -xzf -   # restores bundle + talosconfig + kubeconfig + PAT + netbird-tf/
+ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=$C   # re-renders patches, .id files, node yamls (netbird-tf/ restored, so the NetBird plane upserts — no imports)
 ansible-playbook playbooks/day1.yml -i localhost, -e talos_cluster=$C   # pre-install: apply + bootstrap + kubeconfig
 ansible-playbook playbooks/day2.yml -i localhost, -e talos_cluster=$C   # installed: read-only health first, then opt in (§3.2)
 ```

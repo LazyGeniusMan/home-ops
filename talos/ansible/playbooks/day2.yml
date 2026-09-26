@@ -1,10 +1,13 @@
 ---
-# Day-2 operate: health + etcd status; optional upgrades, regen, re-apply.
+# Day-2 operate: health + etcd status; optional upgrades, regen, secrets
+# refresh, re-apply. Kubernetes upgrades are explicit -e opt-in only (the group
+# pin is record-only — a pin bump alone never mutates the cluster).
 # Local-only: ansible-playbook playbooks/day2.yml -i localhost,
 #   -e talos_cluster=acme-dev-bdo1-talos-apps-01
 #   [-e upgrade_image=<installer>] [-e upgrade_talos_version=<ver>]
 #   [-e kubernetes_version=<ver>]
 #   [-e regen_talosconfig=true] [-e regen_kubeconfig=true]
+#   [-e refresh_secrets=true]
 #   [-e reapply_configs=true [-e reapply_mode=staged]]
 #   [-e pat_apply=true [-e pat_renew=true] [-e pat_name=...] [-e pat_expiration=1y]]
 - name: Day-2 operate Talos cluster
@@ -24,6 +27,7 @@
         talos_operate_kubernetes_version: "{{ kubernetes_version | default('') }}"
         talos_operate_regen_talosconfig: "{{ regen_talosconfig | default(false) | bool }}"
         talos_operate_regen_kubeconfig: "{{ regen_kubeconfig | default(false) | bool }}"
+        talos_operate_refresh_secrets: "{{ refresh_secrets | default(false) | bool }}"
         talos_operate_reapply_configs: "{{ reapply_configs | default(false) | bool }}"
         talos_operate_reapply_mode: "{{ reapply_mode | default('staged') }}"
         talos_operate_pat_apply: "{{ pat_apply | default(false) | bool }}"

@@ -28,3 +28,8 @@ override.tf.json
 # Go coverage profiles (go test -coverprofile)
 coverage.out
 cover.out
+# Day-0/1 build secrets + chart pack artifacts (strays outside talos/ansible/build/;
+# mirrors talos/.gitignore scoping — only *.template files are ever committed).
+**/secrets.bundle.yml
+**/proton-pass-pat
+*.tgz

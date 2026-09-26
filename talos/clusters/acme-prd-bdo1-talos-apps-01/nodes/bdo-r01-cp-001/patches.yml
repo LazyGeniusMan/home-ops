@@ -1,5 +1,10 @@
 # Node patch: bdo-r01-cp-001 (Talos v1.15.0-alpha.0). Bare metal: 192.168.1.101/24 on
 # enp45s0 (RTL8125), install /dev/nvme0n1 (512 GiB NVMe), data /dev/sda.
+# Volume math on the 512 GiB system disk: EPHEMERAL maxSize -400GiB (negative =
+# disk size minus 400 GiB, i.e. ~112 GiB ceiling for EPHEMERAL) and nvme-data
+# maxSize 400GiB (capped claim inside the same 512 GiB disk — EPHEMERAL's
+# ~112 GiB + nvme-data's 400 GiB ≈ full disk by design). sata-data (min 64 GiB,
+# grow) takes /dev/sda (size unrecorded — confirm with the disks pre-flight).
 # Pre-flight: talosctl get links --insecure -n 192.168.1.101.
 ---
 apiVersion: v1alpha1
@@ -93,13 +98,15 @@ name: nfs-server
 environment:
   - RPCNFSDCOUNT=32
 ---
-# NFS exports for the nvme-data + sata-data volumes above (<name> mounts at /var/mnt/<name>).
+# NFS exports for the nvme-data + sata-data volumes above (<name> mounts at
+# /var/mnt/<name>). Data volumes only (no bare /var root — clients mount each
+# dataset path directly); LAN-only 192.168.1.0/24, all_squash to nobody (keep
+# the safer root_squash-family default — never no_root_squash here).
 apiVersion: v1alpha1
 kind: EtcFileConfig
 name: exports
 mode: 0o644
 contents: |
-  /var 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=0)
   /var/mnt/nvme-data 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=1)
   /var/mnt/sata-data 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=2)
 ---
@@ -120,3 +127,4 @@ nodeIP:
 labels:
   topology.kubernetes.io/zone: bdo1
   node-role.acme.io/tier: apps
+  node-role.acme.io/env: prd

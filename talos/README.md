@@ -41,8 +41,9 @@ strategic-merge fragment; subsequent documents are split-doc kinds
   URIs are never dereferenced by Talos or Ansible directly.
 - Render via `pass-cli inject` on double-brace templates (cluster + per-node
   patches, PAT from `pat.yml.template`); NetBird PAT via `pass-cli item view`
-  as `NB_PAT` env, setup key Terraform-minted (procedures: `ansible/RUNBOOK.md`
-  §0.3, §1.0b). Authenticate first: `pass-cli login`.
+  as `NB_PAT` env, setup key Terraform-minted — scoped 90d / usage 3, never
+  unlimited (procedures: `ansible/RUNBOOK.md` §0.3, §1.0b). Authenticate first:
+  `pass-cli login`.
 - `secrets.bundle.yml`, `talosconfig`, `kubeconfig`, rendered `ansible/build/`
   output are gitignored. Binary is `pass-cli` (not `proton-pass-cli`).
 

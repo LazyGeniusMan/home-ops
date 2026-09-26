@@ -1,4 +1,5 @@
-# Validates flux/infra manifests (validate.sh).
+# Validates flux/infra manifests (validate.sh; schema pins mirror
+# flux/fleet/terraform/versions.yaml + flux2 v2.9.5 — bump all together).
 # Paths: flux/infra/**, tenants/infra.yaml. Runs alongside flux-infra-push.
 name: flux-infra-validate
 

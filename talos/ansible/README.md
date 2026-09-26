@@ -54,9 +54,9 @@ with dedup list-union; node files hold node-only entries):
 3. `talos/clusters/<cluster>/nodes/<node>/schematics.yml` (node-only)
 
 The role stages `build/<cluster>/schematics-<node>.yml`, uploads it via
-`POST https://factory.talos.dev/schematics`, and persists
-`schematic-<node>.id` + `.sha256` (upload only on content change; missing/empty `.id`
-or unparseable upload fails fast naming the `rm` + re-run day-0 recovery).
+`POST` to the single group-vars factory URL (30s timeout), and persists
+`schematic-<node>.id` + `.sha256` (upload only on content change; missing/empty/non-64-hex
+`.id` or unparseable upload fails fast naming the `rm` + re-run day-0 recovery).
 `PLACEHOLDER_SCHEMATIC_ID` in `nodes-<node>-patches.yml` is rewritten to the per-node
 ID. `gen config` receives
 `--install-image factory.talos.dev/metal-installer/<that-node-ID>:<talos_version>`
@@ -78,13 +78,15 @@ its role:
 
 `build/` outputs per cluster (all gitignored) — see the canonical table
 (`RUNBOOK.md` §5.2); backup rules in §6. The staged `netbird-tf/` dir keeps
-persistent state so re-applies upsert — never backed up, committed, or deleted
-between runs (see `RUNBOOK.md` §1.0b).
+persistent plaintext local state so re-applies upsert — backed up encrypted
+with the PKI bundle (§6.1); never committed or deleted between runs (see
+`RUNBOOK.md` §1.0b).
 
 NFS server stack per node: `siderolabs/nfsd` + `nfs-utils` + `nfs-server` in the node
-schematic, `EtcFileConfig` `exports` (three LAN-only `192.168.1.0/24` `all_squash`
-lines, `fsid=0/1/2`) + `netconfig` + `ExtensionServiceConfig` `nfs-server`
-(`RPCNFSDCOUNT=32`); no dedicated volume (`RUNBOOK.md` §1.6).
+schematic, `EtcFileConfig` `exports` (two data-volume LAN-only `192.168.1.0/24`
+`all_squash` lines, `fsid=1/2`) + `netconfig` + `ExtensionServiceConfig`
+`nfs-server` (`RPCNFSDCOUNT=32`); exports resolve against the `nvme-data` +
+`sata-data` volumes (`RUNBOOK.md` §1.6).
 
 ## Inventory (local-only — no node inventory)
 

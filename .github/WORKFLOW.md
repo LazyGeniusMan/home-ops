@@ -11,7 +11,8 @@
 - Release: `flux-{infra,apps,fleet}-release.yaml`
   (`flux-{infra,apps,fleet}-v*` tags) — OCI `stable` + version,
   cosign-signed.
-- Image updates: `flux-image-updates.yaml` (branch creation + dispatch) —
+- Image updates: `flux-image-updates.yaml` (image-updates-infra/apps branch
+  creation + dispatch) —
   opens a PR to main per `image-updates-infra/apps` branch.
 - Projects: `apprise-go-api.yml`, `eso-proton-pass.yml`,
   `external-dns-netbird.yml` (test + GHCR publish/sign),

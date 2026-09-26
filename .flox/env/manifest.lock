@@ -111,6 +111,10 @@
         "pkg-path": "shellcheck",
         "version": "0.11.0"
       },
+      "unzip": {
+        "pkg-path": "unzip",
+        "version": "6.0"
+      },
       "yamllint": {
         "pkg-path": "yamllint",
         "version": "1.37.1"
@@ -124,7 +128,7 @@
       "PROTON_PASS_KEY_PROVIDER": "fs"
     },
     "hook": {
-      "on-activate": "  install_talosctl() {\n    cache_dir=\"${FLOX_ENV_CACHE:-$FLOX_ENV_PROJECT/.flox/cache}\"\n    mkdir -p \"$cache_dir/bin\"\n    if [ ! -x \"$cache_dir/bin/talosctl\" ]; then\n      curl -L -o \"$cache_dir/bin/talosctl\" \\\n        \"https://github.com/siderolabs/talos/releases/download/v1.15.0-alpha.0/talosctl-linux-amd64\"\n      chmod +x \"$cache_dir/bin/talosctl\"\n    fi\n  }\n  install_talosctl\n  cd \"$FLOX_ENV_PROJECT\" || return\n"
+      "on-activate": "  # talosctl is curl-fetched (no Flox catalog package). Version + sha256 track\n  # talos/ansible/group_vars/all.yml. The cache key includes the version so a\n  # bump never reuses a stale binary from a previous pin.\n  install_talosctl() {\n    talos_version=\"v1.15.0-alpha.0\"\n    talos_sha256=\"d0779b799815aeebccc18cf98851928ff1b050434c96831259b2e4ceafdb5399\"\n    cache_dir=\"${FLOX_ENV_CACHE:-$FLOX_ENV_PROJECT/.flox/cache}\"\n    mkdir -p \"$cache_dir/bin\"\n    marker=\"$cache_dir/bin/.talosctl-${talos_version}.ok\"\n    if [ ! -f \"$marker\" ]; then\n      tmp_bin=\"$(mktemp \"$cache_dir/bin/talosctl-XXXXXX\")\"\n      curl -fSL --retry 3 -o \"$tmp_bin\" \\\n        \"https://github.com/siderolabs/talos/releases/download/${talos_version}/talosctl-linux-amd64\"\n      echo \"${talos_sha256}  ${tmp_bin}\" | sha256sum -c -\n      chmod +x \"$tmp_bin\"\n      mv -f \"$tmp_bin\" \"$cache_dir/bin/talosctl\"\n      rm -f \"$cache_dir\"/bin/.talosctl-v*.ok\n      touch \"$marker\"\n    fi\n  }\n  install_talosctl\n  cd \"$FLOX_ENV_PROJECT\" || return\n"
     },
     "profile": {
       "common": "  export PATH=\"$FLOX_ENV_CACHE/bin:$PATH\"\n  alias terraform=tofu\n"
@@ -2583,6 +2587,93 @@
         "doc": "/nix/store/l86fy7xdmavvqqd3i33l430jkjpa1gzx-shellcheck-0.11.0-doc",
         "man": "/nix/store/yjlrw4p8z0423ishzxdddhjw2fgxpix6-shellcheck-0.11.0-man",
         "out": "/nix/store/l2zzhk2pr7572id61c34d368xfinpk25-shellcheck-0.11.0"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "unzip",
+      "broken": false,
+      "derivation": "/nix/store/z11x64dy4yvib4wws4pnij384zgvidbp-unzip-6.0.drv",
+      "description": "Extraction utility for archives compressed in .zip format",
+      "install_id": "unzip",
+      "license": "Info-ZIP",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "name": "unzip-6.0",
+      "pname": "unzip",
+      "rev": "6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "rev_count": 1077996,
+      "rev_date": "2026-09-22T03:11:10Z",
+      "scrape_date": "2026-09-23T05:00:53.697341Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "6.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/ji1j8v818lbdycbqq27qk7p6d7wvzbsd-unzip-6.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "unzip",
+      "broken": false,
+      "derivation": "/nix/store/64bjm5c640rdzyiajaprr7sl20dmn0vd-unzip-6.0.drv",
+      "description": "Extraction utility for archives compressed in .zip format",
+      "install_id": "unzip",
+      "license": "Info-ZIP",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "name": "unzip-6.0",
+      "pname": "unzip",
+      "rev": "6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "rev_count": 1077996,
+      "rev_date": "2026-09-22T03:11:10Z",
+      "scrape_date": "2026-09-23T05:33:17.003368Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "6.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/60l22ss473fk8py393cad195gzibkdgm-unzip-6.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "unzip",
+      "broken": false,
+      "derivation": "/nix/store/01slx36mckkwhsfan66xj09azdhwvrg3-unzip-6.0.drv",
+      "description": "Extraction utility for archives compressed in .zip format",
+      "install_id": "unzip",
+      "license": "Info-ZIP",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "name": "unzip-6.0",
+      "pname": "unzip",
+      "rev": "6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "rev_count": 1077996,
+      "rev_date": "2026-09-22T03:11:10Z",
+      "scrape_date": "2026-09-23T06:10:10.043455Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "6.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/7af934aj137dhmnjpjdxsmvi5x9jmlvw-unzip-6.0"
       },
       "system": "x86_64-linux",
       "group": "toplevel",

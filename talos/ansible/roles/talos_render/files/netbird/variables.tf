@@ -1,10 +1,6 @@
-variable "netbird_token" {
-  description = "NetBird management PAT (Ansible passes it only as NB_PAT env, never -var)"
-  type        = string
-  sensitive   = true
-  default     = null
-}
-
+# No netbird_token variable by design: the provider reads NB_PAT straight from
+# the environment (Ansible sets it from `pass-cli item view`, never -var,
+# never on disk, never in state).
 variable "cluster_name" {
   description = "Talos cluster name owning this NetBird fabric (network, nodes group, setup key names)"
   type        = string

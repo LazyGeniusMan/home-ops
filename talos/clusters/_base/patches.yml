@@ -1,6 +1,8 @@
 # Shared barebone base patch (Talos v1.15.0-alpha.0), applied first via --config-patch.
-# CNI none (Cilium arrives via GitOps), CoreDNS off, kube-proxy iptables mode
-# (clusters on Cilium kube-proxy replacement disable it), discovery off.
+# CNI none (Cilium arrives via GitOps), CoreDNS off, discovery off.
+# kube-proxy runs in iptables mode HERE so the base alone is a bootable shape;
+# every cluster patch disables it (Cilium replaces kube-proxy) — see the
+# KubeProxyConfig doc in each clusters/<cluster>/patches.yml.
 ---
 apiVersion: v1alpha1
 kind: KubeFlannelCNIConfig

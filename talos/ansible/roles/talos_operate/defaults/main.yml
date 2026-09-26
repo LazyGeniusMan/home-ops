@@ -29,6 +29,17 @@ talos_operate_pat_expiration: 1y
 # day-2 read-only; renew additionally needs talos_operate_pat_renew.
 talos_operate_pat_apply: false
 talos_operate_pat_renew: false
-# Image Factory endpoint for the re-apply schematic refresh (must stay in sync with
-# talos_render_schematic_factory_url — render-role defaults do not load on day-2).
-talos_operate_schematic_factory_url: https://factory.talos.dev/schematics
+# Image Factory endpoint for the re-apply schematic refresh (single source:
+# group_vars — render-role defaults do not load on day-2).
+talos_operate_schematic_factory_url: "{{ talos_schematic_factory_url }}"
+# Upload timeout for the re-apply schematic refresh (passed into the render plane).
+talos_operate_schematic_factory_timeout: 30
+# Post-upgrade readiness poll: authenticated `talosctl version` per node until
+# rc==0 before the play reports success (single-node ready-gate; multi-node
+# operators additionally watch each node Ready before the next proceeds, §4.5).
+talos_operate_upgrade_wait_retries: 30
+talos_operate_upgrade_wait_delay: 10
+# Secrets refresh without a push: re-render patches + PAT from the vault
+# (vault rotations flow into build/), regenerate + validate machine configs,
+# but never apply-config. reapply_configs implies this render path.
+talos_operate_refresh_secrets: false

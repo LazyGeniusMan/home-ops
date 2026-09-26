@@ -103,6 +103,7 @@
     body_format: raw
     return_content: true
     status_code: [200, 201]
+    timeout: "{{ talos_render_schematic_factory_timeout }}"
   when: talos_render_schematic_need_upload and not ansible_check_mode
   failed_when: false
   register: talos_render_schematic_upload
@@ -125,9 +126,10 @@
 
 - name: Fail when the uploaded schematic yields no ID
   # A 2xx without a parseable ID would silently render pending-schematic-upload; fail fast.
+  # The 64-hex shape gate rejects truncated/garbled factory responses.
   ansible.builtin.assert:
     that:
-      - talos_render_schematic_id | length > 0
+      - talos_render_schematic_id is match(talos_schematic_id_pattern)
     fail_msg: >-
       Image Factory upload for {{ node.name }} returned no parseable
       schematic ID. Delete
@@ -154,11 +156,11 @@
   # pending-schematic-upload. Skipped in check mode (RUNBOOK §1.1).
   ansible.builtin.assert:
     that:
-      - talos_render_schematic_id | length > 0
+      - talos_render_schematic_id is match(talos_schematic_id_pattern)
     fail_msg: >-
       Schematic for {{ node.name }} unchanged (no factory upload ran) but
-      build/{{ talos_cluster }}/schematic-{{ node.name }}.id is missing or
-      empty. Delete
+      build/{{ talos_cluster }}/schematic-{{ node.name }}.id is missing, empty,
+      or not 64-hex. Delete
       build/{{ talos_cluster }}/schematic-{{ node.name }}.sha256 (and the
       .id if present) and re-run day-0 to force a fresh factory upload.
     success_msg: "Schematic ID resolves for {{ node.name }}."

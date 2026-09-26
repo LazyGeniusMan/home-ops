@@ -59,3 +59,24 @@
     label: "{{ item.name }}"
   when: talos_operate_upgrade_image | length > 0 or talos_operate_upgrade_talos_version | length > 0
   changed_when: true
+
+- name: Wait for the Talos API to return on upgraded nodes
+  # Single-node ready-gate between upgrades: authenticated version proves the
+  # node rebooted into the new installer. Multi-node operators additionally
+  # watch each node Ready before the next proceeds (RUNBOOK §4.5).
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_operate_talosctl }} version
+      --talosconfig {{ talos_talosconfig }}
+      -n {{ item.ip }}
+      -e {{ item.ip }}
+  check_mode: false
+  changed_when: false
+  register: talos_operate_upgrade_wait
+  until: talos_operate_upgrade_wait.rc == 0
+  retries: "{{ talos_operate_upgrade_wait_retries }}"
+  delay: "{{ talos_operate_upgrade_wait_delay }}"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: talos_operate_upgrade_image | length > 0 or talos_operate_upgrade_talos_version | length > 0

@@ -8,6 +8,9 @@ permissions: {} # deny-all default; the pull-request job elevates below
 on:
   workflow_dispatch:
   create:
+    branches:
+      - 'image-updates-infra'
+      - 'image-updates-apps'
 
 concurrency:
   group: flux-image-updates-${{ github.ref }}
@@ -15,6 +18,8 @@ concurrency:
 
 jobs:
   pull-request:
+    # create.branches already narrows branch creation; this guard stays as
+    # defense-in-depth for workflow_dispatch runs.
     if: >-
       github.event_name != 'create' ||
       github.ref_name == 'image-updates-infra' ||

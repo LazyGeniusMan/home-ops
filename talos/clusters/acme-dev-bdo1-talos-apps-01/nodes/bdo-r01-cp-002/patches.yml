@@ -1,6 +1,11 @@
 # Node patch: bdo-r01-cp-002 (Talos v1.15.0-alpha.0). QEMU/KVM VM: virtio NIC ens18,
-# install /dev/sda (20 GiB OS), data /dev/sdb (960 GB); EPHEMERAL capped (30GiB reserved);
-# nvme-data + sata-data XFS volumes. Pre-flight: talosctl get links/disks --insecure -n 192.168.1.201.
+# install /dev/sda (20 GiB OS), data /dev/sdb (960 GB).
+# Volume math on the 20 GiB system disk: EPHEMERAL maxSize -30GiB (negative =
+# disk size minus 30 GiB, i.e. EPHEMERAL never takes the last 30 GiB) and
+# nvme-data maxSize 30GiB (capped claim inside the same 20 GiB disk — the two
+# bounds overlap by design so leftover space, not a fixed split, decides the
+# final sizes). sata-data (min 10 GiB, grow) takes /dev/sdb (960 GB).
+# nvme-data + sata-data are XFS. Pre-flight: talosctl get links/disks --insecure -n 192.168.1.201.
 ---
 apiVersion: v1alpha1
 kind: HostnameConfig
@@ -93,13 +98,15 @@ name: nfs-server
 environment:
   - RPCNFSDCOUNT=32
 ---
-# NFS exports for the nvme-data + sata-data volumes above (<name> mounts at /var/mnt/<name>).
+# NFS exports for the nvme-data + sata-data volumes above (<name> mounts at
+# /var/mnt/<name>). Data volumes only (no bare /var root — clients mount each
+# dataset path directly); LAN-only 192.168.1.0/24, all_squash to nobody (keep
+# the safer root_squash-family default — never no_root_squash here).
 apiVersion: v1alpha1
 kind: EtcFileConfig
 name: exports
 mode: 0o644
 contents: |
-  /var 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=0)
   /var/mnt/nvme-data 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=1)
   /var/mnt/sata-data 192.168.1.0/24(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534,no_wdelay,fsid=2)
 ---

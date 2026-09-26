@@ -1,5 +1,5 @@
 # Releases flux/apps to GHCR OCI (stable + X.Y.Z) on flux-apps-v* tags.
-# Paths: flux-apps-v* tags. Prd verifies via tenants/apps.yaml.
+# Paths: flux-apps-v* tags. Prd verifies via tenants/apps.yaml; keep matrix in parity with flux-apps-push.yaml.
 name: flux-apps-release
 
 permissions: {} # deny-all default; publish/sign scopes granted per job below.

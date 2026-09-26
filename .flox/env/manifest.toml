@@ -60,6 +60,8 @@ shellcheck.pkg-path = "shellcheck"
 shellcheck.version = "0.11.0"
 rclone.pkg-path = "rclone"
 rclone.version = "1.75.1"
+unzip.pkg-path = "unzip"
+unzip.version = "6.0"
 # EXCEPTION: ControlPlane flux distribution CLI has no Flox catalog package;
 # CI push legs are the only invocations without a local Flox equivalent.
 
@@ -68,13 +70,24 @@ PROTON_PASS_KEY_PROVIDER = "fs"
 
 [hook]
 on-activate = '''
+  # talosctl is curl-fetched (no Flox catalog package). Version + sha256 track
+  # talos/ansible/group_vars/all.yml. The cache key includes the version so a
+  # bump never reuses a stale binary from a previous pin.
   install_talosctl() {
+    talos_version="v1.15.0-alpha.0"
+    talos_sha256="d0779b799815aeebccc18cf98851928ff1b050434c96831259b2e4ceafdb5399"
     cache_dir="${FLOX_ENV_CACHE:-$FLOX_ENV_PROJECT/.flox/cache}"
     mkdir -p "$cache_dir/bin"
-    if [ ! -x "$cache_dir/bin/talosctl" ]; then
-      curl -L -o "$cache_dir/bin/talosctl" \
-        "https://github.com/siderolabs/talos/releases/download/v1.15.0-alpha.0/talosctl-linux-amd64"
-      chmod +x "$cache_dir/bin/talosctl"
+    marker="$cache_dir/bin/.talosctl-${talos_version}.ok"
+    if [ ! -f "$marker" ]; then
+      tmp_bin="$(mktemp "$cache_dir/bin/talosctl-XXXXXX")"
+      curl -fSL --retry 3 -o "$tmp_bin" \
+        "https://github.com/siderolabs/talos/releases/download/${talos_version}/talosctl-linux-amd64"
+      echo "${talos_sha256}  ${tmp_bin}" | sha256sum -c -
+      chmod +x "$tmp_bin"
+      mv -f "$tmp_bin" "$cache_dir/bin/talosctl"
+      rm -f "$cache_dir"/bin/.talosctl-v*.ok
+      touch "$marker"
     fi
   }
   install_talosctl
@@ -88,6 +101,11 @@ common = '''
 '''
 
 [services]
+# Local-only dev services (never exposed off-host): flux-operator-mcp has no
+# --address/--bind flag and listens on this machine's :8080 for local agent
+# tooling only; netbird runs as a local root-side tunnel endpoint for the
+# private mesh (sudo needed to write /var/run|log|lib/netbird and to manage
+# the TUN device).
 [services.flux-operator-mcp]
 command = '''
   export KUBECONFIG="$FLOX_ENV_PROJECT/kubeconfig"
@@ -101,4 +119,6 @@ command = '''
 '''
 
 [options]
+# No free-software catalog substitute for the AGPL MCP server, BSD netbird
+# client, GPL pass-cli, or MIT rclone; scoped to these four installs only.
 allow.unfree = true

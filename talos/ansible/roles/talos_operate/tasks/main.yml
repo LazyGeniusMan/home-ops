@@ -26,7 +26,8 @@
     success_msg: "pass-cli session authenticated."
 
 - name: Check cluster health
-  # Always runs; skip with `-e skip_health=true` (RUNBOOK §3.1).
+  # Always runs; skip with `-e skip_health=true` (RUNBOOK §3.1). failed_when is
+  # false so the report task prints output before the gate below fails the play.
   ansible.builtin.command:
     cmd: >-
       {{ talos_operate_talosctl }} health
@@ -41,6 +42,27 @@
 - name: Report cluster health
   ansible.builtin.debug:
     msg: "{{ talos_operate_health.stdout_lines | default(['health check skipped or unavailable']) }}"
+
+- name: Gate mutating planes on a healthy cluster
+  # Advisory health is not enough: regen, re-apply, and upgrades only run when
+  # `talosctl health` returned rc==0 this run. Bypass explicitly with
+  # `-e skip_health=true` (you own the risk — RUNBOOK §3.1).
+  ansible.builtin.assert:
+    that:
+      - skip_health | default(false) | bool or talos_operate_health.rc is defined and talos_operate_health.rc == 0
+    fail_msg: >-
+      Cluster health check failed (rc={{ talos_operate_health.rc | default('n/a') }})
+      — refusing regen, re-apply, and upgrades. Fix the cluster first, then
+      re-run; or bypass explicitly with -e skip_health=true.
+    success_msg: "Cluster health gate passed (or explicitly skipped)."
+  when: talos_operate_regen_talosconfig | bool
+    or talos_operate_regen_kubeconfig | bool
+    or talos_operate_reapply_configs | bool
+    or talos_operate_refresh_secrets | bool
+    or talos_operate_upgrade_image | length > 0
+    or talos_operate_upgrade_talos_version | length > 0
+    or talos_operate_kubernetes_version | length > 0
+    or talos_operate_pat_apply | bool
 
 - name: Show etcd members
   ansible.builtin.command:
@@ -57,9 +79,16 @@
   ansible.builtin.debug:
     msg: "{{ talos_operate_etcd.stdout_lines | default(['etcd members unavailable']) }}"
 
-# Order (RUNBOOK §3): regen → re-apply → Talos upgrade → Kubernetes upgrade.
+# Order (RUNBOOK §3): regen → secrets refresh → re-apply → Talos upgrade →
+# Kubernetes upgrade. talos_operate_kubernetes_version is opt-in -e only — it is
+# never defaulted from the group pin, so a pin bump alone never mutates the
+# live cluster. Re-apply compares rendered configs against LIVE node state
+# (apply-config diffs server-side); it never trusts build/ timestamps alone.
 - name: Regenerate talosconfig or kubeconfig on request
   ansible.builtin.include_tasks: regen.yml
+
+- name: Refresh rendered secrets from the vault on request
+  ansible.builtin.include_tasks: refresh.yml
 
 - name: Apply ESO PAT Secret on request (post-Flux)
   ansible.builtin.include_tasks: pat_secret.yml

@@ -4,6 +4,23 @@ output "talos_setup_key" {
   sensitive   = true
 }
 
+# Audit outputs for the rotation cadence (RUNBOOK §1.0b): watch expires before
+# the 90d mark and used_times/last_used for unexpected peer joins.
+output "setup_key_expires" {
+  description = "Absolute expiry date of the Talos setup key (rotate well before)"
+  value       = netbird_setup_key.talos.expires
+}
+
+output "setup_key_used_times" {
+  description = "How often the Talos setup key has minted a peer (unexpected growth = investigate)"
+  value       = netbird_setup_key.talos.used_times
+}
+
+output "setup_key_last_used" {
+  description = "Last usage time of the Talos setup key"
+  value       = netbird_setup_key.talos.last_used
+}
+
 output "cluster_network_id" {
   description = "Per-cluster NetBird network ID (var.cluster_name)"
   value       = netbird_network.cluster.id

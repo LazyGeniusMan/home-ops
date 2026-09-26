@@ -1,8 +1,10 @@
 # Cluster patch: acme-prd-bdo1-talos-apps-01 (Talos v1.15.0-alpha.0, single control-plane),
 # applied after ../_base/patches.yml. Own Proton Pass vault (no cross-env refs); secrets are
 # double-brace refs; __TALOS_NETBIRD_SETUP_KEY__ is rewritten at render time (RUNBOOK §1.0b).
-# KubeProxyConfig disabled (Cilium replaces kube-proxy); control-plane taint removed
-# (single-node runs workloads on the control-plane).
+# KubeProxyConfig disabled (Cilium replaces kube-proxy — the base patch keeps
+# iptables mode only so the base alone boots; this cluster doc is the one that
+# turns it off); control-plane taint removed (single-node runs workloads on
+# the control-plane).
 ---
 apiVersion: v1alpha1
 kind: KubeClusterConfig
@@ -19,6 +21,8 @@ taints:
 ---
 apiVersion: v1alpha1
 kind: Layer2VIPConfig
+# Single-node: one speaker only (no HA) — the VIP is the stable API endpoint so
+# a 1→3 control-plane scale-up (RUNBOOK §4.6) keeps clients on the same address.
 name: 192.168.1.198 # K8s API VIP, advertised from the control-plane node
 link: enp45s0 # RTL8125 2.5GbE (pre-flight: talosctl get links --insecure -n 192.168.1.101)
 ---

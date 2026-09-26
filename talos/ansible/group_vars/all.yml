@@ -9,10 +9,18 @@
 # renders it, day-2 reads/renews it.
 talos_pat_filename: proton-pass-pat
 talos_version: v1.15.0-alpha.0
-# Pinned Kubernetes version: day-0 passes no --kubernetes-version flag, so
-# this records the kubelet image version day-0 renders. Day-2 runs
-# upgrade-k8s only on drift vs the rendered machine configs.
-kubernetes_version: 1.37.0
+# Recorded kubelet image version day-0 renders (day-0 passes no
+# --kubernetes-version flag, so day-0 bakes the Talos-default kubelet).
+# Record only: day-2 NEVER reads this for upgrades — Kubernetes upgrades are
+# explicit `-e kubernetes_version=<ver>` opt-in only (a pin bump alone must
+# never mutate the live cluster on a plain day-2 run).
+talos_kubernetes_pinned_version: 1.37.0
+# Image Factory endpoint, single source for both render (day-0) and operate
+# (day-2 re-apply) schematic planes.
+talos_schematic_factory_url: https://factory.talos.dev/schematics
+# Image Factory schematic IDs are 64 lowercase hex chars; uploads that return
+# anything else fail fast instead of rendering pending-schematic-upload.
+talos_schematic_id_pattern: "^[0-9a-f]{64}$"
 talos_build_dir: "{{ playbook_dir }}/../build"
 # Inventory role -> Talos machine type for `gen config -t` and output files.
 talos_machine_roles:

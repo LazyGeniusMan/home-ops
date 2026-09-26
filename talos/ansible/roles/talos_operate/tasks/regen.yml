@@ -26,3 +26,12 @@
       -f
   when: talos_operate_regen_kubeconfig | bool
   changed_when: true
+
+- name: Lock down regenerated client config permissions
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: "0600"
+  loop:
+    - "{{ talos_build_dir }}/{{ talos_cluster }}/talosconfig"
+    - "{{ talos_build_dir }}/{{ talos_cluster }}/kubeconfig"
+  when: talos_operate_regen_talosconfig | bool or talos_operate_regen_kubeconfig | bool

@@ -44,12 +44,24 @@
     dest: "{{ talos_netbird_terraform_dir }}/"
     mode: preserve
 
-# PAT via NB_PAT env only (never a variable — stays out of TFVARS/state).
-# Only cluster_name is passed; lan_cidr rides the root default (192.168.1.0/24).
+# PAT via NB_PAT env only (the root declares no token variable — stays out of
+# TFVARS/state). Only cluster_name is passed; lan_cidr rides the root default
+# (192.168.1.0/24).
+# Day-0 NetBird gate: run `tofu -chdir=<netbird-tf dir> plan` first on a fresh
+# account/cluster and confirm the ONLY replace is netbird_setup_key.talos when
+# intended (rotation REPLACES the key value — re-key every peer afterwards).
+- name: Check tofu is available before the NetBird apply
+  # shell is intentional: `command` is a shell builtin (no module equivalent).
+  ansible.builtin.shell:
+    cmd: "command -v {{ talos_netbird_tofu }}"
+    executable: /bin/bash
+  changed_when: false
+  register: talos_render_netbird_tofu_bin
+
 - name: Apply Talos NetBird fabric via Terraform
   community.general.terraform:
     project_path: "{{ talos_netbird_terraform_dir }}"
-    binary_path: "{{ lookup('ansible.builtin.pipe', 'command -v ' + talos_netbird_tofu) | trim }}"
+    binary_path: "{{ talos_render_netbird_tofu_bin.stdout | trim }}"
     state: present
     force_init: true
     variables:
