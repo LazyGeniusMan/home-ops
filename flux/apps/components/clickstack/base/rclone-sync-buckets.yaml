@@ -1,5 +1,6 @@
 # S3 -> Proton Drive backups of the `ferretdb` (03:30) + `clickstack` (04:00) COSI
-# buckets, one HelmRelease per bucket (`sync`, `concurrencyPolicy: Forbid`). Live
+# buckets, one HelmRelease per bucket (`copy` — offsite legs never `sync`:
+# sync would delete extras on Proton Drive — `concurrencyPolicy: Forbid`). Live
 # names template from BucketInfo `spec.bucketName` (never hardcoded); S3 keys via
 # `clickstack-cosi`, Proton creds via shared `rclone-proton-credentials` (`esoRef`).
 # Seed pass://<cluster>/clickstack/rclone-proton-{username (plain),password
@@ -122,8 +123,9 @@ spec:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
   # Tag MUST equal Chart.yaml `version` in projects/helm-rclone-sync (bump
-  # Chart.yaml + all seven consumers together; no $imagepolicy marker — Helm
-  # OCIRepositories are untracked by image automation).
+  # Chart.yaml + all seven HelmRelease consumers together (2 here + 1 coder +
+  # 4 matrix); no $imagepolicy marker — Helm OCIRepositories are untracked by
+  # image automation).
   ref:
     tag: "0.1.0"
 ---
@@ -152,7 +154,7 @@ spec:
     activeDeadlineSeconds: 3600
     concurrencyPolicy: Forbid
     rclone:
-      operation: sync
+      operation: copy # offsite leg: copy only, never sync (sync deletes extras)
     source:
       type: s3
       remoteName: ""
@@ -215,7 +217,7 @@ spec:
     activeDeadlineSeconds: 3600
     concurrencyPolicy: Forbid
     rclone:
-      operation: sync
+      operation: copy # offsite leg: copy only, never sync (sync deletes extras)
     source:
       type: s3
       remoteName: ""

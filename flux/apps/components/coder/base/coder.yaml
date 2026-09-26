@@ -104,9 +104,10 @@ spec:
         # (`groups` claim needs no groupField override — upstream default applies).
         - name: CODER_OIDC_ALLOWED_GROUPS
           value: coder-admin,coder-user
-        # Password-auth kill switch (see README "First-login runbook"): flip to
-        # "true" right after the first OIDC login succeeds so OIDC is the only
-        # sign-in path. Left "false" in base to avoid lockout on fresh installs.
+        # Password-auth kill switch (flip checklist in README OIDC section):
+        # flip to "true" right after the first OIDC login succeeds so OIDC is
+        # the only sign-in path. Left "false" in base to avoid lockout on
+        # fresh installs.
         - name: CODER_DISABLE_PASSWORD_AUTH
           value: "false"
         - name: CODER_OIDC_SIGN_IN_TEXT
@@ -122,7 +123,7 @@ spec:
         # `urls` from the POST body only and coderd posts a fixed title/body
         # payload, so posts return 204 without a visible message (see matrix
         # NOTIFICATIONS.md). Appended LAST so overlay positional env patches
-        # (/env/0, /1, /4, /8, /10) keep their indices.
+        # (/env/0, /1, /4, /8, /11) keep their indices.
         - name: CODER_NOTIFICATIONS_METHOD
           value: webhook
         - name: CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT

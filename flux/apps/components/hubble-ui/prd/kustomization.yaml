@@ -81,7 +81,7 @@ patches:
     target:
       kind: HelmRelease
       name: oauth2-proxy
-  # Prd replicas: stateless HA floor (HPAs scale 2-4).
+  # Prd replicas: hubble-ui HPA scales 2-4; oauth2-proxy is a singleton (1/1).
   - patch: |
       - op: replace
         path: /spec/minReplicas
@@ -95,10 +95,10 @@ patches:
   - patch: |
       - op: replace
         path: /spec/minReplicas
-        value: 2
+        value: 1
       - op: replace
         path: /spec/maxReplicas
-        value: 4
+        value: 1
     target:
       kind: HorizontalPodAutoscaler
       name: oauth2-proxy

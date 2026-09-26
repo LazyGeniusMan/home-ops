@@ -1,6 +1,8 @@
 # HPAs over the clickstack, collector, FerretDB, and oauth2-proxy Deployments
 # (CPU 70% + memory 80%). Base `replicas: 1` is the create-time seed; HPA owns
-# runtime count. `min/maxReplicas` are placeholders — overlays set dev 1/2, prd 2/4.
+# runtime count. `clickstack` + `clickstack-otel-collector` scale (placeholders —
+# overlays set dev 1/2, prd 2/4). `ferretdb` + `oauth2-proxy` are singletons:
+# capped 1/1 in every env — overlays pin both bounds to 1, never scale them.
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

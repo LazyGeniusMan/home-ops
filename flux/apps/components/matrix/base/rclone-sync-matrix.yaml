@@ -126,8 +126,9 @@ spec:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
   # Tag MUST equal Chart.yaml `version` in projects/helm-rclone-sync (bump
-  # Chart.yaml + all seven consumers together; no $imagepolicy marker — Helm
-  # OCIRepositories are untracked by image automation).
+  # Chart.yaml + all seven HelmRelease consumers together (2 clickstack + 1
+  # coder + 4 here); no $imagepolicy marker — Helm OCIRepositories are
+  # untracked by image automation).
   ref:
     tag: "0.1.0"
 ---
@@ -269,7 +270,7 @@ spec:
     activeDeadlineSeconds: 3600
     concurrencyPolicy: Forbid
     rclone:
-      operation: sync
+      operation: copy # offsite leg: copy only, never sync (sync deletes extras)
     source:
       type: s3
       remoteName: ""
@@ -333,7 +334,7 @@ spec:
     activeDeadlineSeconds: 3600
     concurrencyPolicy: Forbid
     rclone:
-      operation: sync
+      operation: copy # offsite leg: copy only, never sync (sync deletes extras)
     source:
       type: s3
       remoteName: ""

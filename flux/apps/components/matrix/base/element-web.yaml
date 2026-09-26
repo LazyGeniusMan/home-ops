@@ -4,10 +4,11 @@
 # (entrypoint copies it to the nginx-served staging dir), Service :80.
 # Stateless nginx static server — horizontal scaling safe; HPA owns runtime count
 # (base replicas: 1 is the create-time seed). Image bumps via update-policies/element-web.yaml.
-# TEMPLATIZED: base carries prd hostnames as the render default; dev overlays
-# replace the full config.json string (opaque value — sub-paths not
-# addressable); prd overlays carry a no-op anchor patch so future prd-only
-# keys have a landing patch.
+# TEMPLATIZED EXCEPTION to the base-placeholder rule: base carries prd hostnames
+# as the render default because config.json is one opaque string (sub-paths not
+# addressable — placeholders inside it could not be patched per-env); dev
+# overlays replace the full config.json string; prd overlays carry a no-op
+# anchor patch so future prd-only keys have a landing patch.
 ---
 apiVersion: v1
 kind: ConfigMap

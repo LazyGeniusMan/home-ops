@@ -1,6 +1,6 @@
-# oauth2-proxy HPA over the chart-rendered Deployment `oauth2-proxy`
-# (stateless cookie session store, safe to scale). Base replicas is the
-# create-time seed; HPA owns runtime count. Dev 1-2, prd 2-4 via overlays.
+# oauth2-proxy HPA over the chart-rendered Deployment `oauth2-proxy`.
+# Singleton: capped 1/1 in every env — overlays pin both bounds to 1, never
+# scale it. Base replicas is the create-time seed; HPA owns runtime count.
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

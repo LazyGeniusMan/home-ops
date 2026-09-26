@@ -81,7 +81,7 @@ patches:
     target:
       kind: HelmRelease
       name: oauth2-proxy
-  # Dev replicas: single-replica footprint (HPAs scale 1-2).
+  # Dev replicas: hubble-ui HPA scales 1-2; oauth2-proxy is a singleton (1/1).
   - patch: |
       - op: replace
         path: /spec/minReplicas
@@ -98,7 +98,7 @@ patches:
         value: 1
       - op: replace
         path: /spec/maxReplicas
-        value: 2
+        value: 1
     target:
       kind: HorizontalPodAutoscaler
       name: oauth2-proxy

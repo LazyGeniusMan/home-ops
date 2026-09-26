@@ -58,6 +58,9 @@ spec:
       value: element-web
     # cloudflare_zone_id ABSENT = DNS self-managed (root skips the verification
     # CNAME). Overlays patch network_name + service_lb_ip (/spec/vars/2, /spec/vars/3).
+    # service_lb_ip mirrors the router-side static reservation (dev .249, prd
+    # .199 — prd shares the Cilium LB VIP); keep the reservation and the
+    # overlay value in sync or the proxy loses its address.
     - name: network_name
       value: __CLUSTER_NAME__
     - name: service_lb_ip

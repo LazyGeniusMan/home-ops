@@ -64,9 +64,10 @@ env, as the designated human admin:
 | `prd` | `@admin:tuwunel.matrix.home-ops.yansyah.my.id` | `tuwunel.matrix.home-ops.yansyah.my.id` |
 
 1. Ensure the Zitadel `tuwunel` user exists (invite/reset flow — never commit passwords).
-2. Sign in via Element (`element.matrix.<env>`) with SSO as the designated admin FIRST.
-3. Verify admin (admin room created, `CREATE_ADMIN_ROOM=true`).
-4. Post-bootstrap: set `TUWUNEL_GRANT_ADMIN_TO_FIRST_USER=false` (later sign-ins stay unprivileged; flip via patch — never commit `true` beyond bootstrap).
+2. Confirm `TUWUNEL_GRANT_ADMIN_TO_FIRST_USER=true` is still in `base/tuwunel.yaml` (both envs ship `true` until the flip below lands).
+3. Sign in via Element (`element.matrix.<env>`) with SSO as the designated admin FIRST.
+4. Verify admin (admin room created, `CREATE_ADMIN_ROOM=true`).
+5. Post-bootstrap: set `TUWUNEL_GRANT_ADMIN_TO_FIRST_USER=false` (later sign-ins stay unprivileged; flip via patch — never commit `true` beyond bootstrap).
 5. The bridge admin (`BRIDGE_ADMIN_MXID`, same `@admin` MXID) + room leads (`@oncall-lead`, `@coder-admin` in rooms overlays) are separate grants — they ride the Terraform room CRs, not this flag.
 
 ## Backups (bare-minimum leg)

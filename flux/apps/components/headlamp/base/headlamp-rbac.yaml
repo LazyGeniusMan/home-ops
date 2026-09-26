@@ -5,8 +5,12 @@
 # ACCEPTED RISK: `admin` group → cluster-admin. The pod's own SA binding is
 # chart-owned (see headlamp.yaml); per-user auth here is limited to the two
 # Zitadel groups, and the `main` Gateway HTTPRoute is gated by native OIDC
-# (no anonymous path to the UI). Trim to a narrower ClusterRole once the
-# admin workflow no longer needs full cluster access.
+# (no anonymous path to the UI). Subjects `admin`/`users` mirror the Zitadel
+# org groups granted by `headlamp-sso` — keep them in sync with the API
+# server's OIDC userClaim/groupsClaim + prefix flags.
+# Follow-up (owner: platform admin, revisit 2026-Q4): trim `headlamp-admins`
+# to a narrower ClusterRole once the admin workflow no longer needs full
+# cluster access. Do not broaden: no additional subjects, no wider verbs.
 # - `users` group → view + headlamp-basic (namespace listing + self-review
 #   so the UI enumerates contexts).
 ---

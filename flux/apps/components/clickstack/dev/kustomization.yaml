@@ -166,7 +166,9 @@ patches:
     target:
       kind: Terraform
       name: clickstack-sso
-  # Dev scaling: HPA placeholders -> 1/2; stateful placeholders -> 1.
+  # Dev scaling: HPA placeholders -> 1/2 (scalable pair); singletons
+  # (ferretdb, oauth2-proxy) capped 1/1 — never scale singletons.
+  # stateful placeholders -> 1.
   - patch: |
       - op: replace
         path: /spec/minReplicas
@@ -193,7 +195,7 @@ patches:
         value: 1
       - op: replace
         path: /spec/maxReplicas
-        value: 2
+        value: 1
     target:
       kind: HorizontalPodAutoscaler
       name: ferretdb
@@ -203,7 +205,7 @@ patches:
         value: 1
       - op: replace
         path: /spec/maxReplicas
-        value: 2
+        value: 1
     target:
       kind: HorizontalPodAutoscaler
       name: oauth2-proxy

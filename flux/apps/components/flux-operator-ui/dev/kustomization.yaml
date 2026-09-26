@@ -85,8 +85,7 @@ patches:
     target:
       kind: Terraform
       name: flux-operator-ui-sso
-  # Dev replicas: single-replica footprint (HPA owns runtime count; HPAs
-  # scale 1-2).
+  # Dev replicas: UI HPA scales 1-2; oauth2-proxy is a singleton (1/1).
   - patch: |
       - op: replace
         path: /spec/values/web/serverReplicas
@@ -110,7 +109,7 @@ patches:
         value: 1
       - op: replace
         path: /spec/maxReplicas
-        value: 2
+        value: 1
     target:
       kind: HorizontalPodAutoscaler
       name: oauth2-proxy
