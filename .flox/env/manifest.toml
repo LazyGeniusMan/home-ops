@@ -58,6 +58,8 @@ yamllint.pkg-path = "yamllint"
 yamllint.version = "1.37.1"
 shellcheck.pkg-path = "shellcheck"
 shellcheck.version = "0.11.0"
+rclone.pkg-path = "rclone"
+rclone.version = "1.75.1"
 # EXCEPTION: ControlPlane flux distribution CLI has no Flox catalog package;
 # CI push legs are the only invocations without a local Flox equivalent.
 

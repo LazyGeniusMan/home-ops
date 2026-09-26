@@ -103,6 +103,10 @@
         "pkg-path": "python3",
         "version": "3.14.7"
       },
+      "rclone": {
+        "pkg-path": "rclone",
+        "version": "1.75.1"
+      },
       "shellcheck": {
         "pkg-path": "shellcheck",
         "version": "0.11.0"
@@ -2381,6 +2385,99 @@
       "outputs": {
         "debug": "/nix/store/ys443a0qz8b8c9wb4mxc42ni49i5v63p-python3-3.14.7-debug",
         "out": "/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "rclone",
+      "broken": false,
+      "derivation": "/nix/store/7529nmhi4gr5y3xlgq0zzl5ja3rprzmg-rclone-1.75.1.drv",
+      "description": "Command line program to sync files and directories to and from major cloud storage",
+      "install_id": "rclone",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "name": "rclone-1.75.1",
+      "pname": "rclone",
+      "rev": "6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "rev_count": 1077996,
+      "rev_date": "2026-09-22T03:11:10Z",
+      "scrape_date": "2026-09-23T04:59:38.634942Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.75.1",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "man": "/nix/store/5p96q2dnbsyw44m77wgd0jypx9rdp0a1-rclone-1.75.1-man",
+        "out": "/nix/store/gxv0xwsdzhqlsl72rk0bc9wkpvl31rqb-rclone-1.75.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "rclone",
+      "broken": false,
+      "derivation": "/nix/store/d6g17xm6xijyd2l5l9dd7fqhxaw2bykw-rclone-1.75.1.drv",
+      "description": "Command line program to sync files and directories to and from major cloud storage",
+      "install_id": "rclone",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "name": "rclone-1.75.1",
+      "pname": "rclone",
+      "rev": "6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "rev_count": 1077996,
+      "rev_date": "2026-09-22T03:11:10Z",
+      "scrape_date": "2026-09-23T05:31:45.094707Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.75.1",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "man": "/nix/store/c81dhnl3r1jl59pc0vxsjlnh85dk0qvg-rclone-1.75.1-man",
+        "out": "/nix/store/in797x89xvwy06jl9i8qkgryns0yykql-rclone-1.75.1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "rclone",
+      "broken": false,
+      "derivation": "/nix/store/v0lbpm8l7z4q4qqj5m4kcvn6g0ixrx1f-rclone-1.75.1.drv",
+      "description": "Command line program to sync files and directories to and from major cloud storage",
+      "install_id": "rclone",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "name": "rclone-1.75.1",
+      "pname": "rclone",
+      "rev": "6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "rev_count": 1077996,
+      "rev_date": "2026-09-22T03:11:10Z",
+      "scrape_date": "2026-09-23T06:08:33.312173Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.75.1",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "man": "/nix/store/4srnd10bh4k6n2vxd7qlcgrn56pcgsz3-rclone-1.75.1-man",
+        "out": "/nix/store/y03xsmdcw6bimg84nv2zw07ix5ihjvk3-rclone-1.75.1"
       },
       "system": "x86_64-linux",
       "group": "toplevel",
