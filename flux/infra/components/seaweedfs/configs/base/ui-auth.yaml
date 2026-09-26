@@ -197,6 +197,7 @@ spec:
     readinessProbe:
       initialDelaySeconds: 60
       periodSeconds: 10
+    # CPU limit 4x request absorbs OIDC-discovery bursts behind slow Zitadel.
     resources:
       requests:
         cpu: 50m
