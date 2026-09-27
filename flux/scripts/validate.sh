@@ -25,11 +25,27 @@ set -o pipefail
 kustomize_flags=("--load-restrictor=LoadRestrictionsNone")
 kustomize_config="kustomization.yaml"
 
-# Keep copyFrom/copyTo stub Secrets (ResourceSet templates) and Terraform
-# varsFrom handoffs out of kubeconform: they carry no schema-meaningful fields
-# (plain `data`/`stringData`-less copies). No SOPS usage remains in this repo.
-kubeconform_flags=("-skip=Secret")
+# ResourceSet copyFrom/copyTo stub Secrets carry no schema-meaningful fields
+# (plain `data`/`stringData`-less copies served from flux-system), so raw
+# manifests pre-filter them via yq before kubeconform instead of a blanket
+# `-skip=Secret` (which would also hide real Secret docs rendered by the
+# kustomize pass below). No SOPS usage remains in this repo.
+#
+# Schema-dir contract: download_schemas extracts both tarballs into the
+# versioned subdir /tmp/flux-crd-schemas/master-standalone-strict (Flux
+# "strict" layout: one <kind>-<group>-<version>.json per CRD at the top
+# level). kubeconform appends its normalized version subdir
+# (master-standalone-strict by default) onto each -schema-location entry,
+# so the flag points at the PARENT /tmp/flux-crd-schemas — pointing it at
+# the extracted subdir double-appends and every Flux CRD reports "skipped".
+kubeconform_flags=()
 kubeconform_config=("-strict" "-ignore-missing-schemas" "-schema-location" "default" "-schema-location" "/tmp/flux-crd-schemas" "-verbose")
+
+# copyFrom/copyTo annotation keys marking ResourceSet stub Secrets (excluded
+# from raw-manifest validation only; the kustomize pass validates the full
+# rendered output including every Secret).
+copy_stub_annotation_from="fluxcd.controlplane.io/copyFrom"
+copy_stub_annotation_to="fluxcd.controlplane.io/copyTo"
 
 # root directory to validate
 root_dir="."
@@ -206,6 +222,23 @@ validate_yaml_syntax() {
   done < <(find "$root_dir" -path '*/.*' -prune -o -type f -name '*.yaml' -print0)
 }
 
+# is_copy_stub_secret reports whether file holds ONLY copyFrom/copyTo stub
+# Secrets (every Secret doc carries the copy annotation) so raw-manifest
+# validation can pre-filter them. Files mixing stubs with real docs are kept
+# whole (a real Secret still fails validation as before).
+is_copy_stub_secret() {
+  local file="$1"
+  local total stubs
+  total="$(yq ea '[select(.kind == "Secret")] | length' "$file")" || return 1
+  if [[ "$total" == "0" ]]; then
+    return 1
+  fi
+  stubs="$(yq ea --arg from "$copy_stub_annotation_from" --arg to "$copy_stub_annotation_to" \
+    '[select(.kind == "Secret") | select(((.metadata.annotations // {}) | has($from)) or ((.metadata.annotations // {}) | has($to)))] | length' \
+    "$file")" || return 1
+  [[ "$stubs" == "$total" ]]
+}
+
 validate_kubernetes_manifests() {
   echo "INFO - Validating Kubernetes manifests"
   while IFS= read -r -d $'\0' file; do
@@ -213,8 +246,56 @@ validate_kubernetes_manifests() {
     if is_excluded_dir "$dir"; then
       continue
     fi
+    if is_copy_stub_secret "$file"; then
+      echo "INFO - Skipping copyFrom/copyTo stub Secret ${file}"
+      continue
+    fi
     kubeconform "${kubeconform_flags[@]}" "${kubeconform_config[@]}" "${file}"
   done < <(find "$root_dir" -path '*/.*' -prune -o -type f -name '*.yaml' -print0)
+}
+
+# probe_known_flux_schemas fails when a known Flux GVK has no local schema:
+# -ignore-missing-schemas would otherwise silently skip a mistyped
+# apiVersion/kind (e.g. a drifted CRD filename). Built-in kinds resolve via
+# the default registry; only Flux GVKs pinned here are probed.
+probe_known_flux_schemas() {
+  echo "INFO - Probing known Flux schemas"
+  local schema_dir="/tmp/flux-crd-schemas/master-standalone-strict"
+  local missing=0
+  # "<apiVersion>/<Kind>:<schema-file>" pairs for the GVKs used under the
+  # validated root (fleet today: operator + toolkit + kustomize APIs).
+  local -a known=(
+    "fluxcd.controlplane.io/v1/ResourceSet:resourceset-fluxcd-v1.json"
+    "fluxcd.controlplane.io/v1/ResourceSetInputProvider:resourcesetinputprovider-fluxcd-v1.json"
+    "fluxcd.controlplane.io/v1/FluxInstance:fluxinstance-fluxcd-v1.json"
+    "fluxcd.controlplane.io/v1/FluxReport:fluxreport-fluxcd-v1.json"
+    "source.toolkit.fluxcd.io/v1/OCIRepository:ocirepository-source-v1.json"
+    "source.toolkit.fluxcd.io/v1/GitRepository:gitrepository-source-v1.json"
+    "source.toolkit.fluxcd.io/v1/HelmChart:helmchart-source-v1.json"
+    "source.toolkit.fluxcd.io/v1/HelmRepository:helmrepository-source-v1.json"
+    "source.toolkit.fluxcd.io/v1/Bucket:bucket-source-v1.json"
+    "source.toolkit.fluxcd.io/v1/ExternalArtifact:externalartifact-source-v1.json"
+    "source.extensions.fluxcd.io/v1beta1/ArtifactGenerator:artifactgenerator-source-v1beta1.json"
+    "kustomize.toolkit.fluxcd.io/v1/Kustomization:kustomization-kustomize-v1.json"
+    "helm.toolkit.fluxcd.io/v2/HelmRelease:helmrelease-helm-v2.json"
+    "image.toolkit.fluxcd.io/v1/ImagePolicy:imagepolicy-image-v1.json"
+    "image.toolkit.fluxcd.io/v1/ImageRepository:imagerepository-image-v1.json"
+    "image.toolkit.fluxcd.io/v1/ImageUpdateAutomation:imageupdateautomation-image-v1.json"
+    "notification.toolkit.fluxcd.io/v1beta3/Alert:alert-notification-v1beta3.json"
+    "notification.toolkit.fluxcd.io/v1beta3/Provider:provider-notification-v1beta3.json"
+    "notification.toolkit.fluxcd.io/v1beta3/Receiver:receiver-notification-v1.json"
+  )
+  local entry file
+  for entry in "${known[@]}"; do
+    file="${entry##*:}"
+    if [[ ! -f "${schema_dir}/${file}" ]]; then
+      echo "ERROR - Missing schema for Flux GVK ${entry%%:*} (expected ${schema_dir}/${file})" >&2
+      missing=1
+    fi
+  done
+  if [[ $missing -ne 0 ]]; then
+    exit 1
+  fi
 }
 
 validate_kustomize_overlays() {
@@ -236,6 +317,7 @@ validate_kustomize_overlays() {
 parse_args "$@"
 check_prerequisites
 download_schemas
+probe_known_flux_schemas
 detect_excluded_dirs
 validate_yaml_syntax
 validate_kubernetes_manifests

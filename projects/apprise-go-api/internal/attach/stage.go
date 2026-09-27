@@ -84,8 +84,20 @@ func NewStager(lim Limits) *Stager {
 
 // StageRequest stages a request's attachments (payload entries + multipart
 // parts in order; 1-based attachment.NNN numbering). Disabled/over-count/
-// over-size content is a 400.
+// over-size content is a 400. It carries a Background context (see
+// StageRequestCtx): use that from request handlers so client disconnect
+// cancels the bounded remote fetch.
 func (s *Stager) StageRequest(payload any, files []Incoming) ([]Staged, error) {
+	return s.StageRequestCtx(context.Background(), payload, files)
+}
+
+// StageRequestCtx is StageRequest with the request context threaded into
+// the remote fetch (fetch timeout) and the `internal` SSRF deny rule's DNS
+// lookup. Client disconnect cancels an in-flight download or resolution.
+func (s *Stager) StageRequestCtx(ctx context.Context, payload any, files []Incoming) ([]Staged, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	entries, scalar := normalizePayload(payload)
 	count := len(entries) + len(files)
 	if scalar && len(entries) == 0 {
@@ -106,7 +118,7 @@ func (s *Stager) StageRequest(payload any, files []Incoming) ([]Staged, error) {
 	}
 	var staged []Staged
 	for _, e := range entries {
-		st, skip, err := s.stageEntry(e)
+		st, skip, err := s.stageEntry(ctx, e)
 		if err != nil {
 			s.cleanupAll(staged)
 			return nil, err
@@ -181,18 +193,18 @@ func normalizePayload(payload any) ([]entry, bool) {
 
 // stageEntry stages one payload entry; skip=true means a blank string that
 // is ignored without error.
-func (s *Stager) stageEntry(e entry) (st Staged, skip bool, err error) {
+func (s *Stager) stageEntry(ctx context.Context, e entry) (st Staged, skip bool, err error) {
 	fallback := fmt.Sprintf("attachment.%03d", e.no)
 	switch v := e.raw.(type) {
 	case string:
 		if strings.TrimSpace(v) == "" {
 			return Staged{}, true, nil
 		}
-		return s.stageRemote(v, "", fallback)
+		return s.stageRemote(ctx, v, "", fallback)
 	case []byte:
 		return s.stageBytes(fallback, v)
 	case map[string]any:
-		return s.stageDict(v, fallback, e.no)
+		return s.stageDict(ctx, v, fallback, e.no)
 	default:
 		return Staged{}, false, BadAttachment("an invalid filename was provided for attachment %d", e.no)
 	}
@@ -201,7 +213,7 @@ func (s *Stager) stageEntry(e entry) (st Staged, skip bool, err error) {
 // stageDict stages a {base64,filename?} or {url,filename?} dict. The dict
 // filename wins over URL-derived names; bad base64, over-long or
 // non-string filenames, and dicts with neither key are 400s.
-func (s *Stager) stageDict(m map[string]any, fallback string, no int) (Staged, bool, error) {
+func (s *Stager) stageDict(ctx context.Context, m map[string]any, fallback string, no int) (Staged, bool, error) {
 	name := fallback
 	if raw, ok := m["filename"]; ok {
 		str, ok := raw.(string)
@@ -237,19 +249,19 @@ func (s *Stager) stageDict(m map[string]any, fallback string, no int) (Staged, b
 		if name != fallback {
 			explicit = name
 		}
-		return s.stageRemote(str, explicit, fallback)
+		return s.stageRemote(ctx, str, explicit, fallback)
 	}
 	return Staged{}, false, BadAttachment("invalid filetype was provided for attachment %q", name)
 }
 
 // stageRemote validates, SSRF-checks, downloads, and stages a remote URL
 // (explicit dict filename wins; fallback is attachment.NNN).
-func (s *Stager) stageRemote(rawURL, explicit, fallback string) (Staged, bool, error) {
+func (s *Stager) stageRemote(ctx context.Context, rawURL, explicit, fallback string) (Staged, bool, error) {
 	trimmed := strings.TrimSpace(rawURL)
 	if !isWebURL(trimmed) {
 		return Staged{}, false, BadAttachment("failed to load attachment (not web request): %s", redactURL(rawURL))
 	}
-	if !s.policy.IsAllowed(trimmed) {
+	if !s.policy.IsAllowedCtx(ctx, trimmed) {
 		return Staged{}, false, Denied(trimmed)
 	}
 	name := explicit
@@ -260,7 +272,7 @@ func (s *Stager) stageRemote(rawURL, explicit, fallback string) (Staged, bool, e
 		return Staged{}, false, BadAttachment("the filename associated with attachment %q is too long", name)
 	}
 	maxBytes := s.limits.SizeMB * 1024 * 1024
-	body, mimeType, err := s.fetch(trimmed, name, maxBytes)
+	body, mimeType, err := s.fetch(ctx, trimmed, name, maxBytes)
 	if err != nil {
 		return Staged{}, false, err
 	}
@@ -357,10 +369,14 @@ func (s *Stager) stageStream(name, mimeType string, r io.Reader, maxBytes int64)
 
 // fetch downloads a remote attachment after an early Content-Length
 // fast-fail. Non-2xx statuses and network errors are FetchFailed (400).
-func (s *Stager) fetch(rawURL, name string, maxBytes int64) (io.ReadCloser, string, error) {
+func (s *Stager) fetch(reqCtx context.Context, rawURL, name string, maxBytes int64) (io.ReadCloser, string, error) {
 	// Context-bound (fetch timeout doubles as the request timeout) so a
-	// hung attachment host cannot wedge a worker.
-	ctx, cancel := context.WithTimeout(context.Background(), s.limits.FetchTimeout)
+	// hung attachment host cannot wedge a worker. The request context
+	// parents the timeout so client disconnect cancels the fetch early.
+	if reqCtx == nil {
+		reqCtx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(reqCtx, s.limits.FetchTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {

@@ -1,4 +1,3 @@
-!.agents/**
 **/inventory/**
 !**/inventory/**.example
 **/inventory.y*ml
@@ -38,3 +37,13 @@ cover.out
 # Staged upstreams fetched at publish time by projects/helm-*/ci/fetch.sh; never commit.
 projects/helm-*/upstream/
 projects/helm-*/.fetch-staging/
+# Credential strays + noisy locals (PATs, TLS keys, tokens, auth files, logs).
+# Only double-brace {{ }} placeholders are ever committed; build-artifact
+# ignores above (talosconfig, kubeconfig, secrets.bundle.yml, pat files) stay.
+*.pem
+*.key
+*.p12
+*.pfx
+*.token
+auth.json
+*.log

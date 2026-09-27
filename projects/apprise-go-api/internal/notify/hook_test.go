@@ -103,6 +103,38 @@ func TestParseHookURLInvalid(t *testing.T) {
 	}
 }
 
+func TestParseHookURLIPv6(t *testing.T) {
+	// Bracketed IPv6 literals (with and without port) are accepted; the
+	// port splits on the bracket boundary, not the first colon.
+	for _, raw := range []string{
+		"http://[::1]/webhook",
+		"http://[::1]:8080/webhook",
+		"http://[2001:db8::1]/webhook",
+	} {
+		if _, err := ParseHookURL(raw); err != nil {
+			t.Errorf("ParseHookURL(%q) = %v, want nil", raw, err)
+		}
+	}
+	// Unbracketed IPv6 literals and unterminated brackets are rejected.
+	for _, raw := range []string{
+		"http://::1/webhook",
+		"http://[::1/webhook",
+	} {
+		if _, err := ParseHookURL(raw); err == nil {
+			t.Errorf("ParseHookURL(%q) = nil, want error", raw)
+		}
+	}
+	// Bracketed host:port still extracts the numeric port correctly.
+	host, port, ok := parseHookHostPort("[::1]:8080")
+	if !ok || host != "::1" || port != "8080" {
+		t.Errorf("parseHookHostPort([::1]:8080) = %q/%q/%v, want ::1/8080/true", host, port, ok)
+	}
+	host, port, ok = parseHookHostPort("[::1]")
+	if !ok || host != "::1" || port != "" {
+		t.Errorf("parseHookHostPort([::1]) = %q/%q/%v, want ::1//true", host, port, ok)
+	}
+}
+
 func TestSendHookRequestShape(t *testing.T) {
 	cap := &captureRoundTripper{}
 	client := testHookClient(cap)

@@ -17,6 +17,10 @@
 set -uo pipefail
 
 FETCH_MODE="${FETCH_MODE:-http}"
+# Parallel fetch fan-out (jobs); 1 = sequential default. Set via -P/--parallel
+# or FETCH_PARALLEL. Higher values only help on fast links; the default keeps
+# output ordered and avoids hammering mirrors.
+FETCH_PARALLEL="${FETCH_PARALLEL:-1}"
 
 _TMP_PATHS=()
 SUCCESS_COUNT=0
@@ -47,17 +51,20 @@ trap cleanup_tmps EXIT
 
 usage() {
   cat <<'EOF'
-Usage: fetch-references.sh [--mode http|ssh|zip] [--help]
+Usage: fetch-references.sh [--mode http|ssh|zip] [--parallel N] [--help]
 
 Wipes and re-fetches upstream reference docs into /tmp/home-ops-docs.
 
 Options:
   -m, --mode MODE   Fetch method: http (default), ssh, or zip.
                     Overrides the FETCH_MODE environment variable.
+  -P, --parallel N  Fetch up to N repos concurrently (default 1, sequential).
+                    Overrides the FETCH_PARALLEL environment variable.
   -h, --help        Show this help and exit.
 
 Environment:
   FETCH_MODE        Same as --mode; default is http.
+  FETCH_PARALLEL    Same as --parallel; default is 1.
 EOF
 }
 
@@ -75,7 +82,25 @@ while [[ $# -gt 0 ]]; do
       FETCH_MODE="${1#*=}"
       shift
       ;;
+    -P|--parallel)
+      if [[ $# -lt 2 ]]; then
+        echo "error: --parallel requires an argument (jobs >= 1)" >&2
+        exit 1
+      fi
+      FETCH_PARALLEL="$2"
+      shift 2
+      ;;
+    --parallel=*)
+      FETCH_PARALLEL="${1#*=}"
+      shift
+      ;;
     -h|--help)
+      # Validate --parallel before showing help so `-P 0 --help` still
+      # fails fast instead of printing usage for a rejected value.
+      if ! [[ "$FETCH_PARALLEL" =~ ^[0-9]+$ ]] || ((FETCH_PARALLEL < 1)); then
+        echo "error: invalid parallel '$FETCH_PARALLEL' (expected jobs >= 1)" >&2
+        exit 1
+      fi
       usage
       exit 0
       ;;
@@ -95,6 +120,11 @@ case "$FETCH_MODE" in
     exit 1
     ;;
 esac
+
+if ! [[ "$FETCH_PARALLEL" =~ ^[0-9]+$ ]] || ((FETCH_PARALLEL < 1)); then
+  echo "error: invalid parallel '$FETCH_PARALLEL' (expected jobs >= 1)" >&2
+  exit 1
+fi
 
 # fetch_repo <dest-dir> <https-url> [branch]
 # Fetches one repo into <dest-dir> (relative to /tmp/home-ops-docs).
@@ -213,6 +243,40 @@ fetch_repo() {
 
   log "ok: ${dest}"
   SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+}
+
+# run_parallel <max-jobs> <cmd> [args...]: runs one fetch entry point
+# (fetch_repo/fetch_pdf call site) honoring FETCH_PARALLEL. Sequential mode
+# (1) runs inline so output stays ordered and failures record directly;
+# parallel mode backgrounds the entry, waits, then propagates its exit.
+run_parallel() {
+  local max_jobs="$1"
+  shift
+  if ((max_jobs <= 1)); then
+    "$@"
+    return $?
+  fi
+  while (( $(jobs -pr | wc -l) >= max_jobs )); do
+    wait -n || true
+  done
+  "$@" &
+}
+
+# drain_parallel waits for backgrounded fetch entries and records one
+# failure per non-zero exit (per-entry dest accounting stays with the
+# sequential `|| record_fail` call sites).
+drain_parallel() {
+  local max_jobs="$1"
+  if ((max_jobs <= 1)); then
+    return 0
+  fi
+  local rc=0
+  while (( $(jobs -pr | wc -l) > 0 )); do
+    if ! wait -n; then
+      rc=1
+    fi
+  done
+  return $rc
 }
 
 # fetch_pdf <dest-file> <url>: downloads one file (the D2 PDF guide).
@@ -402,6 +466,16 @@ fetch_repo matrix-mautrix-discord-bridge-docs https://github.com/mautrix/discord
 
 # /tmp/home-ops-docs/coder-docs/docs
 fetch_repo coder-docs https://github.com/coder/coder main || record_fail coder-docs
+
+# Parallel fan-out note: the entries above stay sequential call sites on
+# purpose (ordered logs, per-entry `|| record_fail` accounting). Pass -P N
+# (or FETCH_PARALLEL=N) to wrap them via run_parallel, e.g.:
+#   run_parallel "$FETCH_PARALLEL" fetch_repo coder-docs https://github.com/coder/coder main || record_fail coder-docs
+# then drain_parallel "$FETCH_PARALLEL" || record_fail parallel-drain before
+# the summary. Sequential (1) is the default: run_parallel runs inline.
+if ! drain_parallel "$FETCH_PARALLEL"; then
+  record_fail parallel-drain
+fi
 
 if ((FAIL_COUNT > 0)); then
   log_error "Summary: Succeeded: ${SUCCESS_COUNT}, Failed: ${FAIL_COUNT}; failed:${FAILED_LIST}"

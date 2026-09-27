@@ -94,6 +94,9 @@ func New(o Options) *Client {
 // comes from operator config (PROTON_PASS_PAT_FILE), not request input
 // (gosec G304: no request-controlled file inclusion).
 func ReadPATFile(path string) (string, error) {
+	// Trimmed so a trailing newline from secret mounts never becomes part
+	// of the path (config.Load trims too; belt and suspenders at the read).
+	path = strings.TrimSpace(path)
 	if path == "" {
 		return "", fmt.Errorf("PAT file path is empty (set PROTON_PASS_PAT_FILE)")
 	}

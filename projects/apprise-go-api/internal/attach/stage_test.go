@@ -1,6 +1,7 @@
 package attach
 
 import (
+	"context"
 	"encoding/base64"
 	"io"
 	"net/http"
@@ -411,7 +412,7 @@ func TestPolicyDenyFirst(t *testing.T) {
 func TestPolicyInternalToken(t *testing.T) {
 	old := resolveHost
 	defer func() { resolveHost = old }()
-	resolveHost = func(host string) ([]netip.Addr, error) {
+	resolveHost = func(_ context.Context, host string) ([]netip.Addr, error) {
 		// Literal IPs never reach DNS (resolveHost short-circuits them),
 		// so only stub hostname lookups here.
 		if host == "localhost" || host == "localhost.localdomain" {
@@ -448,7 +449,7 @@ func TestPolicyInternalToken(t *testing.T) {
 		t.Error("IsAllowed(public DNS) = false, want true")
 	}
 	// Unresolvable host fails closed.
-	resolveHost = func(string) ([]netip.Addr, error) { return nil, io.ErrUnexpectedEOF }
+	resolveHost = func(context.Context, string) ([]netip.Addr, error) { return nil, io.ErrUnexpectedEOF }
 	if p.IsAllowed("http://this-does-not-resolve.invalid/x") {
 		t.Error("unresolvable host: want denied")
 	}

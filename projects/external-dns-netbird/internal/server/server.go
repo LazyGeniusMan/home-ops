@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -234,6 +233,11 @@ func (s *Server) handleRecords(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, records)
 }
 
+// errInvalidBody is the fixed client envelope for malformed webhook
+// payloads: the raw decode error stays server-side (log only) so envelopes
+// never echo request bytes back to the caller.
+const errInvalidBody = "invalid request body"
+
 func (s *Server) handleApplyChanges(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = r.Body.Close() }()
 	var changes plan.Changes
@@ -241,7 +245,7 @@ func (s *Server) handleApplyChanges(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&changes); err != nil {
 		s.applyErrs.Inc()
 		s.log.WarnContext(r.Context(), "invalid changes payload", slog.Any("err", err))
-		s.writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("decode changes: %v", err)})
+		s.writeJSON(w, http.StatusBadRequest, map[string]string{"error": errInvalidBody})
 		return
 	}
 	if err := s.provider.ApplyChanges(r.Context(), &changes); err != nil {
@@ -260,7 +264,7 @@ func (s *Server) handleAdjustEndpoints(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&eps); err != nil {
 		s.adjustErrs.Inc()
 		s.log.WarnContext(r.Context(), "invalid adjust payload", slog.Any("err", err))
-		s.writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("decode endpoints: %v", err)})
+		s.writeJSON(w, http.StatusBadRequest, map[string]string{"error": errInvalidBody})
 		return
 	}
 	adjusted, err := s.provider.AdjustEndpoints(eps)

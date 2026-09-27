@@ -3,6 +3,7 @@
 package attach
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -40,7 +41,15 @@ type Attachment struct {
 
 // Stage validates count/disabled policy and stages each name as a
 // remote-URL-or-inline payload entry. maxMemoryBytes must be positive.
+// It carries a Background context; request handlers must use
+// Stager.StageRequestCtx with the request context instead.
 func Stage(names []string, lim Limits, maxMemoryBytes int64) ([]Attachment, error) {
+	return StageCtx(context.Background(), names, lim, maxMemoryBytes)
+}
+
+// StageCtx is Stage with the request context threaded into the remote
+// fetch and the `internal` SSRF deny rule's DNS lookup.
+func StageCtx(ctx context.Context, names []string, lim Limits, maxMemoryBytes int64) ([]Attachment, error) {
 	if maxMemoryBytes <= 0 {
 		return nil, BadAttachment("max memory bytes must be positive, got %d", maxMemoryBytes)
 	}
@@ -49,7 +58,7 @@ func Stage(names []string, lim Limits, maxMemoryBytes int64) ([]Attachment, erro
 	for _, n := range names {
 		entries = append(entries, n)
 	}
-	staged, err := stager.StageRequest(entries, nil)
+	staged, err := stager.StageRequestCtx(ctx, entries, nil)
 	if err != nil {
 		return nil, err
 	}

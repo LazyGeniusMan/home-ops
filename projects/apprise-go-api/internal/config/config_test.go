@@ -60,6 +60,15 @@ func TestLoadPortAndLogLevel(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsBadPort(t *testing.T) {
+	for _, port := range []string{"abc", "80x", "8 0", "http"} {
+		t.Setenv("HTTP_PORT", port)
+		if _, err := Load(); err == nil {
+			t.Errorf("Load(HTTP_PORT=%q) = nil, want error", port)
+		}
+	}
+}
+
 func TestLoadRejectsStatefulMode(t *testing.T) {
 	t.Setenv("APPRISE_STATEFUL_MODE", "enabled")
 

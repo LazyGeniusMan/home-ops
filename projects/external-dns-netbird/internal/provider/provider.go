@@ -214,7 +214,10 @@ func (p *Provider) buildIndex(ctx context.Context) (index, error) {
 // zoneForName resolves the longest-suffix zone, auto-creating the
 // DOMAIN_FILTER candidate when autoCreate is true. Misses outside the
 // filter are permanent; API failures map soft (transient) or hard
-// (permanent 4xx) via softOrHard.
+// (permanent 4xx) via softOrHard. NetBird never deletes DNS entries on its
+// own: a name with no matching zone is a permanent error (or an explicit
+// auto-create), so stale records are intentionally retained rather than
+// garbage-collected.
 func (p *Provider) zoneForName(ctx context.Context, dnsName string) (string, error) {
 	name := strings.ToLower(strings.TrimSuffix(dnsName, "."))
 	zones, err := p.api.ListZones(ctx)

@@ -22,11 +22,18 @@ const InternalToken = "internal"
 const resolveTimeout = 5 * time.Second
 
 // resolveHost resolves host to IP addresses (variable so tests stub DNS).
-var resolveHost = func(host string) ([]netip.Addr, error) {
+// resolveCtx carries the request context through StageRequest so client
+// disconnect cancels an in-flight DNS lookup (and fetch); Background callers
+// (Stage helper, tests) get the plain fetch-timeout bound instead.
+var resolveHost = func(resolveCtx context.Context, host string) ([]netip.Addr, error) {
 	if addr, err := parseIPLiteral(host); err == nil {
 		return []netip.Addr{addr}, nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), resolveTimeout)
+	ctx := resolveCtx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, resolveTimeout)
 	defer cancel()
 	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
 	if err != nil {
@@ -172,8 +179,8 @@ func parseIPv4Alt(s string) (netip.Addr, bool) {
 // isInternalTarget reports whether any resolved address is blocked.
 // Unresolvable hosts count as blocked: an unclassifiable destination is
 // never proven safe.
-func isInternalTarget(host string) bool {
-	addrs, err := resolveHost(host)
+func isInternalTarget(resolveCtx context.Context, host string) bool {
+	addrs, err := resolveHost(resolveCtx, host)
 	if err != nil || len(addrs) == 0 {
 		return true
 	}
@@ -236,8 +243,15 @@ func NewPolicy(allowList, denyList string) *Policy {
 
 // IsAllowed reports whether rawURL passes the DENY-first, allow-second
 // policy. Non http(s) URLs, unparseable URLs, and URLs without a host are
-// never allowed.
+// never allowed. resolveCtx threads the request context into the `internal`
+// deny rule so client disconnect cancels the DNS lookup.
 func (p *Policy) IsAllowed(rawURL string) bool {
+	return p.IsAllowedCtx(context.Background(), rawURL)
+}
+
+// IsAllowedCtx is IsAllowed with the request context threaded into the
+// `internal` deny rule's DNS lookup.
+func (p *Policy) IsAllowedCtx(resolveCtx context.Context, rawURL string) bool {
 	if p == nil {
 		return false
 	}
@@ -259,7 +273,7 @@ func (p *Policy) IsAllowed(rawURL string) bool {
 	for _, r := range p.deny {
 		switch r.kind {
 		case ruleInternal:
-			if isInternalTarget(host) {
+			if isInternalTarget(resolveCtx, host) {
 				return false
 			}
 		case ruleURL:

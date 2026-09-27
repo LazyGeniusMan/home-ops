@@ -168,7 +168,7 @@ func (s *Server) serveNotify(w http.ResponseWriter, r *http.Request) {
 	if payload.HasAttach && len(payload.Attach) == 0 && payload.FileCount == 0 {
 		// Empty alias: body-required rule applies.
 	} else if payload.HasAttach {
-		staged, err := s.stageAttachments(payload)
+		staged, err := s.stageAttachments(r.Context(), payload)
 		if err != nil {
 			s.log.Warn("notify: bad attachment", "remote", remoteAddr(r), "err", redactCredentials(err.Error()))
 			fail(attach.StatusCodeOf(err), "Bad Attachment")

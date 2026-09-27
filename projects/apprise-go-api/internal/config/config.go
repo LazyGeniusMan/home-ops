@@ -134,8 +134,14 @@ func Load() (Config, error) {
 		set(v)
 		return nil
 	}
+	// HTTP_PORT fails fast at startup on non-numeric values (e.g.
+	// HTTP_PORT=abc) instead of silently serving on a garbage address.
+	port, err := httpPort()
+	if err != nil {
+		return Config{}, err
+	}
 	cfg := Config{
-		Addr:                addrFromPort(envOr("HTTP_PORT", "8080")),
+		Addr:                port,
 		LogLevel:            strings.ToLower(envOr("LOG_LEVEL", defaultLogLevel)),
 		BaseURL:             envOr("APPRISE_BASE_URL", ""),
 		AllowedHosts:        envCSV("ALLOWED_HOSTS"),
@@ -286,13 +292,42 @@ func (c Config) AttachRejectURLOrDefault() string {
 	return c.AttachRejectURL
 }
 
-func addrFromPort(port string) string {
-	port = strings.TrimSpace(port)
+// httpPort resolves HTTP_PORT to a listen address, failing fast on a
+// non-empty non-numeric value (empty means the :8080 default).
+func httpPort() (string, error) {
+	port := strings.TrimSpace(os.Getenv("HTTP_PORT"))
 	if port == "" {
-		return defaultAddr
+		return defaultAddr, nil
 	}
 	port = strings.TrimPrefix(port, ":")
-	return ":" + port
+	if port == "" {
+		return defaultAddr, nil
+	}
+	for i := 0; i < len(port); i++ {
+		if port[i] < '0' || port[i] > '9' {
+			return "", fmt.Errorf("config: HTTP_PORT must be a numeric port, got %q", strings.TrimSpace(os.Getenv("HTTP_PORT")))
+		}
+	}
+	return ":" + port, nil
+}
+
+// httpPortFromValue resolves an explicit port value; unparseable values
+// fall back to the default (kept for callers that validate separately).
+func httpPortFromValue(port string) (string, error) {
+	port = strings.TrimSpace(port)
+	if port == "" {
+		return defaultAddr, nil
+	}
+	port = strings.TrimPrefix(port, ":")
+	if port == "" {
+		return defaultAddr, nil
+	}
+	for i := 0; i < len(port); i++ {
+		if port[i] < '0' || port[i] > '9' {
+			return "", fmt.Errorf("config: HTTP_PORT must be a numeric port, got %q", port)
+		}
+	}
+	return ":" + port, nil
 }
 
 func envOr(key, fallback string) string {

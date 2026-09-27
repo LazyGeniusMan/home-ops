@@ -237,10 +237,41 @@ func secondsToDuration(secs float64) time.Duration {
 
 // parseHookHostPort splits a URL host[:port] authority and reports whether
 // it holds a syntactically usable host with an optional numeric port.
-// Userinfo must already be stripped (use u.Host, not u.netloc).
+// Userinfo must already be stripped (use u.Host, not u.netloc). Bracketed
+// IPv6 literals (e.g. "[::1]:8080") split on the bracket boundary, not the
+// first colon; unbracketed colons are rejected so IPv6 literals must use
+// brackets (matching u.Hostname's contract). Zone IDs ("%eth0") ride along
+// in the host and are validated as ordinary hostname characters.
 func parseHookHostPort(authority string) (host, port string, ok bool) {
-	host, port, _ = strings.Cut(authority, ":")
-	host = strings.TrimSpace(strings.Trim(host, "[]"))
+	rest := strings.TrimSpace(authority)
+	if strings.HasPrefix(rest, "[") {
+		end := strings.Index(rest, "]")
+		if end < 0 {
+			return "", "", false
+		}
+		host = strings.TrimSpace(rest[1:end])
+		rest = rest[end+1:]
+		if rest == "" {
+			// Bare "[::1]": no port.
+		} else if strings.HasPrefix(rest, ":") {
+			port = rest[1:]
+		} else {
+			return "", "", false
+		}
+	} else {
+		if strings.Contains(rest, ":") {
+			// Unbracketed IPv6 literals carry colons and are rejected here
+			// (callers must bracket them); host:port splits on the last
+			// colon so a stray colon elsewhere fails the port check below.
+			if strings.Count(rest, ":") != 1 {
+				return "", "", false
+			}
+			host, port, _ = strings.Cut(rest, ":")
+		} else {
+			host = rest
+		}
+	}
+	host = strings.TrimSpace(host)
 	if host == "" {
 		return "", "", false
 	}
@@ -248,7 +279,7 @@ func parseHookHostPort(authority string) (host, port string, ok bool) {
 		c := host[i]
 		letter := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 		digit := c >= '0' && c <= '9'
-		if letter || digit || c == '.' || c == '-' || c == '_' || c == '%' {
+		if letter || digit || c == '.' || c == '-' || c == '_' || c == '%' || c == ':' {
 			continue
 		}
 		return "", "", false

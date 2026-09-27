@@ -108,6 +108,15 @@ func TestApplyChangesHandlerBadJSON(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", rec.Code)
 	}
+	// Envelopes are fixed ("invalid request body"): raw decode detail stays
+	// server-side in the log, never in the client body.
+	var body map[string]string
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body["error"] != "invalid request body" {
+		t.Errorf("error = %q, want fixed invalid request body envelope", body["error"])
+	}
 }
 
 func TestAdjustEndpointsHandler(t *testing.T) {

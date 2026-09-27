@@ -5,6 +5,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -32,7 +33,9 @@ type Config struct {
 // Load reads configuration from the environment.
 func Load() (Config, error) {
 	cfg := Config{
-		PATFile:       os.Getenv("PROTON_PASS_PAT_FILE"),
+		// Trimmed: a trailing newline from secret mounts must not become
+		// part of the path (ReadPATFile would report a missing file).
+		PATFile:       strings.TrimSpace(os.Getenv("PROTON_PASS_PAT_FILE")),
 		ListenAddr:    envOr("LISTEN_ADDR", DefaultListenAddr),
 		PassCLIBinary: envOr("PASS_CLI_BIN", DefaultPassCLIBin),
 		SessionDir:    os.Getenv("PROTON_PASS_SESSION_DIR"),

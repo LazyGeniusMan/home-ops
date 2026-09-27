@@ -12,6 +12,17 @@ func TestLoadRequiresPATFile(t *testing.T) {
 	}
 }
 
+func TestLoadTrimsPATFile(t *testing.T) {
+	t.Setenv("PROTON_PASS_PAT_FILE", "  /run/secrets/pat\n")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.PATFile != "/run/secrets/pat" {
+		t.Errorf("PATFile = %q, want trimmed path", cfg.PATFile)
+	}
+}
+
 func TestLoadDefaults(t *testing.T) {
 	t.Setenv("PROTON_PASS_PAT_FILE", "/run/secrets/pat")
 	t.Setenv("LISTEN_ADDR", "")

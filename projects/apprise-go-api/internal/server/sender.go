@@ -442,7 +442,9 @@ func syncRemappedFields(payload *notifyRequest, fields map[string]any, isJSON bo
 // stageAttachments stages the winning attach alias value plus multipart
 // file parts under the per-file APPRISE_ATTACH_SIZE cap with the SSRF
 // policy applied. The caller removes staged files via attach.CleanupAll.
-func (s *Server) stageAttachments(payload *notifyRequest) ([]attach.Staged, error) {
+// The request context parents the bounded fetch so client disconnect
+// cancels an in-flight remote download or DNS lookup.
+func (s *Server) stageAttachments(ctx context.Context, payload *notifyRequest) ([]attach.Staged, error) {
 	stager := attach.NewStager(attach.Limits{
 		Dir:       s.cfg.AttachDir,
 		SizeMB:    s.cfg.AttachSizeMB,
@@ -450,7 +452,7 @@ func (s *Server) stageAttachments(payload *notifyRequest) ([]attach.Staged, erro
 		AllowURL:  s.cfg.AttachAllowURLOrDefault(),
 		RejectURL: s.cfg.AttachRejectURLOrDefault(),
 	})
-	return stager.StageRequest(payload.AttachRaw, payload.Files)
+	return stager.StageRequestCtx(ctx, payload.AttachRaw, payload.Files)
 }
 
 // remappedString coerces a remapped field value to a scalar string, mirroring
