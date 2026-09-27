@@ -107,8 +107,14 @@
     # quoted; uri coerces the rendered int to seconds at runtime.
     timeout: "{{ talos_render_schematic_factory_timeout }}"
   when: talos_render_schematic_need_upload and not ansible_check_mode
-  failed_when: false
+  # ignore_errors (not failed_when:false, which would skip the until loop)
+  # keeps the graceful assert below reachable while letting until retry.
+  ignore_errors: true
   register: talos_render_schematic_upload
+  # Factory POST is flaky on slow links; retry before the graceful assert below.
+  retries: 3
+  delay: 5
+  until: talos_render_schematic_upload.status is defined and talos_render_schematic_upload.status in [200, 201]
 
 - name: Fail gracefully when the factory upload fails
   ansible.builtin.assert:

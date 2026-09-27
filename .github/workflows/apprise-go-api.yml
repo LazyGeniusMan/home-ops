@@ -39,6 +39,7 @@ jobs:
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: projects/apprise-go-api/go.mod
+          cache: true
 
       - name: Vet
         run: go vet ./...
@@ -142,6 +143,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             VERSION=${{ steps.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Sign image
         if: steps.build.outputs.digest != ''

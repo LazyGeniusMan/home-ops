@@ -58,12 +58,20 @@
   changed_when: false
   register: talos_render_netbird_tofu_bin
 
+- name: Stat NetBird Terraform init marker
+  # Gate force_init below: only force init on a fresh dir (no .terraform/),
+  # so re-applies skip redundant re-init.
+  ansible.builtin.stat:
+    path: "{{ talos_netbird_terraform_dir }}/.terraform"
+  changed_when: false
+  register: talos_render_netbird_init_dir
+
 - name: Apply Talos NetBird fabric via Terraform
   community.general.terraform:
     project_path: "{{ talos_netbird_terraform_dir }}"
     binary_path: "{{ talos_render_netbird_tofu_bin.stdout | trim }}"
     state: present
-    force_init: true
+    force_init: "{{ not (talos_render_netbird_init_dir.stat.exists | default(false)) }}"
     variables:
       cluster_name: "{{ talos_cluster }}"
   environment:
