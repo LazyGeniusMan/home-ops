@@ -15,7 +15,7 @@ One direction only: `talos/` renders machines, `flux/` delivers workloads,
 | [`flux/infra/`](flux/infra/README.md) | Day 2 — platform | ~22 shared platform components (`controllers/` + `configs/`, `base` + `dev`/`prd` overlays) |
 | [`flux/apps/`](flux/apps/README.md) | Day 2 — workloads | 8 user-facing apps on the same base/overlay shape; each `dependsOn` infra |
 | [`flux/fleet/`](flux/fleet/README.md) | Day 2 — wiring | Per-cluster tenant wiring, update automation (`ResourceSet` + `ImageUpdateAutomation`), Terraform bootstrap of the Flux Operator |
-| [`projects/`](projects/) | Sources | Go services (`apprise-go-api`, `eso-proton-pass`, `external-dns-netbird`) and the `helm-rclone` chart — published as images/charts, consumed by Flux only |
+| [`projects/`](projects/) | Sources | Go services (`apprise-go-api`, `eso-proton-pass`, `external-dns-netbird`), `helm-rclone`, and `helm-*` charts for chartless upstreams (`helm-kubevirt`, `helm-multus`, `helm-gateway-api`, `helm-cosi`, `helm-otel-monitoring-crds`) — published as images/charts, consumed by Flux only |
 | [`.github/`](.github/WORKFLOW.md) | CI | Per-path validation and release workflows |
 | [`scripts/`](scripts/) | Release + docs tooling | Manual release tagging (`tag-release.sh`) and reference-docs refresh (`fetch-references.sh`) |
 
@@ -43,17 +43,12 @@ config is deliberately bare: no CNI, no DNS, no workloads, no telemetry.
 
 **Day 2 — GitOps takes over.** Terraform (under `flux/fleet/terraform/`) installs
 Cilium as a prerequisite, then provisions the Flux Operator — the only writer of
-cluster state. From there every deployment flows from git: tenant `ResourceSets`
-(5m) fan out to `Kustomizations` (30m); tenant `OCIRepositories` sync every 5m,
-chart `OCIRepositories` every 1h. Apps declare `dependsOn` infra and wait for
-`Ready`.
+cluster state. From there every deployment flows from git (reconcile cadences live in `flux/fleet/README.md` and the tenant files). Apps declare `dependsOn` infra and wait for `Ready`.
 
 **Promotion: dev soaks, stable ships.** First-party images publish `dev` and
 `stable` tracks. Image automation (`ImageRepository` scan 12h +
 `ImageUpdateAutomation` 30m with Setters) opens `image-updates-*` branches against
-dev; a human merges; dev greens first, then `stable` promotes to prd. The
-`helm-rclone` chart is the exception: bumped atomically by hand (Chart version
-+ all consumer pins together, no image policy).
+dev; a human merges; dev greens first, then `stable` promotes to prd. First-party `helm-*` charts are the exception: hand-bumped atomically (see AGENTS.md).
 
 ## Core platform
 
@@ -80,16 +75,12 @@ What `flux/infra/` guarantees before any app lands:
 - **Observability.** ClickHouse-native: the OTel operator + collectors ship
   telemetry to ClickHouse, HyperDX is the UI. No Prometheus/Grafana. Rules and
   endpoint conventions live in [`flux/OBSERVABILITY.md`](flux/OBSERVABILITY.md).
-- **Updates.** Images and charts update themselves: an update policy per component
-  (`ImageRepository` + semver `ImagePolicy`) plus a `# {"$imagepolicy":...}`
-  marker at each consumption site. Automation proposes, humans merge.
+- **Updates.** Images and charts update themselves via per-component update policies + `$imagepolicy` markers (see AGENTS.md). Automation proposes, humans merge.
 - **Supporting cast.** tofu-controller (the in-cluster Terraform runner:
   `approvePlan: auto`, `destroy: false`), VPA, metrics-server, CoreDNS, Multus,
   KubeVirt, external-dns-netbird sidecar.
 
-Workload standards apply everywhere: health checks and requests/limits on every
-Deployment, HPA for stateless (dev 1–2, prd 2–4), singletons for stateful unless
-an operator makes HA safe, VPA `Off` alongside HPA / `Initial` for singletons.
+Workload standards (health, resources, HPA/VPA/PDB, singletons) apply everywhere — see AGENTS.md.
 
 ## How apps consume the platform
 

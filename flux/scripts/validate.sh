@@ -1,13 +1,7 @@
 #!/usr/bin/env bash
 
 # Validate Flux custom resources and kustomize overlays using kubeconform.
-# Adapted from the upstream d2-fleet/d2-infra/d2-apps scripts/validate.sh
-# (Copyright 2023-2026 The Flux authors, Apache-2.0); pointed at this
-# monorepo's flux/ areas instead of a standalone repo root.
-#
-# This script downloads the Flux OpenAPI schemas, then it validates the
-# Flux custom resources and the kustomize overlays using kubeconform.
-# Meant to be run locally and in CI before changes are merged on main.
+# Downloads the Flux OpenAPI schemas, then validates raw manifests and kustomize overlays. Run locally and in CI before merging to main.
 #
 # Prerequisites
 # - yq >= 4.50
@@ -17,33 +11,19 @@
 set -o errexit
 set -o nounset
 set -o pipefail
-# Strict-mode contract matches scripts/tag-release.sh (errexit + nounset +
-# pipefail). scripts/fetch-references.sh omits errexit by design — its header
-# documents why (continue-on-error accounting).
+# Strict mode: errexit + nounset + pipefail (fetch-references.sh omits errexit by design).
 
 # mirror kustomize-controller build options
 kustomize_flags=("--load-restrictor=LoadRestrictionsNone")
 kustomize_config="kustomization.yaml"
 
-# ResourceSet copyFrom/copyTo stub Secrets carry no schema-meaningful fields
-# (plain `data`/`stringData`-less copies served from flux-system), so raw
-# manifests pre-filter them via yq before kubeconform instead of a blanket
-# `-skip=Secret` (which would also hide real Secret docs rendered by the
-# kustomize pass below). No SOPS usage remains in this repo.
+# Raw manifests pre-filter copyFrom/copyTo stub Secrets via yq (no blanket `-skip=Secret`; no SOPS in this repo).
 #
-# Schema-dir contract: download_schemas extracts both tarballs into the
-# versioned subdir /tmp/flux-crd-schemas/master-standalone-strict (Flux
-# "strict" layout: one <kind>-<group>-<version>.json per CRD at the top
-# level). kubeconform appends its normalized version subdir
-# (master-standalone-strict by default) onto each -schema-location entry,
-# so the flag points at the PARENT /tmp/flux-crd-schemas — pointing it at
-# the extracted subdir double-appends and every Flux CRD reports "skipped".
+# Schema-dir contract: -schema-location points at the PARENT /tmp/flux-crd-schemas (kubeconform appends the version subdir itself).
 kubeconform_flags=()
 kubeconform_config=("-strict" "-ignore-missing-schemas" "-schema-location" "default" "-schema-location" "/tmp/flux-crd-schemas" "-verbose")
 
-# copyFrom/copyTo annotation keys marking ResourceSet stub Secrets (excluded
-# from raw-manifest validation only; the kustomize pass validates the full
-# rendered output including every Secret).
+# copyFrom/copyTo annotation keys for stub Secrets (raw-manifest exclusion only).
 copy_stub_annotation_from="fluxcd.controlplane.io/copyFrom"
 copy_stub_annotation_to="fluxcd.controlplane.io/copyTo"
 
@@ -53,10 +33,7 @@ root_dir="."
 # directories to exclude from validation
 exclude_dirs=()
 
-# Directories auto-detected as non-Kubernetes. Ancestor dirs (not just the file
-# dir) are skipped: some are Terraform-enclosing shells whose .tf files live in
-# a nested terraform/ dir (find -name searches the whole subtree, so a flat
-# *.tf check alone would miss e.g. netbird/terraform/../controllers).
+# Auto-detected non-Kubernetes dirs (ancestor dirs skipped: Terraform-enclosing shells nest .tf under terraform/).
 declare -a auto_skip_dirs=()
 
 # directories that are kustomize overlays
@@ -118,10 +95,7 @@ check_prerequisites() {
   fi
 }
 
-# Schema pins track this repo's Flux pins: operator v0.60.0
-# (flux/fleet/terraform/versions.yaml operator_chart_version) and flux2 v2.9.5
-# (group_vars/all.yml, distribution/actions, .flox fluxcd). Bump all together.
-# sha256 values were taken from the release assets on 2026-09-26.
+# Schema pins track this repo's Flux pins (fleet terraform versions.yaml, group_vars/all.yml, .flox). Bump all together.
 FLUX_OPERATOR_SCHEMA_VERSION="v0.60.0"
 FLUX_OPERATOR_SCHEMA_SHA256="c062892eeac621948567464ae7688fcafa75c693bdfb170534cb221a56a194d8"
 FLUX2_SCHEMA_VERSION="v2.9.5"
@@ -196,11 +170,7 @@ is_non_kustomize_excluded_dir() {
   return 1
 }
 
-# Detect directories containing Terraform files, Helm charts, or kustomize overlays.
-# *.tf/Chart.yaml matching is name-exact (no globs). Only the marker file's own
-# directory is skipped: Terraform-enclosing shells (e.g. netbird/controllers
-# over the shared terraform/ root) hold only empty-shell kustomizations that
-# the kustomize pass below still builds, so they must stay in raw validation.
+# Detect Terraform/Helm/kustomize dirs. Only the marker file's own dir is skipped (enclosing shells still build in the kustomize pass).
 detect_excluded_dirs() {
   while IFS= read -r -d $'\0' file; do
     auto_skip_dirs+=("$(dirname "$file")")
@@ -222,10 +192,7 @@ validate_yaml_syntax() {
   done < <(find "$root_dir" -path '*/.*' -prune -o -type f -name '*.yaml' -print0)
 }
 
-# is_copy_stub_secret reports whether file holds ONLY copyFrom/copyTo stub
-# Secrets (every Secret doc carries the copy annotation) so raw-manifest
-# validation can pre-filter them. Files mixing stubs with real docs are kept
-# whole (a real Secret still fails validation as before).
+# True when a file holds ONLY copyFrom/copyTo stub Secrets (mixed files are kept whole).
 is_copy_stub_secret() {
   local file="$1"
   local total stubs
@@ -254,16 +221,12 @@ validate_kubernetes_manifests() {
   done < <(find "$root_dir" -path '*/.*' -prune -o -type f -name '*.yaml' -print0)
 }
 
-# probe_known_flux_schemas fails when a known Flux GVK has no local schema:
-# -ignore-missing-schemas would otherwise silently skip a mistyped
-# apiVersion/kind (e.g. a drifted CRD filename). Built-in kinds resolve via
-# the default registry; only Flux GVKs pinned here are probed.
+# Fail when a known Flux GVK has no local schema (-ignore-missing-schemas would hide mistyped apiVersion/kind).
 probe_known_flux_schemas() {
   echo "INFO - Probing known Flux schemas"
   local schema_dir="/tmp/flux-crd-schemas/master-standalone-strict"
   local missing=0
-  # "<apiVersion>/<Kind>:<schema-file>" pairs for the GVKs used under the
-  # validated root (fleet today: operator + toolkit + kustomize APIs).
+  # "<apiVersion>/<Kind>:<schema-file>" pairs for the GVKs used under the validated root.
   local -a known=(
     "fluxcd.controlplane.io/v1/ResourceSet:resourceset-fluxcd-v1.json"
     "fluxcd.controlplane.io/v1/ResourceSetInputProvider:resourcesetinputprovider-fluxcd-v1.json"

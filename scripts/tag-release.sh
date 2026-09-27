@@ -23,6 +23,7 @@ set -euo pipefail
 
 # One entry per release stream: "<tag-prefix>|<owning-workflow>".
 # To add a stream, append one line here matching .github/workflows on.push.tags.
+# No helm-* entries: fetch-time charts publish from the parsed Chart version on push (no git tags).
 PREFIX_ENTRIES=(
   "apprise-go-api-v|apprise-go-api.yml"
   "eso-proton-pass-v|eso-proton-pass.yml"

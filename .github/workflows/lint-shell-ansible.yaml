@@ -95,7 +95,4 @@ jobs:
       - name: Validate talosctl client pin
         shell: bash
         run: talosctl version --client
-      # Day-2 needs a live pass-cli session, so the check-mode dry run stays
-      # a local gate (AGENTS.md): ansible-playbook
-      # talos/ansible/playbooks/day2.yml -i localhost,
-      # -e talos_cluster=<cluster> --check --diff.
+      # Day-2 --check --diff stays a local gate (see AGENTS.md).

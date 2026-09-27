@@ -1,7 +1,5 @@
-# Daily check: compares Chart.yaml version against the nearest in-scope upstream
-# release (current-minor patch, else next minor — N-1 -> N only, operator-first);
-# opens a PR bumping Chart.yaml version + appVersion and the wrapper ref.tag together.
-# GitHub releases API (kubevirt/kubevirt, tag v<X.Y.Z> -> chart <X.Y.Z>).
+# Daily check: nearest in-scope release only (N-1 -> N);
+# bumps Chart.yaml + wrapper ref.tag together (see AGENTS.md).
 name: helm-kubevirt-check
 
 on:
