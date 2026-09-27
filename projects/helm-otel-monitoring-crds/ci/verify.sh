@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Verification: lint, fetch dry-run shape asserts, no-CRD-committed guard.
 # Run from anywhere: bash projects/helm-otel-monitoring-crds/ci/verify.sh (resolves the repo root itself).
-# shellcheck disable=SC2015  # `grep -q ... && ok ... || bad ...` assertion idiom used throughout: ok/bad only echo and bump counters and cannot fail, so the A&&B||C pitfall cannot trigger; if/else would triple the line count.
+# shellcheck disable=SC2015  # &&/|| assertion idiom: ok/bad cannot fail.
 set -euo pipefail
 
 CHART_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

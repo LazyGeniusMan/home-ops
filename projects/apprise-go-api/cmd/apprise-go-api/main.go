@@ -1,7 +1,5 @@
-// Command apprise-go-api is a stateless-only Go port of Python apprise-api:
-// POST /notify, request-scoped attachments, webhook remap/callback. Config
-// from the environment (secrets via *_FILE); traces via OTLP, metrics via
-// Prometheus.
+// Command apprise-go-api is a stateless-only notification API:
+// POST /notify, request-scoped attachments, webhook remap/callback.
 package main
 
 import (
@@ -50,8 +48,7 @@ func run() error {
 	}
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 
-	// Traces export to the infra otel-gateway OTLP collector (OTEL_EXPORTER_OTLP_ENDPOINT);
-	// Setup disables itself with OTEL_SDK_DISABLED=true.
+	// Traces export via OTLP; disabled with OTEL_SDK_DISABLED=true.
 	shutdownTracing, err := tracing.Setup(context.Background(), "apprise-go-api", version.Version)
 	if err != nil {
 		log.Warn("tracing disabled", "err", err)

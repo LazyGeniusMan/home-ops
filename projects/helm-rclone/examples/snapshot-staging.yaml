@@ -1,6 +1,5 @@
 # EXAMPLE ONLY — not applied by the chart. External scheduler snapshots the
-# live claim and restores to staging; the chart syncs from staging. Needs
-# snapshot-capable CSI + VolumeSnapshotClass (not local-ssd-nvme).
+# live claim and restores to staging; the chart syncs from staging.
 ---
 apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshot

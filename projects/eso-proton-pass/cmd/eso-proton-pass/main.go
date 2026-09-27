@@ -36,8 +36,7 @@ func run() error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	// Traces export to the infra otel-gateway OTLP collector (OTEL_EXPORTER_OTLP_ENDPOINT);
-	// Setup disables itself with OTEL_SDK_DISABLED=true.
+	// Traces export via OTLP; disabled with OTEL_SDK_DISABLED=true.
 	shutdownTracing, err := tracing.Setup(context.Background(), "eso-proton-pass", version.Version)
 	if err != nil {
 		logger.Warn("tracing disabled", slog.Any("err", err))
@@ -66,10 +65,8 @@ func run() error {
 	prov := provider.New(client, logger)
 	srv := server.New(prov, logger)
 
-	// Timeouts mirror the external-dns-netbird webhook listener: header
-	// reads capped at 10s, full reads at 30s, writes at 60s, idle at
-	// 120s, 1 MiB header cap. The POST /get body has its own 64 KiB
-	// MaxBytesReader bound in the handler.
+	// Listener timeouts: 10s header / 30s full reads, 60s writes, 120s idle,
+	// 1 MiB header cap. POST /get body is capped at 64 KiB in the handler.
 	httpServer := &http.Server{
 		Addr:              cfg.ListenAddr,
 		Handler:           srv.Handler(),
@@ -91,8 +88,7 @@ func run() error {
 
 	select {
 	case <-ctx.Done():
-		// SIGINT/SIGTERM (docker stop) drains in-flight requests before the
-		// process exits: bounded Shutdown lets handlers finish.
+		// SIGINT/SIGTERM drains in-flight requests (bounded Shutdown).
 		logger.Info("shutting down", slog.String("reason", ctx.Err().Error()))
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -104,8 +100,7 @@ func run() error {
 		logger.Info("drained")
 		return nil
 	case err := <-errCh:
-		// Listener failed: shut down gracefully before returning so no
-		// in-flight request is orphaned.
+		// Listener failed: shut down gracefully before returning.
 		if err != nil {
 			logger.Error("listener failed, shutting down", slog.Any("err", err))
 		}

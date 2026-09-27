@@ -20,7 +20,7 @@ type Limits struct {
 	// MaxCount caps attachments per request; 0 = unlimited.
 	MaxCount int
 	// AllowURL is the SSRF allowlist (APPRISE_ATTACH_ALLOW_URL);
-	// empty means "*" (Python's default).
+	// empty means "*".
 	AllowURL string
 	// RejectURL is the SSRF denylist (APPRISE_ATTACH_REJECT_URL);
 	// empty disables denials.
@@ -109,8 +109,7 @@ func HasAttachment(staged []Staged, payload any) bool {
 	entries, _ := normalizePayload(payload)
 	for _, e := range entries {
 		if s, ok := e.raw.(string); ok {
-			// Blank strings are ignored entries (Python decrements and
-			// moves along), so they do not satisfy the body rule.
+			// Blank strings are ignored entries, so they do not satisfy the body rule.
 			if strings.TrimSpace(s) != "" {
 				return true
 			}

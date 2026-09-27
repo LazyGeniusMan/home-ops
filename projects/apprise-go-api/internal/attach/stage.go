@@ -15,14 +15,14 @@ import (
 	"time"
 )
 
-// maxFilenameLen caps attachment filenames, mirroring Python's 250-char cap.
+// maxFilenameLen caps attachment filenames (250 chars).
 const maxFilenameLen = 250
 
 // defaultFetchTimeout bounds remote attachment downloads.
 const defaultFetchTimeout = 30 * time.Second
 
 // Incoming is one multipart file part offered for staging. Any form field
-// name is accepted, mirroring Python's request.FILES handling.
+// name is accepted.
 type Incoming struct {
 	// Field is the form field name the part arrived under.
 	Field string
@@ -56,9 +56,8 @@ type Stager struct {
 	client *http.Client
 }
 
-// NewStager builds a Stager from lim. An empty AllowURL defaults to "*"
-// (Python's APPRISE_ATTACH_ALLOW_URL default); an empty RejectURL disables
-// denials. A non-positive FetchTimeout defaults to 30s.
+// NewStager builds a Stager from lim. An empty AllowURL defaults to "*";
+// an empty RejectURL disables denials. Non-positive FetchTimeout → 30s.
 func NewStager(lim Limits) *Stager {
 	allow := lim.AllowURL
 	if strings.TrimSpace(allow) == "" {
@@ -83,17 +82,14 @@ func NewStager(lim Limits) *Stager {
 }
 
 // StageRequest stages a request's attachments (payload entries + multipart
-// parts in order; 1-based attachment.NNN numbering). Disabled/over-count/
-// over-size content is a 400. It carries a Background context (see
-// StageRequestCtx): use that from request handlers so client disconnect
-// cancels the bounded remote fetch.
+// parts; 1-based attachment.NNN numbering). Disabled/over-count/
+// over-size content is a 400.
 func (s *Stager) StageRequest(payload any, files []Incoming) ([]Staged, error) {
 	return s.StageRequestCtx(context.Background(), payload, files)
 }
 
 // StageRequestCtx is StageRequest with the request context threaded into
-// the remote fetch (fetch timeout) and the `internal` SSRF deny rule's DNS
-// lookup. Client disconnect cancels an in-flight download or resolution.
+// the remote fetch and the SSRF deny rule's DNS lookup.
 func (s *Stager) StageRequestCtx(ctx context.Context, payload any, files []Incoming) ([]Staged, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -101,7 +97,7 @@ func (s *Stager) StageRequestCtx(ctx context.Context, payload any, files []Incom
 	entries, scalar := normalizePayload(payload)
 	count := len(entries) + len(files)
 	if scalar && len(entries) == 0 {
-		// Top-level garbage (numbers, bools, ...) is ignored, like Python.
+		// Top-level non-object payloads are ignored.
 		// An empty payload with no files stages nothing.
 		if len(files) == 0 {
 			return nil, nil
@@ -411,8 +407,7 @@ func (s *Stager) fetch(reqCtx context.Context, rawURL, name string, maxBytes int
 	return resp.Body, mimeType, nil
 }
 
-// isWebURL reports whether raw is an http(s) URL with content after the
-// scheme, mirroring Python's ^https?://.+ check.
+// isWebURL reports whether raw is an http(s) URL with content after the scheme.
 func isWebURL(raw string) bool {
 	lower := strings.ToLower(raw)
 	for _, prefix := range []string{"http://", "https://"} {
@@ -445,8 +440,8 @@ func remoteName(rawURL, fallback string) string {
 	return fallback
 }
 
-// decodeBase64 strictly decodes base64 content, ignoring ASCII whitespace
-// (which Python's b64decode tolerates). Non-alphabet input is a 400.
+// decodeBase64 strictly decodes base64 content, ignoring ASCII whitespace.
+// Non-alphabet input is a 400.
 func decodeBase64(raw string) ([]byte, error) {
 	clean := strings.Map(func(r rune) rune {
 		switch r {

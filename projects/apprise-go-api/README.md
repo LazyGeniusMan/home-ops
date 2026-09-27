@@ -82,7 +82,7 @@ as its server tags.
 
 | Header | Behavior |
 |---|---|
-| `X-Apprise-Recursion-Count` | Missing → `0`. Negative or unparseable → `400`. Over `APPRISE_RECURSION_MAX` → **`406`** (not 405) |
+| `X-Apprise-Recursion-Count` | Missing → `0`. Negative or unparseable → `400`. Over max → `406` |
 | `X-Apprise-ID` | Accepted and logged (no per-send identity knob in the engine) |
 | `X-Apprise-Log-Level` | Must be `CRITICAL\|ERROR\|WARNING\|INFO\|DEBUG\|TRACE` (case-insensitive); unknown values fall back to the service default |
 | `Accept` | `application/json` → JSON; `text/html` or `text/*` → HTML; anything else → plain text. Missing/empty `Accept` falls back to the request `Content-Type` |
@@ -157,8 +157,8 @@ zero persistence — no volume is required or used.
 
 ### Three mechanisms
 
-1. **Multipart file parts** — any form field name is accepted (mirrors
-   Python's `request.FILES`). Blank filenames fall back to
+1. **Multipart file parts** — any form field name is accepted.
+   Blank filenames fall back to
    `attachment.NNN`; `application/octet-stream` parts are re-typed from
    the filename.
 2. **Remote `http(s)` URLs** — plain string values are downloaded
@@ -180,7 +180,7 @@ The winning alias is `attach` > `attachment` > `attachments`
 | `APPRISE_MAX_ATTACHMENTS` | `6` (per request) | `0` = unlimited; over-limit → `400` |
 | `APPRISE_UPLOAD_MAX_MEMORY_SIZE` | `3` (MiB body budget) | Bounds JSON, multipart, and urlencoded bodies; oversize → `431` |
 | JSON value shape | depth 32, 10000 entries, 1 MiB strings | Over-cap graph → `400` (malformed shape, not `431`) |
-| JSON `urls` | 1024 chars/entries | Over-cap dropped (→ `204`), mirroring the form path; the byte budget (`APPRISE_UPLOAD_MAX_MEMORY_SIZE`) still caps first (→ `431`) |
+| JSON `urls` | 1024 chars/entries | Over-cap dropped (→ `204`); the byte budget still caps first (→ `431`) |
 | filename length | 250 chars | Longer → `400` |
 | multipart parse memory | `APPRISE_UPLOAD_MAX_MEMORY_SIZE` | Spills to disk beyond this |
 
@@ -309,15 +309,15 @@ not read; non-`disabled` `APPRISE_STATEFUL_MODE` or non-`no`
 
 ## Error / status-code table
 
-| Code | When | Python-parity notes |
+| Code | When | Notes |
 |---|---|---|
 | `200` | All targets accepted | Body negotiated (JSON / HTML / text) |
-| `204` | No valid target URLs survived validation/policy | `"There was no valid URLs provided to notify"` (upstream wording preserved) |
-| `400` | Invalid JSON; empty/unknown form; remap failure; bad tag; bad attachment/SSRF/oversize file; minimum-requirements failure; bad format; bad recursion | Bodies use the fixed upstream literals |
+| `204` | No valid target URLs survived validation/policy | `"There was no valid URLs provided to notify"` (upstream wording) |
+| `400` | Invalid JSON; empty/unknown form; remap failure; bad tag; bad attachment/SSRF/oversize file; minimum-requirements failure; bad format; bad recursion | Fixed literal bodies |
 | `405` | Non-POST on `/notify{,/}`; non-GET on `/status`, `/details` | `Allow` header set |
-| `406` | Recursion count over max | Upstream quirk (406, not 405) |
+| `406` | Recursion count over max | 406, not 405 |
 | `424` | At least one target failed delivery | Partial failures surface as errors, not partial 200s |
-| `431` | JSON body over `APPRISE_UPLOAD_MAX_MEMORY_SIZE` | Upstream `to large` typo preserved verbatim |
+| `431` | JSON body over `APPRISE_UPLOAD_MAX_MEMORY_SIZE` | `to large` typo preserved verbatim |
 | `404` | Any other path (keyed `/notify/{KEY}`, `/add/`, `/cfg/`, …) | Stateless-only: no per-key storage routes exist |
 
 ## Layout
@@ -358,18 +358,14 @@ version; no `:latest`. Consumed in Flux via
 
 ## Divergence from upstream
 
-Intentional differences from Python `apprise-api`:
-
-| Area | This project behavior |
-|---|---|
-| Scope | Stateless-only; stateful paths are `404`, storage knobs rejected at startup |
-| Recursion limit | Same `406` preserved (upstream quirk) |
-| Oversize body message | Same `to large` typo preserved verbatim |
-| Response logs | Records synthesized server-side as `[level, date, message]` |
-| Tag matching | `all` matches everything; other tokens match only URL `?tag=` values |
-| Form `urls` length | Same 1024-char cap; JSON path bypasses it |
-| `ALLOWED_HOSTS`, `WORKER_COUNT`, `APPRISE_INTERPRET_EMOJIS`, `APPRISE_HTTP_REDIRECTS` | Accepted no-ops like `APPRISE_PLUGIN_PATHS` (forward-compat only) |
-| `APPRISE_PLUGIN_PATHS` | Accepted no-op (no dynamic plugin loading in Go) |
-| Outbound webhook | Best-effort POST of `{source, status, output}`; failures logged only; no trace headers (third-party endpoint) |
-| Send pipeline | Per-call `TIMEOUT` caller deadline (metric `apprise_go_api_send_timeouts_total` + warn log; backend has no abort, the worker may still be delivering), max 64 in-flight with the slot held until the worker exits (over-cap → `503`); list-form tags validated per token (invalid → `400`; Python passes lists through unvalidated, so this turns silent-204 typos into explicit 400s) |
-| Probes | `/readyz` writability probe never creates the staging dir (missing dir → `503`), matching the request path which refuses to auto-create |
+Stateless-only port of Python `apprise-api`: stateful paths are `404` and
+storage knobs fail startup unless `APPRISE_STATEFUL_MODE=disabled` /
+`APPRISE_STATELESS_STORAGE=no`. Response logs are server-synthesized
+`[level, date, message]` triples. `204`/`400`/`406`/`431` bodies keep
+upstream wording (including the `to large` typo). `ALLOWED_HOSTS`,
+`WORKER_COUNT`, `APPRISE_PLUGIN_PATHS`, `APPRISE_INTERPRET_EMOJIS`, and
+`APPRISE_HTTP_REDIRECTS` are accepted no-ops. The outbound webhook
+best-effort POSTs `{source, status, output}` with no trace headers. Send
+pipeline: per-call `TIMEOUT` caller deadline, max 64 in-flight (over-cap →
+`503`); list-form tags are validated per token (invalid → `400`). The
+`/readyz` probe never creates the staging dir.

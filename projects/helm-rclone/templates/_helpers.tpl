@@ -1,6 +1,6 @@
-{{/* Shared helpers (helm-rclone.* prefix). All per-backend env/volume logic lives here; cronjob.yaml only includes helpers, so all 10 directions render from one generic template. */}}
+{{/* Shared helpers (helm-rclone.* prefix): one generic template renders all 10 directions. */}}
 
-{{/* Full name: <release>-<chart>, honouring nameOverride/fullnameOverride. */}}
+{{/* Full name: <release>-<chart>. */}}
 {{- define "helm-rclone.fullname" -}}
 {{- if .Values.fullnameOverride -}}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
@@ -30,11 +30,7 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 
-{{/* Container image. rclone.version overrides image.tag and rclone.digest
-overrides image.digest; the result must be tag@digest, never tag-only or
-"latest". A version override without its own digest fails instead of going
-tag-only: rclone.digest defaults to image.digest only when no version
-override is set. */}}
+{{/* Container image: result must be tag@digest, never tag-only or "latest". A version override needs its own digest. */}}
 {{- define "helm-rclone.image" -}}
 {{- $versionOverride := .Values.rclone.version | default "" | toString -}}
 {{- $digest := .Values.rclone.digest | default "" | toString -}}
@@ -52,7 +48,7 @@ override is set. */}}
 {{- printf "%s:%s@%s" .Values.image.repository $tag $digest -}}
 {{- end -}}
 
-{{/* rclone.operation must be a one-shot transfer: sync (mirror default) or copy. Never anything long-lived. */}}
+{{/* rclone.operation must be sync (default) or copy. */}}
 {{- define "helm-rclone.operation" -}}
 {{- if not (has .Values.rclone.operation (list "sync" "copy")) -}}
 {{- fail (printf "rclone.operation %q is invalid: must be \"sync\" or \"copy\" (one-shot only)" (.Values.rclone.operation | toString)) -}}
@@ -60,7 +56,7 @@ override is set. */}}
 {{- print .Values.rclone.operation -}}
 {{- end -}}
 
-{{/* restartPolicy must satisfy the Jobs requirement (OnFailure or Never). */}}
+{{/* restartPolicy must be OnFailure or Never (Jobs requirement). */}}
 {{- define "helm-rclone.restartPolicy" -}}
 {{- if not (has .Values.restartPolicy (list "OnFailure" "Never")) -}}
 {{- fail (printf "restartPolicy %q is invalid: Jobs require OnFailure or Never" (.Values.restartPolicy | toString)) -}}
@@ -75,7 +71,7 @@ override is set. */}}
 {{- print .Values.concurrencyPolicy -}}
 {{- end -}}
 
-{{/* Endpoint type guard. Expects dict {type, role}. */}}
+{{/* Endpoint type guard. */}}
 {{- define "helm-rclone.validateType" -}}
 {{- if not .type -}}
 {{- fail (printf "%s.type is required: must be one of pvc-rwo, pvc-rwx, s3, proton-drive" .role) -}}
@@ -85,7 +81,7 @@ override is set. */}}
 {{- end -}}
 {{- end -}}
 
-{{/* Remote name for RCLONE_CONFIG_<REMOTE>_*. Expects dict {endpoint, default}: explicit remoteName (uppercased, validated) wins, else the side default. */}}
+{{/* Remote name for RCLONE_CONFIG_<REMOTE>_*. Expects dict {endpoint, default}. */}}
 {{- define "helm-rclone.remoteName" -}}
 {{- $override := .endpoint.remoteName | default "" | toString -}}
 {{- if $override -}}
@@ -99,7 +95,7 @@ override is set. */}}
 {{- end -}}
 {{- end -}}
 
-{{/* One env entry from any of the four value sources (value | secretRef | configMapRef | esoRef/existingSecret; plain string = {value}). Expects dict {name, field, ctx}. */}}
+{{/* One env entry from any value source (value | secretRef | configMapRef | esoRef/existingSecret). */}}
 {{- define "helm-rclone.renderEnv" -}}
 {{- $name := .name -}}
 {{- $field := .field -}}
@@ -140,12 +136,7 @@ override is set. */}}
   {{- end -}}
 {{- end -}}
 
-{{/* Required credential field: fail fast on absent/null/empty/placeholder, else
-render. Accepts any ref source (value/secretRef/configMapRef/esoRef) but
-rejects literal placeholder sentinels that would otherwise pass validation.
-The EXAMPLE guard matches the full AWS example-key shape
-(^AKIA...EXAMPLE$) so real values containing "example" (e.g. a bucket named
-example-backups) never trip it. */}}
+{{/* Required credential field: fail fast on absent/null/empty/placeholder, else render. */}}
 {{- define "helm-rclone.renderRequired" -}}
 {{- $ctx := printf "%s: %s" .ctx .desc -}}
 {{- if not (hasKey .creds .key) }}{{ fail (printf "%s is required" $ctx) }}{{ end -}}
@@ -166,7 +157,7 @@ example-backups) never trip it. */}}
 {{ include "helm-rclone.renderEnv" (dict "name" .name "field" $f "ctx" $ctx) }}
 {{- end -}}
 
-{{/* Optional credential field: skip when absent/null/empty-literal, else render. Expects dict {name, creds, key, ctx}. */}}
+{{/* Optional credential field: skip when absent/null/empty-literal, else render. */}}
 {{- define "helm-rclone.renderOptional" -}}
 {{- if hasKey .creds .key -}}
 {{- $f := index .creds .key -}}
@@ -181,9 +172,7 @@ example-backups) never trip it. */}}
 {{- end -}}
 {{- end -}}
 
-{{/* Uri presence guard: fails when the uri key is absent, null, or an empty
-literal (empty string / empty value map). Ref sources (secretRef,
-configMapRef, esoRef) always pass: their content resolves at runtime. */}}
+{{/* Uri presence guard: fails on absent/null/empty literal. Ref sources pass (resolve at runtime). */}}
 {{- define "helm-rclone.requireUri" -}}
 {{- if not (hasKey .endpoint "uri") }}{{ fail (printf "%s.uri is required: set the claim name (pvc-*), bucket/path (s3), or path (proton-drive) via one of value, secretRef, configMapRef, esoRef" .role) }}{{ end -}}
 {{- $uri := .endpoint.uri -}}
@@ -192,7 +181,7 @@ configMapRef, esoRef) always pass: their content resolves at runtime. */}}
 {{- if and (kindIs "map" $uri) (hasKey $uri "value") }}{{ if eq ($uri.value | toString | trim) "" }}{{ fail (printf "%s.uri is required (got empty value): set the claim name (pvc-*), bucket/path (s3), or path (proton-drive)" .role) }}{{ end }}{{ end -}}
 {{- end -}}
 
-{{/* "1" when a uri uses a ref source (needs <PREFIX>_PATH indirection). */}}
+{{/* "1" when a uri uses a ref source. */}}
 {{- define "helm-rclone.uriIsRef" -}}
 {{- $uri := .uri -}}
 {{- if kindIs "map" $uri -}}
@@ -200,7 +189,7 @@ configMapRef, esoRef) always pass: their content resolves at runtime. */}}
 {{- end -}}
 {{- end -}}
 
-{{/* Literal path suffix for a remote uri (caller handles the ref case via <PREFIX>_PATH). */}}
+{{/* Literal path suffix for a remote uri. */}}
 {{- define "helm-rclone.uriLiteral" -}}
 {{- $uri := .uri -}}
 {{- if kindIs "invalid" $uri }}{{- print "" -}}
@@ -209,7 +198,7 @@ configMapRef, esoRef) always pass: their content resolves at runtime. */}}
 {{- end -}}
 {{- end -}}
 
-{{/* Existing claim name for a pvc-* endpoint (claimName cannot use valueFrom: ref sources fail fast). Expects dict {endpoint, role}. */}}
+{{/* Existing claim name for a pvc-* endpoint (claimName cannot use valueFrom). */}}
 {{- define "helm-rclone.claimName" -}}
 {{- $ctx := printf "%s.uri (PVC claim name)" .role -}}
 {{- $uri := .endpoint.uri -}}
@@ -230,7 +219,7 @@ configMapRef, esoRef) always pass: their content resolves at runtime. */}}
 {{- end -}}
 {{- end -}}
 
-{{/* Rclone path arg: pvc-* → mount path; remotes → REMOTE:path (or REMOTE:$(<PREFIX>_PATH) for ref uris). Expects dict {endpoint, role, prefix, slot}. */}}
+{{/* Rclone path arg: pvc-* → mount path; remotes → REMOTE:path (or REMOTE:$(<PREFIX>_PATH) for ref uris). */}}
 {{- define "helm-rclone.endpointArg" -}}
 {{- $ep := .endpoint -}}
 {{- include "helm-rclone.validateType" (dict "type" $ep.type "role" .role) -}}
@@ -247,7 +236,7 @@ configMapRef, esoRef) always pass: their content resolves at runtime. */}}
 {{- end -}}
 {{- end -}}
 
-{{/* Full env list for one endpoint (pvc-* emits nothing). Expects dict {endpoint, role, prefix}. */}}
+{{/* Full env list for one endpoint (pvc-* emits nothing). */}}
 {{- define "helm-rclone.endpointEnv" -}}
 {{- $ep := .endpoint -}}
 {{- $role := .role -}}
@@ -289,7 +278,7 @@ configMapRef, esoRef) always pass: their content resolves at runtime. */}}
 {{- end }}
 {{- end -}}
 
-{{/* One persistentVolumeClaim volume item for a pvc-* endpoint, else "". Expects dict {endpoint, role, vol}. */}}
+{{/* One PVC volume item for a pvc-* endpoint, else "". */}}
 {{- define "helm-rclone.endpointVolume" -}}
 {{- $ep := .endpoint -}}
 {{- include "helm-rclone.validateType" (dict "type" $ep.type "role" .role) -}}
@@ -300,7 +289,7 @@ configMapRef, esoRef) always pass: their content resolves at runtime. */}}
 {{- end -}}
 {{- end -}}
 
-{{/* One volumeMount for a pvc-* endpoint, else "". Expects dict {endpoint, role, vol, slot, readOnly}. */}}
+{{/* One volumeMount for a pvc-* endpoint, else "". */}}
 {{- define "helm-rclone.endpointVolumeMount" -}}
 {{- $ep := .endpoint -}}
 {{- include "helm-rclone.validateType" (dict "type" $ep.type "role" .role) -}}
@@ -311,7 +300,7 @@ configMapRef, esoRef) always pass: their content resolves at runtime. */}}
 {{- end -}}
 {{- end -}}
 
-{{/* Full `volumes:` block for the pod, or "" when neither side is a PVC (remote-to-remote). */}}
+{{/* Full `volumes:` block, or "" for remote-to-remote. */}}
 {{- define "helm-rclone.volumes" -}}
 {{- $src := include "helm-rclone.endpointVolume" (dict "endpoint" .source "role" "source" "vol" "src") | trim -}}
 {{- $dst := include "helm-rclone.endpointVolume" (dict "endpoint" .destination "role" "destination" "vol" "dst") | trim -}}
@@ -326,7 +315,7 @@ volumes:
 {{- end -}}
 {{- end -}}
 
-{{/* Merged pod affinity: user .Values.affinity base + required coLocateWith podAffinity term appended (merged, never replaced). Expects root context. */}}
+{{/* Merged pod affinity: user .Values.affinity + required coLocateWith term. */}}
 {{- define "helm-rclone.affinity" -}}
 {{- $user := .Values.affinity | default dict -}}
 {{- $sel := .Values.coLocateWith | default dict -}}
@@ -353,7 +342,7 @@ volumes:
 {{- end -}}
 {{- end -}}
 
-{{/* Full `volumeMounts:` block for the container, or "" when neither side is a PVC. */}}
+{{/* Full `volumeMounts:` block, or "" when neither side is a PVC. */}}
 {{- define "helm-rclone.volumeMounts" -}}
 {{- $src := include "helm-rclone.endpointVolumeMount" (dict "endpoint" .source "role" "source" "vol" "src" "slot" "src" "readOnly" "true") | trim -}}
 {{- $dst := include "helm-rclone.endpointVolumeMount" (dict "endpoint" .destination "role" "destination" "vol" "dst" "slot" "dst" "readOnly" "false") | trim -}}

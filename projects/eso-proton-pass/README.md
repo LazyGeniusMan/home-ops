@@ -94,11 +94,6 @@ Probes: `/healthz` (liveness) and `/readyz` (readiness) on `:8080`
 60s writes, 120s idle, 1 MiB header cap. Shutdown drains in-flight
 requests (10s bound).
 
-## Telemetry-off evidence
-
-Telemetry off on every exec, as image `ENV`, and asserted in tests
-(`PASS_LOG_LEVEL=off`, `PROTON_PASS_KEY_PROVIDER=fs` on both layers).
-
 ## Image
 
 Published to `ghcr.io/lazygeniusman/home-ops/projects/eso-proton-pass`:
@@ -110,8 +105,6 @@ Consumed in Flux via `{"$imagepolicy": "infra:eso-proton-pass:tag"}` in
 `flux/infra/components/external-secrets/configs/base/eso-proton-pass-webhook.yaml`
 (policy `flux/infra/update-policies/external-secrets.yaml`).
 
-Multi-stage build: `golang:1.26.7` + `pass-cli` 2.3.3 →
-`distroless/base-debian13` (nonroot 65532), exposing 8080; see the
-Dockerfile for pins. The pass-cli pin bumps as a triple: Dockerfile
-`ARG PASS_CLI_VERSION` + per-arch `_sha256` + `proton-pass-cli` in
-`.flox/env/manifest.toml`.
+Multi-stage build (`golang` + `pass-cli` → distroless nonroot, port 8080;
+see the Dockerfile for pins). Telemetry off on every exec and as image
+`ENV`. The pass-cli pin bumps as a triple (see the Dockerfile header).

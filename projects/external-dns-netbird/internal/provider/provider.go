@@ -129,9 +129,9 @@ func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 	return endpoints, nil
 }
 
-// AdjustEndpoints normalizes candidates for parity with Records: drops
-// unsupported types, lower-cases names, upper-cases types, fills missing
-// TTLs so the planner sees no spurious diffs.
+// AdjustEndpoints normalizes candidates to match Records: drops
+// unsupported types, normalizes case, fills missing TTLs so the planner
+// sees no spurious diffs.
 func (p *Provider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*endpoint.Endpoint, error) {
 	adjusted := make([]*endpoint.Endpoint, 0, len(endpoints))
 	for _, ep := range endpoints {

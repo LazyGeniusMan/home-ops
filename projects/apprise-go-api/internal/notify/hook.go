@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-// Hook timeout defaults mirror apprise URLBase socket defaults (seconds).
+// Hook timeout defaults in seconds.
 const (
 	defaultHookConnectTimeout = 4.0
 	defaultHookReadTimeout    = 4.0
@@ -28,9 +28,8 @@ const (
 	maxHookBodyDrain = 64 << 10
 )
 
-// hookTemplateArgs mirrors apprise URLBase.template_args: query keys
-// consumed by URL handling itself (redirect/cto/rto) are not
-// forwarded as request params.
+// hookTemplateArgs are query keys consumed by URL handling itself
+// (redirect/cto/rto), not forwarded as request params.
 var hookTemplateArgs = map[string]struct{}{
 	"redirect": {}, "cto": {}, "rto": {},
 }
@@ -62,7 +61,7 @@ type parsedHook struct {
 	// params are the extra query keys forwarded as request params.
 	params url.Values
 	// username/password hold embedded basic-auth credentials (nil
-	// password when only a user is present, mirroring request_auth).
+	// password when only a user is present).
 	username string
 	password *string
 	// connectTimeout/readTimeout bound dial and full-response reads.
@@ -70,11 +69,9 @@ type parsedHook struct {
 	readTimeout    time.Duration
 }
 
-// ParseHookURL validates raw as an outbound webhook URL, mirroring the
-// send_webhook gate chain: the URL must carry a scheme, parse cleanly,
-// use http/https, and hold a usable host. It returns the stripped endpoint,
-// forwarded params, auth, and timeouts. TLS verification is always on: a
-// '?verify=' query value is rejected outright so callers cannot disable it.
+// ParseHookURL validates raw as an outbound webhook URL: it must carry a
+// scheme, parse cleanly, use http/https, and hold a usable host. TLS
+// verification is always on: '?verify=' is rejected outright.
 func ParseHookURL(raw string) (*parsedHook, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
@@ -95,9 +92,7 @@ func ParseHookURL(raw string) (*parsedHook, error) {
 	if host == "" {
 		return nil, fmt.Errorf("notify: webhook URL is not parseable")
 	}
-	// Mirror apprise parse_url strictness: hosts that survive only as
-	// opaque path fragments or bare symbols (e.g. "http://$#@" where the
-	// fragment swallows the tail) are unparseable.
+	// Hosts that survive only as opaque path fragments are unparseable.
 	if _, _, ok := parseHookHostPort(u.Host); !ok {
 		return nil, fmt.Errorf("notify: webhook URL is not parseable")
 	}
@@ -143,8 +138,7 @@ func ParseHookURL(raw string) (*parsedHook, error) {
 
 // SendHook posts payload to rawURL. An empty rawURL is a no-op (false).
 // Validation and transport failures are logged and swallowed so the hook
-// never alters the notify response; the boolean reports whether the POST
-// was attempted (mirroring the requests.post call-count contract).
+// never alters the notify response.
 func (c *HookClient) SendHook(ctx context.Context, rawURL string, payload HookPayload) (attempted bool) {
 	log := c.Log
 	if log == nil {
@@ -216,8 +210,7 @@ func hookTransport(hook *parsedHook) http.RoundTripper {
 }
 
 // parseHookFloat parses a timeout query value in seconds; unparseable or
-// negative values fall back to the default, mirroring apprise's float
-// template-arg handling.
+// negative values fall back to the default.
 func parseHookFloat(raw string, fallback float64) float64 {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {

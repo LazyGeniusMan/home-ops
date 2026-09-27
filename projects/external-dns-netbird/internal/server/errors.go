@@ -13,8 +13,7 @@ import (
 	nbprovider "github.com/LazyGeniusMan/home-ops/projects/external-dns-netbird/internal/provider"
 )
 
-// statusCodeOf maps webhook errors to HTTP statuses. It mirrors the apprise
-// attach.StatusCodeOf shape: typed match first, 500 fallback.
+// statusCodeOf maps webhook errors to HTTP statuses: typed match first, 500 fallback.
 func statusCodeOf(err error) int {
 	if err == nil {
 		return http.StatusOK

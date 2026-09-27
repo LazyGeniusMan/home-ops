@@ -45,22 +45,15 @@ if [[ "$CHECK" == true ]]; then
 fi
 
 mkdir -p "$OUT"
-# Integrity: --fail rejects HTTP errors; the marker/kind greps below prove
-# shape. None of these upstreams publishes a detached signature for the
-# fetched YAML, so no signature check is possible here — if a publisher
-# starts signing, verify the signature before the shape checks.
+# --fail rejects HTTP errors; marker/kind greps prove shape (no upstream signature exists to check).
 RAW="$OUT/multus-daemonset-thick.yml.raw"
 curl -sSL --fail --retry 3 --max-time 120 -o "$RAW" "$URL"
 grep -q 'network-attachment-definitions.k8s.cni.cncf.io' "$RAW" \
   || { echo "shape check failed: NAD CRD missing in $RAW" >&2; exit 1; }
 
-# Narrowing 1/2 — ClusterRole: upstream grants k8s.cni.cncf.io:* on verbs *;
-# this repo keeps NAD get/list/watch + pods get/list/watch/update +
-# pods/status get/update/patch + events create/patch (matches the previously
-# vendored flux/infra/components/multus/controllers/base/multus-daemonset.yaml).
-# Narrowing 2/2 — images: upstream ships snapshot-thick placeholders; both
-# image fields (daemon + install-multus-binary init container) re-pin together
-# to ghcr.io/k8snetworkplumbingwg/multus-cni:<tag>-thick (never snapshot-thick).
+# Narrowing 1/2 — ClusterRole: keep NAD get/list/watch + pods
+# get/list/watch/update + pods/status get/update/patch + events create/patch.
+# Narrowing 2/2 — images: re-pin both snapshot-thick placeholders to v<tag>-thick.
 python3 - "$RAW" "$OUT/multus-daemonset-thick.yml" "$VERSION" <<'PY'
 import re, sys
 raw_path, out_path, version = sys.argv[1:4]
@@ -70,10 +63,8 @@ wide = """  - apiGroups: ["k8s.cni.cncf.io"]
       - '*'
     verbs:
       - '*'"""
-# Exact narrowing from the previously vendored
-# flux/infra/components/multus/controllers/base/multus-daemonset.yaml:
-# NAD get/list/watch + pods get/list/watch/update + pods/status
-# get/update/patch + events create/patch.
+# Narrowed replacement: NAD get/list/watch + pods get/list/watch/update +
+# pods/status get/update/patch + events create/patch.
 narrow = """  - apiGroups: ["k8s.cni.cncf.io"]
     resources:
       - network-attachment-definitions

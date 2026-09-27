@@ -5,7 +5,7 @@ upstream release asset(s) at publish time into the gitignored `upstream/`
 staging dir, and `helm package` bundles them. Flux consumes the published OCI
 artifact (`oci://ghcr.io/lazygeniusman/home-ops/projects/helm-kubevirt`).
 
-Single chart containing the operator bundle only (operator Deployment + RBAC + the `KubeVirt` CRD). The `KubeVirt` custom resource that enables virtualization stays a Flux-managed manifest (it is cluster config, not a CRD), exactly as today in `flux/infra/components/kubevirt/configs/base/kubevirt-cr.yaml`.
+Single chart containing the operator bundle only (operator Deployment + RBAC + the `KubeVirt` CRD). The `KubeVirt` custom resource stays a Flux-managed manifest in `flux/infra/components/kubevirt/configs/base/kubevirt-cr.yaml`.
 
 Upstream source: https://github.com/kubevirt/kubevirt/releases
 (asset `kubevirt-operator.yaml` at
@@ -16,10 +16,7 @@ only, operator-first).
 
 `Chart.yaml` `version` == upstream release sans leading `v`
 (`1.9.0` -> tag `v1.9.0`); `appVersion` is the same tag with the `v`.
-The check workflow bumps both together; there is deliberately **no ImagePolicy**
-— image automation only tracks images/charts, and a floating policy over CRD
-releases would auto-propose API-surface changes without a human re-vendoring
-the narrowing/migration notes beside the code.
+The check workflow bumps both together. No ImagePolicy: CRD releases bump by hand.
 
 ## Fetch + publish flow
 
@@ -31,7 +28,4 @@ helm push helm-kubevirt-<version>.tgz oci://ghcr.io/lazygeniusman/home-ops/proje
 bash projects/helm-kubevirt/ci/verify.sh          # lint + fetch dry-run + no-CRD-committed guard
 ```
 
-Publish is push-only (no git tags): the publish workflow resolves the version
-purely from `Chart.yaml`, runs `ci/fetch.sh` before `helm package`, signs with
-cosign, and moves the `stable`/`dev` floating tags. Re-publishing an unchanged
-`Chart.yaml` version overwrites the same OCI tag (idempotent).
+Push-only publish from the `Chart.yaml` version (no git tags); re-publishing overwrites the same OCI tag.

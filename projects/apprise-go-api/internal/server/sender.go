@@ -84,9 +84,8 @@ func errPayloadTooLargeFor(err error) error {
 	return err
 }
 
-// maxJSONURLs is the cap on a JSON-path urls value (string length or list
-// entries); over-cap values are dropped (→ 204), mirroring the form-path
-// urlsMaxLen rule.
+// maxJSONURLs caps a JSON-path urls value (string length or list entries);
+// over-cap values are dropped (→ 204).
 const maxJSONURLs = 1024
 
 // decodeJSONPayload decodes a JSON stateless body. Unknown shapes, scalar
@@ -334,8 +333,7 @@ func decodeFormPayload(w http.ResponseWriter, r *http.Request, maxBytes int64) (
 		break
 	}
 	// Multipart file parts stream into staging, field-sorted with per-field
-	// arrival order preserved. Any field name is accepted, mirroring
-	// Python's request.FILES handling.
+	// arrival order preserved. Any field name is accepted.
 	if r.MultipartForm != nil && r.MultipartForm.File != nil {
 		var fields []string
 		for field := range r.MultipartForm.File {
@@ -455,8 +453,8 @@ func (s *Server) stageAttachments(ctx context.Context, payload *notifyRequest) (
 	return stager.StageRequestCtx(ctx, payload.AttachRaw, payload.Files)
 }
 
-// remappedString coerces a remapped field value to a scalar string, mirroring
-// form decoding (first value wins for multi-value fields).
+// remappedString coerces a remapped field value to a scalar string
+// (first value wins for multi-value fields).
 func remappedString(v any) string {
 	switch t := v.(type) {
 	case nil:

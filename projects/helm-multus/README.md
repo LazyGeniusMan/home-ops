@@ -5,12 +5,12 @@ upstream release asset(s) at publish time into the gitignored `upstream/`
 staging dir, and `helm package` bundles them. Flux consumes the published OCI
 artifact (`oci://ghcr.io/lazygeniusman/home-ops/projects/helm-multus`).
 
-The fetch script re-applies the two local narrowings as script steps so the published bundle matches the previously vendored file:
+The fetch script re-applies two local narrowings:
 
-1. **ClusterRole narrowing** — upstream grants `k8s.cni.cncf.io:*` on verbs `*`; this repo keeps NAD get/list/watch + pods get/list/watch/update + pods/status get/update/patch + events create/patch.
-2. **Image re-pin** — upstream ships `snapshot-thick` placeholders; both image fields (daemon + install-multus-binary init container) re-pin together to `ghcr.io/k8snetworkplumbingwg/multus-cni:<tag>-thick` (never `snapshot-thick`).
+1. **ClusterRole narrowing** — NAD get/list/watch + pods get/list/watch/update + pods/status get/update/patch + events create/patch (upstream grants `k8s.cni.cncf.io:*` on `*`).
+2. **Image re-pin** — both image fields re-pin to `ghcr.io/k8snetworkplumbingwg/multus-cni:<tag>-thick` (upstream ships `snapshot-thick` placeholders).
 
-Thick mode serves KubeVirt secondary-net. If the upstream ClusterRole block changes shape, `ci/fetch.sh` fails loudly (`update the narrowing`) instead of shipping widened RBAC.
+Thick mode serves KubeVirt secondary-net. Upstream shape changes fail the fetch.
 
 Upstream source: https://github.com/k8snetworkplumbingwg/multus-cni/releases
 (asset `deployments/multus-daemonset-thick.yml` at tag `v<VERSION>`).
@@ -19,10 +19,7 @@ Upstream source: https://github.com/k8snetworkplumbingwg/multus-cni/releases
 
 `Chart.yaml` `version` == upstream release sans leading `v`
 (`4.3.0` -> tag `v4.3.0`); `appVersion` is the same tag with the `v`.
-The check workflow bumps both together; there is deliberately **no ImagePolicy**
-— image automation only tracks images/charts, and a floating policy over CRD
-releases would auto-propose API-surface changes without a human re-vendoring
-the narrowing/migration notes beside the code.
+The check workflow bumps both together. No ImagePolicy: CRD releases bump by hand.
 
 ## Fetch + publish flow
 
@@ -34,7 +31,4 @@ helm push helm-multus-<version>.tgz oci://ghcr.io/lazygeniusman/home-ops/project
 bash projects/helm-multus/ci/verify.sh          # lint + fetch dry-run + no-CRD-committed guard
 ```
 
-Publish is push-only (no git tags): the publish workflow resolves the version
-purely from `Chart.yaml`, runs `ci/fetch.sh` before `helm package`, signs with
-cosign, and moves the `stable`/`dev` floating tags. Re-publishing an unchanged
-`Chart.yaml` version overwrites the same OCI tag (idempotent).
+Push-only publish from the `Chart.yaml` version (no git tags); re-publishing overwrites the same OCI tag.

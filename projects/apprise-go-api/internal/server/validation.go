@@ -63,8 +63,8 @@ func firstNonEmpty(a, b any) any {
 	return b
 }
 
-// splitURLs splits a urls value (string or list) on commas/whitespace,
-// mirroring Python's apprise URL splitting. Non-string scalars are dropped.
+// splitURLs splits a urls value (string or list) on commas/whitespace.
+// Non-string scalars are dropped.
 func splitURLs(v any) []string {
 	var out []string
 	switch t := v.(type) {
@@ -126,12 +126,8 @@ func attachStrings(v any) []string {
 }
 
 // listTagFilter converts list-form tags to OR groups, validating each
-// token against the Python tag grammar (TAG_TOKEN_RE via
-// notify.ValidateTagToken). Python's list path (views.py
-// parse_tag_expression skip) passes tokens through unvalidated, so an
-// invalid token would silently never match; validating here turns typos
-// into a 400 naming the token instead of a silent 204. Empty/blank entries
-// are dropped; an all-blank list yields nil (no filter).
+// token (invalid → 400 naming the token). Empty/blank entries are
+// dropped; an all-blank list yields nil (no filter).
 func listTagFilter(tags []string) ([]notify.TagGroup, error) {
 	groups := make([]notify.TagGroup, 0, len(tags))
 	for _, t := range tags {

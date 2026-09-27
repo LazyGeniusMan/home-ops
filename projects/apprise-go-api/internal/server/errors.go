@@ -1,6 +1,5 @@
-// Error contract: sentinels → 400, recursion → 406 (quirk), too-large →
-// 431, no-targets → 204, attach → its code, delivery → 424, else 500.
-// Log once redacted, return fixed string; %w, lowercase.
+// Error contract: sentinels → 400, recursion → 406, too-large → 431,
+// no-targets → 204, attach → its code, delivery → 424, else 500.
 package server
 
 import (
@@ -12,9 +11,8 @@ import (
 	"github.com/LazyGeniusMan/home-ops/projects/apprise-go-api/internal/notify"
 )
 
-// Validation sentinels. Messages stay lowercase (internal only); the
-// user-facing HTTP bodies are the fixed Python-parity literals at the fail()
-// call sites, never these strings.
+// Validation sentinels (internal lowercase only; HTTP bodies use fixed
+// literals at the fail() call sites).
 var (
 	// errInvalidTag marks a tag/tags value outside the tag grammar.
 	errInvalidTag = errors.New("notify: unsupported characters in tag definition")
@@ -30,8 +28,7 @@ var (
 )
 
 // statusCodeOf maps notify-path errors to HTTP statuses. Delivery failures
-// (non-nil, non-NoTargets send errors) are NOT mapped here: the caller
-// surfaces them as 424 directly, mirroring Python's partial-failure shape.
+// are NOT mapped here: the caller surfaces them as 424 directly.
 func statusCodeOf(err error) int {
 	if err == nil {
 		return http.StatusOK

@@ -127,8 +127,7 @@ func Apply(fields map[string]any, rules []Rule, maxDepth int) error {
 				return fmt.Errorf("remap: mapping path %q not found in payload", r.Source)
 			}
 			// Nested-source + empty/non-expected target = silent no-op.
-			// Target matching is exact (case-sensitive), mirroring
-			// Python's `value in expected_keys`.
+			// Target matching is exact (case-sensitive).
 			if isExpected(r.Target) {
 				fields[r.Target] = value
 			}
@@ -213,8 +212,7 @@ func ParsePath(key string) ([]Step, error) {
 			rawIdx := rest[1:close]
 			idx, err := strconv.Atoi(rawIdx)
 			if err != nil || idx < 0 || !isDigits(rawIdx) {
-				// Mirrors Python's \[(\d+)\]: one or more ASCII digits.
-				// Rejects "", "abc", "-1", "+1", " 1", "1.5".
+				// [N] is one or more ASCII digits.
 				return nil, fmt.Errorf("malformed bracket notation at %q; expected [N] where N is a non-negative integer", segment)
 			}
 			steps = append(steps, Step{Index: idx, IsIndex: true})

@@ -68,8 +68,8 @@ bash projects/helm-rclone/ci/verify.sh   # lint + all 10 directions + guards
 | 9 | proton-drive | pvc-rwx | `dst` PVC `existingClaim` |
 | 10 | proton-drive | s3 | none (remote→remote) |
 
-Each direction has a proof fixture under `ci/` (`values-direction-01-…​` through
-`values-direction-10-…​`); render one with e.g.:
+Each direction has a fixture under `ci/` (`values-direction-01-…` through
+`values-direction-10-…`); render one with e.g.:
 
 ```bash
 helm template demo ./projects/helm-rclone \
@@ -119,13 +119,12 @@ secretAccessKey:
 endpoint:
   configMapRef: {name: rclone-s3-config, key: endpoint}              # -> configMapKeyRef
 
-# (d) ESO-synced Secret (consume, NOT create — the chart creates zero
-#     ExternalSecret objects; ESO must already sync this Secret)
+# (d) ESO-synced Secret (consume only; ESO must already sync this Secret)
 password:
   esoRef: {name: rclone-proton-eso, key: password}                   # -> secretKeyRef
 ```
 
-`ci/values-sources-all-four.yaml` proves each source for at least one `uri`
+`ci/values-sources-all-four.yaml` covers each source for at least one `uri`
 and one credential field in a single render. Ref-sourced remote URIs render via
 an intermediate env var (`SRC_PATH`/`DST_PATH`) with Kubernetes `$(VAR)`
 expansion in the arg (e.g. `SRC:$(SRC_PATH)`), because `valueFrom` cannot feed
@@ -136,9 +135,7 @@ messages:
 
 - Missing required credential (e.g. S3 without `secretAccessKey`), empty
   values, and placeholder literals (`CHANGEME*`, `REPLACE-ME*`, plus the AWS
-  example-key shape `^AKIA…EXAMPLE$`) abort the render naming the field
-  (`…​ is required` / `got placeholder`). Real values merely containing
-  "example" (e.g. a bucket named `example-backups`) render fine.
+  example-key shape `^AKIA…EXAMPLE$`) abort the render naming the field.
   `values.yaml` ships no placeholder defaults — set a real value or a
   `secretRef`/`configMapRef`/`esoRef`.
 - PVC `uri` via `secretRef`/`configMapRef`/`esoRef` aborts: `claimName` cannot
@@ -166,10 +163,9 @@ are configurable in `values.yaml`. Only `sync`/`copy` render; anything
 else fails fast. Containers default to requests (`50m`/`128Mi`) plus
 limits (`1` CPU/`512Mi`), non-root (`65532`), `RuntimeDefault` seccomp,
 no privilege escalation, read-only root (no writable `/tmp` mount —
-rclone runs env-only with no state files), and dropped capabilities —
-`verify.sh` asserts each on every rendered fixture. The rclone image
-digest is re-verified by hand on every tag bump (accepted risk: no
-automated signature check; see `values.yaml`).
+rclone runs env-only with no state files), and dropped capabilities.
+The rclone image digest is re-verified by hand on every tag bump
+(no automated signature check).
 
 ## Proton obscure step
 
@@ -194,8 +190,7 @@ rclone about DST: -vv            # or SRC:, or your remoteName: prefix
 
 - `concurrencyPolicy: Forbid` (default) — a new Job is skipped while the
   previous sync still runs.
-- `rclone bisync` is **not** offered: it needs persistent listing state
-  a stock CronJob does not provide.
+- No `bisync`: it needs persistent listing state a CronJob does not provide.
 
 ## RWO same-node caveat
 
@@ -213,10 +208,8 @@ coLocateWith:
 
 This renders a required `podAffinity` term (default
 `topologyKey: kubernetes.io/hostname`) **merged** with any user-supplied
-`affinity`. Empty `coLocateWith` (default) generates nothing; fall back to
-manual pinning (`nodeSelector`/`affinity`/`tolerations`), which goes stale
-when the owner moves. `pvc-rwx` has no such constraint; the chart mounts
-both types identically and the claim's access mode governs attach.
+`affinity`. Empty `coLocateWith` (default) generates nothing. `pvc-rwx`
+has no such constraint.
 
 ## Snapshot staging (optional, external)
 
@@ -226,10 +219,9 @@ from staging (`source: {type: pvc-rwx, uri: {value: my-db-snap-staging}}`,
 no `coLocateWith`). See `examples/snapshot-staging.yaml`.
 
 Prerequisites (external): snapshot-capable CSI + external-snapshotter +
-`VolumeSnapshotClass`. **Not** `local-ssd-nvme` (not snapshottable) —
-those stay on the live-claim + `coLocateWith` path. Snapshots are
-crash-consistent only unless quiesced; budget ~2x transient storage; the
-external scheduler owns the snapshot/restore/cleanup lifecycle.
+`VolumeSnapshotClass` (not `local-ssd-nvme`, which stays on the
+live-claim + `coLocateWith` path). The external scheduler owns the
+snapshot/restore/cleanup lifecycle.
 
 ## values.schema.json
 
@@ -239,16 +231,15 @@ No `values.schema.json`: validation is fail-fast template guards
 ## Helm merge semantics (read before `--set`)
 
 Helm deep-merges maps at the field level: replace **whole endpoints**
-via `--set-json` (a bare omit inherits the demo default), and prefer
-whole-file `-f` values (like the `ci/` fixtures) over `--set`. See
-`ci/verify.sh` for the merge-semantics proofs.
+via `--set-json`, and prefer whole-file `-f` values (like the `ci/`
+fixtures) over `--set`.
 
 ## Verifying
 
 ```bash
 helm lint projects/helm-rclone -f projects/helm-rclone/ci/values-direction-01-pvc-rwo-to-s3.yaml
 bash projects/helm-rclone/ci/verify.sh
-# env-only proof for all renders:
+# env-only check for all renders:
 for f in projects/helm-rclone/ci/values-*.yaml; do
   helm template demo ./projects/helm-rclone -f "$f"
 done | grep -ri rclone.conf   # must print nothing

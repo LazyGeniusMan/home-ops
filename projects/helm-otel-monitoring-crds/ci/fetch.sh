@@ -49,10 +49,7 @@ if [[ "$CHECK" == true ]]; then
 fi
 
 mkdir -p "$OUT"
-# Integrity: --fail rejects HTTP errors; the marker/kind greps below prove
-# shape. None of these upstreams publishes a detached signature for the
-# fetched YAML, so no signature check is possible here — if a publisher
-# starts signing, verify the signature before the shape checks.
+# --fail rejects HTTP errors; marker/kind greps prove shape (no upstream signature exists to check).
 for f in monitoring.coreos.com_servicemonitors.yaml monitoring.coreos.com_podmonitors.yaml; do
   curl -sSL --fail --retry 3 --max-time 120 -o "$OUT/$f" "$(url_for "$f")"
   grep -q 'monitoring.coreos.com' "$OUT/$f" \

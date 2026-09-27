@@ -284,7 +284,7 @@ func (c Config) AttachAllowURLOrDefault() string {
 
 // AttachRejectURLOrDefault returns the configured SSRF denylist. An
 // explicitly empty APPRISE_ATTACH_REJECT_URL disables denials; when the
-// variable is unset the Python-parity default applies.
+// variable is unset the default applies.
 func (c Config) AttachRejectURLOrDefault() string {
 	if !c.AttachRejectSet {
 		return DefaultAttachRejectURL

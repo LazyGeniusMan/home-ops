@@ -12,14 +12,11 @@ import (
 type TagGroup []string
 
 var (
-	// tagValidationRe mirrors TAG_VALIDATION_RE (views.py:73).
+	// Tag grammar regexes (OR/AND separators, [priority:]name[:retry] tokens).
 	tagValidationRe = regexp.MustCompile(`(?i)^[a-z0-9\s|, _:+&-]+$`)
-	// tagOrDelimRe mirrors TAG_OR_DELIM_RE (views.py:76).
-	tagOrDelimRe = regexp.MustCompile(`\s*[|,]\s*`)
-	// tagAndDelimRe mirrors TAG_AND_DELIM_RE (views.py:79).
-	tagAndDelimRe = regexp.MustCompile(`[\s&+]+`)
-	// tagTokenRe mirrors TAG_TOKEN_RE (views.py:82).
-	tagTokenRe = regexp.MustCompile(`(?i)^(?:[0-9]+:)?[a-z0-9][a-z0-9_-]*(?::[0-9]+)?$`)
+	tagOrDelimRe    = regexp.MustCompile(`\s*[|,]\s*`)
+	tagAndDelimRe   = regexp.MustCompile(`[\s&+]+`)
+	tagTokenRe      = regexp.MustCompile(`(?i)^(?:[0-9]+:)?[a-z0-9][a-z0-9_-]*(?::[0-9]+)?$`)
 )
 
 // ParseTagExpression converts a user-provided tag expression into OR/AND
@@ -69,9 +66,7 @@ func (e *TagError) Error() string {
 }
 
 // ValidateTagToken reports whether a single list-form tag token matches the
-// Python tag grammar (TAG_TOKEN_RE, views.py:82). List payloads skip the
-// expression parser in Python, so this is the only validation list tokens
-// get; callers map the error to a 400 naming the token.
+// tag grammar; callers map the error to a 400 naming the token.
 func ValidateTagToken(token string) error {
 	if !tagTokenRe.MatchString(token) {
 		return &TagError{Expr: token}

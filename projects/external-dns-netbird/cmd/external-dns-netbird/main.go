@@ -30,8 +30,7 @@ func main() {
 }
 
 func run() error {
-	// Load config before creating the levelled logger; last-resort errors
-	// go to stderr via main.
+	// Load config before the levelled logger; errors go to stderr via main.
 	boot := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	cfg, err := config.Load()
 	if err != nil {
@@ -50,8 +49,7 @@ func run() error {
 		slog.String("telemetry", "otlp"),
 	)
 
-	// Traces export to the infra otel-gateway OTLP collector (OTEL_EXPORTER_OTLP_ENDPOINT);
-	// Setup disables itself with OTEL_SDK_DISABLED=true.
+	// Traces export via OTLP; disabled with OTEL_SDK_DISABLED=true.
 	bootCtx := context.Background()
 	shutdownTracing, err := tracing.Setup(bootCtx, "external-dns-netbird", version.Version)
 	if err != nil {
@@ -67,8 +65,7 @@ func run() error {
 	api := netbird.NewClient(cfg.BaseURL, cfg.PAT)
 	p := provider.New(api, cfg.DomainFilter, cfg.DefaultTTL, cfg.AutoCreate)
 	srv := server.New(p, log, cfg.WebhookAddr, cfg.MetricsAddr)
-	// signal.NotifyContext converts SIGINT/SIGTERM (docker stop) into
-	// context cancellation so Server.Run drains both listeners gracefully.
+	// SIGINT/SIGTERM cancels the context so Server.Run drains both listeners.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	log.Info("starting")

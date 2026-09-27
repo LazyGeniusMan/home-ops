@@ -44,10 +44,7 @@ if [[ "$CHECK" == true ]]; then
 fi
 
 mkdir -p "$OUT"
-# Integrity: --fail rejects HTTP errors; the marker/kind greps below prove
-# shape. None of these upstreams publishes a detached signature for the
-# fetched YAML, so no signature check is possible here — if a publisher
-# starts signing, verify the signature before the shape checks.
+# --fail rejects HTTP errors; marker/kind greps prove shape (no upstream signature exists to check).
 curl -sSL --fail --retry 3 --max-time 120 -o "$OUT/standard-install.yaml" "$URL"
 grep -q 'Gateway API Standard channel install' "$OUT/standard-install.yaml" \
   || { echo "shape check failed: standard-channel marker missing in $OUT/standard-install.yaml" >&2; exit 1; }

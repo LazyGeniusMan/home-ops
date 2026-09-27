@@ -14,10 +14,7 @@ Upstream source: https://github.com/prometheus-operator/prometheus-operator/tree
 
 `Chart.yaml` `version` == upstream release sans leading `v`
 (`0.93.1` -> tag `v0.93.1`); `appVersion` is the same tag with the `v`.
-The check workflow bumps both together; there is deliberately **no ImagePolicy**
-— image automation only tracks images/charts, and a floating policy over CRD
-releases would auto-propose API-surface changes without a human re-vendoring
-the narrowing/migration notes beside the code.
+The check workflow bumps both together. No ImagePolicy: CRD releases bump by hand.
 
 ## Fetch + publish flow
 
@@ -29,7 +26,4 @@ helm push helm-otel-monitoring-crds-<version>.tgz oci://ghcr.io/lazygeniusman/ho
 bash projects/helm-otel-monitoring-crds/ci/verify.sh          # lint + fetch dry-run + no-CRD-committed guard
 ```
 
-Publish is push-only (no git tags): the publish workflow resolves the version
-purely from `Chart.yaml`, runs `ci/fetch.sh` before `helm package`, signs with
-cosign, and moves the `stable`/`dev` floating tags. Re-publishing an unchanged
-`Chart.yaml` version overwrites the same OCI tag (idempotent).
+Push-only publish from the `Chart.yaml` version (no git tags); re-publishing overwrites the same OCI tag.

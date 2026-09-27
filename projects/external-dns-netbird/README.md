@@ -33,15 +33,11 @@ secret (or ESO `SecretStore`) without ever appearing in env or args.
 - One ExternalDNS endpoint (`DNSName` + `RecordType`) maps to one NetBird
   record entry per target, since the NetBird records API stores a single
   `content` value per entry. `Records` groups entries back into endpoints.
-- Supported types: `A`, `AAAA`, `CNAME` (the NetBird records API set).
-  Other types are dropped by `AdjustEndpoints`, which also normalizes case
-  and fills missing TTLs with `DEFAULT_TTL` so `Records`/`AdjustEndpoints`
-  stay in parity and the planner sees no spurious diffs.
-- Update/delete paths iterate every entry backing an endpoint key: one
-  endpoint maps to N NetBird entries (one per target), so a rename deletes
-  all old entries and creates all new ones, a TTL refresh updates all kept
-  entries, and a key with entries in two zones fails instead of
-  half-applying (split-brain assumption documented in `update`).
+- Supported types: `A`, `AAAA`, `CNAME`. Other types are dropped by
+  `AdjustEndpoints`, which also normalizes case and fills missing TTLs
+  with `DEFAULT_TTL` so the planner sees no spurious diffs.
+- Update/delete paths iterate every entry backing an endpoint key; a key
+  with entries in two zones fails instead of half-applying.
 
 ## Zone auto-creation
 
@@ -50,15 +46,11 @@ secret (or ESO `SecretStore`) without ever appearing in env or args.
   is true (default), it auto-creates the zone (`POST /api/dns/zones`) with
   the longest `DOMAIN_FILTER` entry that is a suffix of the name (falling
   back to the immediate parent domain when no filter is configured) and
-  retries the record creation in the same apply — Gateway/Service records
-  self-heal without manual zone setup. With `NETBIRD_AUTO_CREATE=false`,
-  missing zones are permanent errors instead.
-- The existing zone list is re-checked before creation, so concurrent
-  applies stay idempotent (no duplicate zones). Names outside
-  `DOMAIN_FILTER` are rejected with a permanent error (no zone created).
-  NetBird API failures map soft (transient: transport errors, `429`/`5xx`)
-  or hard (permanent: other `4xx`) via `softOrHard`, so ExternalDNS retries
-  only what can succeed.
+  retries the record creation in the same apply. With
+  `NETBIRD_AUTO_CREATE=false`, missing zones are permanent errors instead.
+- Names outside `DOMAIN_FILTER` are rejected with a permanent error (no
+  zone created). Transient NetBird failures (`429`/`5xx`, transport
+  errors) retry; other `4xx` are permanent.
 
 ## Endpoints
 
@@ -73,24 +65,15 @@ secret (or ESO `SecretStore`) without ever appearing in env or args.
 | ops          | `GET /version`      | Release version (`internal/version.Version`, `dev` unless ldflags-injected) |
 | ops          | `GET /metrics`      | Prometheus metrics (text exposition, incl. `go_*`/`process_*`; domain: `external_dns_netbird_records_errors_total`, `external_dns_netbird_apply_changes_errors_total`, `external_dns_netbird_adjust_endpoints_errors_total`, `external_dns_netbird_build_info{version}`) |
 
-Error contract (`internal/server/errors.go`): transient NetBird failures
-(soft errors via `provider.NewSoftError`, `%w`-wrapped, lowercase)
-surface as `502` (ExternalDNS retries); permanent failures (e.g.
-`ErrNoMatchingZone`) surface as `422`. Malformed payloads are `400`.
-Anything unmapped is `500`. Handlers log the full error chain once
-server-side and return only a sanitized `{"error"}` envelope with no
-traces, tokens, or paths. NetBird API bodies never reach the envelope:
-`APIError.Error()` is status-only; detail is available via `Detail()`
-for operator logs only.
+Error contract: transient failures → `502` (ExternalDNS retries);
+permanent failures (e.g. `ErrNoMatchingZone`) → `422`; malformed
+payloads → `400`; anything unmapped → `500`. Envelopes are sanitized
+`{"error"}` only — NetBird API bodies never reach the client.
 
-Lifecycle: `docker stop` (SIGTERM) drains both listeners gracefully
-(`signal.NotifyContext` + `http.Server.Shutdown(10s)`); logs show
-`shutting down` then `drained`.
-
-Probes: `/healthz` / `/readyz` on the ops listener (`:8080` via
+`docker stop` (SIGTERM) drains both listeners gracefully (10s bound).
+Probes `/healthz` / `/readyz` serve on the ops listener (`:8080` via
 `METRICS_ADDR`); the webhook API stays localhost-only
-(`127.0.0.1:8888` via `WEBHOOK_ADDR`). Exact metric names live in the
-server package.
+(`127.0.0.1:8888` via `WEBHOOK_ADDR`).
 
 Consumed in Flux via `{"$imagepolicy": "infra:external-dns-netbird:tag"}`
 in `flux/infra/components/external-dns/controllers/base/external-dns.yaml`

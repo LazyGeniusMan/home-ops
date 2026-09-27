@@ -118,10 +118,8 @@ func FilePart(field string, fh *multipart.FileHeader) Incoming {
 	}
 }
 
-// FormURLs collects non-blank attachment URL strings for one alias key,
-// mirroring Python's getlist filter. The alias priority is resolved by the
-// caller. The server form path collects inline instead; this helper serves
-// direct alias-value filtering.
+// FormURLs collects non-blank attachment URL strings for one alias key.
+// The alias priority is resolved by the caller.
 func FormURLs(values []string) []string {
 	var out []string
 	for _, v := range values {
