@@ -3,10 +3,11 @@
 # refresh.yml (shared with -e refresh_secrets=true); this file only validates
 # the reapply mode and pushes via authenticated apply-config.
 - name: Assert re-apply mode is valid
+  # Full talosctl apply-config mode set (reboot included — valid upstream mode).
   ansible.builtin.assert:
     that:
-      - talos_operate_reapply_mode in ['auto', 'no-reboot', 'staged', 'try']
-    fail_msg: "reapply_mode must be one of auto, no-reboot, staged, try (got '{{ talos_operate_reapply_mode }}')."
+      - talos_operate_reapply_mode in ['auto', 'no-reboot', 'reboot', 'staged', 'try']
+    fail_msg: "reapply_mode must be one of auto, no-reboot, reboot, staged, try (got '{{ talos_operate_reapply_mode }}')."
     success_msg: "Re-apply mode {{ talos_operate_reapply_mode }}."
   when: talos_operate_reapply_configs | bool
 

@@ -1,4 +1,7 @@
-# Shared barebone base patch (Talos v1.15.0-alpha.0), applied first via --config-patch.
+# Shared barebone base patch (Talos v1.15.0-alpha.0 — why-alpha: the
+# nfs-server system extension requires Talos >= 1.15, and 1.15 ships only as
+# alpha today; see the pin comment in talos/ansible/group_vars/all.yml),
+# applied first via --config-patch.
 # CNI none (Cilium arrives via GitOps), CoreDNS off, discovery off.
 # kube-proxy runs in iptables mode HERE so the base alone is a bootable shape;
 # every cluster patch disables it (Cilium replaces kube-proxy) — see the

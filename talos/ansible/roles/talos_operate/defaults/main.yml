@@ -9,7 +9,8 @@ talos_operate_kubernetes_version: ""
 talos_operate_regen_talosconfig: false
 talos_operate_regen_kubeconfig: false
 talos_operate_reapply_configs: false
-# apply-config mode for re-apply (staged = no-reboot default).
+# apply-config mode for re-apply (staged default; full set: auto, no-reboot,
+# reboot, staged, try — enforced in reapply.yml).
 talos_operate_reapply_mode: staged
 # PROTON_PASS_AGENT_REASON prefix for re-apply inject execs.
 talos_operate_pass_agent_reason_prefix: talos-operate

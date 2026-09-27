@@ -15,12 +15,12 @@ talos/
   .gitignore                         # build/, secrets bundles, kubeconfigs
   clusters/
     _base/
-      patches.yml                    # shared barebone patch (CNI none, CoreDNS off, discovery off, kube-proxy iptables)
+      patches.yml                    # shared barebone patch (Flannel CNI deleted, CoreDNS off, discovery off, kube-proxy iptables)
       schematics.yml                 # vanilla Image Factory schematic (no extensions)
     <cluster-name>/                   # e.g. acme-prd-bdo1-talos-apps-01
-      patches.yml                    # multi-doc: v1alpha1 SMP + split-doc kinds
+      patches.yml                    # multi-doc split-doc kinds (all docs carry explicit kind)
       schematics.yml                 # cluster-shared schematic (e.g. netbird)
-      secrets.yml.template           # committed; manual `talosctl gen secrets` notes (output never committed)
+      secrets.yml.template           # committed; intentionally field-free manual `talosctl gen secrets` notes (output never committed)
       secrets.yml                    # GITIGNORED manual output (day-0 automation writes ansible/build/<cluster>/secrets.bundle.yml)
       nodes/<node-name>/
         patches.yml                  # node multi-doc: hostname, LinkConfig, install, volumes
@@ -28,12 +28,17 @@ talos/
   ansible/                           # day-0/1/2 automation (see ansible/README.md)
 ```
 
-`patches.yml` files are multi-document YAML: document 1 is a `v1alpha1`
-strategic-merge fragment; subsequent documents are split-doc kinds
-(`Layer2VIPConfig`, `UserVolumeConfig`, `RegistryAuthConfig`, `HostnameConfig`,
-`LinkConfig`, `TimeSyncConfig`, `ResolverConfig`, `KubeNodeConfig`,
-`UnattendedInstallConfig`). The base ships zero manifests (no
-`KubeInlineManifestConfig` / `KubeExternalManifestConfig`).
+`patches.yml` files are multi-document YAML where every document is a split-doc
+kind with explicit `apiVersion`/`kind` (base:
+`KubeFlannelCNIConfig`, `KubeCoreDNSConfig`, `KubeProxyConfig`,
+`DiscoveryServiceConfig`, `TimeSyncConfig`; clusters add `KubeClusterConfig`,
+`KubeNodeConfig`, `Layer2VIPConfig`, `RegistryAuthConfig`, `ResolverConfig`,
+`ExtensionServiceConfig`; nodes add `HostnameConfig`, `LinkConfig`,
+`UnattendedInstallConfig`, `VolumeConfig`, `UserVolumeConfig`,
+`SysctlConfig`, `KernelModuleConfig`, `EtcFileConfig`, `ExtensionServiceConfig`
+— including the netbird + nfs-server `ExtensionServiceConfig` docs). The base
+ships zero manifests (no `KubeInlineManifestConfig` /
+`KubeExternalManifestConfig`).
 
 ## Secrets (no plaintext, ever)
 
@@ -45,7 +50,8 @@ strategic-merge fragment; subsequent documents are split-doc kinds
   patches, PAT from `pat.yml.template`); NetBird PAT via `pass-cli item view`
   as `NB_PAT` env, setup key Terraform-minted — scoped 90d / usage 3, never
   unlimited (procedures: `ansible/RUNBOOK.md` §0.3, §1.0b). Authenticate first:
-  `pass-cli login`.
+  `pass-cli login` (gate: `pass-cli info`; Ansible probes it via `pass-cli
+  info -o json` before every play).
 - `secrets.bundle.yml`, `talosconfig`, `kubeconfig`, rendered `ansible/build/`
   output are gitignored. Binary is `pass-cli` (not `proton-pass-cli`).
 
@@ -79,3 +85,15 @@ Per-node `schematics.yml` is authoritative for that node's installer image;
 cluster `schematics.yml` holds extensions shared by all nodes in the cluster.
 Schematics list bare `siderolabs/<name>` entries — the factory pins versions
 to the Talos release. Kernel args live in schematics (`extraKernelArgs`).
+
+## Storage (homelab posture)
+
+Disks are unencrypted — accepted for this homelab (physical access is trusted).
+Real production must add `SystemDiskEncryption` (TPM2/KMS or an ESO-held key)
+with documented key custody + recovery before storing non-replaceable data.
+
+## RPCNFSDCOUNT (single source)
+
+Thread counts live in the node headers: dev 32 / prd 64 slots/threads, matching
+`[nfsd] threads` in `nfs.conf` and `RPCNFSDCOUNT` in the `nfs-server`
+`ExtensionServiceConfig` beside them.

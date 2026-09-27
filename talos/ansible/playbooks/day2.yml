@@ -10,6 +10,8 @@
 #   [-e refresh_secrets=true]
 #   [-e reapply_configs=true [-e reapply_mode=staged]]
 #   [-e pat_apply=true [-e pat_renew=true] [-e pat_name=...] [-e pat_expiration=1y]]
+#   [-e skip_health=true]  # break-glass only: skips the health probe AND the
+#   mutating-plane health gate (RUNBOOK §3.1).
 - name: Day-2 operate Talos cluster
   hosts: localhost
   connection: local

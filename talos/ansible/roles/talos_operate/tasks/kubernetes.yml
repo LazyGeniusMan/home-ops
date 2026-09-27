@@ -1,6 +1,9 @@
 ---
 # Kubernetes upgrade on version drift only (rendered kubelet image vs talos_operate_kubernetes_version,
-# no leading v). Runs after any Talos upgrade; targets nodes[0]. --dry-run plans first.
+# no leading v). Runs after any Talos upgrade; targets ALL control-plane nodes
+# (comma-joined --nodes). --dry-run plans first. Drift detection reads the
+# nodes[0] rendered config as representative (kubelet version tracks the Talos
+# release, not per-node schematics).
 - name: Resolve rendered machine config path for drift detection
   ansible.builtin.set_fact:
     talos_operate_k8s_node: "{{ talos_clusters[talos_cluster].nodes[0] }}"
@@ -44,12 +47,20 @@
     talos_operate_k8s_drift: "{{ talos_operate_rendered_k8s != 'unknown' and talos_operate_rendered_k8s != talos_operate_kubernetes_version }}"
   when: talos_operate_kubernetes_version | length > 0
 
+- name: Resolve all control-plane node IPs for upgrade-k8s
+  ansible.builtin.set_fact:
+    talos_operate_k8s_control_plane_ips: >-
+      {{ talos_clusters[talos_cluster].nodes
+      | selectattr('role', 'equalto', 'controlplane')
+      | map(attribute='ip') | join(',') }}
+  when: talos_operate_kubernetes_version | length > 0
+
 - name: Dry-run Kubernetes upgrade plan
   ansible.builtin.command:
     cmd: >-
       {{ talos_operate_talosctl }} upgrade-k8s
       --talosconfig {{ talos_talosconfig }}
-      --nodes {{ talos_clusters[talos_cluster].nodes[0].ip }}
+      --nodes {{ talos_operate_k8s_control_plane_ips }}
       --to {{ talos_operate_kubernetes_version }}
       --dry-run
   when: talos_operate_k8s_drift | default(false) | bool
@@ -66,7 +77,7 @@
     cmd: >-
       {{ talos_operate_talosctl }} upgrade-k8s
       --talosconfig {{ talos_talosconfig }}
-      --nodes {{ talos_clusters[talos_cluster].nodes[0].ip }}
+      --nodes {{ talos_operate_k8s_control_plane_ips }}
       --to {{ talos_operate_kubernetes_version }}
   when: talos_operate_k8s_drift | default(false) | bool
   changed_when: true

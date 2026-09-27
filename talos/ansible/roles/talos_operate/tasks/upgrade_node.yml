@@ -1,0 +1,30 @@
+---
+# Per-node Talos upgrade body (looped from upgrade.yml with loop_var upgrade_node):
+# upgrade this node, then wait for its Talos API before the outer loop advances
+# to the next node. Authenticated `talosctl version` proves the node rebooted
+# into the new installer (RUNBOOK §4.5).
+- name: Upgrade Talos on {{ upgrade_node.name }}
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_operate_talosctl }} upgrade
+      --talosconfig {{ talos_talosconfig }}
+      -n {{ upgrade_node.ip }}
+      -i {{ talos_operate_upgrade_image if talos_operate_upgrade_image | length > 0
+        else 'factory.talos.dev/metal-installer/'
+        + talos_operate_upgrade_ids[upgrade_node.name]
+        + ':' + talos_operate_upgrade_talos_version }}
+  changed_when: true
+
+- name: Wait for the Talos API to return on {{ upgrade_node.name }}
+  ansible.builtin.command:
+    cmd: >-
+      {{ talos_operate_talosctl }} version
+      --talosconfig {{ talos_talosconfig }}
+      -n {{ upgrade_node.ip }}
+      -e {{ upgrade_node.ip }}
+  check_mode: false
+  changed_when: false
+  register: talos_operate_upgrade_wait
+  until: talos_operate_upgrade_wait.rc == 0
+  retries: "{{ talos_operate_upgrade_wait_retries }}"
+  delay: "{{ talos_operate_upgrade_wait_delay }}"

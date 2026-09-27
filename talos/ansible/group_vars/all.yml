@@ -8,6 +8,9 @@
 # Shared PAT filename for build/<cluster>/ (0600, gitignored): day-0
 # renders it, day-2 reads/renews it.
 talos_pat_filename: proton-pass-pat
+# why-alpha: the nfs-server system extension requires Talos >= 1.15, and 1.15
+# ships only as alpha today (no stable). Deliberate pin — re-check each
+# release for a 1.15 stable and move off alpha then (blocks prd wide-NFS).
 talos_version: v1.15.0-alpha.0
 # Recorded kubelet image version day-0 renders (day-0 passes no
 # --kubernetes-version flag, so day-0 bakes the Talos-default kubelet).
@@ -37,7 +40,9 @@ talos_talosconfig: "{{ talos_build_dir }}/{{ talos_cluster }}/talosconfig"
 talos_netbird_terraform_dir: "{{ playbook_dir }}/../build/{{ talos_cluster }}/netbird-tf"
 talos_netbird_placeholder: __TALOS_NETBIRD_SETUP_KEY__
 talos_netbird_setup_key_pattern: "^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}$"
-# Render-role defaults do NOT load on day-2: the plane reads only talos_netbird_* / talos_* shared vars.
+# Day-2 netbird/schematic planes run via include_role: talos_render, so the
+# render-role defaults DO load — but the planes consume only shared/group
+# talos_* vars plus the explicit per-call overrides in refresh.yml.
 talos_netbird_tofu: tofu
 talos_netbird_pat_item: talos
 talos_netbird_pat_field: netbird-pat

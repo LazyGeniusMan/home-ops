@@ -21,7 +21,7 @@ ansible/
   group_vars/all.yml           # talos version, per-cluster map, shared filenames
   playbooks/day0.yml           # render secrets/configs, gen + validate machine configs
   playbooks/day1.yml           # insecure-apply, wait gates, bootstrap etcd, kubeconfig
-  playbooks/day2.yml           # health, upgrade, patch, VIP/etcd checks (operate)
+  playbooks/day2.yml           # health + etcd checks, upgrade, regen, re-apply, PAT plane (operate)
   roles/talos_render/          # inject + gen config + validate (day-0)
   roles/talos_bootstrap/       # insecure-apply + bootstrap + kubeconfig (day-1)
   roles/talos_operate/         # health/upgrade/patch (day-2)
@@ -84,9 +84,11 @@ with the PKI bundle (§6.1); never committed or deleted between runs (see
 
 NFS server stack per node: `siderolabs/nfsd` + `nfs-utils` + `nfs-server` in the node
 schematic, `EtcFileConfig` `exports` (two data-volume LAN-only `192.168.1.0/24`
-`all_squash` lines, `fsid=1/2`) + `netconfig` + `ExtensionServiceConfig`
-`nfs-server` (`RPCNFSDCOUNT`: dev 32 / prd 64, matching `[nfsd] threads` in the node header); exports resolve against the `nvme-data` +
-`sata-data` volumes (`RUNBOOK.md` §1.6).
+`all_squash` lines, `fsid=1/2` — the `/24` CIDR is accepted, access limited by
+the VLAN) + `netconfig` + `ExtensionServiceConfig` `nfs-server` (thread counts
+live in the node headers: dev 32 / prd 64 `RPCNFSDCOUNT` matching `[nfsd]`
+threads); exports resolve against the `nvme-data` + `sata-data` volumes
+(`RUNBOOK.md` §1.6).
 
 ## Inventory (local-only — no node inventory)
 

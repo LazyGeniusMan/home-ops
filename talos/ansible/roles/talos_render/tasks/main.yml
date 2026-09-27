@@ -205,6 +205,8 @@
     label: "{{ item.name }}"
 
 - name: Generate cluster talosconfig
+  # changed_when: true is intentional — gen config runs with --force and
+  # rewrites every run, so day-0 always reports changed even when identical.
   ansible.builtin.command:
     cmd: >-
       {{ talos_render_talosctl }} gen config {{ talos_cluster }}
@@ -223,7 +225,23 @@
     path: "{{ talos_build_dir }}/{{ talos_cluster }}/talosconfig"
     mode: "0600"
 
+- name: Assert node roles map to a Talos machine type
+  # Unknown role: strings fail here with the node name + valid roles instead
+  # of a raw Jinja KeyError inside the gen config invocation below.
+  ansible.builtin.assert:
+    that:
+      - item.role in talos_machine_roles
+    fail_msg: >-
+      Node {{ item.name }} has unknown role '{{ item.role }}'
+      (valid: {{ talos_machine_roles.keys() | join(', ') }}). Fix role in
+      group_vars/all.yml, then re-run day-0.
+    success_msg: "Node {{ item.name }} role {{ item.role }} maps to {{ talos_machine_roles[item.role] }}."
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+
 - name: Generate per-node machine configs
+  # Same intentional changed_when: true as the talosconfig task above (--force regen).
   ansible.builtin.command:
     cmd: >-
       {{ talos_render_talosctl }} gen config {{ talos_cluster }}

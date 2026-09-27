@@ -1,4 +1,5 @@
-# Cluster patch: acme-dev-bdo1-talos-apps-01 (Talos v1.15.0-alpha.0, single control-plane),
+# Cluster patch: acme-dev-bdo1-talos-apps-01 (Talos v1.15.0-alpha.0 — why-alpha:
+# the nfs-server system extension requires Talos >= 1.15; single control-plane),
 # applied after ../_base/patches.yml. Own Proton Pass vault (no cross-env refs); secrets are
 # double-brace refs; __TALOS_NETBIRD_SETUP_KEY__ is rewritten at render time (RUNBOOK §1.0b).
 # KubeProxyConfig disabled (Cilium replaces kube-proxy — the base patch keeps

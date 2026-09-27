@@ -13,7 +13,8 @@ schematic-*.id
 schematic-*.sha256
 # Generated per-node machine configs.
 **/nodes/*/*.yaml
-# Day-1/day-2 marker files.
+# Day-1/day-2 marker files (.healthy is a reserved name — no play writes it yet;
+# kept so a future health-marker plane cannot leak into git).
 .installed-*
 .bootstrapped
 .healthy

@@ -27,11 +27,15 @@
   when: talos_operate_regen_kubeconfig | bool
   changed_when: true
 
-- name: Lock down regenerated client config permissions
+- name: Lock down regenerated talosconfig permissions
+  # Per-flag split: regen_talosconfig alone must not fail on a missing kubeconfig.
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/talosconfig"
     mode: "0600"
-  loop:
-    - "{{ talos_build_dir }}/{{ talos_cluster }}/talosconfig"
-    - "{{ talos_build_dir }}/{{ talos_cluster }}/kubeconfig"
-  when: talos_operate_regen_talosconfig | bool or talos_operate_regen_kubeconfig | bool
+  when: talos_operate_regen_talosconfig | bool
+
+- name: Lock down regenerated kubeconfig permissions
+  ansible.builtin.file:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/kubeconfig"
+    mode: "0600"
+  when: talos_operate_regen_kubeconfig | bool

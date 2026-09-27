@@ -103,6 +103,8 @@
     body_format: raw
     return_content: true
     status_code: [200, 201]
+    # Quoted on purpose: the whole file is FQCN/lint-clean with the template
+    # quoted; uri coerces the rendered int to seconds at runtime.
     timeout: "{{ talos_render_schematic_factory_timeout }}"
   when: talos_render_schematic_need_upload and not ansible_check_mode
   failed_when: false

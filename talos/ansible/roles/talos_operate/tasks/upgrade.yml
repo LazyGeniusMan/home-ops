@@ -1,5 +1,6 @@
 ---
-# Talos OS upgrade, one node at a time in cluster-map order. Explicit upgrade_image wins;
+# Talos OS upgrade, one node at a time in cluster-map order (upgrade →
+# ready-gate → next per node, via upgrade_node.yml). Explicit upgrade_image wins;
 # otherwise the installer ref is built per node from the schematic .id files.
 # Adjacent minors only (never skip a minor).
 - name: Read per-node schematic IDs for upgrade image construction
@@ -46,39 +47,15 @@
     - talos_operate_upgrade_image | length == 0
     - talos_operate_upgrade_talos_version | length > 0
 
-- name: Upgrade Talos on each node
-  ansible.builtin.command:
-    cmd: >-
-      {{ talos_operate_talosctl }} upgrade
-      --talosconfig {{ talos_talosconfig }}
-      -n {{ item.ip }}
-      -i {{ talos_operate_upgrade_image if talos_operate_upgrade_image | length > 0
-        else 'factory.talos.dev/metal-installer/'
-        + talos_operate_upgrade_ids[item.name]
-        + ':' + talos_operate_upgrade_talos_version }}
+- name: Upgrade Talos one node at a time with a per-node ready-gate
+  # Upgrade → authenticated-version wait → next node (sequential, not
+  # upgrade-all-then-wait: a later node upgrades only after the previous one
+  # rebooted into the new installer, keeping etcd quorum across multi-node
+  # clusters). Single-node clusters wait on the same gate; multi-node operators
+  # additionally watch each node Ready before the next proceeds (RUNBOOK §4.5).
+  ansible.builtin.include_tasks: upgrade_node.yml
   loop: "{{ talos_clusters[talos_cluster].nodes }}"
   loop_control:
-    label: "{{ item.name }}"
-  when: talos_operate_upgrade_image | length > 0 or talos_operate_upgrade_talos_version | length > 0
-  changed_when: true
-
-- name: Wait for the Talos API to return on upgraded nodes
-  # Single-node ready-gate between upgrades: authenticated version proves the
-  # node rebooted into the new installer. Multi-node operators additionally
-  # watch each node Ready before the next proceeds (RUNBOOK §4.5).
-  ansible.builtin.command:
-    cmd: >-
-      {{ talos_operate_talosctl }} version
-      --talosconfig {{ talos_talosconfig }}
-      -n {{ item.ip }}
-      -e {{ item.ip }}
-  check_mode: false
-  changed_when: false
-  register: talos_operate_upgrade_wait
-  until: talos_operate_upgrade_wait.rc == 0
-  retries: "{{ talos_operate_upgrade_wait_retries }}"
-  delay: "{{ talos_operate_upgrade_wait_delay }}"
-  loop: "{{ talos_clusters[talos_cluster].nodes }}"
-  loop_control:
-    label: "{{ item.name }}"
+    loop_var: upgrade_node
+    label: "{{ upgrade_node.name }}"
   when: talos_operate_upgrade_image | length > 0 or talos_operate_upgrade_talos_version | length > 0
