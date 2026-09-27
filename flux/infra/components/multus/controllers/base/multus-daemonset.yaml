@@ -1,18 +1,13 @@
-# Multus thick-plugin DaemonSet v4.3.0 as a first-party Helm OCI chart (no official upstream chart).
-# Chart source: projects/helm-multus (Chart.yaml version = upstream release sans v;
-# ci/fetch.sh stages multus-daemonset-thick.yml at publish time and re-applies the two
-# local narrowings as script steps: ClusterRole narrowing (upstream grants
-# k8s.cni.cncf.io:* on verbs * — the chart keeps NAD get/list/watch + pods
-# get/list/watch/update + pods/status get/update/patch + events create/patch) and
-# image re-pin (upstream ships snapshot-thick placeholders; both image fields re-pin
-# together to ghcr.io/k8snetworkplumbingwg/multus-cni:<tag>-thick). No YAML committed
-# in the chart. Thick mode serves KubeVirt secondary-net (kubevirt waits on multus via
-# the fleet: infra-controllers kubevirt dependsOn multus).
-# Node files + NAD CRD linger after release deletion (sweep /opt/cni/bin, /etc/cni/net.d,
-# /run, /var/lib/cni/multus; delete NADs/CRD explicitly). privileged:true +
-# hostNetwork/hostPID stay (CNI moves host netns interfaces). kube-system namespaces,
-# DaemonSet mounts, and the initContainer -t thick arg are owned by the chart now.
-# No $imagepolicy — first-party Helm OCI bumps atomically (Chart.yaml + wrapper ref.tag in one PR, cf. helm-rclone).
+# Multus thick-plugin DaemonSet v4.3.0 as a first-party Helm OCI chart (no
+# official upstream chart). Chart source: projects/helm-multus (Chart.yaml
+# version = upstream release sans v; ci/fetch.sh stages
+# multus-daemonset-thick.yml at publish time and re-applies the ClusterRole
+# narrowing + image re-pin as script steps; no YAML committed in the chart).
+# Thick mode serves KubeVirt secondary-net (kubevirt waits on multus via the
+# fleet: infra-controllers kubevirt dependsOn multus). Node files + NAD CRD
+# linger after release deletion (sweep explicitly); privileged/hostNetwork/
+# hostPID stay (CNI moves host netns interfaces).
+# No $imagepolicy — first-party Helm OCI bumps atomically (cf. helm-rclone).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

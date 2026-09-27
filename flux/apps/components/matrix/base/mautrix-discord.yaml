@@ -2,12 +2,8 @@
 # `/tmp/home-ops-docs/matrix-mautrix-discord-bridge-docs`).
 # Single-replica Deployment (replicas: 1, Recreate — at most one writer, NO HPA) on
 # dock.mau.dev/mautrix/discord v0.7.7 (pinned; image bundles ffmpeg + lottieconverter).
-# Config: full config.yaml authored here from example-config.yaml (no -e flag at this revision).
 # Secret fields carry __...__ BOOT-PLACEHOLDERS the entrypoint overwrites at boot via
 # `yq ... strenv(...)` (never resolved through kustomize — Git never holds values).
-# The entrypoint generates registration.yaml with `-g` ONLY if absent; /data on PVC means
-# restarts never re-register (rotate = change vault fields + delete registration.yaml).
-# Probes are tcpSocket on the appservice port (no health endpoint at this revision).
 ---
 apiVersion: v1
 kind: ConfigMap

@@ -20,23 +20,16 @@ flux/infra/
 ## Artifacts
 
 `oci://ghcr.io/lazygeniusman/home-ops/infra/<component>`, tagged `dev`
-(+ `dev-<sha>`, main commits touching the component dir) and `stable`
-(+ `stable-<version>`, area releases tagged `flux-infra-v*`). Prd consumes
+(main commits) and `stable` (`flux-infra-v*` releases). Prd consumes
 `${ARTIFACT_TAG}` (`stable`) with cosign verification.
 
-## Image/chart pin norm (infra vs apps)
+## Pins
 
-Infra chart `OCIRepository` refs pin by **tag (+ `$imagepolicy` marker) —
-digests are NOT used in infra**. The tag floor lives in
-`update-policies/<name>.yaml`; ImageUpdateAutomation proposes bumps via the
-marker. Only charts with a published cosign identity carry a `verify:` block
-(infra: seaweedfs `ui-auth` oauth2-proxy only); every chart OCI without one
-carries an explicit `# No verify: <reason>` comment (unsigned upstream /
-first-party allowlist-covered / chartproxy live-translate) so the absence is
-deliberate, not an omission. Cosign `verify:` on the fleet tenant OCI sources
-(`flux/fleet/tenants/{infra,apps}.yaml`) covers the delivery artifacts
-themselves. Apps diverge: app workload images pin `tag@digest` (see each
-`flux/apps/components/<name>/README.md`); infra stays tags-only.
+Infra chart refs pin by tag + `$imagepolicy` marker (no digests); the tag
+floor lives in `update-policies/<name>.yaml`. Charts without a published
+cosign identity carry an explicit `# No verify: <reason>` comment. App
+workload images pin `tag@digest` instead. See AGENTS.md for the update
+policy + upgrade lifecycle.
 
 ## Onboarding
 
@@ -53,17 +46,9 @@ themselves. Apps diverge: app workload images pin `tag@digest` (see each
 
 ## Upgrades
 
-1. **Propose.** The `update` cluster's `ImageUpdateAutomation` (30m) watches
-   each `update-policies/<name>.yaml` `ImageRepository` (12h poll) and opens
-   an `image-updates-*` PR against the `$imagepolicy` marker.
-2. **Merge (human).** Automation proposes, never merges.
-3. **Bake on dev.** Merging to `main` publishes `dev`; the dev cluster syncs
-   `dev`, so validate there first.
-4. **Promote to prd.** Tag an area release (`flux-infra-v*`), which publishes
-   `stable`; prd consumes `${ARTIFACT_TAG}` (`stable`) with cosign verification.
+Dev bakes `dev` first; promote to prd by tagging an area release
+(`flux-infra-v*`), which publishes `stable`. Automation proposes, human
+merges — see AGENTS.md.
 
 Reconcile order inside each tenant is `infra-crds` → `infra-controllers` →
-`infra-configs` (ResourceSets 5m; tenants `OCIRepository` 5m, tenant
-Kustomizations 30m, charts 1h). `infra-crds` is `prune: false`;
-`infra-controllers` and `infra-configs` are `prune: true`, each gated on the
-previous stage via `dependsOn`.
+`infra-configs` (`infra-crds` is `prune: false`).

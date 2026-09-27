@@ -1,26 +1,14 @@
 # Headlamp per-user RBAC: maps the Zitadel `groups` claim to Kubernetes
-# authorization. Headlamp forwards the user's OIDC token (no claims-mapping
-# knob), so the mapping is explicit group subjects — reconcile subject
-# names with the API server's OIDC flags (userClaim/groupsClaim + prefix).
-# ACCEPTED RISK: `admin` group → cluster-admin. The pod's own SA binding is
-# chart-owned (see headlamp.yaml); per-user auth here is limited to the two
-# Zitadel groups, and the `main` Gateway HTTPRoute is gated by native OIDC
-# (no anonymous path to the UI). Subjects `admin`/`users` mirror the Zitadel
-# org groups granted by `headlamp-sso` — keep them in sync with the API
-# server's OIDC userClaim/groupsClaim + prefix flags.
-# ACCEPTED RISK + least-privilege path (owner: platform admin, revisit
-# 2027-Q1): the `headlamp-admins` ClusterRoleBinding stays on cluster-admin
-# ONLY until the admin workflow runs on `headlamp-ops` below. Least-privilege
-# scaffolding ships in this file: `headlamp-ops` (namespace-scoped admin
-# minus node/cluster RBAC escape hatches) + `headlamp-ops-global-read`
-# (cluster-scoped read for cross-namespace enumeration). Cutover plan: rebind
-# `headlamp-admins` to `headlamp-ops` (+ `headlamp-ops-global-read` as a
-# second binding), soak one release, drop cluster-admin. Gate: admin
-# workflows (KubeVirt console, Flux suspend/resume, Cilium hubble) must pass
-# on `headlamp-ops` first. Do not broaden: no additional subjects, no wider
-# verbs, no `*` verbs outside `headlamp-ops` audit scope.
-# - `users` group → view + headlamp-basic (namespace listing + self-review
-#   so the UI enumerates contexts).
+# authorization (Headlamp forwards the user's OIDC token with no
+# claims-mapping knob, so subjects are explicit groups — reconcile with the
+# API server's OIDC userClaim/groupsClaim + prefix flags). Subjects mirror the
+# Zitadel org groups granted by `headlamp-sso` (`admin` → headlamp-admins,
+# `users` → view + headlamp-basic). Least-privilege scaffolding
+# (`headlamp-ops` + `headlamp-ops-global-read`, NOT BOUND yet) ships in this
+# file; cutover plan + workflow gate in the README.
+# ACCEPTED RISK (owner: platform admin, revisit 2027-Q1): `admin` group →
+# cluster-admin via `headlamp-admins` until the admin workflow runs on
+# `headlamp-ops`; the `main` Gateway HTTPRoute stays gated by native OIDC.
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

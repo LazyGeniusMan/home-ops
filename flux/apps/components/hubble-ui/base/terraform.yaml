@@ -1,10 +1,4 @@
 # Hubble UI SSO identity, machine-applied by Tofu Controller: the `hubble-ui`
-# Zitadel project + project-scoped admin role + `hubble` OIDC client.
-# Ships in the app Kustomization (fleet `apps` dependsOn `infra-configs`).
-# IDs + provider auth flow from the FirstInstance handoff via the ESO-synced
-# `hubble-ui-terraform-vars` Secret — no org_id literal in git.
-# Outputs (client + cookie secrets) land in `hubble-ui-sso-outputs` for the
-# `oauth2-proxy` ExternalSecret.
 ---
 # Cross-namespace handoff reader: mirrors the two chart-minted handoff Secrets
 # from the `zitadel` namespace into `hubble-ui-terraform-vars`

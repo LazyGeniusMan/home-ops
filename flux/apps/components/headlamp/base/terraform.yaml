@@ -1,10 +1,4 @@
 # Headlamp SSO identity, machine-applied by Tofu Controller: the `headlamp`
-# Zitadel project + project-scoped roles + user grants + OIDC client.
-# Ships in the app Kustomization (fleet `apps` dependsOn `infra-configs`).
-# IDs + provider auth flow from the FirstInstance handoff via the ESO-synced
-# `headlamp-terraform-vars` Secret — no org_id literal in git.
-# Outputs land in `headlamp-sso-outputs` for the `headlamp-oidc`
-# ExternalSecret.
 ---
 # Cross-namespace handoff reader: mirrors the two chart-minted handoff Secrets
 # from the `zitadel` namespace into `headlamp-terraform-vars`

@@ -1,20 +1,8 @@
 # matrix tenant — vault seed checklist
 
-One-time `pass-cli item create login` per env BEFORE first install. Git holds
-`remoteRef` keys only, never values. Overlays patch every `remoteRef.key`
-from the `__PROTON_PASS_BASE__` placeholder to the per-env vault path;
-workloads pend until ESO syncs the Secrets.
+One-time `pass-cli item create login` per env BEFORE first install. Git holds `remoteRef` keys only, never values. Overlays patch every `remoteRef.key` from `__PROTON_PASS_BASE__` to the per-env path. Vault naming: `pass://acme-<env>-bdo1-talos-apps-01/<path>` (`dev`/`prd`).
 
-Vault naming: `pass://acme-<env>-bdo1-talos-apps-01/<path>` (`dev`/`prd`).
-
-```shell
-pass-cli item create login --vault-name 'acme-<env>-bdo1-talos-apps-01' --title '<path>'
-```
-
-**14** fields per env (1 cert-manager + 1 registration-secret +
-8 mautrix-discord + 2 element-web + 2 rclone Proton Drive). Bot credentials are minted in-cluster
-by the bootstrap Job; everything else minted in-cluster (COSI, Terraform
-outputs, CNPG, kept Secret) needs NO seeding — see "Not vault-seeded".
+**14** fields per env. Bot credentials are minted in-cluster by the bootstrap Job; COSI/Terraform/CNPG/kept-Secret outputs need no seeding.
 
 ## Per-env seed table
 
@@ -22,52 +10,29 @@ Same 14 rows for `dev` and `prd`; only values differ per env.
 
 | # | Vault field (`<prefix>/<path>`) | ExternalSecret → Secret (key) | Consumed by | Value notes |
 |---|---|---|---|---|
-| 1 | `cert-manager/cloudflare-api-token` | `cloudflare-api-token` → `cloudflare-api-token` (`api-token`) | cert-manager DNS-01 solver for the in-namespace wildcard `Certificate` (`tuwunel-secrets.yaml`; mirrors `cert-manager/configs/base/cluster-issuer.yaml` with the same remoteRef) | Same Cloudflare API token in both envs (zone-scoped) |
-| 2 | `matrix/tuwunel-registration-secret` | `tuwunel-registration-secret` → `tuwunel-registration-secret` (`shared-secret`) | Server side of the bot bootstrap: tuwunel Deployment mount (`TUWUNEL_REGISTRATION_SHARED_SECRET_FILE`) + `matrix-bot-bootstrap` Job env (`REGISTRATION_SHARED_SECRET`) — one source, no dual-write | Random ≥32 bytes; seeded once per env, then stable (server + Job read the same Secret) |
-| 3 | `mautrix-discord/bot-token` | `mautrix-discord` → `mautrix-discord` (`bot-token`) | Bridge entrypoint: `login-token bot <token>` session auth at runtime, never baked into config | Discord bot token from the Discord developer portal |
-| 4 | `mautrix-discord/as-token` | (same ES/Secret, `as-token`) | Bridge registration (`registration.yaml` via `AS_TOKEN` env) + tuwunel appservice `as_token` side | Random ≥64ch; seeded once, then stable (PVC persists `registration.yaml`) |
-| 5 | `mautrix-discord/hs-token` | (same ES/Secret, `hs-token`) | Bridge registration (`HS_TOKEN` env) + tuwunel appservice `hs_token` side | Same stability contract as `as-token` |
-| 6 | `mautrix-discord/avatar-proxy-key` | (same ES/Secret, `avatar-proxy-key`) | Bridge `/mautrix-discord/avatar` relay HMAC (`AVATAR_PROXY_KEY` env) | Random ≥32ch HMAC key |
-| 7 | `mautrix-discord/direct-media-server-key` | (same ES/Secret, `direct-media-server-key`) | Bridge federation media signing (`DIRECT_MEDIA_SERVER_KEY` env; synapse `.signing.key` format) | Generate per synapse signing-key format |
-| 8 | `mautrix-discord/provisioning-shared-secret` | (same ES/Secret, `provisioning-shared-secret`) | Bridge provisioning API auth (`PROVISIONING_SHARED_SECRET` env) | Random ≥32ch |
-| 9 | `mautrix-discord/double-puppet-shared-secret` | (same ES/Secret, `double-puppet-shared-secret`) | Legacy `login_shared_secret_map` double-puppet value (`DOUBLE_PUPPET_SHARED_SECRET` env) | Random ≥32ch |
-| 10 | `mautrix-discord/db-password` | `mautrix-discord-db-credentials` → `mautrix-discord-db-credentials` (`connection-url`, templated `postgres://discord:<pw>@mautrix-discord-db-rw.matrix.svc:5432/discord?sslmode=require`) AND `mautrix-discord-db-app-secret` → `mautrix-discord-db-app-secret` (basic-auth `discord`/`<pw>`; username MUST equal `spec.bootstrap.initdb.owner`) | Bridge `DATABASE_URL` env + CNPG `mautrix-discord-db` Cluster initdb owner password | Random ≥32ch; single field feeds BOTH Secrets |
-| 11 | `element-web/netbird-pat` | `element-proxy-vars` → `element-proxy-vars` (`netbird_token`) | Terraform `element-proxy` CR via `varsFrom` (NetBird custom-domain + reverse-proxy service registration) | Per-env NetBird PAT |
-| 12 | `element-web/cloudflare-api-token` | (same ES/Secret, `cloudflare_api_token`) | (same CR — Cloudflare side of the NetBird registration) | Distinct vault field from #1 (separate consumer), same upstream token value is fine |
-| 13 | `rclone/proton-username` | `rclone-proton-credentials` → `rclone-proton-credentials` (`username`) | `rclone-sync-matrix` CronJob Proton Drive remote (`RCLONE_CONFIG_*` env) | Proton account username; shared with the other six rclone legs |
-| 14 | `rclone/proton-password` | (same ES/Secret, `password`) | (same CronJob remote) | Proton account password / app password; shared with the other six rclone legs |
+| 1 | `cert-manager/cloudflare-api-token` | `cloudflare-api-token` (`api-token`) | in-namespace wildcard `Certificate` DNS-01 | Zone-scoped, same value both envs |
+| 2 | `matrix/tuwunel-registration-secret` | `tuwunel-registration-secret` (`shared-secret`) | tuwunel mount + bootstrap Job env (one source) | Random ≥32 bytes; seed once, then stable |
+| 3 | `mautrix-discord/bot-token` | `mautrix-discord` (`bot-token`) | Bridge `login-token bot` runtime auth | Discord developer portal |
+| 4 | `mautrix-discord/as-token` | (same, `as-token`) | Bridge `registration.yaml` + tuwunel appservice `as_token` | Random ≥64ch; stable (PVC persists registration) |
+| 5 | `mautrix-discord/hs-token` | (same, `hs-token`) | Bridge `registration.yaml` + tuwunel appservice `hs_token` | Same stability contract as `as-token` |
+| 6 | `mautrix-discord/avatar-proxy-key` | (same, `avatar-proxy-key`) | Bridge avatar relay HMAC | Random ≥32ch |
+| 7 | `mautrix-discord/direct-media-server-key` | (same, `direct-media-server-key`) | Bridge media signing (synapse `.signing.key` format) | Generate per synapse format |
+| 8 | `mautrix-discord/provisioning-shared-secret` | (same, `provisioning-shared-secret`) | Bridge provisioning API auth | Random ≥32ch |
+| 9 | `mautrix-discord/double-puppet-shared-secret` | (same, `double-puppet-shared-secret`) | Legacy double-puppet value | Random ≥32ch |
+| 10 | `mautrix-discord/db-password` | `mautrix-discord-db-credentials` + `mautrix-discord-db-app-secret` | Bridge `DATABASE_URL` + CNPG initdb owner password | Random ≥32ch; one field feeds both Secrets |
+| 11 | `element-web/netbird-pat` | `element-proxy-vars` (`netbird_token`) | Terraform `element-proxy` CR via `varsFrom` | Per-env NetBird PAT |
+| 12 | `element-web/cloudflare-api-token` | (same, `cloudflare_api_token`) | (same CR, Cloudflare side) | Separate field from #1; same upstream value is fine |
+| 13 | `rclone/proton-username` | `rclone-proton-credentials` (`username`) | rclone Proton Drive remote | Shared with the other six rclone legs |
+| 14 | `rclone/proton-password` | (same, `password`) | (same remote) | Shared with the other six rclone legs |
 
 Seed commands (dev shown; repeat with `acme-prd-bdo1-talos-apps-01` for prd):
 
 ```shell
-pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'cert-manager/cloudflare-api-token'
-pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'matrix/tuwunel-registration-secret'
-pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'mautrix-discord/bot-token'
-pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'mautrix-discord/as-token'
-pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'mautrix-discord/hs-token'
-pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'mautrix-discord/avatar-proxy-key'
-pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'mautrix-discord/direct-media-server-key'
-pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'mautrix-discord/provisioning-shared-secret'
-pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'mautrix-discord/double-puppet-shared-secret'
-pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'mautrix-discord/db-password'
-pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'element-web/netbird-pat'
-pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'element-web/cloudflare-api-token'
-pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'rclone/proton-username'
-pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'rclone/proton-password'
+for t in cert-manager/cloudflare-api-token matrix/tuwunel-registration-secret mautrix-discord/bot-token mautrix-discord/as-token mautrix-discord/hs-token mautrix-discord/avatar-proxy-key mautrix-discord/direct-media-server-key mautrix-discord/provisioning-shared-secret mautrix-discord/double-puppet-shared-secret mautrix-discord/db-password element-web/netbird-pat element-web/cloudflare-api-token rclone/proton-username rclone/proton-password; do
+  pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title "$t"
+done
 ```
 
-## Not vault-seeded (in-cluster minted — DO NOT `pass-cli item create`)
+## Not vault-seeded (in-cluster minted)
 
-- **Tuwunel SSO creds**: `tuwunel-sso` CR writes `tuwunel-sso-outputs`; ES reads
-  through `tuwunel-k8s`.
-- **Tuwunel S3 keys** (`tuwunel-s3`): COSI-minted (`tuwunel-media` claim + ES).
-- **CNPG backup S3 keys** (`cnpg-s3-credentials`): COSI-minted (same chain via
-  `mautrix-discord-cosi`).
-- **NetBird proxy outputs** (`element-proxy-outputs`): CR `writeOutputsToSecret`.
-  Never vault, never Git.
-- **matrix bot fields** (BOOTSTRAPPED, DO NOT seed): the bootstrap Job registers
-  the per-env bot (`@apprise-dev` dev / `@apprise` prd, ONE bot per env) + mints
-  its token into the KEPT Secret (rooms via `varsFrom`; apprise via `tuwunel-k8s`).
-- **Coder notifier fields**: coder's ES reads the kept Secret cross-namespace.
-- **In-namespace plumbing**: `eso-k8s-reader` RBAC, `kube-root-ca.crt`,
-  the wildcard TLS Secret. No seeding.
+Tuwunel SSO outputs (`tuwunel-sso-outputs`), COSI S3 keys (`tuwunel-media`, `mautrix-discord-cosi`), NetBird proxy outputs (`element-proxy-outputs`), bot token (bootstrap Job → kept Secret), coder notifier fields (coder ES reads the kept Secret cross-namespace), in-namespace plumbing (`eso-k8s-reader` RBAC, `kube-root-ca.crt`, wildcard TLS Secret).

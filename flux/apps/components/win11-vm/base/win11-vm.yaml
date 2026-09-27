@@ -1,6 +1,5 @@
 # win11-vm: Windows 11 guest, singleton, manual power (runStrategy Manual LOCKED —
 # suspend the apps/win11-vm Kustomization around virtctl power ops; see README).
-# UEFI + SecureBoot (features.smm.enabled required for SecureBoot; contrast talos-vm).
 # No `metadata.namespace` (apps tenant applies with targetNamespace). Secondary net:
 # NAD `multus/lan-dhcp` (multus-owned, single-writer). Storage: DataVolume on local-ssd-nvme.
 # BLOCKED until ISO staged: `spec.source` is a REPLACE-ME placeholder that fails

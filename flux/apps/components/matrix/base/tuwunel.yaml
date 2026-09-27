@@ -6,8 +6,6 @@
 # Config is env-only (TUWUNEL_* maps 1:1 to tuwunel-example.toml keys); base holds
 # __PLACEHOLDERS__, overlays patch real hosts.
 # POSITIONAL: overlays patch env/{0,5,25,26} by index — keep this order.
-# Secrets via secretKeyRef + read-only file mounts (never literals, never envFrom —
-# ESO keys contain dashes). server_name IMMUTABLE. No HPA (singleton; VPA owns sizing).
 # Image tracked by update-policies/tuwunel.yaml ($imagepolicy apps:tuwunel:tag).
 ---
 apiVersion: v1

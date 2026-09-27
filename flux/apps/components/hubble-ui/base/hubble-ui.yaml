@@ -2,7 +2,6 @@
 # (hubble-relay.cilium.svc:80 — Relay ships in the cilium component, NOT here).
 # Images pinned to the Cilium v1.20.2 chart defaults (frontend + backend
 # v0.13.6); bumps via update-policies/hubble-ui.yaml. No telemetry keys, no
-# ServiceMonitor.
 ---
 apiVersion: v1
 kind: ServiceAccount

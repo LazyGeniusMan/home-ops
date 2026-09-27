@@ -1,6 +1,4 @@
 # PVC + S3 offsite legs for the two file-based singletons (tuwunel-data 10Gi
-# RocksDB PVC, mautrix-discord-data 2Gi bridge PVC). Bare-minimum backup leg:
-# periodic sync-mirror to the in-cluster SeaweedFS S3 bucket (same `tuwunel-media`
 # BucketClaim that already holds media), then the trailing S3->Proton legs
 # carry the SAME bucket offsite with the CNPG WAL+base prefixes. Live bucket
 # names template from BucketInfo `spec.bucketName` (never hardcoded); S3 keys

@@ -5,5 +5,3 @@
 # hand, staying aligned to talos/ansible/group_vars/all.yml (refresh
 # together). Version source: the nocloud ISO URL in base/talos-vm.yaml.
 # Changelog: https://github.com/siderolabs/talos/releases.
-# (Dropped 2026-09-27: a dead ImageRepository/ImagePolicy pair with no
-# matching inline marker — automation PRs could never land.)

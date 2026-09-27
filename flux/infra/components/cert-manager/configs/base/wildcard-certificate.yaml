@@ -1,8 +1,6 @@
 # Wildcard certificate for the ingress domain (§9.3, __BASE_DOMAIN__). Lives in the
 # cert-manager namespace so Ready status is observable next to the issuer;
 # the §8 Gateway references TLS in its own namespace — either copy this
-# Secret there (documented in the README) or move this Certificate once the
-# gateway namespace exists. Renewal is automatic via the issuer above.
 # SANs mirror the gateway-api/zitadel namespace Certificates: single-level
 # wildcard + nested *.zitadel.<base> (covers the zitadel admin + NetBird
 # login hosts — wildcards match one label only).

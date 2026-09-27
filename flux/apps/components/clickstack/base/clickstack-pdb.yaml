@@ -2,8 +2,6 @@
 # least one replica serving during voluntary disruptions. Singletons
 # (oauth2-proxy, ferretdb proxy) stay singleton by design — no PDB (a PDB
 # cannot protect a 1-replica workload; scale-up is a documented future step).
-# HPA mins: dev 1 / prd 2; prd tolerates 1 disruption without dropping below
-# the HA floor.
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget

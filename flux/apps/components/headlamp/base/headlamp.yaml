@@ -4,11 +4,9 @@
 # tag 0.45.0 (proxy of classic chart https://kubernetes-sigs.github.io/headlamp/;
 # chart 0.45.0 carries app 0.45.0 — bump OCIRepository ref.tag AND image.tag
 # together). Chart ref.tag is manual-only (no $imagepolicy marker — Helm
-# OCIRepositories are untracked by image automation); the app image.tag below
 # IS auto-tracked (marker `apps:headlamp:tag`). No cosign verify block
 # (chartproxy live-translates tarballs, so no upstream signature applies).
 # App image ghcr.io/headlamp-k8s/headlamp:v0.45.0.
-# No telemetry knobs, no ServiceMonitor.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

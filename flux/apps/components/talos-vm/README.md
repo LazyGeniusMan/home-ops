@@ -1,53 +1,33 @@
 # talos-vm
 
-Talos Linux guest on KubeVirt: 1 replica (`VirtualMachine`, no autostart),
-UEFI with SecureBoot DISABLED, Multus secondary net on `multus/lan-dhcp`,
-root disk via DataVolume on `local-ssd-nvme`.
+Talos Linux guest on KubeVirt: 1 replica (`VirtualMachine`, no autostart), UEFI with SecureBoot disabled, Multus secondary net on `multus/lan-dhcp`, root disk via DataVolume on `local-ssd-nvme`.
 
-## Power is manual (LOCKED `runStrategy: Manual`)
+## Power is manual (locked `runStrategy: Manual`)
 
-Flux NEVER changes guest power; operate with virtctl only while the Flux
-Kustomization is suspended:
+Flux never changes guest power; use virtctl only while the Flux Kustomization is suspended:
 
 ```bash
-flux suspend kustomization apps -n talos-vm   # pause reconciliation
-virtctl start talos-vm -n talos-vm            # or: virtctl stop / restart
-flux resume kustomization apps -n talos-vm    # re-enable reconciliation
+flux suspend kustomization apps -n talos-vm
+virtctl start talos-vm -n talos-vm            # or: stop / restart
+flux resume kustomization apps -n talos-vm
 ```
 
-## Talos nocloud ISO source (aligned to the Talos version in `talos/ansible/group_vars/all.yml`)
+## ISO source
 
-- `dataVolumeTemplates[].spec.source.http.url` points at the Image Factory
-  nocloud artifact for amd64 / v1.15.0-alpha.0. Refresh it with Talos minor
-  bumps.
-- The factory schematic needs NO extra system extensions (virtio disk/NIC
-  are in-tree; host schematics already cover
-  intel-ucode/i915/realtek-firmware/netbird). Optional: add the
-  `qemu-guest-agent` extension via a factory schematic and refresh the URL.
-- Bootstrap the guest with `talosctl apply-config` over the `lan` address
-  it DHCPs from the router (192.168.1.1).
+`dataVolumeTemplates[].spec.source.http.url` points at the Image Factory nocloud artifact (amd64, v1.15.0-alpha.0) — refresh on Talos minor bumps, aligned to `talos/ansible/group_vars/all.yml`. Factory schematic needs no extra extensions (virtio in-tree); optional `qemu-guest-agent` via a factory schematic. Bootstrap with `talosctl apply-config` over the `lan` DHCP address (router 192.168.1.1).
 
-## Firmware (contrast win11-vm)
+## Firmware
 
-UEFI (`q35` + `firmware.bootloader.efi`) with `secureBoot: false` and NO
-`features.smm` block — the Talos nocloud image is not SecureBoot-signed.
+UEFI (`q35` + `firmware.bootloader.efi`), `secureBoot: false`, no `features.smm` — the Talos nocloud image is not SecureBoot-signed (contrast win11-vm).
 
 ## Network
 
-- `default` (masquerade/pod): cluster egress + virtctl console.
-- `lan` (bridge → `multus/lan-dhcp`, NAD owned by the `multus` tenant —
-  single-writer, do not define one here). The guest DHCPs from the router
-  at 192.168.1.1.
+- `default` (masquerade): cluster egress + virtctl console.
+- `lan` (bridge → `multus/lan-dhcp`, NAD owned by the `multus` tenant): guest DHCPs from the router at 192.168.1.1.
 
 ## Static MAC addresses (canonical contract)
 
-The `lan` interface carries a static MAC per env for a stable router DHCP
-lease. The MAC is a literal on the per-env patch (`macAddress` is a plain
-string — no ESO); Proton Pass holds a manual mirror (`lan-mac` item) for
-the router reservation. Patch literal and vault value must agree — update
-both together. MACs must be unicast, QEMU-OUI `52:54:00` prefixed, and
-unique repo-wide (dev+prd share 192.168.1.0/24 with win11-vm; win11-vm
-points here for the contract and keeps only its values table).
+`lan` carries a static MAC per env (literal on the per-env patch; vault holds a manual `lan-mac` mirror for the router reservation — update both together). Unicast, QEMU-OUI `52:54:00`, unique repo-wide (win11-vm points here for the contract).
 
 | env | MAC | vault path |
 | --- | --- | --- |
@@ -58,20 +38,9 @@ points here for the contract and keeps only its values table).
 
 | Env | Patches |
 | --- | --- |
-| `dev` | singleton; minimal specs (1 core / 1Gi / 10Gi — boot+DHCP minimum) + static `lan` MAC |
+| `dev` | singleton; minimal specs (1 core / 1Gi / 10Gi) + static `lan` MAC |
 | `prd` | singleton; base specs (2 cores / 4Gi / 20Gi) + static `lan` MAC |
 
-Upstream reference (read-only): `/tmp/home-ops-docs/talos-docs` (guest image/ISO shape).
+## Updates
 
-## Telemetry-off / monitoring / updates
-
-- Talos ships no phone-home; no guest reporting is configured here.
-- No ServiceMonitors (KubeVirt VM metrics flow via kubevirt infra).
-- Manual-only ISO (no `$imagepolicy` marker, no ImageRepository/ImagePolicy —
-  see `flux/apps/update-policies/talos-vm.yaml`; update automation cannot
-  rewrite a static ISO URL). Refresh the nocloud ISO URL in
-  `base/talos-vm.yaml` by hand on Talos minor bumps.
-  Version source: the nocloud ISO URL in `base/talos-vm.yaml`
-  (v1.15.0-alpha.0) — MUST stay aligned to the Talos version in
-  `talos/ansible/group_vars/all.yml`.
-  Changelog: https://github.com/siderolabs/talos/releases.
+Manual-only ISO (no `$imagepolicy`; see `flux/apps/update-policies/talos-vm.yaml`). Version source: nocloud ISO URL in `base/talos-vm.yaml`. Changelog: [talos](https://github.com/siderolabs/talos/releases).

@@ -2,7 +2,6 @@
 # Restarts Deployments/StatefulSets/DaemonSets when ESO-synced Secrets rotate (CronJobs + Jobs watched too, ignoreJobs/ignoreCronJobs stay false).
 # reloadStrategy annotations (not env-vars): Flux v2 SSA leaves Reloader's pod-template annotation alone (local docs reloader-docs/content/how-to-guides/use-reloader-with-flux.md).
 # watchGlobally true: one global ClusterRole watches every tenant namespace; other slices opt in with reloader.stakater.com/auto: "true".
-# Telemetry: no phone-home knobs in chart values (logs stay local; metrics only via the podMonitor below when the TA scrapes it).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

@@ -1,7 +1,4 @@
 # COSI credential bridge: in-namespace SecretStore reading the COSI-minted BucketInfo
-# (Secret mautrix-discord-db-cosi-creds) via the shared eso-k8s-reader SA (matrix-rbac.yaml).
-# server.url omitted (defaults to kubernetes.default); kube-root-ca.crt supplies the CA.
-# Consumed by the cnpg-s3-credentials ES (mautrix-discord-db.yaml) via GJSON `property`.
 ---
 apiVersion: external-secrets.io/v1
 kind: SecretStore

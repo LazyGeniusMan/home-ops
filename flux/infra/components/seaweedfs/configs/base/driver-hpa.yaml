@@ -1,7 +1,6 @@
 # HPA for the SeaweedFS COSI driver. Multi-replica is safe (sidecar leader
 # election, standbys never double-act). Bounds per env via overlays (dev 1/2,
 # prd 2/4); base replicas: 1 is the seed, HPA owns runtime count.
-# Prerequisite: metrics-server healthy.
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

@@ -1,160 +1,54 @@
 # Observability (ClickHouse-native)
 
-ClickHouse is the only telemetry store; HyperDX is the only telemetry UI. No
-Prometheus or Grafana in any cluster. Logs, metrics, and traces flow through the
-OTel pipeline (`infra/components/otel-operator`, `infra/components/otel-collectors`)
-into namespace-local ClickHouse and are read back in HyperDX. See
-`apps/components/clickstack/README.md` for the ClickStack deployment itself.
+ClickHouse is the only telemetry store; HyperDX is the only telemetry UI. No Prometheus or Grafana. Logs, metrics, and traces flow through the OTel pipeline (`infra/components/otel-operator`, `infra/components/otel-collectors`) into namespace-local ClickHouse and are read back in HyperDX. See `apps/components/clickstack/README.md` for the ClickStack deployment.
 
-## OTel pipeline (landed)
+## OTel pipeline
 
-- **Operator** (`infra/components/otel-operator/`): `crds/base` ships
-  ServiceMonitor + PodMonitor CRDs (prometheus-operator v0.93.1, monitoring
-  scope only) via the first-party `helm-otel-monitoring-crds` OCI chart
-  (CreateReplace) rendered through the fleet's `prune:false` infra-crds
-  Kustomization; `controllers/{base,dev,prd}` run the operator chart
-  (0.123.1/app 0.159.0) with `infra:otel-operator:tag` update policy.
-- **Collectors** (`infra/components/otel-collectors/`): operator-managed
-  `OpenTelemetryCollector` CRs — `otel-agent` DaemonSet (kubeletstats + filelog
-  → gateway OTLP) and `otel-gateway` StatefulSet (dev 1 / prd 2) with
-  `infra:otel-collector:tag` update policy.
-- **ClickHouse export:** gateway `clickhouse` exporter points at the shared
-  infra CHI (`tcp://clickhouse-clickhouse.clickhouse.svc:9000`,
-  `create_schema: true`); no custom TTLs in git (see retention below).
-- **Auth:** `configs/base/clickhouse-credentials.yaml`
-  `ExternalSecret/otel-clickhouse` reads
-  `pass://<cluster>/otel-collectors/clickhouse-password`. Seed per env before
-  first install; workloads pend until ESO syncs.
-
-## Per-signal guide
-
-- **Logs:** Go services emit JSON `slog` with `trace_id` / `span_id`
-  correlation; collected by the in-namespace collector, stored in ClickHouse,
-  read in HyperDX.
-- **Metrics:** every Go service keeps a Prometheus-exposition `/metrics`
-  endpoint. `ServiceMonitor` / `PodMonitor` objects are scrape-target discovery
-  for the OTel pipeline only — never a reason to deploy Prometheus.
-- **Traces:** Go services use the OTel trace SDK (`internal/tracing`, SDK
-  v1.46.0), exporting OTLP/HTTP to the OTLP endpoint below. View in HyperDX.
+- **Operator** (`infra/components/otel-operator/`): ServiceMonitor + PodMonitor CRDs via first-party `helm-otel-monitoring-crds` (CreateReplace), rendered through the fleet `prune:false` infra-crds Kustomization; controllers run the operator chart (0.123.1/app 0.159.0).
+- **Collectors** (`infra/components/otel-collectors/`): operator-managed `OpenTelemetryCollector` CRs — `otel-agent` DaemonSet (kubeletstats + filelog → gateway OTLP) and `otel-gateway` StatefulSet (dev 1 / prd 2).
+- **ClickHouse export:** gateway `clickhouse` exporter points at the shared infra CHI (`tcp://clickhouse-clickhouse.clickhouse.svc:9000`, `create_schema: true`).
+- **Auth:** `ExternalSecret/otel-clickhouse` reads `pass://<cluster>/otel-collectors/clickhouse-password`; workloads pend until ESO syncs.
 
 ## OTLP endpoint convention
 
-- **Infra services** (`apprise-go-api`, `eso-proton-pass`, `external-dns`)
-  export to the infra pipeline at
-  `http://otel-gateway-collector.otel-collectors.svc:4318` via an explicit
-  `OTEL_EXPORTER_OTLP_ENDPOINT` env in each manifest — never to an apps
-  collector (`infra/components/<name>/{controllers,configs}/base/*.yaml`).
-- **Apps-namespace workloads** (clickstack app) export to the in-namespace
-  collector (`apps/components/clickstack/base/clickstack.yaml`).
-- The Go code default is the gateway value; `OTEL_SDK_DISABLED=true` disables
-  export for tests and local runs.
+- **Infra services** export to `http://otel-gateway-collector.otel-collectors.svc:4318` via explicit `OTEL_EXPORTER_OTLP_ENDPOINT` env — never to an apps collector.
+- **Apps-namespace workloads** (clickstack app) export to the in-namespace collector.
+- `OTEL_SDK_DISABLED=true` disables export for tests and local runs.
 
-## When a chart ships a ServiceMonitor
+## Per-signal guide
 
-New charts render their monitors unconditionally and rely on the
-`infra-crds` gate — monitor-producing infra tenants gate
-`infra-controllers` on the otel-operator `infra-crds` Established
-healthChecks (`flux/fleet/tenants/infra.yaml`), so monitors never render
-before the CRDs exist. Charts whose template errors without the CRDs carry a
-chart-native guard instead (ESO `renderMode: skipIfMissing`,
-`infra/components/external-secrets/controllers/base/externalsecrets.yaml`)
-with a why-comment. The sanctioned on-state is `enabled: true` plus the
-`otel-scrape: "true"` label, applied from dev/prd overlays only. Never add
-Prometheus/Grafana to consume the monitors.
+- **Logs:** Go services emit JSON `slog` with `trace_id` / `span_id`; collected by the in-namespace collector, stored in ClickHouse, read in HyperDX.
+- **Metrics:** every Go service keeps a Prometheus-exposition `/metrics` endpoint. `ServiceMonitor` / `PodMonitor` objects are scrape-target discovery for the OTel pipeline only — never a reason to deploy Prometheus.
+- **Traces:** Go services use the OTel trace SDK (`internal/tracing`, SDK v1.46.0), exporting OTLP/HTTP. View in HyperDX.
 
 ## Go instrumentation recipe
 
-Every Go service (`projects/`) follows the `apprise-go-api` shape:
-`tracing.Setup` in `main`, `tracing.Middleware` on the mux (`/metrics` and
-`/healthz` bypass observation), `/metrics` + `/healthz` + `/readyz` on every
-service (probes target `/healthz` + `/readyz`), `OTEL_EXPORTER_OTLP_ENDPOINT`
-(defaults to the gateway endpoint above) with `OTEL_SDK_DISABLED=true` for
-dependency-free tests and local runs.
+Every Go service follows the `apprise-go-api` shape: `tracing.Setup` in `main`, `tracing.Middleware` on the mux (`/metrics` + `/healthz` bypass), `/metrics` + `/healthz` + `/readyz` on every service (probes target `/healthz` + `/readyz`).
 
-## Always-on ordering
+## When a chart ships a ServiceMonitor
 
-- **Infra:** otel-collectors `infra-controllers` gates on the otel-operator
-  controllers + the shared infra CHI configs; monitor-producing tenants gate
-  on the otel-operator `infra-crds` Established healthChecks
-  (`flux/fleet/tenants/infra.yaml`). The gateway `__OTEL_DATABASE__` shape
-  substitutes in the otel-collectors controllers overlays (kustomize `patches:`
-  `replace`, not fleet `substituteFrom`) at the real field
-  `/spec/config/exporters/clickhouse/database`; the clickhouse CHI's S3
-  prereqs (bucketclaims/cosi-keys/s3-credentials) live in its controllers
-  base so the CHI never races its bucket/keys.
-- **Apps:** the apps ResourceSet gates on the cnpg/clickhouse/cosi/
-  otel-operator/otel-collectors `infra-configs` Ready
-  (`flux/fleet/tenants/apps.yaml`) — storage/observability consumers never
-  reconcile before their backends. New apps depending on storage/observability
-  stay covered by these gates.
-- **Clickstack:** backends first in `base/kustomization.yaml` build order
-  (RBAC/buckets/secrets → CHI/CNPG → proxy → app/collector → front/HPA/VPA →
-  Terraform).
+Monitors render unconditionally behind the `infra-crds` gate (monitor-producing tenants gate on otel-operator `infra-crds` Established healthChecks); charts whose template errors without the CRDs carry a chart-native guard with a why-comment. Sanctioned on-state: `enabled: true` + label `otel-scrape: "true"`, applied from dev/prd overlays only.
+
+## Ordering gates
+
+- **Infra:** otel-collectors gates on the otel-operator controllers + shared infra CHI; monitor-producing tenants gate on otel-operator `infra-crds` Established (`flux/fleet/tenants/infra.yaml`).
+- **Apps:** apps ResourceSet gates on cnpg/clickhouse/cosi/otel-operator/otel-collectors `infra-configs` Ready (`flux/fleet/tenants/apps.yaml`).
+- **Clickstack:** backends first in `base/kustomization.yaml` build order (RBAC/buckets/secrets → CHI/CNPG → proxy → app/collector → front/HPA/VPA → Terraform).
 
 ## Discovery (TargetAllocator)
 
-Every tenant namespace (infra + apps, plus the update cluster's automation
-namespaces) carries `otel-scrape: "true"` from the fleet ResourceSet
-Namespace templates (`flux/fleet/tenants/infra.yaml`,
-`flux/fleet/tenants/apps.yaml`, `flux/fleet/clusters/update/automation.yaml`); the gateway TargetAllocator scrapes only
-monitors + namespaces carrying that label (object and namespace selectors
-must both match). Monitor-object labels land via each chart's label knob
-from the dev/prd overlay patches.
+Every tenant namespace carries `otel-scrape: "true"` from the fleet ResourceSet Namespace templates; the gateway TargetAllocator scrapes only monitors + namespaces carrying that label (both selectors must match). Monitor-object labels land via each chart's label knob from overlay patches.
 
-## Probes
+## Retention
 
-`/healthz` liveness + `/readyz` readiness on every Deployment, values tuned per
-component docs. Slow-starting dependencies gate behind a `startupProbe` instead
-of the chart default (Zitadel server 60s, login 60s) so CNPG migrations and OIDC
-warmup never trip restarts. Upstream images with fixed paths keep them with a
-why-comment (HyperDX app `/health`, collector `/`, FerretDB TCP, mautrix-discord
-TCP — `apps/components/clickstack/base/{clickstack,ferretdb}.yaml`,
-`apps/components/matrix/base/mautrix-discord.yaml`). Static SPAs with no health
-endpoint (`element-web`, hubble-ui frontend) probe `/` — upstream-image fixed
-path, same why-comment rule.
+- **Signal tables:** `HYPERDX_OTEL_EXPORTER_TABLES_TTL` default `720h` (30 days) across logs/traces/metrics/sessions (collector reconciles TTLs on existing tables).
+- **System tables** (`query_log`, `part_log`, `text_log`, `metric_log`, `asynchronous_metric_log`): `event_date + INTERVAL 7 DAY DELETE` via the chart's `extraConfig`, plus `logger` capped at `information` / `100M` x 10 files.
+- Follow-up: raise per-signal TTLs (e.g. 180d) once prd disk headroom is measured.
 
-## VPA
+## HyperDX route
 
-VPA `Off` alongside any HPA; never combine an active VPA mode with HPA on the
-same workload. Every singleton with no HPA uses `updateMode: Initial` —
-recommendations apply at pod (re)start only, never mid-run eviction.
-
-## ClickHouse retention
-
-Table retention follows the ClickHouse/HyperDX chart defaults, which the
-operators have reviewed and accept as an explicit bound:
-
-- **Signal tables:** `HYPERDX_OTEL_EXPORTER_TABLES_TTL` default `720h` (30
-  days) across logs/traces/metrics/sessions (per-signal overrides unset; the
-  collector reconciles TTLs on existing tables). Upstream default in
-  `charts/clickstack/values.yaml` of the ClickStack chart.
-- **System tables** (`query_log`, `part_log`, `text_log`, `metric_log`,
-  `asynchronous_metric_log`): `event_date + INTERVAL 7 DAY DELETE` via the
-  chart's `extraConfig`, plus `logger` capped at `information` / `100M` x 10
-  files. Without this the operator's trace-level logging + TTL-less system
-  tables fill the 10Gi default volume within days and the OTel collector
-  starts dropping every batch (see the chart CHANGELOG).
-- **Follow-up to revisit:** raise `HYPERDX_OTEL_EXPORTER_LOGS_TTL` /
-  `_TRACES_TTL` per signal (e.g. 180d for compliance) once prd disk headroom
-  is measured. No unbounded-retention risk today — both TTL layers are set.
-
-## HyperDX route / Gateway pattern
-
-HyperDX declares its own `HTTPRoute` on the shared `main` Gateway:
-`clickstack.<domain>` → `oauth2-proxy:4180`, which upstreams to
-`http://clickstack.clickstack.svc:3000`. TLS terminates at the Gateway via the
-in-namespace wildcard `Certificate`. Access is gated by Zitadel OIDC
-(`allowed-group=clickstack-admin`).
+HyperDX declares its own `HTTPRoute` on shared `main` Gateway: `clickstack.<domain>` → `oauth2-proxy:4180` → `http://clickstack.clickstack.svc:3000`. TLS terminates at the Gateway via the in-namespace wildcard Certificate. Gated by Zitadel OIDC (`allowed-group=clickstack-admin`).
 
 ## Alert path
 
-HyperDX webhook → `apprise-go-api` `/notify` → Matrix room. `apprise-go-api` is
-the single delivery endpoint; alerting never bypasses it.
-
-## Upgrades
-
-Changelog-first plus pin parity (see AGENTS.md Reference/Patterns): ClickHouse
-server moves in 26.8 LTS lockstep across the infra operator line and the app CHI
-marker (`infra:clickhouse-server:tag`); the OTel SDK bumps across all three Go
-services together; the `oauth2-proxy` chart/app markers move together with
-hubble-ui + flux-operator-ui.
+HyperDX webhook → `apprise-go-api` `/notify` → Matrix room. `apprise-go-api` is the single delivery endpoint.

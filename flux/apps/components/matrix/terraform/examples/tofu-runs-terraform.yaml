@@ -1,8 +1,4 @@
 # Example consumer: tofu-runs room (per-run Terraform log, BOT posts only).
-# Same shape as flux-notifications-terraform.yaml (one CR per room). Feeds from the
-# `tofu-runs` Alert; overlaps the flux room by design (events post to BOTH rooms).
-# Notification-only (events_default 50) + plaintext (encryption_enabled false).
-# Wiring identical to the flux example.
 ---
 # Vars mirror: team-owned bot-token mirror (same-namespace `varsFrom`); team namespaces
 # mint their own bot — NEVER the matrix kept Secret.

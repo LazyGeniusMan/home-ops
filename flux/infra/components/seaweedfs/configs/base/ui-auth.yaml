@@ -5,9 +5,6 @@
 # __ZITADEL_ISSUER_URL__, redirect https://__SEAWEEDFS_UI_HOST__/oauth2/callback,
 # scopes openid profile email groups, admin-only via --allowed-group=seaweedfs-admin,
 # cookie domain .__BASE_DOMAIN__.
-# Credentials from seaweedfs-sso-outputs via the seaweedfs-k8s SecretStore
-# (in-Terraform cookie secret — never Proton Pass; the ESO reader Role is
-# narrowed to seaweedfs-sso-outputs only, matching the zitadel-bootstrap reader pattern).
 # Chart oci://ghcr.io/oauth2-proxy/charts/oauth2-proxy 10.7.0 (app v7.15.4); tags track update-policies/seaweedfs.yaml.
 apiVersion: v1
 kind: ServiceAccount

@@ -4,9 +4,6 @@
 # spec.bootstrap.initdb.owner). HA 3 instances, sync quorum 1, anti-affinity.
 # Storage local-ssd-nvme. Backup: continuous WAL + daily base to
 # s3://cnpg-backups/mautrix-discord/ (prefix must exist — CNPG never creates buckets).
-# Credentials: cnpg-s3-credentials ES from the COSI-minted BucketInfo via the in-namespace
-# `mautrix-discord-cosi` store. PITR: apply a NEW Cluster with bootstrap.recovery
-# (commented stanza below) instead of initdb.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

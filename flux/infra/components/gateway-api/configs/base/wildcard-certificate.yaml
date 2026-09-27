@@ -2,7 +2,6 @@
 # this component mints __WILDCARD_TLS_SECRET__ HERE via ClusterIssuer/letsencrypt
 # (same dnsNames pattern; duplicate wildcard orders stay valid). The token
 # ExternalSecret mirrors cert-manager/configs/base/cluster-issuer.yaml so the
-# DNS-01 solver credential exists in this namespace too.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

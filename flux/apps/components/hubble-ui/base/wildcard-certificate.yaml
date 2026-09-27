@@ -1,7 +1,6 @@
 # In-namespace wildcard Certificate (cert-manager Secrets are namespace-local,
 # so the cert-manager-namespace Certificate cannot feed this Gateway listener).
 # Mints __WILDCARD_TLS_SECRET__ HERE via ClusterIssuer/letsencrypt; the token
-# ExternalSecret (hubble-secrets.yaml) mirrors the credential here.
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate

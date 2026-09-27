@@ -1,8 +1,6 @@
 # OTel Operator chart 0.123.1 (app 0.159.0) via chartproxy OCI (proxy of https://open-telemetry.github.io/opentelemetry-helm-charts).
-# Reconciles OpenTelemetryCollector CRs; webhooks via cert-manager (admissionWebhooks.certManager.enabled).
 # Own ServiceMonitor stays off (no Prometheus server in this repo); the operator's manager ClusterRole
 # already watches monitoring.coreos.com servicemonitors/podmonitors for TargetAllocator discovery.
-# Telemetry off: no usage-reporting keys in chart values.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

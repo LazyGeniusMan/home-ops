@@ -1,7 +1,4 @@
 # VPA recommender for the virt-operator Deployment (upstream manifest, no HPA:
-# KubeVirt owns operator scaling itself; replicas stay 2 per the upstream
-# manifest). updateMode Initial — recommendations apply at pod (re)start only,
-# never evicting the running operator (a Recreate eviction would stall every
 # KubeVirt reconcile until the pod restarts). Selector mirrors the upstream
 # manifest matchLabels (`kubevirt.io: virt-operator`).
 ---

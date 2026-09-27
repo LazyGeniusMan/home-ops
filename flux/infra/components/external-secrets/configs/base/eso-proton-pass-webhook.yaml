@@ -1,5 +1,4 @@
 # eso-proton-pass (projects/eso-proton-pass, pull-only): in-cluster generic-webhook provider, addressed by Service DNS. proton-pass-pat Secret must exist before first reconcile.
-# PAT rotation: update the Secret, then Reloader (auto:true below) rolls this Deployment — no manual restart.
 # Trust boundary: the ClusterSecretStore dials this webhook over cleartext service-domain http://eso-proton-pass.external-secrets:8080
 # by design (no in-cluster TLS); CNI-layer Cilium WireGuard encrypts pod traffic between nodes instead.
 ---

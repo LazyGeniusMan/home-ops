@@ -1,20 +1,13 @@
 # Flux notification wiring: every Flux-native event source emits via the infra
-# apprise-go-api sink into per-purpose Matrix rooms. Full contract: base/NOTIFICATIONS.md.
-# Provider type generic (NOT generic-hmac — apprise-go-api has no HMAC path).
-# ACCEPTED RISK: the sink accepts unauthenticated in-cluster POSTs (no HMAC
-# path upstream). Containment is default-deny NetworkPolicy (see
-# apprise-sink-allowlist.yaml reference in this dir — rules land in the SINK
-# namespace when placed; the sink
-# lives in `apprise-go-api`, NOT here): only notification-controller (Flux
-# Providers/Alerts) + coderd (CODER_* webhook env) ever dial the sink
-# Service; no other workload holds its DNS name. Track upstream for an
-# HMAC/signing option (projects/apprise-go-api) and flip the Provider type
-# when it lands.
-# Providers post to http://apprise-go-api.apprise-go-api.svc:80/notify (infra tenant);
-# credentials ride the APPRISE_STATELESS_URLS fallback, not this address.
-# `?:message=body&:reason=title` remap, `format=text`, pinned `type=`, `tag=` selects
-# the fallback leg (flux|tofu|team; every tag MUST match a STATELESS_URLS entry or the
-# request 204s; coder is NOT a fallback tag — it posts per-request `urls`).
+# apprise-go-api sink (http://apprise-go-api.apprise-go-api.svc:80/notify) into
+# per-purpose Matrix rooms. Full contract: base/NOTIFICATIONS.md. Provider
+# type generic (NOT generic-hmac — apprise-go-api has no HMAC path).
+# ACCEPTED RISK: the sink accepts unauthenticated in-cluster POSTs;
+# containment is default-deny NetworkPolicy (see apprise-sink-allowlist.yaml
+# reference in this dir — rules land in the SINK namespace when placed).
+# `?:message=body&:reason=title` remap, `format=text`, pinned `type=`, `tag=`
+# selects the fallback leg (flux|tofu|team; every tag MUST match a
+# STATELESS_URLS entry or the request 204s; coder posts per-request `urls`).
 ---
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Provider

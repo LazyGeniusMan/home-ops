@@ -1,7 +1,4 @@
 # COSI credential bridge: in-namespace SecretStore reading the COSI-minted BucketInfo
-# (Secret tuwunel-media-cosi-creds) via the shared eso-k8s-reader SA (matrix-rbac.yaml).
-# server.url omitted (kubernetes.default); kube-root-ca.crt supplies the CA.
-# The tuwunel-s3 ES below uses GJSON `property` (bucketName + secretS3 keys).
 ---
 apiVersion: external-secrets.io/v1
 kind: SecretStore

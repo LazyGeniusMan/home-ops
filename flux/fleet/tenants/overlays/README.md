@@ -19,40 +19,18 @@ commented inline `patch: |-` blocks; enabling one is an uncomment.
 
 ## How it works
 
-Each `clusters/<name>/tenants.yaml` (a Flux Kustomization) syncs
-`path: ./tenants/overlays/<name>`. Each overlay kustomization lists the
-three shared ResourceSets as resources:
+Each `clusters/<name>/tenants.yaml` syncs `path: ./tenants/overlays/<name>`.
+Each overlay lists the three shared ResourceSets (`apps.yaml`, `infra.yaml`,
+`policies.yaml`) as resources; with no `patches:` active it renders them
+as-is. Dev removes the `win11-vm` input; prd is pass-through; `update` lists
+`policies.yaml` only.
 
-```yaml
-resources:
-  - ../../apps.yaml
-  - ../../infra.yaml
-  - ../../policies.yaml
-```
+## Patch rules
 
-With no `patches:` active, the overlay renders the shared set as-is.
-The dev overlay has one active patch (removes the `win11-vm` input from
-the `apps` ResourceSet); the prd overlay has no active patches. The update
-overlay lists `policies.yaml` only — the update cluster runs no app/infra
-tenants (`clusters/update/automation.yaml` drives those via
-ImageUpdateAutomation, gated on policies Ready).
-
-## One mechanism for apps + infra + policies
-
-Per-cluster differences are inline RFC 6902 JSON patches (`patches:` entries in
-the overlay `kustomization.yaml`), applied uniformly to any of the three
-ResourceSets; list removals carry `test` guards on the tenant name, highest
-index first.
-
-## Adding a per-cluster exception (onboarding)
-
-1. Add an inline RFC 6902 `patches:` block in
-   `tenants/overlays/<cluster>/kustomization.yaml` (keep `test` guards on
-   list removals, highest index first).
-2. Verify locally:
-   `kustomize build flux/fleet/tenants/overlays/<cluster> --load-restrictor=LoadRestrictionsNone`
-   (the controller allows the `../../` parent traversal, as does
-   `validate.sh`).
+Per-cluster differences are inline RFC 6902 JSON patches in the overlay
+`kustomization.yaml`. List removals carry `test` guards on the tenant name,
+highest index first. Verify with:
+`kustomize build flux/fleet/tenants/overlays/<cluster> --load-restrictor=LoadRestrictionsNone`.
 
 ## Adding a brand-new cluster
 
@@ -62,22 +40,11 @@ index first.
    `path: ./tenants/overlays/<new-cluster>`.
 3. Extend this README's tree + the fleet README layout.
 
-## CLUSTER_NAME / CLUSTER_DOMAIN consumption
+## Variable consumption
 
 `ARTIFACT_TAG` selects the OCI tag each cluster syncs (`dev` on dev +
-update, `stable` on prd) and therefore which cosign identity verifies it
-(push-workflow `refs/heads/main` for `dev`, release-workflow version tags for
-`stable` — see the fleet README Artifacts section). The dev FluxInstance
-verifies `dev` against `flux-fleet-push`; the prd FluxInstance verifies
-`stable` against `flux-fleet-release`.
-
-`CLUSTER_NAME` / `CLUSTER_DOMAIN` (plus `ARTIFACT_TAG` / `ENVIRONMENT`) are
-plumbed to every tenant namespace: each ResourceSet copies
-`flux-system/flux-runtime-info` into `<tenant>/flux-runtime-info` via
-`copyFrom`, and every tenant Kustomization declares
-`postBuild.substituteFrom` on that ConfigMap. Any component manifest can
-consume `${CLUSTER_NAME}` / `${CLUSTER_DOMAIN}` (e.g. HTTPRoute hostnames,
-per-cluster labels) by referencing the variable in the component's
-`base/` or `{dev,prd}/` overlay. The `__CLUSTER_NAME__` placeholder is
-consumed (rclone backup destinations, element-proxy `network_name`),
-replaced by per-env overlay patches.
+update, `stable` on prd) and therefore which cosign identity verifies it.
+`CLUSTER_NAME` / `CLUSTER_DOMAIN` (plus `ARTIFACT_TAG` / `ENVIRONMENT`) reach
+every tenant namespace via `copyFrom` of `flux-system/flux-runtime-info` +
+`postBuild.substituteFrom` — any component manifest can reference
+`${CLUSTER_NAME}` / `${CLUSTER_DOMAIN}`.

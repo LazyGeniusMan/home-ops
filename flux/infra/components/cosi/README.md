@@ -1,79 +1,24 @@
 # COSI (Container Object Storage Interface)
 
-Object-storage provisioning on SeaweedFS: central COSI controller v0.2.2
-(`objectstorage.k8s.io/v1alpha1`, image
-`gcr.io/k8s-staging-sig-storage/objectstorage-controller:v0.2.2`) plus the
-SeaweedFS COSI driver (driver + RBAC + classes in the seaweedfs component's
-`configs/base/`), with default `BucketClass/seaweedfs` +
-`BucketAccessClass/seaweedfs-key`.
+Object-storage provisioning on SeaweedFS: central COSI controller v0.2.2 (image `gcr.io/k8s-staging-sig-storage/objectstorage-controller:v0.2.2`) plus the SeaweedFS COSI driver (driver + RBAC + classes in the seaweedfs component's `configs/base/`), with default `BucketClass/seaweedfs` + `BucketAccessClass/seaweedfs-key`.
 
-`BucketClaim`/`BucketAccess` pairs colocate with their consumers (one pair per
-live bucket, 9 claims): cnpg `cnpg-backups`, dragonfly `dragonfly-backups`,
-clickhouse `clickhouse`, zitadel `zitadel-db`/`zitadel-cache`/`zitadel-assets`,
-coder `coder-db`, clickstack `ferretdb`/`clickstack`.
+Consumer `BucketClaim`/`BucketAccess` pairs colocate with their consumers (one pair per live bucket, 9 claims): cnpg `cnpg-backups`, dragonfly `dragonfly-backups`, clickhouse `clickhouse`, zitadel `zitadel-db`/`zitadel-cache`/`zitadel-assets`, coder `coder-db`, clickstack `ferretdb`/`clickstack`.
 
 ## Layout
 
-`crds/base/` (first-party `helm-cosi` OCI chart, 5 CRDs v0.2.2, fleet
-prune:false `infra-crds`) + `controllers/base/`
-(`namespace`/`sa`/`rbac`/`deployment` + HPA/VPA, CRD-free so
-`infra-controllers` keeps prune:true) + `configs/base/` (`resources: []`
-placeholder — driver lives in the seaweedfs component). Dev/prd inherit
-`../base` unchanged.
+`crds/base/` (first-party `helm-cosi` OCI chart, 5 CRDs v0.2.2, fleet prune:false `infra-crds`) + `controllers/base/` (`namespace`/`sa`/`rbac`/`deployment` + HPA/VPA, CRD-free so `infra-controllers` keeps prune:true) + `configs/base/` (`resources: []` placeholder — driver lives in the seaweedfs component). Dev/prd inherit `../base` unchanged.
 
 ## Sources
 
-- `crds/base/cosi-crds.yaml` (`OCIRepository` + `HelmRelease`, CRD
-  `CreateReplace`): `projects/helm-cosi` wraps the 5 upstream CRDs
-  (`objectstorage.k8s.io/v1alpha1`,
-  `kubernetes-sigs/container-object-storage-interface` tag `v0.2.2`,
-  fetched at publish time; no YAML committed in the chart). All 5 bump
-  together; pins + caps move together (`update-policies/cosi.yaml` +
-  `seaweedfs.yaml`, all `<0.3.0`).
-- `controllers/base/` manifests: from the same tag. Namespace adapted
-  `system`->`cosi` (including the lease `RoleBinding`), subjects
-  `default`->`cosi`.
-- Driver + classes in the seaweedfs component mirror the upstream seaweedfs
-  chart `templates/cosi/` (plain in-cluster gRPC, no auth/TLS branches —
-  Cilium WireGuard covers the wire). Driver image
-  `ghcr.io/seaweedfs/seaweedfs-cosi-driver:v0.3.1`; sidecar
-  `gcr.io/k8s-staging-sig-storage/objectstorage-sidecar:v0.2.2`. The driver
-  ClusterRole is NARROWED from upstream (read + status-update only, no
-  Secret management); the driver Deployment runs non-root + seccomp, and the
-  HPA workload carries a PDB.
+- `crds/base/cosi-crds.yaml`: `projects/helm-cosi` wraps the 5 upstream CRDs (`objectstorage.k8s.io/v1alpha1`, upstream tag `v0.2.2`, fetched at publish time; no YAML committed).
+- `controllers/base/`: from the same tag (namespace adapted `system`->`cosi`, subjects `default`->`cosi`).
+- Driver + classes in the seaweedfs component mirror upstream `templates/cosi/` (plain in-cluster gRPC; driver ClusterRole narrowed to read + status-update only). Driver image `ghcr.io/seaweedfs/seaweedfs-cosi-driver:v0.3.1`; sidecar `gcr.io/k8s-staging-sig-storage/objectstorage-sidecar:v0.2.2`.
 
-## Flow
+## Endpoint / naming / credentials
 
-Consumer `BucketClaim` (`bucketClassName: seaweedfs`) -> central controller
-creates cluster-scoped `Bucket` -> driver sidecar dials the driver over
-`unix:///var/lib/cosi/cosi.sock` -> `DriverCreateBucket` creates the bucket via
-filer gRPC. Consumer `BucketAccess` (`bucketAccessClassName: seaweedfs-key`) ->
-`DriverGrantBucketAccess` mints S3 keys into a Secret. Pod mounts the Secret
-(`secretName`) as a volume.
-
-## Endpoint contract
-
-In-cluster traffic uses `http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333`
-(plain HTTP port 8333). Dragonfly's `--s3_endpoint` takes the bare host
-(`seaweed-main-s3.seaweedfs:8333`) plus `--s3_use_https=false`. The public
-`https://s3.seaweedfs.<domain>` Gateway route is for outside-cluster users only.
-Buckets are path-style only.
-
-## Bucket naming
-
-The driver provisions the live bucket under a controller-generated name
-(`bc-<uuid>`), so claim/access names do not equal backing SeaweedFS bucket
-names — read the live name from the claim's `status.bucketName` once
-`status.bucketReady` is true.
-
-## Credential bridge
-
-Each `BucketAccess` mints keys into its `credentialsSecretName` Secret in the
-claim namespace as BucketInfo JSON
-(`secretS3.endpoint/region/accessKeyID/accessSecretKey`). Consumers read keys
-through in-namespace Kubernetes-provider stores (`cosi-keys.yaml` beside each
-`bucketclaims.yaml`) with GJSON
-(`BucketInfo.spec.secretS3.accessKeyID/accessSecretKey`):
+- In-cluster S3: `http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333` (plain HTTP, path-style buckets only). Dragonfly's `--s3_endpoint` takes the bare host plus `--s3_use_https=false`. The public `https://s3.seaweedfs.<domain>` route is for outside-cluster users only.
+- The driver provisions the live bucket under a controller-generated name (`bc-<uuid>`) — read it from the claim's `status.bucketName` once `status.bucketReady` is true.
+- Each `BucketAccess` mints keys into its `credentialsSecretName` Secret as BucketInfo JSON (`secretS3.endpoint/region/accessKeyID/accessSecretKey`). Consumers read them through in-namespace stores (`cosi-keys.yaml` beside each `bucketclaims.yaml`) with GJSON (`BucketInfo.spec.secretS3.accessKeyID/accessSecretKey`):
 
 | Claim ns | Claim | Creds Secret | Store | Consumer ExternalSecret |
 |---|---|---|---|---|
@@ -94,10 +39,6 @@ through in-namespace Kubernetes-provider stores (`cosi-keys.yaml` beside each
 | `dev` | 1 (central controller + driver singletons) |
 | `prd` | 2 (controller + driver HA once multi-node) |
 
-## Telemetry / monitoring / updates
+## Updates
 
-No phone-home knobs upstream. Controller image auto-tracks via
-`update-policies/cosi.yaml` (`>=0.2.2 <0.3.0`) + `seaweedfs.yaml`
-(sidecar + driver), capped `<0.3.0`; CRDs bump via Chart.yaml +
-wrapper `ref.tag` together (no ImagePolicy/marker, atomic hand-bump),
-human merges.
+`update-policies/cosi.yaml` + `seaweedfs.yaml` (`>=0.2.2 <0.3.0`, all 5 CRDs bump together; pins + caps move together); CRDs bump via Chart.yaml + wrapper `ref.tag` together (no ImagePolicy/marker, atomic hand-bump), human merges.

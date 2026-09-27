@@ -1,37 +1,16 @@
 # gateway-api
 
-Gateway API v1.6.1 standard channel (first-party `helm-gateway-api` OCI
-chart in `crds/base/`: 10 CRDs + 2 ValidatingAdmissionPolicies, standard
-channel whole — experimental not adopted), the shared
-`GatewayClass/cilium` (served by `io.cilium/gateway-controller`), the
-shared `Gateway/main` (HTTP 80 + HTTPS 443), and base `HTTPRoute`
-redirects. Per-service routes attach later.
+Gateway API v1.6.1 standard channel (first-party `helm-gateway-api` OCI chart in `crds/base/`: 10 CRDs + 2 ValidatingAdmissionPolicies, standard channel whole), the shared `GatewayClass/cilium` (served by `io.cilium/gateway-controller`), the shared `Gateway/main` (HTTP 80 + HTTPS 443), and base `HTTPRoute` redirects. Per-service routes attach later.
 
-CRD delivery: the chart lives in `crds/` and renders through the fleet's
-prune:false `infra-crds` Kustomization (CreateReplace inside) — a removed
-CRD never cascade-deletes CRs. `controllers/base` is an empty Kustomization
-so `infra-controllers` keeps prune:true; bumps move Chart.yaml + wrapper
-`ref.tag` together (see the header in `crds/base/standard-install.yaml`).
+CRDs live in `crds/` and render through the fleet's prune:false `infra-crds` Kustomization; `controllers/base` is an empty Kustomization so `infra-controllers` keeps prune:true.
 
 ## TLS: namespace-local wildcard Certificates
 
-A `Gateway` listener only references a Secret in its own namespace, so the
-cert-manager-namespace `wildcard-home-ops-tls` Secret cannot feed this
-Gateway. `configs/base/wildcard-certificate.yaml` mints a duplicate
-`Certificate/wildcard-home-ops` here -- same `ClusterIssuer/letsencrypt`,
-same `secretName: wildcard-home-ops-tls` -- with SANs `*.<base>` +
-`*.zitadel.<base>` (NetBird login host) + `*.coder.<base>` (coder
-workspaces; wildcards match one label only, so each nested shape needs its
-own SAN) -- plus its own copy of the `cloudflare-api-token` ExternalSecret
-(same Proton Pass remoteRef,
-`pass://<cluster>/cert-manager/cloudflare-api-token`, Zone:Read + DNS:Edit).
+A `Gateway` listener only references a Secret in its own namespace, so `configs/base/wildcard-certificate.yaml` mints a duplicate `Certificate/wildcard-home-ops` here (same `ClusterIssuer/letsencrypt`, `secretName: wildcard-home-ops-tls`) with SANs `*.<base>` + `*.zitadel.<base>` (NetBird login host) + `*.coder.<base>` (wildcards match one label only) — plus its own copy of the `cloudflare-api-token` ExternalSecret (`pass://<cluster>/cert-manager/cloudflare-api-token`).
 
 ## HTTP->HTTPS
 
-Port 80 is a redirect source only: every base route carries a
-`RequestRedirect` filter (301 to `https`). Hostname matches dots to the
-left per spec, covering `<service>.home-ops...` and nested
-`<subservice>.<service>.home-ops...` shapes.
+Port 80 is a redirect source only: every base route carries a `RequestRedirect` filter (301 to `https`).
 
 ## Environments
 
@@ -40,14 +19,8 @@ left per spec, covering `<service>.home-ops...` and nested
 | `dev` | data-plane per-node via Cilium (N/A) | TLS `wildcard-home-ops-dev-tls`, hostnames `home-ops-dev.yansyah.my.id` |
 | `prd` | data-plane per-node via Cilium (N/A) | TLS `wildcard-home-ops-tls`, hostnames `home-ops.yansyah.my.id` |
 
-The `Certificate` uses the shared `ClusterIssuer/letsencrypt` whose ACME
-server is set per environment by the cert-manager overlays. Controllers
-track `../base` with no patches.
+Controllers track `../base` with no patches.
 
-## Telemetry / monitoring / updates
+## Updates
 
-No telemetry knobs in the upstream manifests. No ServiceMonitors ship;
-Gateway data-plane metrics come via Cilium. Bumps: Chart.yaml +
-wrapper `ref.tag` together (no ImagePolicy/marker, atomic hand-bump),
-human merges — paired with the Cilium minor (see
-`flux/infra/update-policies/cilium.yaml`).
+Chart.yaml + wrapper `ref.tag` together (no ImagePolicy/marker, atomic hand-bump), human merges — paired with the Cilium minor (see `flux/infra/update-policies/cilium.yaml`).

@@ -1,10 +1,6 @@
 # Flux Operator UI: standalone Web UI (serverOnly) from the same chart line
 # as bootstrap (this tag MUST match operator_chart_version in
 # flux/fleet/terraform/versions.yaml).
-# Guardrail: the UI must never own CRDs or the fleet sync path — serverOnly
-# stays true and installCRDs stays false; the bootstrap flux-operator owns
-# CRDs and sync. fullnameOverride pins Service flux-operator-ui (port 9080)
-# for the oauth2-proxy upstream. No telemetry flags, no ServiceMonitor.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

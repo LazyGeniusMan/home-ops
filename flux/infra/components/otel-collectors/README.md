@@ -1,30 +1,8 @@
 # otel-collectors
 
-Operator-managed `OpenTelemetryCollector` CRs (contrib-collector 0.159.0,
-markers `infra:otel-collector:tag`): `otel-agent` DaemonSet (kubeletstats +
-filelog -> gateway OTLP) and `otel-gateway` StatefulSet (OTLP + k8s_cluster +
-TargetAllocator-scraped Prometheus -> ClickHouse).
+Operator-managed `OpenTelemetryCollector` CRs (contrib-collector 0.159.0, markers `infra:otel-collector:tag`): `otel-agent` DaemonSet (kubeletstats + filelog -> gateway OTLP) and `otel-gateway` StatefulSet (OTLP + k8s_cluster + TargetAllocator-scraped Prometheus -> ClickHouse). TargetAllocator runs on the gateway only (`prometheusCR.enabled: true`, `otel-scrape: "true"` selectors over monitors + namespaces). ClusterIP only — OTLP stays in-cluster.
 
-TargetAllocator runs on the gateway only (consistent-hashing,
-`prometheusCR.enabled: true`, `otel-scrape: "true"` matchLabels selectors over
-monitors + namespaces). Scoped `otel-collector` / `otel-targetallocator`
-ClusterRoles in `controllers/base/rbac.yaml` (operator creates the
-ServiceAccounts from each CR).
-
-Gateway exports to the shared infra CHI (`clickhouse-clickhouse.clickhouse`,
-`create_schema: true`, exporter-internal `sending_queue.batch` 5000/10s,
-`ttl: 0s` — DBA-managed table TTLs default 30d). Auth as the dedicated `otel`
-CHI user via `ExternalSecret/otel-clickhouse` (proton-pass
-`pass://<cluster>/otel-collectors/clickhouse-password` — seed with the SAME
-value as `pass://<cluster>/clickhouse/otel-password`; one password, two vault
-mirrors, one per namespace). Never the `default` user.
-ClusterIP only — no Ingress/Gateway (OTLP stays in-cluster).
-
-Trust boundary: agent->gateway `:4317` (`tls.insecure: true`), webhook `:4318`
-(`http://`), and gateway->ClickHouse `tcp://:9000` are cleartext by design —
-no in-cluster TLS; CNI-layer Cilium WireGuard encrypts pod traffic between
-nodes instead. Only outside-cluster access (Gateway API + cert-manager) is
-TLS-terminated.
+Gateway exports to the shared infra CHI (`clickhouse-clickhouse.clickhouse`, `create_schema: true`, `ttl: 0s` — DBA-managed table TTLs default 30d). Auth as the dedicated `otel` CHI user via `ExternalSecret/otel-clickhouse` (`pass://<cluster>/otel-collectors/clickhouse-password` — same value as `pass://<cluster>/clickhouse/otel-password`; one password, two vault mirrors); never the `default` user.
 
 ## Environments
 
@@ -33,9 +11,6 @@ TLS-terminated.
 | `dev` | 1 | `otel_dev` |
 | `prd` | 2 (base values) | `otel_prd` |
 
-## Telemetry / monitoring / updates
+## Updates
 
-No usage reporting. Bumps: `update-policies/otel-collectors.yaml`
-(contrib >=0.159.0, markers `infra:otel-collector:tag`) -> PR automation.
-Changelogs: https://github.com/open-telemetry/opentelemetry-collector-releases/releases,
-https://github.com/open-telemetry/opentelemetry-collector-contrib/releases.
+`update-policies/otel-collectors.yaml` (contrib >=0.159.0, markers `infra:otel-collector:tag`). Changelogs: https://github.com/open-telemetry/opentelemetry-collector-releases/releases, https://github.com/open-telemetry/opentelemetry-collector-contrib/releases.

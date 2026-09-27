@@ -1,12 +1,4 @@
 # VPA applier for the tofu-controller Deployment (singleton reconciler, no
-# HPA): updateMode Initial — recommendations apply at pod (re)start only,
-# never evicting the running singleton mid-reconcile (a Recreate eviction
-# would stall every Terraform CR until the pod restarts). minReplicas 1: the
-# updater default --min-replicas=2 (flags.md) never evicts single-replica
-# targets, and no PDB exists here (single replica: a PDB cannot protect 1
-# replica) — without this the CR would recommend-but-never-apply. Release
-# name `tofu-controller` renders the controller Deployment in the release
-# namespace.
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler

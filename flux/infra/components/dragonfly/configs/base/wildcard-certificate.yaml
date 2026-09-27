@@ -1,7 +1,5 @@
 # Wildcard certificate for Dragonfly TLS. Namespace-local so server-TLS
 # (spec.tlsSecretRef) and client connections stay in-namespace. DNS: no DNSEndpoint
-# CR — the nested *.dragonfly wildcard rides on the existing *.home-ops wildcard A
-# automation; verify with dig before cutting traffic over.
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate

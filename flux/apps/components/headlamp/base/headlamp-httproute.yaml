@@ -1,6 +1,4 @@
 # Headlamp HTTPRoute on the shared Gateway (cross-namespace parentRef).
-# Chart-native httpRoute stays OFF — the route is owned explicitly here. TLS
-# terminates at the Gateway via the in-namespace wildcard Certificate.
 # Catch-all `/` covers the app plus /oidc-callback.
 ---
 apiVersion: gateway.networking.k8s.io/v1

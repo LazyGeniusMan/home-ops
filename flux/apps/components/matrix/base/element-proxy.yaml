@@ -1,16 +1,12 @@
-# Element Web NetBird reverse-proxy consumer: private tailnet path alongside
-# the public Gateway (upsert-only sidecar; never touches Deployment/Service/HTTPRoute).
-# One custom-domain registration + wildcard CNAME + reverse-proxy service, per
-# flux/infra/components/netbird/examples/consumer-terraform.yaml. Reconciles after
-# NetBird/Cloudflare credentials (fleet `apps` dependsOn `infra-configs`); no Terraform
-# dependsOn (Terraform-CR-only upstream). Tokens flow from Proton Pass via the ESO-synced
-# `element-proxy-vars` Secret (same-namespace varsFrom). Backend: in-cluster default,
-# no backendConfig. Outputs land in `element-proxy-outputs`.
-# POSITIONAL: overlays patch /spec/vars/0 (domain), /spec/vars/2 (network_name),
-# /spec/vars/3 (service_lb_ip) by index — keep this order.
-# NAME-KEYED: overlay patches target kind: Terraform + name: element-proxy
-# (never bare kind-only) so sibling CRs can never cross-patch.
-# cloudflare_zone_id absent = DNS self-managed (root skips the verification CNAME).
+# Element Web NetBird reverse-proxy consumer (upsert-only sidecar; never touches
+# Deployment/Service/HTTPRoute). Per
+# flux/infra/components/netbird/examples/consumer-terraform.yaml: one
+# custom-domain registration + wildcard CNAME + reverse-proxy service.
+# Reconciles after NetBird/Cloudflare credentials (fleet `apps` dependsOn
+# `infra-configs`); no Terraform dependsOn. Tokens flow from Proton Pass via the
+# ESO-synced `element-proxy-vars` Secret (same-namespace varsFrom); outputs land
+# in `element-proxy-outputs`. Overlays patch by NAME (kind: Terraform + name);
+# /spec/vars order: domain, service_name, network_name, service_lb_ip, ...
 # First apply leaves the domain Pending Verification — dashboard Verify within 48h.
 ---
 apiVersion: external-secrets.io/v1

@@ -2,8 +2,6 @@
 # (shared with cosi, otel-operator): the v1.6.1 standard bundle (CRDs +
 # safe-upgrades VAP, first-party Helm OCI chart) lives in crds/base and
 # renders through the fleet's prune:false infra-crds Kustomization — this
-# Kustomization must stay CRD-free so infra-controllers keeps prune:true.
-# Never add a CRD file here.
 # Cilium serves the GatewayClass/data-plane (§8.2); Gateway + routes live in
 # configs/base.
 apiVersion: kustomize.config.k8s.io/v1beta1

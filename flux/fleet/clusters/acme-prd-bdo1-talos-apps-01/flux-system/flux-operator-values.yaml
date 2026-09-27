@@ -1,7 +1,5 @@
 # Shared Flux Operator Helm values. Single source: consumed by the Terraform
 # bootstrap (initial install) and by Flux via the flux-operator-values
-# ConfigMap (valuesFrom); after bootstrap Flux owns the release.
-# No telemetry knobs in the chart; defaults are telemetry-off.
 multitenancy:
   enabled: true
   defaultServiceAccount: flux-operator

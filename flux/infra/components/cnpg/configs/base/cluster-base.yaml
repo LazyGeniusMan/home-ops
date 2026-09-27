@@ -1,7 +1,5 @@
 # Reusable PostgreSQL HA Cluster template (not a live cluster): copy into a namespace-local Cluster.
 # 3 instances, sync quorum, pod anti-affinity; local-ssd-nvme; continuous WAL + daily base backup to SeaweedFS S3.
-# Anti-affinity is PREFERRED (not required): dev runs a single node where required spread would strand
-# instances Pending; prd still spreads across nodes. Do NOT set podAntiAffinityType: required on one node.
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster

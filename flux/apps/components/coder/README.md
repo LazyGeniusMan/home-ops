@@ -1,68 +1,50 @@
 # Coder
 
-Self-hosted remote dev environments at `https://coder.home-ops.yansyah.my.id`, app `v2.37.3` via chart `oci://ghcr.io/coder/chart/coder` **2.37.3** (chart<->app lockstep — chart tag and `ghcr.io/coder/coder` image tag track together via `update-policies/coder.yaml`; no digest pin — the OCIRepository carries no `verify` block because upstream publishes the chart OCI artifact unsigned). Coderd requests/limits are set explicitly in `base/coder.yaml` `coder.resources` (chart defaults are empty): requests `500m/512Mi` feed the HPA denominator; the `2000m` CPU limit is burst headroom for provisioner spikes, never the HPA signal. No custom workspace template.
+Self-hosted remote dev environments at `https://coder.home-ops.yansyah.my.id`, app `v2.37.3` via chart `oci://ghcr.io/coder/chart/coder` `2.37.3`
+(chart↔app lockstep; no digest pin — upstream publishes the chart OCI artifact unsigned).
+
+Coderd requests `500m/512Mi` feed the HPA denominator; the `2000m` CPU limit is burst headroom for provisioner spikes. No custom workspace template.
 
 ## Layout
 
-`base/` holds every manifest (`coder.yaml` OCIRepository + HelmRelease, secrets, CNPG Cluster, wildcard certificates, HTTPRoutes); env overlays `{dev,prd}/` patch hostnames, vault refs, and chart values via `resources: [../base]`.
+`base/` holds every manifest (`coder.yaml`, secrets, CNPG Cluster, wildcard certificates, HTTPRoutes); `{dev,prd}/` patch hostnames, vault refs, and chart values.
 
 ## OIDC (direct — no oauth2-proxy)
 
-Coder speaks OIDC natively. SSO is owned by this app: the `coder-sso` Terraform CR (`base/terraform.yaml`) owns the `coder` Zitadel project + `coder-admin` / `coder-user` roles + grants + OIDC client + users from `var.user_emails` (empty = admin-only; env-invariant — same humans in dev+prd).
+SSO owned by this app: the `coder-sso` Terraform CR owns the `coder` Zitadel project + `coder-admin` / `coder-user` roles + OIDC client + users from `var.user_emails`.
 
 | Item | Value |
 |---|---|
 | Issuer | `https://admin.zitadel.home-ops.yansyah.my.id` |
-| Client | `coder` (server-generated — synced via ESO, never a literal) |
-| Redirect | `https://coder.home-ops.yansyah.my.id/*` (covers `/api/v2/users/oidc/callback`) |
-| Scopes / domain / groups | `openid,profile,email,groups` / `home-ops.yansyah.my.id` / `coder-admin,coder-user` (`CODER_OIDC_ALLOWED_GROUPS`) |
-| Identity map | `admin@…` → `admin`/`coder-admin`; `git@yansyah.my.id`, `git@lazygeniusman.my.id` → `git`/`coder-user` |
+| Redirect | `https://coder.home-ops.yansyah.my.id/*` |
+| Scopes / groups | `openid,profile,email,groups` / `coder-admin,coder-user` |
+| Identity map | `admin@…` → `admin`/`coder-admin`; `git@…` → `git`/`coder-user` |
 
-`coder-admin` is project-scoped — never implies org admin. First OIDC login claims instance ownership — perform it as `admin@home-ops.yansyah.my.id` first. Both `git@…` addresses share the email prefix `git`, so username derivation may collide — if Coder rejects the second login, set `CODER_OIDC_USERNAME_FIELD=email`. Kill-switch flip checklist (both envs ship false — verified in dev+prd rendered output): 1. OIDC login succeeds in the env. 2. Patch `CODER_DISABLE_PASSWORD_AUTH` in `base/coder.yaml` to true. 3. Confirm OIDC still signs in before merging. After first login succeeds, flip `CODER_DISABLE_PASSWORD_AUTH` to `"true"` (base ships `"false"` to avoid lockout; the knob is `base/coder.yaml` `/env/10`, never patched per-env) so OIDC is the only sign-in path — verified in rendered output via `kustomize build` (env order is load-bearing, see base comment). Secret handoff (stored outputs, no vault seeding): `coder-sso` outputs `client_id` + `client_secret` into `coder-sso-outputs`; ESO `coder-oidc` consumes both via the in-cluster `coder-k8s` SecretStore. `org_id` + admin ID + provider auth mirror from the FirstInstance handoff via `coder-terraform-vars` (RBAC in `zitadel-handoff-rbac.yaml`) — no `org_id` literal in git. Rotating creds (`coder-oidc`, `matrix-notify`) refresh hourly via ESO; `coder.podAnnotations` carries `reloader.stakater.com/auto: "true"` (infra reloader rolls coderd on rotation).
+First OIDC login claims instance ownership — perform it as `admin@home-ops.yansyah.my.id` first. Base ships `CODER_DISABLE_PASSWORD_AUTH="false"` (kill-switch, `base/coder.yaml` `/env/10`, never patched per-env); flip to `"true"` after OIDC login succeeds in the env.
 
 ## Routing
 
-Hand-written HTTPRoutes on the shared `main` Gateway (cross-namespace parentRef; chart-native routing stays off): `coder` (`coder.home-ops.yansyah.my.id`, `/`) → `coder:80` (UI, API, OIDC callback); `coder-workspaces` (`*.coder.home-ops.yansyah.my.id`, `/`) → same Service (coderd multiplexes by subdomain — one route covers all workspaces incl. nested subdomains); plus HTTP→HTTPS 301s for both. Agents dial the wildcard hostname through the Gateway; no agent-to-pod path outside it is required.
+HTTPRoutes on shared `main` Gateway: `coder` (`coder.home-ops.yansyah.my.id`) and `coder-workspaces` (`*.coder.home-ops.yansyah.my.id`) → `coder:80`, plus HTTP→HTTPS 301s.
 
 ## TLS + DNS
 
-Two in-namespace Certificates (cert-manager Secrets are namespace-local): `coder-root` (`coder.home-ops.yansyah.my.id` → `coder-tls`) and `coder-wildcard` (`*.coder.home-ops.yansyah.my.id` → `coder-wildcard-tls`), both via `ClusterIssuer/letsencrypt` DNS-01 (two certs: one wildcard covers a single label only). Issuance uses DNS-01 TXT; A records ride external-dns. Both routes terminate on the existing `https` listener of the shared `main` Gateway — no extra listener: Gateway listeners only reference Secrets in the `gateway-api` namespace, whose wildcard Certificate carries the `*.coder.<base>` SAN.
+Two in-namespace Certificates: `coder-root` (`coder.home-ops.yansyah.my.id`) and `coder-wildcard` (`*.coder.home-ops.yansyah.my.id`), both via `ClusterIssuer/letsencrypt` DNS-01.
 
 ## Database
 
-`base/coder-db.yaml` — `coder` CNPG Cluster (3 instances, sync quorum 1, `local-ssd-nvme`, WAL + daily base backup to `s3://cnpg-backups/coder/`, dbname/owner `coder`). `CODER_PG_CONNECTION_URL` reads `coder-db-credentials` (`sslmode=require` — self-signed cert, still encrypted in transit).
+`base/coder-db.yaml` — `coder` CNPG Cluster (3 instances, sync quorum 1, WAL + daily base backup to `s3://cnpg-backups/coder/`). `CODER_PG_CONNECTION_URL` reads `coder-db-credentials` (`sslmode=require`).
 
 ## Credentials
 
-`coder-oidc` (stored outputs via `coder-k8s`), `coder-db-credentials` + `coder-db-app-secret` (single `.../coder/db-password` vault source), `cnpg-s3-credentials` (COSI-minted via `coder-cosi`, claim `coder-db`) + `cloudflare-api-token` (DNS-01 secret in this namespace). Seed vault entries with pass-cli. Matrix notifier (coder-owned, no matrix-tenant leg): `matrix-notify` composes `webhook-endpoint` + `apprise-urls` from the matrix kept Secret via `coder-matrix` (zero vault seeding). Known gap: the apprise sink reads `urls` from the POST body only and coderd's payload is fixed, so posts return 204 with no message.
+`coder-oidc` (stored Terraform outputs via `coder-k8s`), `coder-db-credentials` + `coder-db-app-secret` (single `.../coder/db-password` vault source), `cnpg-s3-credentials` (COSI-minted, claim `coder-db`), `cloudflare-api-token` (DNS-01). Matrix notifier (`matrix-notify`) composes from the matrix kept Secret via `coder-matrix` (zero vault seeding). Known gap: apprise sink reads `urls` from the POST body only and coderd's payload is fixed, so posts return 204 with no message.
 
 ## Environments
 
 | Env | Replicas | Patches |
 | --- | --- | --- |
-| `dev` | coderd `replicaCount` 1, `coder-db` Cluster 1 | vault refs, hostnames, chart values + `replicaCount` → 1, `instances` → 1 |
-| `prd` | coderd `replicaCount` 2, `coder-db` Cluster 3 | vault refs, hostnames, chart values + `replicaCount` → 2, `instances` → 3 |
+| `dev` | coderd 1, `coder-db` Cluster 1 | vault refs, hostnames, chart values |
+| `prd` | coderd 2, `coder-db` Cluster 3 | vault refs, hostnames, chart values |
 
-Rclone sync (`rclone-sync-coder-db`): 1 per instance/schedule,
-`concurrencyPolicy: Forbid`, `activeDeadlineSeconds: 3600` — no scaling.
+## Updates
 
-## Singleton vs HPA
-
-HPA-scaled (`coderd`): PDB `minAvailable: 1`, VPA Off (recommender-only).
-Singleton-adjacent (`coder-db` CNPG 1 dev / 3 prd): CNPG-owned quorum, no PDB;
-dev `instances: 1` with `synchronous.number: 1` never stalls (`standbyNames:
-["*"]` tolerates zero standbys).
-
-Upstream reference (read-only): `/tmp/home-ops-docs/coder-docs`.
-
-## Telemetry / monitoring / updates
-
-- Telemetry off: `CODER_TELEMETRY_ENABLE=false`. No ServiceMonitor until monitoring CRDs land (`CODER_PROMETHEUS_ENABLE` unset; health via `kube-state-metrics`).
-- Chart tag + app image track together via `update-policies/coder.yaml` (markers `apps:coder-chart:tag` + `apps:coder:tag` — bump both together).
-
-## Upgrade runbook
-
-- Version source: OCI chart tag (`oci://ghcr.io/coder/chart/coder:2.37.3`, marker `apps:coder-chart:tag`) + app image tag (`ghcr.io/coder/coder:v2.37.3`, marker `apps:coder:tag`) in `base/coder.yaml`.
-- Changelog: https://github.com/coder/coder/releases (app+chart).
-- Bump: let both ImagePolicy PRs land together — never one side alone.
-- Migrate: snapshot `coder-db` BEFORE major bumps. Verify: dashboard OIDC login succeeds and a workspace agent connects via the `*.coder` wildcard route.
+Policy `update-policies/coder.yaml` (markers `apps:coder-chart:tag` + `apps:coder:tag` — bump together). Changelog: [coder](https://github.com/coder/coder/releases). Snapshot `coder-db` before major bumps.

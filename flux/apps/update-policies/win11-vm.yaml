@@ -7,6 +7,3 @@
 # the build there. No public changelog (licensed Microsoft ISO on local
 # infra). Version source: the staged ISO behind spec.source in
 # components/win11-vm/base/win11-vm.yaml (never committed).
-# (Dropped 2026-09-27: a dead ImageRepository/ImagePolicy pair with an
-# invalid `>=24H2` semver range and no matching live marker — automation PRs
-# could never land.)

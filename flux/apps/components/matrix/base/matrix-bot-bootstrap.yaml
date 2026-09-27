@@ -1,16 +1,13 @@
-# Matrix bot bootstrap (setup-Job-keeps-Secret): registers ONE bot per env via the
-# Synapse-compat admin API + mints its token + writes the KEPT Secret
+# Matrix bot bootstrap (setup-Job-keeps-Secret): registers ONE bot per env via
+# the Synapse-compat admin API + mints its token + writes the KEPT Secret
 # `matrix-bot-bootstrap-outputs` (rooms.yaml CRs via same-namespace `varsFrom`;
 # apprise ES via the in-cluster `tuwunel-k8s` store; coder via its own handoff).
-# Kept keys: homeserver_url/access_token/user_id (rooms) + notifier-token/homeserver-host
-# (apprise) + homeserver-url/bot-user-id aliases.
 # Image python:3.13-alpine pinned by digest (bootstrap tooling, no $imagepolicy;
-# re-pin the digest on every 3.13-alpine refresh). RBAC: get/create/patch
-# on the two pinned Secret names in THIS namespace only.
-# Ordering: Job retries with backoff (backoffLimit 12, ~5min spacing) so cold-start needs
-# no dependsOn. Rerun = delete Job + reconcile (M_USER_IN_USE path fails loud; token rotates).
-# Overlays patch HOMESERVER_URL/HOST + BOT_USER_ID/LOCALPART (base holds __PLACEHOLDERS__).
-# No secrets in git: shared secret via secretKeyRef; bot password per-run random in memory.
+# re-pin on every 3.13-alpine refresh). RBAC: get/create/patch on the two pinned
+# Secret names in THIS namespace only. Job retries with backoff (backoffLimit 12)
+# so cold-start needs no dependsOn; rerun = delete Job + reconcile (token rotates).
+# Overlays patch HOMESERVER_URL/HOST + BOT_USER_ID/LOCALPART (base holds
+# __PLACEHOLDERS__); shared secret via secretKeyRef, bot password per-run random.
 ---
 apiVersion: v1
 kind: ServiceAccount

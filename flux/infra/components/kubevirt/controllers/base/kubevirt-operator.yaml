@@ -1,16 +1,14 @@
-# KubeVirt operator v1.9.0 as a first-party Helm OCI chart (no official upstream chart).
-# Chart source: projects/helm-kubevirt (Chart.yaml version = upstream release sans v;
-# ci/fetch.sh stages kubevirt-operator.yaml at publish time; no YAML committed in the chart).
-# Single chart holds the operator bundle only (operator Deployment + RBAC + KubeVirt CRD);
-# the KubeVirt CR stays a Flux manifest in configs/base (operator before CR via
-# infra-configs dependsOn infra-controllers). Upgrades N-1 -> N only, operator-first.
-# Deletion order CR-first: delete the KubeVirt CR and wait for operands to drain before
-# removing this release — deleting the operator first strands the CR Terminating
-# behind its finalizer (recovery: strip the finalizer).
-# No $imagepolicy — first-party Helm OCI bumps atomically (Chart.yaml + wrapper ref.tag in one PR, cf. helm-rclone).
-# NO HPA: the operator Deployment replicas stay 2 per the upstream manifest
-# (KubeVirt owns operator scaling itself). base/vpa.yaml (Initial) +
-# base/pdb.yaml (minAvailable 1) own sizing/disruption instead.
+# KubeVirt operator v1.9.0 as a first-party Helm OCI chart (no official
+# upstream chart). Chart source: projects/helm-kubevirt (Chart.yaml version =
+# upstream release sans v; ci/fetch.sh stages kubevirt-operator.yaml at publish
+# time; no YAML committed in the chart). Single chart holds the operator bundle
+# only; the KubeVirt CR stays a Flux manifest in configs/base (operator before
+# CR via infra-configs dependsOn infra-controllers). Upgrades N-1 -> N only,
+# operator-first. Deletion order CR-first (deleting the operator first strands
+# the CR Terminating behind its finalizer; recovery: strip the finalizer).
+# No $imagepolicy — first-party Helm OCI bumps atomically (cf. helm-rclone).
+# NO HPA (KubeVirt owns operator scaling; replicas stay 2); base/vpa.yaml
+# (Initial) + base/pdb.yaml (minAvailable 1) own sizing/disruption instead.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

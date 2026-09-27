@@ -1,16 +1,12 @@
 # OpenTelemetryCollector CRs (operator-managed, contrib-collector 0.159.0 image):
 # `otel-agent` DaemonSet (node-local kubeletstats + filelog) and `otel-gateway`
 # StatefulSet (cluster-wide k8s_cluster, tail-sampling, ClickHouse export).
-# TargetAllocator enabled on the gateway only (prometheusCR discovery of
-# monitoring.coreos.com ServiceMonitors/PodMonitors with the
-# `otel-scrape: "true"` selector); the agent uses static scrape targets.
+# TargetAllocator on the gateway only (prometheusCR discovery of `otel-scrape:
+# "true"` ServiceMonitors/PodMonitors); the agent uses static scrape targets.
 # Collector image tracks the contrib line (`infra:otel-collector:tag` marker).
-# No VPA on either CR: the operator renders StatefulSet/DaemonSet pods whose
-# resource envelope (memory_limiter + requests/limits) is tuned to pipeline
-# cardinality in this file, not to VPA recommendations (VPA-apply would fight
-# the operator reconcile loop on every recommendation).
-# API: opentelemetry.io/v1beta1 (v1alpha1 deprecated in operator 0.159.0).
-# Telemetry off: own metrics pipeline exports to debug only; no usage reporting.
+# Resource envelope is tuned to pipeline cardinality in this file (no VPA — it
+# would fight the operator reconcile loop). API opentelemetry.io/v1beta1; own
+# metrics export to debug only (no usage reporting).
 ---
 apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector

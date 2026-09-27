@@ -1,7 +1,6 @@
 # In-namespace wildcard Certificate (cert-manager Secrets are namespace-local,
 # so the cert-manager-namespace Certificate cannot feed this Gateway listener).
 # Mints __WILDCARD_TLS_SECRET__ HERE via ClusterIssuer/letsencrypt; the token
-# ExternalSecret mirrors the cluster-issuer credential into this namespace.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

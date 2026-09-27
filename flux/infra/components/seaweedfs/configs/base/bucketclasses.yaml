@@ -1,11 +1,7 @@
 # Default object-storage classes for the SeaweedFS driver (CRs, NOT CRDs —
 # instances of the vendored COSI CRDs in cosi/crds/base; fleet renders them
 # via prune:true infra-configs, after infra-crds + infra-controllers).
-# BucketClass parameters: `replication` must be exactly 3 digits (SeaweedFS
 # DC/rack/node placement, 001 = single copy) and `disk` is a free-format
-# FilerConf disk-type tag (`ssd` lands buckets on the nvme tier).
-# deletionPolicy Delete removes the bucket from SeaweedFS once all
-# BucketAccesses are gone.
 # BucketAccessClass authenticationType Key mints S3 access/secret keys into
 # the per-access Secret (consumed as a secret volume by pods).
 ---

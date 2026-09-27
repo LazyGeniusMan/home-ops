@@ -2,7 +2,6 @@
 # the Cilium chart defaults).
 # Changelog: cilium/cilium releases.
 # Changelog: oauth2-proxy chart + image — manifests releases (chart) + oauth2-proxy releases (image, shared marker).
-# Mode: auto (frontend+backend move together; check the new Cilium chart defaults on every Cilium minor; proxy markers shared with clickstack + flux-operator-ui — bump together).
 # Coupled files: [components/hubble-ui/base/hubble-ui.yaml, base/oauth2-proxy.yaml, ../../infra/update-policies/cilium.yaml].
 ---
 apiVersion: image.toolkit.fluxcd.io/v1

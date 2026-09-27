@@ -1,10 +1,8 @@
 # Tuwunel HTTPRoutes on the shared Gateway (cross-namespace parentRef).
-# - tuwunel-redirect: HTTP→HTTPS 301 on the `http` listener.
 # - tuwunel-tls: `https` route for __TUWUNEL_MATRIX_HOST__ → tuwunel:8008, one rule per
 #   prefix: /_matrix/ (client + federation + SSO callback) + /_tuwunel/ (admin console) +
 #   /_synapse/admin/ (Synapse compat) + /.well-known/matrix/* (served by tuwunel itself).
 #   No XFF filter — tuwunel resolves the client from the rightmost X-Forwarded-For entry.
-# Nested hostname covered by the in-namespace wildcard Certificate. TLS terminates at the Gateway.
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

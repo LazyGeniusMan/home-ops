@@ -1,7 +1,6 @@
 # hubble-ui (scalable) + oauth2-proxy (singleton) HPAs over the hand-vendored
 # Deployments (no usable chart autoscaling knob). hubble-ui scales (dev 1-2,
 # prd 2-4 via overlays); oauth2-proxy stays 1/1 in every env (singleton rule).
-# Base replicas is the create-time seed; HPA owns runtime count.
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

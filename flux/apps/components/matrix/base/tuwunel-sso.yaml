@@ -1,13 +1,5 @@
 # Tuwunel SSO identity (tofu-controller): the `tuwunel` Zitadel project + project-scoped
 # roles + user grants + `tuwunel` OIDC client. Project-scoped — tuwunel-admin never implies org admin.
-# Reconciles after Zitadel is Ready (fleet `apps` dependsOn `infra-configs`); no Terraform
-# dependsOn (Terraform-CR-only upstream).
-# org_id + admin_user_id + provider auth (jwt_profile_json) flow from the FirstInstance handoff
-# Secrets (`zitadel` namespace) via the ESO-synced `tuwunel-terraform-vars` Secret
-# (cross-namespace `tuwunel-zitadel` store + narrow RBAC in zitadel-handoff-rbac.yaml).
-# No org_id literal in git, no vault seeding. Backend: in-cluster default, no backendConfig.
-# Outputs client_id + client_secret land in `tuwunel-sso-outputs` (consumed by the
-# `tuwunel-sso-client` ES through `tuwunel-k8s` — never Git, never Proton Pass).
 ---
 # Cross-namespace handoff reader: mirrors the two chart-minted handoff Secrets from the
 # `zitadel` namespace into `tuwunel-terraform-vars` (remoteNamespace `zitadel`; narrow

@@ -2,17 +2,12 @@
 # Onboard: add the input tenant here + the components matrix in
 # .github/workflows/flux-infra-push.yaml so its OCI artifact is published.
 # Ordering (fresh Talos has no CNI/DNS): cilium is the bootstrap root;
-# coredns + multus serialize after cilium infra-controllers Ready; every
-# other tenant gates at minimum on the otel-operator infra-crds Established
-# healthChecks (CRDs are cluster-scoped, cross-namespace refs are valid);
-# otel-collectors additionally waits for the operator controllers + the
-# shared infra CHI configs. CRD delivery (gateway-api + cosi + otel-operator
-# only): first-party Helm OCI charts render through a dedicated prune:false
-# infra-crds Kustomization (a removed CRD must never cascade-delete CRs) with
-# per-tenant healthChecks so one failing tenant cannot hold the others
-# NotReady. Cilium/cert-manager/kubevirt/multus CRDs stay Helm-managed
-# (CreateReplace / keep:true) outside the kustomize prune inventory, so
-# prune:true controllers cannot cascade-delete them.
+# coredns + multus serialize after cilium infra-controllers Ready; every other
+# tenant gates on the otel-operator infra-crds Established healthChecks, and
+# otel-collectors additionally waits for the operator controllers + shared
+# infra CHI configs. CRD delivery (gateway-api + cosi + otel-operator only)
+# renders through a dedicated prune:false infra-crds Kustomization; per-tenant
+# healthChecks keep one failing tenant from holding the others NotReady.
 # This file is a Go template rendered by the Flux
 # Operator — `<< if ... >>` blocks are comments until rendered.
 apiVersion: fluxcd.controlplane.io/v1

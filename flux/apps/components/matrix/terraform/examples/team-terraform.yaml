@@ -5,9 +5,6 @@
 # eventSources[].namespace, unsuspend). Either name the alias `team` (single shared room)
 # or give the team its own alias + a `?tag=<team>` fallback leg (Provider tag MUST equal a
 # fallback server tag or requests 204).
-# Notification-only (events_default 50) + plaintext (encryption_enabled false — E2EE
-# unreadable to the stateless notifier). Team-owned bot-token mirror (same-namespace
-# `varsFrom`); team namespaces mint their own bot — NEVER the matrix kept Secret.
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

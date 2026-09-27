@@ -1,57 +1,22 @@
 # CoreDNS
 
-CoreDNS app 1.14.7 (chart 1.47.1, `oci://ghcr.io/coredns/charts/coredns`;
-policy floor `>=1.47.1`, marker `infra:coredns:tag`; app pin rides
-`values.image.tag`), answering `home-ops.yansyah.my.id`,
-`*.home-ops.yansyah.my.id`, and nested `*.*.home-ops.yansyah.my.id` with the
-Gateway LB VIP and forwarding everything else upstream.
+CoreDNS app 1.14.7 (chart 1.47.1, `oci://ghcr.io/coredns/charts/coredns`; app pin rides `values.image.tag`), answering `home-ops.yansyah.my.id`, `*.home-ops.yansyah.my.id`, and nested `*.*.home-ops.yansyah.my.id` with the Gateway LB VIP and forwarding everything else upstream. Deployed at bootstrap alongside Cilium so cluster DNS is live before any workload lands.
 
-## Corefile chain
-
-`configs/base/corefile.yaml` (ConfigMap `coredns`, key `Corefile`) carries
-the LAN zone block. Order: `template` stanzas first (apex, single-level
-wildcard, nested wildcard -> LB VIP, each with `fallthrough`), then `hosts`
-(static entries, empty by default, `fallthrough`), then
-`forward . /etc/resolv.conf`. The chart ConfigMap is skipped
-(`deployment.skipConfig: true`); the standalone ConfigMap is what the chart
-Deployment mounts at `/etc/coredns`. `servers:` values carry only the
-default `.` zone.
-
-Validate: `dig @<coredns-svc-ip>` apex + both wildcards -> LB VIP,
-everything else forwards upstream.
-
-## Bootstrap / environments
-
-Deployed at bootstrap alongside Cilium so cluster DNS is live before any
-workload lands. Base carries `__BASE_DOMAIN__` / `__LB_VIP__` placeholders;
-each overlay replaces the LAN zone block with its domain + VIP.
-
-| Env | Replicas | Patches |
-| --- | --- | --- |
-| `dev` | 1 | Corefile LAN zone `home-ops-dev.yansyah.my.id` -> `.249` |
-| `prd` | 2 | Corefile LAN zone `home-ops.yansyah.my.id` -> `.199` |
-
-Dev seeds 1 replica, prd seeds 2. The out-of-band HPA owns the runtime
-count (dev min 1 / max 2, prd min 2 / max 4).
+`configs/base/corefile.yaml` (ConfigMap `coredns`, key `Corefile`) carries the LAN zone block: `template` stanzas first (apex, single-level wildcard, nested wildcard -> LB VIP, each with `fallthrough`), then `hosts` (empty by default, `fallthrough`), then `forward . /etc/resolv.conf`. The chart ConfigMap is skipped (`deployment.skipConfig: true`); the standalone ConfigMap mounts at `/etc/coredns`. Validate: `dig @<coredns-svc-ip>` apex + both wildcards -> LB VIP, everything else forwards upstream.
 
 ## kube-dns Service IP
 
-`controllers/base/kube-dns.yaml` pins `clusterIP: 10.96.0.10` (10th address
-of Talos default service subnet `10.96.0.0/12`). If a `serviceSubnet`
-override is added to `talos/`, the kube-dns `clusterIP` moves to the 10th
-address of the new range.
+`controllers/base/kube-dns.yaml` pins `clusterIP: 10.96.0.10` (10th address of Talos default service subnet `10.96.0.0/12`).
 
-## Telemetry / monitoring / updates
+## Environments
 
-The node-local cache runs hardened (non-root, `NET_BIND_SERVICE` only,
-RuntimeDefault seccomp). HPA workload carries a PDB (`pdb.yaml`).
+| Env | Replicas | Patches |
+| --- | --- | --- |
+| `dev` | 1 (HPA 1-2) | LAN zone `home-ops-dev.yansyah.my.id` -> `.249` |
+| `prd` | 2 (HPA 2-4) | LAN zone `home-ops.yansyah.my.id` -> `.199` |
 
-No reporting knobs in chart values (`prometheus.service` only adds scrape
-annotations). `ServiceMonitor` on (monitoring CRDs via the infra-crds tenant). Chart bumps via
-`update-policies/coredns.yaml` -> PR automation (chart `ref.tag` marker +
-app image marker `infra:coredns-app:tag` in the same file; node-cache image
-`registry.k8s.io/dns/k8s-dns-node-cache:1.26.8` in
-`configs/base/node-local-dns.yaml`, marker `infra:node-cache:tag`,
-policy `>=1.26.0`).
-Changelogs: https://github.com/coredns/coredns/releases,
-https://github.com/coredns/helm/releases.
+Base carries `__BASE_DOMAIN__` / `__LB_VIP__` placeholders; overlays replace the LAN zone block.
+
+## Updates
+
+`update-policies/coredns.yaml` (chart `ref.tag` marker + app image marker `infra:coredns-app:tag`; node-cache image `registry.k8s.io/dns/k8s-dns-node-cache:1.26.8` in `configs/base/node-local-dns.yaml`, marker `infra:node-cache:tag`, policy `>=1.26.0`). Changelogs: https://github.com/coredns/coredns/releases, https://github.com/coredns/helm/releases.

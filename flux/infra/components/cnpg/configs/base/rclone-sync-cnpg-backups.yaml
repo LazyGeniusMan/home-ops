@@ -1,5 +1,4 @@
 # S3 to Proton Drive backup of the cnpg-backups bucket (postgres-base WAL + base backups): mirrors <live-bucket>/cnpg-backups/postgres/ to /home-ops/backups/<cluster>/cnpg/cnpg-backups (sync-mirror; source deletion is the storage backend or db/app operator's job; daily 03:45, Forbid; rclone 1.75.0).
-# Live bucket via BucketInfo.spec.bucketName through the cnpg-cosi store. Per-instance clusters ship their own syncs.
 # Vault key note (M-A8): this component reads .../rclone/proton-password (raw) while the zitadel legs read
 # .../rclone/proton-password-obscured — BOTH vault fields must be seeded (same password, two encodings:
 # raw for pass-cli/API use, `rclone obscure` form for the helm-rclone proton-drive remote — see

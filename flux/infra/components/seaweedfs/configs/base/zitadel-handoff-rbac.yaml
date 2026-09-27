@@ -3,9 +3,6 @@
 # Secret through the cross-namespace seaweedfs-zitadel SecretStore
 # (configs/base/terraform.yaml). The store authenticates as this namespace SA
 # eso-zitadel-handoff-reader, so the SA needs get/list/watch on the two handoff
-# Secrets only plus selfsubjectrulesreviews create (ESO validation).
-# The Role + RoleBinding carry metadata.namespace: zitadel but are OWNED BY the
-# seaweedfs component (reconcile and prune with it).
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

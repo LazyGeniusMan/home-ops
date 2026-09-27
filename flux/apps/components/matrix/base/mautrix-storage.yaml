@@ -1,8 +1,6 @@
 # COSI bucket for mautrix-discord-db backups (lands in `matrix` via targetNamespace).
 # Claim: BucketClass/seaweedfs, S3 (live name from status.bucketName; existingBucketName unset).
 # Backs CNPG WAL + base backups (s3://cnpg-backups/mautrix-discord/ — prefix must exist,
-# CNPG never creates buckets). BucketAccess mints keys as BucketInfo JSON; the
-# `cnpg-s3-credentials` ES bridges them via the in-namespace `mautrix-discord-cosi` store.
 ---
 apiVersion: objectstorage.k8s.io/v1alpha1
 kind: BucketClaim

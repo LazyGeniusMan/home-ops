@@ -1,10 +1,5 @@
 # Flux Operator UI SSO identity, machine-applied by Tofu Controller: the
 # `flux-operator-ui` Zitadel project + project-scoped admin role + OIDC client.
-# Ships in the app Kustomization (fleet `apps` dependsOn `infra-configs`).
-# IDs + provider auth flow from the FirstInstance handoff via the ESO-synced
-# `flux-operator-ui-terraform-vars` Secret — no org_id literal in git.
-# Outputs land in `flux-operator-ui-sso-outputs` for the oauth2-proxy
-# ExternalSecret (cookie secret stays on Proton Pass).
 ---
 # Cross-namespace handoff reader: mirrors the two chart-minted handoff Secrets
 # from the `zitadel` namespace into `flux-operator-ui-terraform-vars`

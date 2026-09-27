@@ -1,15 +1,10 @@
-# Example consumer: flux-notifications room (BOT posts, humans read).
-# Copy into flux/apps/components/<team>/base/terraform.yaml, rename every
-# matrix-rooms-*, replace mxids/hostnames. Reconciles after tuwunel is Ready
-# (fleet `apps` dependsOn `infra-configs`); no Terraform dependsOn (Terraform-CR-only upstream).
-# Notification-only (events_default 50 — members CANNOT post) + plaintext
-# (encryption_enabled false — E2EE unreadable to the stateless notifier, irreversible).
-# Provider auth flows from the TEAM's own bot-token mirror Secret (same-namespace `varsFrom`;
-# keys land under module var names, no varsKeys renames). Team namespaces mint their own bot —
-# NEVER the matrix tenant's kept Secret (varsFrom cannot cross namespaces). No token literal
-# in git. Backend: in-cluster default, no backendConfig. Outputs land in
-# `flux-notifications-outputs`. Prerequisite: the bootstrap runbook (../README.md) minted
-# the bot per env; without `matrix-rooms-terraform-vars` the CR retries.
+# Example consumer: flux-notifications room (BOT posts, humans read). Copy into
+# flux/apps/components/<team>/base/terraform.yaml, rename matrix-rooms-*, replace
+# mxids/hostnames. Reconciles after tuwunel is Ready (fleet `apps` dependsOn
+# `infra-configs`); no Terraform dependsOn. Notification-only (events_default 50)
+# + plaintext (encryption_enabled false). Provider auth from the TEAM's own
+# bot-token mirror Secret (same-namespace `varsFrom`); team namespaces mint their
+# own bot — NEVER the matrix kept Secret. Outputs land in `flux-notifications-outputs`.
 ---
 # Vars mirror: bot token + homeserver URL from the vault via the cluster-scoped
 # `proton-pass` store (keys land under module var names, no varsKeys renames).

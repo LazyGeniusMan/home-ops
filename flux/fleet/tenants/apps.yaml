@@ -1,5 +1,4 @@
 # Apps tenants: one input per component dir under flux/apps/components.
-# Each reconciles through a single Kustomization at ./<<environment>>.
 # Onboard: add the input tenant here + the components matrix in
 # .github/workflows/flux-apps-push.yaml so its OCI artifact is published.
 apiVersion: fluxcd.controlplane.io/v1
