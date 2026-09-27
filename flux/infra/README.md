@@ -1,10 +1,11 @@
 # Infra (platform components)
 
 Cluster add-ons (CRDs + controllers) reconciled by Flux as cluster admin.
-22 components: apprise-go-api, cert-manager, cilium, clickhouse, cnpg,
+23 components: apprise-go-api, cert-manager, cilium, clickhouse, cnpg,
 coredns, cosi, dragonfly, external-dns, external-secrets, gateway-api,
 kubevirt, local-path-provisioner, metrics-server, multus, netbird,
-otel-collectors, otel-operator, seaweedfs, tofu-controller, vpa, zitadel.
+otel-collectors, otel-operator, reloader, seaweedfs, tofu-controller, vpa,
+zitadel.
 
 ## Layout
 

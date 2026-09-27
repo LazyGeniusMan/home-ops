@@ -77,7 +77,8 @@ dependency-free tests and local runs.
   controllers + the shared infra CHI configs; monitor-producing tenants gate
   on the otel-operator `infra-crds` Established healthChecks
   (`flux/fleet/tenants/infra.yaml`). The gateway `__OTEL_DATABASE__` shape
-  substitutes in the otel-collectors controllers overlays at the real field
+  substitutes in the otel-collectors controllers overlays (kustomize `patches:`
+  `replace`, not fleet `substituteFrom`) at the real field
   `/spec/config/exporters/clickhouse/database`; the clickhouse CHI's S3
   prereqs (bucketclaims/cosi-keys/s3-credentials) live in its controllers
   base so the CHI never races its bucket/keys.
@@ -104,10 +105,13 @@ from the dev/prd overlay patches.
 
 `/healthz` liveness + `/readyz` readiness on every Deployment, values tuned per
 component docs. Slow-starting dependencies gate behind a `startupProbe` instead
-of the chart default (Zitadel server 60s, login 30s) so CNPG migrations and OIDC
+of the chart default (Zitadel server 60s, login 60s) so CNPG migrations and OIDC
 warmup never trip restarts. Upstream images with fixed paths keep them with a
-why-comment (HyperDX app `/health`, collector `/`, FerretDB TCP —
-`apps/components/clickstack/base/{clickstack,ferretdb}.yaml`).
+why-comment (HyperDX app `/health`, collector `/`, FerretDB TCP, mautrix-discord
+TCP — `apps/components/clickstack/base/{clickstack,ferretdb}.yaml`,
+`apps/components/matrix/base/mautrix-discord.yaml`). Static SPAs with no health
+endpoint (`element-web`, hubble-ui frontend) probe `/` — upstream-image fixed
+path, same why-comment rule.
 
 ## VPA
 
