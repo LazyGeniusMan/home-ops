@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-// BodyLimit caps the request body (over-cap → 431). Call at the top of the
-// notify handler; bodies are not required when attachments are present.
+// BodyLimit caps the request body (over-cap → 431, mapped by the caller
+// via MapBodyError). Bodies are not required when attachments are present.
 func BodyLimit(w http.ResponseWriter, r *http.Request, maxBytes int64) io.Reader {
 	if maxBytes <= 0 {
 		return r.Body
@@ -48,8 +48,9 @@ func MapBodyError(err error, maxBytes int64) error {
 // ParseMultipart parses a multipart form: maxMemory bytes stay in RAM, the
 // rest spills to disk. Incomings preserve arrival order; the caller defers
 // r.MultipartForm.RemoveAll. The memory budget also bounds the parse, so
-// callers must pass the configured APPRISE_UPLOAD_MAX_MEMORY_SIZE budget
-// (gosec G120: unbounded multipart parsing exhausts memory).
+// pass the configured APPRISE_UPLOAD_MAX_MEMORY_SIZE budget (gosec G120:
+// unbounded multipart parsing exhausts memory). The server form path
+// parses inline instead; this helper serves direct multipart staging.
 func ParseMultipart(r *http.Request, maxMemoryBytes int64) ([]Incoming, error) {
 	if maxMemoryBytes <= 0 {
 		return nil, BadAttachment("max memory bytes must be positive, got %d", maxMemoryBytes)
@@ -119,7 +120,8 @@ func FilePart(field string, fh *multipart.FileHeader) Incoming {
 
 // FormURLs collects non-blank attachment URL strings for one alias key,
 // mirroring Python's getlist filter. The alias priority is resolved by the
-// caller.
+// caller. The server form path collects inline instead; this helper serves
+// direct alias-value filtering.
 func FormURLs(values []string) []string {
 	var out []string
 	for _, v := range values {

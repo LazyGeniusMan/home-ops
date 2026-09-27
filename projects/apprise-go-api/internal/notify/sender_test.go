@@ -202,6 +202,53 @@ func isTimeoutErr(err error) bool {
 	return strings.Contains(err.Error(), "timed out")
 }
 
+// TestSendTimeoutHoldsSlotUntilWorkerExits is the M-A5 regression test:
+// a Send that times out must keep holding its in-flight slot while the
+// backend worker is still running (slow backend), releasing only after
+// the worker finishes. Otherwise timed-out callers would free slots for
+// new sends while their workers still run, over-admitting past maxInFlight.
+func TestSendTimeoutHoldsSlotUntilWorkerExits(t *testing.T) {
+	inFlightMu.Lock()
+	inFlight = 0
+	inFlightMu.Unlock()
+	defer func() {
+		inFlightMu.Lock()
+		inFlight = 0
+		inFlightMu.Unlock()
+	}()
+	srv := newBlackholeServer(2 * time.Second)
+	defer srv.Close()
+	s := New(50 * time.Millisecond)
+	block := "json://" + hostPort(srv.URL)
+	done := make(chan error, 1)
+	go func() {
+		_, err := s.Send(context.Background(), Request{URLs: []string{block}, Body: "hi"})
+		done <- err
+	}()
+	// Wait for the timed-out Send to return while its worker still runs.
+	var firstErr error
+	select {
+	case firstErr = <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed-out Send did not return")
+	}
+	if firstErr == nil || !isTimeoutErr(firstErr) {
+		t.Fatalf("Send(hung target) = %v, want timeout error", firstErr)
+	}
+	if got := ReportInFlight(); got != 1 {
+		t.Fatalf("in-flight after timeout = %d, want 1 (slot held until worker exits)", got)
+	}
+	// The worker finishes ~2s later and must release its slot (drains to
+	// 0 instead of leaking a held slot forever).
+	deadline := time.Now().Add(10 * time.Second)
+	for ReportInFlight() != 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("in-flight never drained after worker exit, want 0")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 func TestSendOverloadFailsFast(t *testing.T) {
 	s := New(5 * time.Second)
 	inFlightMu.Lock()

@@ -5,8 +5,12 @@ a localhost-only sidecar next to ExternalDNS (`--provider=webhook`) and
 translates the webhook API (`/`, `/records`, `/adjustendpoints`) into
 NetBird Public API calls (`/api/dns/zones`, `/api/dns/zones/{zoneId}/records`).
 
-No telemetry is collected or transmitted. The only network traffic is NetBird
-Public API calls plus the local webhook, health, and metrics listeners.
+Traces export via OTLP/HTTP to the infra otel-gateway collector
+(`OTEL_EXPORTER_OTLP_ENDPOINT`, default
+`http://otel-gateway-collector.otel-collectors.svc:4318`;
+`OTEL_SDK_DISABLED=true` disables export). The only other network traffic
+is NetBird Public API calls plus the local webhook, health, and metrics
+listeners.
 
 ## Configuration (environment)
 
@@ -18,7 +22,7 @@ Public API calls plus the local webhook, health, and metrics listeners.
 | `WEBHOOK_ADDR`     | no       | `127.0.0.1:8888`    | Listen address for the webhook API (keep localhost-only) |
 | `METRICS_ADDR`     | no       | `:8080`             | Listen address for `/healthz`, `/readyz`, `/version`, and `/metrics` |
 | `DEFAULT_TTL`      | no       | `300`               | TTL applied to endpoints without an explicit TTL         |
-| `LOG_LEVEL`        | no       | `info`              | JSON log level (`debug`, `info`, `warn`, `error`)        |
+| `LOG_LEVEL`        | no       | `info`              | JSON log level (`debug`, `info`, `warn`/`warning`, `error`; anything else fails startup) |
 | `NETBIRD_AUTO_CREATE` | no | `true` | Strict boolean (`maybe` fails startup); `false` turns missing zones into permanent errors instead of auto-creating them |
 
 The PAT is read from file content so it can be mounted from a Kubernetes
@@ -65,7 +69,7 @@ secret (or ESO `SecretStore`) without ever appearing in env or args.
 | webhook      | `POST /records`     | Apply planned changes (`204` on success) |
 | webhook      | `POST /adjustendpoints` | Provider-specific adjustment         |
 | ops          | `GET /healthz`      | Liveness: `{"status":"ok"}`, zero downstream calls |
-| ops          | `GET /readyz`       | Readiness: NetBird API probe (`200` up, `503 {"status":"not_ready","failing":"netbird-api"}` down) |
+| ops          | `GET /readyz`       | Readiness: single `ListZones` ping (`200` up, `503 {"status":"not_ready","failing":"netbird-api"}` down; 5s bound, one SaaS call per probe, never the records fan-out) |
 | ops          | `GET /version`      | Release version (`internal/version.Version`, `dev` unless ldflags-injected) |
 | ops          | `GET /metrics`      | Prometheus metrics (text exposition, incl. `go_*`/`process_*`; domain: `external_dns_netbird_records_errors_total`, `external_dns_netbird_apply_changes_errors_total`, `external_dns_netbird_adjust_endpoints_errors_total`, `external_dns_netbird_build_info{version}`) |
 

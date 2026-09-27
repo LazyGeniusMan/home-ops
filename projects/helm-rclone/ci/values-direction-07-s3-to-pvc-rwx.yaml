@@ -21,7 +21,7 @@ source:
     provider:
       value: AWS
     accessKeyId:
-      value: AKIAIOSFODNN7EXAMPLE
+      value: AKIAIOSFODNN7TESTKEY
     secretAccessKey:
       secretRef:
         name: rclone-s3-credentials

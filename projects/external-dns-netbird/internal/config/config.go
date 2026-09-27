@@ -47,12 +47,18 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	logLevel := strings.ToLower(envOr("LOG_LEVEL", defaultLogLevel))
+	switch logLevel {
+	case "debug", "info", "warn", "warning", "error":
+	default:
+		return Config{}, fmt.Errorf("config: LOG_LEVEL must be one of debug, info, warn, error, got %q", strings.TrimSpace(os.Getenv("LOG_LEVEL")))
+	}
 	cfg := Config{
 		PATFile:     strings.TrimSpace(os.Getenv("NETBIRD_PAT_FILE")),
 		BaseURL:     envOr("NETBIRD_BASE_URL", defaultBaseURL),
 		WebhookAddr: envOr("WEBHOOK_ADDR", defaultWebhookAddr),
 		MetricsAddr: envOr("METRICS_ADDR", defaultMetricsAddr),
-		LogLevel:    envOr("LOG_LEVEL", defaultLogLevel),
+		LogLevel:    logLevel,
 		DefaultTTL:  defaultTTL,
 		AutoCreate:  autoCreate,
 	}

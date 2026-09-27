@@ -142,7 +142,10 @@ override is set. */}}
 
 {{/* Required credential field: fail fast on absent/null/empty/placeholder, else
 render. Accepts any ref source (value/secretRef/configMapRef/esoRef) but
-rejects literal placeholder sentinels that would otherwise pass validation. */}}
+rejects literal placeholder sentinels that would otherwise pass validation.
+The EXAMPLE guard matches the full AWS example-key shape
+(^AKIA...EXAMPLE$) so real values containing "example" (e.g. a bucket named
+example-backups) never trip it. */}}
 {{- define "helm-rclone.renderRequired" -}}
 {{- $ctx := printf "%s: %s" .ctx .desc -}}
 {{- if not (hasKey .creds .key) }}{{ fail (printf "%s is required" $ctx) }}{{ end -}}
@@ -156,7 +159,7 @@ rejects literal placeholder sentinels that would otherwise pass validation. */}}
 {{- if and $hasLiteral (eq ($literal | toString | trim) "") }}{{ fail (printf "%s is required (got empty value)" $ctx) }}{{ end -}}
 {{- if $hasLiteral -}}
 {{- $upper := $literal | toString | upper | trim -}}
-{{- if or (eq $upper "CHANGEME") (hasPrefix "CHANGEME" $upper) (eq $upper "REPLACE-ME") (hasPrefix "REPLACE-ME" $upper) (hasPrefix "EXAMPLE" $upper) -}}
+{{- if or (eq $upper "CHANGEME") (hasPrefix "CHANGEME" $upper) (eq $upper "REPLACE-ME") (hasPrefix "REPLACE-ME" $upper) (regexMatch "^AKIA[0-9A-Z]*EXAMPLE$" $upper) -}}
 {{- fail (printf "%s is required (got placeholder %q: set a real value or a secretRef/configMapRef/esoRef)" $ctx $literal) -}}
 {{- end -}}
 {{- end -}}
@@ -177,11 +180,15 @@ rejects literal placeholder sentinels that would otherwise pass validation. */}}
 {{- end -}}
 {{- end -}}
 
-{{/* Uri presence guard: fails when the uri key is absent or null. Expects dict {endpoint, role}. */}}
+{{/* Uri presence guard: fails when the uri key is absent, null, or an empty
+literal (empty string / empty value map). Ref sources (secretRef,
+configMapRef, esoRef) always pass: their content resolves at runtime. */}}
 {{- define "helm-rclone.requireUri" -}}
 {{- if not (hasKey .endpoint "uri") }}{{ fail (printf "%s.uri is required: set the claim name (pvc-*), bucket/path (s3), or path (proton-drive) via one of value, secretRef, configMapRef, esoRef" .role) }}{{ end -}}
 {{- $uri := .endpoint.uri -}}
 {{- if kindIs "invalid" $uri }}{{ fail (printf "%s.uri is required (got null): set the claim name (pvc-*), bucket/path (s3), or path (proton-drive) via one of value, secretRef, configMapRef, esoRef" .role) }}{{ end -}}
+{{- if kindIs "string" $uri }}{{ if eq ($uri | toString | trim) "" }}{{ fail (printf "%s.uri is required (got empty string): set the claim name (pvc-*), bucket/path (s3), or path (proton-drive)" .role) }}{{ end }}{{ end -}}
+{{- if and (kindIs "map" $uri) (hasKey $uri "value") }}{{ if eq ($uri.value | toString | trim) "" }}{{ fail (printf "%s.uri is required (got empty value): set the claim name (pvc-*), bucket/path (s3), or path (proton-drive)" .role) }}{{ end }}{{ end -}}
 {{- end -}}
 
 {{/* "1" when a uri uses a ref source (needs <PREFIX>_PATH indirection). */}}

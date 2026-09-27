@@ -41,7 +41,7 @@ url_for() { printf 'https://raw.githubusercontent.com/prometheus-operator/promet
 
 if [[ "$CHECK" == true ]]; then
   for f in monitoring.coreos.com_servicemonitors.yaml monitoring.coreos.com_podmonitors.yaml; do
-    code="$(curl -sSL -o /dev/null -w '%{http_code}' --max-time 30 "$(url_for "$f")")"
+    code="$(curl -sSL --fail -o /dev/null -w '%{http_code}' --max-time 30 "$(url_for "$f")")"
     [[ "$code" == "200" ]] || { echo "upstream check failed: $(url_for "$f") -> HTTP $code" >&2; exit 1; }
     echo "OK: $(url_for "$f")"
   done
@@ -49,8 +49,12 @@ if [[ "$CHECK" == true ]]; then
 fi
 
 mkdir -p "$OUT"
+# Integrity: --fail rejects HTTP errors; the marker/kind greps below prove
+# shape. None of these upstreams publishes a detached signature for the
+# fetched YAML, so no signature check is possible here — if a publisher
+# starts signing, verify the signature before the shape checks.
 for f in monitoring.coreos.com_servicemonitors.yaml monitoring.coreos.com_podmonitors.yaml; do
-  curl -sSL --retry 3 --max-time 120 -o "$OUT/$f" "$(url_for "$f")"
+  curl -sSL --fail --retry 3 --max-time 120 -o "$OUT/$f" "$(url_for "$f")"
   grep -q 'monitoring.coreos.com' "$OUT/$f" \
     || { echo "shape check failed: monitoring API group missing in $OUT/$f" >&2; exit 1; }
   grep -q 'kind: CustomResourceDefinition' "$OUT/$f" \

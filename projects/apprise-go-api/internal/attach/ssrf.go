@@ -13,7 +13,9 @@ import (
 )
 
 // InternalToken is the reserved SSRF deny-list token: it DNS-resolves each
-// attachment host and blocks non-public IPs. Opt-in, never default.
+// attachment host and blocks non-public IPs. It ships in the default
+// APPRISE_ATTACH_REJECT_URL (config.DefaultAttachRejectURL), so out-of-box
+// is fail-closed; setting the deny list explicitly empty opts out.
 const InternalToken = "internal"
 
 // resolveTimeout bounds a single attachment-host DNS resolution.

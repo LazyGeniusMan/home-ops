@@ -114,6 +114,33 @@ func TestReadyzUpAndDown(t *testing.T) {
 	}
 }
 
+// TestReadyzSingleCheapCall is the M-A6 regression test: /readyz must cost
+// exactly one downstream call (ListZones) even when zones carry embedded
+// records, proving it uses the cheap Ping path instead of the Records
+// fan-out (ListZones + N×ListRecords).
+func TestReadyzSingleCheapCall(t *testing.T) {
+	api := &countingAPI{fakeAPI: &fakeAPI{zones: []netbird.Zone{
+		{ID: "z1", Domain: "example.com", Records: []netbird.Record{
+			{ID: "r1", Name: "www.example.com", Type: "A", Content: "10.0.0.1", TTL: 300},
+		}},
+		{ID: "z2", Domain: "other.example.com"},
+	}}}
+	p := nbprovider.New(api, []string{"example.com"}, 300)
+	s := New(p, testLogger(), "127.0.0.1:0", "127.0.0.1:0")
+	h := s.opsHandler()
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("readyz status = %d, want 200", rec.Code)
+	}
+	if api.calls != 1 {
+		t.Errorf("readyz made %d downstream calls, want exactly 1 (Ping, no record fan-out)", api.calls)
+	}
+}
+
 func TestVersionEndpoint(t *testing.T) {
 	s := testServer()
 	h := s.opsHandler()

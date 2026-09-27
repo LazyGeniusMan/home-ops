@@ -38,15 +38,19 @@ VERSION="$(chart_version | tr -d '"[:space:]')"
 URL="https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/v${VERSION}/deployments/multus-daemonset-thick.yml"
 
 if [[ "$CHECK" == true ]]; then
-  code="$(curl -sSL -o /dev/null -w '%{http_code}' --max-time 30 "$URL")"
+  code="$(curl -sSL --fail -o /dev/null -w '%{http_code}' --max-time 30 "$URL")"
   [[ "$code" == "200" ]] || { echo "upstream check failed: $URL -> HTTP $code" >&2; exit 1; }
   echo "OK: $URL"
   exit 0
 fi
 
 mkdir -p "$OUT"
+# Integrity: --fail rejects HTTP errors; the marker/kind greps below prove
+# shape. None of these upstreams publishes a detached signature for the
+# fetched YAML, so no signature check is possible here — if a publisher
+# starts signing, verify the signature before the shape checks.
 RAW="$OUT/multus-daemonset-thick.yml.raw"
-curl -sSL --retry 3 --max-time 120 -o "$RAW" "$URL"
+curl -sSL --fail --retry 3 --max-time 120 -o "$RAW" "$URL"
 grep -q 'network-attachment-definitions.k8s.cni.cncf.io' "$RAW" \
   || { echo "shape check failed: NAD CRD missing in $RAW" >&2; exit 1; }
 

@@ -260,8 +260,13 @@ func (c Config) UploadMaxMemoryBytes() int64 {
 const DefaultAttachAllowURL = "*"
 
 // DefaultAttachRejectURL is the out-of-box APPRISE_ATTACH_REJECT_URL
-// default (unset env means this; empty env disables denials).
-const DefaultAttachRejectURL = "127.0.* localhost*"
+// default (unset env means this; empty env disables denials). The
+// `internal` token makes the default fail closed: every attachment host
+// is DNS-resolved and IP-classified (loopback, private, link-local,
+// reserved, multicast, CGN, alternate encodings blocked; unresolvable
+// hosts blocked), so ALLOW=* out of the box can no longer reach the
+// instance metadata service or the cluster network.
+const DefaultAttachRejectURL = "127.0.* localhost* internal"
 
 // AttachAllowURLOrDefault returns the configured SSRF allowlist or "*".
 func (c Config) AttachAllowURLOrDefault() string {

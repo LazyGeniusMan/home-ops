@@ -79,7 +79,7 @@ stdlib (`net/http`, `os/exec`, `crypto/rand`, `log/slog`, …).
 | `PROTON_PASS_PAT_FILE` | yes | — | Path to a file holding the Proton Pass PAT (never from an env value). |
 | `PROTON_PASS_AGENT_REASON` | no (auto) | fresh value per exec | Unique per `pass-cli` exec for audit attribution. |
 | `PROTON_PASS_DISABLE_TELEMETRY` | forced `1` | `1` | Set on every exec and as container `ENV`. |
-| `PROTON_PASS_KEY_PROVIDER` | forced `fs` | `fs` | Filesystem key storage (no kernel keyring in containers). |
+| `PROTON_PASS_KEY_PROVIDER` | forced `fs` | `fs` | Filesystem key store; the companion `PROTON_PASS_LINUX_KEYRING=kernel` persists kernel-keyring handles to disk (complementary, not contradictory). |
 | `PASS_LOG_LEVEL` | forced `off` | `off` | pass-cli log level (forced off on every exec and as container `ENV`). |
 | `PROTON_PASS_SESSION_DIR` | no | per-OS `pass-cli` default | Session dir override; appended to the exec env only when set. |
 | `LISTEN_ADDR` | no | `:8080` | HTTP listen address. |
@@ -112,4 +112,6 @@ Consumed in Flux via `{"$imagepolicy": "infra:eso-proton-pass:tag"}` in
 
 Multi-stage build: `golang:1.26.7` + `pass-cli` 2.3.3 →
 `distroless/base-debian13` (nonroot 65532), exposing 8080; see the
-Dockerfile for pins.
+Dockerfile for pins. The pass-cli pin bumps as a triple: Dockerfile
+`ARG PASS_CLI_VERSION` + per-arch `_sha256` + `proton-pass-cli` in
+`.flox/env/manifest.toml`.

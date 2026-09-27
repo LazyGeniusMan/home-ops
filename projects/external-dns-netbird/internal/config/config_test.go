@@ -89,6 +89,15 @@ func TestLoadBadTTL(t *testing.T) {
 	}
 }
 
+func TestLoadBadLogLevel(t *testing.T) {
+	clearEnv(t)
+	t.Setenv("NETBIRD_PAT_FILE", writePAT(t, "pat"))
+	t.Setenv("LOG_LEVEL", "verbose")
+	if _, err := Load(); err == nil {
+		t.Error("expected error for invalid LOG_LEVEL")
+	}
+}
+
 func TestLoadBadAutoCreate(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("NETBIRD_PAT_FILE", writePAT(t, "pat"))

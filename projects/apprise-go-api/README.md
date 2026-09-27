@@ -180,7 +180,7 @@ The winning alias is `attach` > `attachment` > `attachments`
 | `APPRISE_MAX_ATTACHMENTS` | `6` (per request) | `0` = unlimited; over-limit → `400` |
 | `APPRISE_UPLOAD_MAX_MEMORY_SIZE` | `3` (MiB body budget) | Bounds JSON, multipart, and urlencoded bodies; oversize → `431` |
 | JSON value shape | depth 32, 10000 entries, 1 MiB strings | Over-cap graph → `400` (malformed shape, not `431`) |
-| JSON `urls` | 1024 chars/entries | Over-cap dropped (→ `204`), mirroring the form path |
+| JSON `urls` | 1024 chars/entries | Over-cap dropped (→ `204`), mirroring the form path; the byte budget (`APPRISE_UPLOAD_MAX_MEMORY_SIZE`) still caps first (→ `431`) |
 | filename length | 250 chars | Longer → `400` |
 | multipart parse memory | `APPRISE_UPLOAD_MAX_MEMORY_SIZE` | Spills to disk beyond this |
 
@@ -200,12 +200,14 @@ plain hostname/IP, or a wildcard (`*` prefix match, `?` single char).
 | Knob | Default | Meaning |
 |---|---|---|
 | `APPRISE_ATTACH_ALLOW_URL` | `*` (allow all) | Empty means `*` |
-| `APPRISE_ATTACH_REJECT_URL` | `127.0.* localhost*` (applied when unset) | Explicitly empty disables denials |
+| `APPRISE_ATTACH_REJECT_URL` | `127.0.* localhost* internal` (applied when unset) | Explicitly empty disables denials |
 
-The reserved token **`internal`** (opt-in, never default) DNS-resolves each
-host and blocks loopback, private, link-local, reserved, unspecified,
-multicast, and CGN addresses (incl. alternate IP encodings). Unresolvable
-hosts are blocked.
+The reserved token **`internal`** (on by default via the reject default)
+DNS-resolves each host and blocks loopback, private, link-local, reserved,
+unspecified, multicast, and CGN addresses (incl. alternate IP encodings).
+Unresolvable hosts are blocked. Set `APPRISE_ATTACH_REJECT_URL` explicitly
+empty to opt out; the Flux deployment pins `127.0.* localhost* internal`
+explicitly (see `flux/infra/components/apprise-go-api/controllers/base/apprise-go-api.yaml`).
 
 ### Zero-persistence guarantee
 
@@ -275,7 +277,7 @@ Kubernetes projected volumes / ESO mounts).
 | `TZ` | `UTC` | Log timestamp timezone |
 | `PUID` / `PGID` | `0` | Desired runtime ownership (informational under distroless nonroot) |
 | `WORKER_COUNT` | `0` | Accepted but unenforced no-op (delivery is sequential; `0` = `GOMAXPROCS` default) |
-| `TIMEOUT` | `30` | Seconds bounding a single notify call |
+| `TIMEOUT` | `30` | Seconds the caller waits per notify call (caller deadline, not a backend abort); the in-flight slot is held until the worker exits |
 | `APPRISE_STATEFUL_MODE` | `disabled` | Must be `disabled`; anything else fails startup |
 | `APPRISE_STATELESS_URLS` | — | Fallback URLs when a request carries none |
 | `APPRISE_STATELESS_STORAGE` | `no` | Must be `no`; persistence is unsupported |
@@ -284,7 +286,7 @@ Kubernetes projected volumes / ESO mounts).
 | `APPRISE_MAX_ATTACHMENTS` | `6` | Per-request cap; `0` = unlimited |
 | `APPRISE_UPLOAD_MAX_MEMORY_SIZE` | `3` | JSON/form body budget in MiB (negative values use their magnitude); oversize → `431` |
 | `APPRISE_ATTACH_ALLOW_URL` | `*` | SSRF allowlist (empty = `*`) |
-| `APPRISE_ATTACH_REJECT_URL` | `127.0.* localhost*` when unset | Explicitly empty disables denials |
+| `APPRISE_ATTACH_REJECT_URL` | `127.0.* localhost* internal` when unset | Fail-closed default; explicitly empty disables denials |
 | `APPRISE_WEBHOOK_MAPPING_MAX_DEPTH` | `5` | `:` remap depth cap (must be positive) |
 | `APPRISE_WEBHOOK_URL` | — | Outbound result callback (empty = disabled) |
 | `APPRISE_PLUGIN_PATHS` | — | **Documented no-op**: accepted but unsupported — Go has no dynamic plugin loading |
@@ -325,7 +327,7 @@ cmd/apprise-go-api/main.go   # thin: slog → config.Load → wire → serve + S
 internal/config/             # env-only config (stateless subset)
 internal/remap/              # ':' webhook payload mapper
 internal/attach/             # SSRF policy + temp-file staging
-internal/notify/             # thin wrapper over apprise-go AddAll+Send + outbound hook
+internal/notify/             # thin wrapper over apprise-go Add+Send (one client per target) + outbound hook
 internal/server/             # mux + routes; handler/sender/validation/errors/health/metrics/middleware split
 internal/version/            # build version (dev default; ldflags ARG VERSION)
 ```
@@ -369,5 +371,5 @@ Intentional differences from Python `apprise-api`:
 | `ALLOWED_HOSTS`, `WORKER_COUNT`, `APPRISE_INTERPRET_EMOJIS`, `APPRISE_HTTP_REDIRECTS` | Accepted no-ops like `APPRISE_PLUGIN_PATHS` (forward-compat only) |
 | `APPRISE_PLUGIN_PATHS` | Accepted no-op (no dynamic plugin loading in Go) |
 | Outbound webhook | Best-effort POST of `{source, status, output}`; failures logged only; no trace headers (third-party endpoint) |
-| Send pipeline | Per-call `TIMEOUT` (metric `apprise_go_api_send_timeouts_total` + warn log), max 64 in-flight (`apprise_go_api_send_in_flight`, over-cap → `503`); list-form tags validated per token (invalid → `400`, Python parity note above) |
+| Send pipeline | Per-call `TIMEOUT` caller deadline (metric `apprise_go_api_send_timeouts_total` + warn log; backend has no abort, the worker may still be delivering), max 64 in-flight with the slot held until the worker exits (over-cap → `503`); list-form tags validated per token (invalid → `400`; Python passes lists through unvalidated, so this turns silent-204 typos into explicit 400s) |
 | Probes | `/readyz` writability probe never creates the staging dir (missing dir → `503`), matching the request path which refuses to auto-create |

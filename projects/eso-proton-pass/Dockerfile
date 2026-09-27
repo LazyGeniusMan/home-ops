@@ -2,6 +2,8 @@
 # eso-proton-pass: ESO webhook provider for Proton Pass (pull-only).
 # Multi-stage build: pinned golang toolchain -> pinned distroless runtime.
 # Runtime has no shell; the service runs as the distroless non-root user.
+# Bump together: PASS_CLI_VERSION + per-arch _sha256 below + proton-pass-cli
+# in .flox/env/manifest.toml (all three pin the same pass-cli release).
 ARG PASS_CLI_VERSION=2.3.3
 
 FROM golang:1.26.7@sha256:e30143be198ab04cf7ba25fba83ab3a692ca584c994aad0bf131fa0eb32dd8c1 AS build

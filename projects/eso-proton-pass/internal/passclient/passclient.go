@@ -123,7 +123,11 @@ func NewAgentReason(prefix string) string {
 }
 
 // baseEnv returns the hardened env for every pass-cli exec: telemetry
-// off, CLI logs off, filesystem key storage (no kernel keyring).
+// off, CLI logs off, filesystem key storage. KEY_PROVIDER=fs selects the
+// filesystem-backed key store; LINUX_KEYRING=kernel is its required
+// companion (the fs provider persists kernel-keyring handles to disk, it
+// does not replace the kernel keyring), so the two are complementary, not
+// contradictory.
 func (c *Client) baseEnv() []string {
 	env := []string{
 		"PROTON_PASS_DISABLE_TELEMETRY=1",

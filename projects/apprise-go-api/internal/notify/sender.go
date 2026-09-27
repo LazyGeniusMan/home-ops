@@ -61,6 +61,9 @@ var ErrNoTargets = errors.New("notify: no valid URLs provided to notify")
 // synchronous with no context support, so without a bound every in-flight
 // /notify request would pile up its own worker goroutine per target.
 // Calls beyond the bound fail fast with ErrOverloaded instead of queueing.
+// A slot is held until the worker goroutine exits (not until the caller
+// stops waiting): a timed-out caller still leaves its worker running, so
+// releasing on timeout would over-admit beyond the bound.
 const maxInFlight = 64
 
 // ErrOverloaded reports that too many Send calls are in flight.
@@ -89,6 +92,9 @@ func ReportInFlight() int {
 }
 
 // Sender sends Request values via apprise-go with a per-call timeout.
+// timeout bounds the caller's wait only: it is the per-call deadline the
+// request waits on, not a backend abort (the apprise-go engine has no
+// context support, so the worker may still be delivering after timeout).
 type Sender struct {
 	timeout time.Duration
 	log     *slog.Logger
@@ -145,13 +151,18 @@ func (s *Sender) Send(ctx context.Context, req Request) (Result, error) {
 	}
 	inFlight++
 	inFlightMu.Unlock()
-	defer func() {
+	// The slot releases only when the worker goroutine exits (release is
+	// owned by the worker, not by the caller's wait paths below): on the
+	// timeout/cancel path the worker keeps running and keeps holding its
+	// slot, so the bound counts real concurrency instead of waiters.
+	release := func() {
 		inFlightMu.Lock()
 		inFlight--
 		inFlightMu.Unlock()
-	}()
+	}
 	done := make(chan sendResult, 1)
 	go func() {
+		defer release()
 		var errs []error
 		delivered := 0
 		for _, target := range targets {

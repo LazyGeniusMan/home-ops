@@ -41,7 +41,7 @@ url_for() { printf 'https://raw.githubusercontent.com/kubernetes-sigs/container-
 
 if [[ "$CHECK" == true ]]; then
   for f in objectstorage.k8s.io_bucketaccessclasses.yaml objectstorage.k8s.io_bucketaccesses.yaml objectstorage.k8s.io_bucketclaims.yaml objectstorage.k8s.io_bucketclasses.yaml objectstorage.k8s.io_buckets.yaml; do
-    code="$(curl -sSL -o /dev/null -w '%{http_code}' --max-time 30 "$(url_for "$f")")"
+    code="$(curl -sSL --fail -o /dev/null -w '%{http_code}' --max-time 30 "$(url_for "$f")")"
     [[ "$code" == "200" ]] || { echo "upstream check failed: $(url_for "$f") -> HTTP $code" >&2; exit 1; }
     echo "OK: $(url_for "$f")"
   done
@@ -49,8 +49,12 @@ if [[ "$CHECK" == true ]]; then
 fi
 
 mkdir -p "$OUT"
+# Integrity: --fail rejects HTTP errors; the marker/kind greps below prove
+# shape. None of these upstreams publishes a detached signature for the
+# fetched YAML, so no signature check is possible here — if a publisher
+# starts signing, verify the signature before the shape checks.
 for f in objectstorage.k8s.io_bucketaccessclasses.yaml objectstorage.k8s.io_bucketaccesses.yaml objectstorage.k8s.io_bucketclaims.yaml objectstorage.k8s.io_bucketclasses.yaml objectstorage.k8s.io_buckets.yaml; do
-  curl -sSL --retry 3 --max-time 120 -o "$OUT/$f" "$(url_for "$f")"
+  curl -sSL --fail --retry 3 --max-time 120 -o "$OUT/$f" "$(url_for "$f")"
   grep -q 'objectstorage.k8s.io' "$OUT/$f" \
     || { echo "shape check failed: COSI API group missing in $OUT/$f" >&2; exit 1; }
   grep -q 'kind: CustomResourceDefinition' "$OUT/$f" \

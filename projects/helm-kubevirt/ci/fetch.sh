@@ -37,14 +37,18 @@ VERSION="$(chart_version | tr -d '"[:space:]')"
 URL="https://github.com/kubevirt/kubevirt/releases/download/v${VERSION}/kubevirt-operator.yaml"
 
 if [[ "$CHECK" == true ]]; then
-  code="$(curl -sSL -o /dev/null -w '%{http_code}' --max-time 30 "$URL")"
+  code="$(curl -sSL --fail -o /dev/null -w '%{http_code}' --max-time 30 "$URL")"
   [[ "$code" == "200" ]] || { echo "upstream check failed: $URL -> HTTP $code" >&2; exit 1; }
   echo "OK: $URL"
   exit 0
 fi
 
 mkdir -p "$OUT"
-curl -sSL --retry 3 --max-time 120 -o "$OUT/kubevirt-operator.yaml" "$URL"
+# Integrity: --fail rejects HTTP errors; the marker/kind greps below prove
+# shape. None of these upstreams publishes a detached signature for the
+# fetched YAML, so no signature check is possible here — if a publisher
+# starts signing, verify the signature before the shape checks.
+curl -sSL --fail --retry 3 --max-time 120 -o "$OUT/kubevirt-operator.yaml" "$URL"
 grep -q 'operator.kubevirt.io' "$OUT/kubevirt-operator.yaml" \
   || { echo "shape check failed: operator marker missing in $OUT/kubevirt-operator.yaml" >&2; exit 1; }
 grep -q 'kind: CustomResourceDefinition' "$OUT/kubevirt-operator.yaml" \

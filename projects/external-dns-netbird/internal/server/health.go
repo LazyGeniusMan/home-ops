@@ -26,13 +26,14 @@ func (s *Server) handleVersion(w http.ResponseWriter, _ *http.Request) {
 	writeOpsJSON(w, http.StatusOK, map[string]string{"version": version.Version})
 }
 
-// handleReadyz probes NetBird API reachability via a bounded Records call
-// (a cheap authenticated read over the provider's mockable API surface).
-// Only reachability matters, so results are discarded.
+// handleReadyz probes NetBird API reachability via a single bounded
+// ListZones call (provider.Ping): one cheap authenticated read, results
+// discarded, 5s bound. It never runs the Records fan-out (ListZones +
+// N×ListRecords), so one kubelet probe costs one SaaS call.
 func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), readyzTimeout)
 	defer cancel()
-	if _, err := s.provider.Records(ctx); err != nil {
+	if err := s.provider.Ping(ctx); err != nil {
 		s.log.DebugContext(r.Context(), "readyz probe failed", slog.Any("err", err))
 		writeOpsJSON(w, http.StatusServiceUnavailable, map[string]string{
 			"status":  "not_ready",

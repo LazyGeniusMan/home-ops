@@ -211,11 +211,16 @@ expect_fail "bogus operation" \
   --set-json 'destination={"type":"s3","uri":{"value":"b"},"credentials":{"provider":{"value":"AWS"},"accessKeyId":{"value":"K"},"secretAccessKey":{"value":"S"},"region":{"value":"R"}}}' \
   --set rclone.operation=serve
 # Placeholder literals pass shape validation but must fail fast (values.yaml
-# ships no CHANGEME defaults; the guard rejects CHANGEME/REPLACE-ME/EXAMPLE*).
+# ships no CHANGEME defaults; the guard rejects CHANGEME*/REPLACE-ME* plus
+# the AWS example-key shape ^AKIA...EXAMPLE$).
 expect_fail "placeholder credential" \
   "" "got placeholder" \
   --set-json 'source={"type":"pvc-rwo","uri":{"value":"d"}}' \
   --set-json 'destination={"type":"s3","uri":{"value":"b"},"credentials":{"provider":{"value":"AWS"},"accessKeyId":{"value":"CHANGEME"},"secretAccessKey":{"value":"S"},"region":{"value":"R"}}}'
+expect_fail "aws example key" \
+  "" "got placeholder" \
+  --set-json 'source={"type":"pvc-rwo","uri":{"value":"d"}}' \
+  --set-json 'destination={"type":"s3","uri":{"value":"b"},"credentials":{"provider":{"value":"AWS"},"accessKeyId":{"value":"AKIAIOSFODNN7EXAMPLE"},"secretAccessKey":{"value":"S"},"region":{"value":"R"}}}'
 # Tag-only images are rejected: a version override without its digest fails.
 expect_fail "tag-only version override" \
   "" "image.digest" \

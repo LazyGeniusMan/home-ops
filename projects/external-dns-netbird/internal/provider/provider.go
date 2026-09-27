@@ -67,6 +67,17 @@ func (p *Provider) GetDomainFilter() endpoint.DomainFilterInterface {
 	return p.filter
 }
 
+// Ping is the /readyz probe: a single cheap authenticated read (ListZones)
+// with results discarded. Only API reachability matters, so unlike Records
+// it never fans out to N×ListRecords per zone — one SaaS call per probe,
+// safe under the kubelet's 10s probe period.
+func (p *Provider) Ping(ctx context.Context) error {
+	if _, err := p.api.ListZones(ctx); err != nil {
+		return softOrHard("list zones", err)
+	}
+	return nil
+}
+
 // recordRef identifies a NetBird record entry backing part of an endpoint.
 type recordRef struct {
 	zoneID   string
