@@ -11,6 +11,36 @@
     success_msg: "Re-apply mode {{ talos_operate_reapply_mode }}."
   when: talos_operate_reapply_configs | bool
 
+- name: Slurp rendered node patches for the pre-apply wipe gate
+  ansible.builtin.slurp:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  check_mode: false
+  failed_when: false
+  register: talos_operate_reapply_wipe
+  when: talos_operate_reapply_configs | bool
+
+- name: Fail when a rendered node patch carries wipe true before apply
+  # Belt-and-braces before authenticated apply-config (RUNBOOK §1.5): refresh
+  # already forced wipe:false; this catches a stale build/ that skipped it.
+  ansible.builtin.assert:
+    that:
+      - not ((item.content | default('', true) | b64decode | trim) is search('(?m)^\s*wipe:\s*true\s*$'))
+    fail_msg: >-
+      Rendered nodes-{{ item.item.name }}-patches.yml contains `wipe: true` —
+      day-2 refuses apply-config to an installed node. Delete
+      build/{{ talos_cluster }}/nodes-{{ item.item.name }}-patches.yml and
+      re-run day-2 -e reapply_configs=true so the refresh plane sanitizes it.
+    success_msg: "Rendered node patch for {{ item.item.name }} carries wipe:false before apply."
+  loop: "{{ talos_operate_reapply_wipe.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - talos_operate_reapply_configs | bool
+    - not ansible_check_mode
+
 - name: Apply machine configs to installed nodes
   ansible.builtin.command:
     cmd: >-

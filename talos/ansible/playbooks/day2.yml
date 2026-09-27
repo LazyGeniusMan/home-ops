@@ -9,6 +9,9 @@
 #   [-e regen_talosconfig=true] [-e regen_kubeconfig=true]
 #   [-e refresh_secrets=true]
 #   [-e reapply_configs=true [-e reapply_mode=staged]]
+# Day-2 never bootstraps: the refresh/reapply planes ALWAYS force wipe:false
+# in build/ and fail closed on wipe:true (RUNBOOK §1.5) — the fresh-install
+# flag is ignored here.
 #   [-e pat_apply=true [-e pat_renew=true] [-e pat_name=...] [-e pat_expiration=1y]]
 #   [-e skip_health=true]  # break-glass only: skips the health probe AND the
 #   mutating-plane health gate (RUNBOOK §3.1).

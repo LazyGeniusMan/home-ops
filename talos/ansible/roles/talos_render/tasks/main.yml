@@ -159,6 +159,66 @@
     label: "{{ item.name }}"
   changed_when: true
 
+- name: Stat rendered node patches for the wipe gate
+  # `creates:`-skipped injects leave older renders behind; the rewrite below
+  # must still sanitize them, so gate on real disk state (RUNBOOK §1.5).
+  ansible.builtin.stat:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  check_mode: false
+  register: talos_render_wipe_stat
+
+- name: Force wipe false in rendered node patches unless fresh install
+  # Bootstrap-only wipe (RUNBOOK §1.5): source node patches keep `wipe: true`
+  # for first boot; every default render rewrites it to false in build/
+  # (never the source) BEFORE `gen config` bakes machine configs. Fresh
+  # installs render day-0 with -e talos_bootstrap_fresh_install=true.
+  ansible.builtin.replace:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml"
+    regexp: '(?m)^(\s*wipe:\s*)true\s*$'
+    replace: '\1false'
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+    index_var: idx
+  when:
+    - not (talos_render_fresh_install | default(false) | bool)
+    - talos_render_wipe_stat.results[idx].stat.exists | default(false)
+
+- name: Slurp rendered node patches for the wipe gate
+  ansible.builtin.slurp:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  check_mode: false
+  failed_when: false
+  register: talos_render_wipe_slurp
+  when: not (talos_render_fresh_install | default(false) | bool)
+
+- name: Fail when a rendered node patch still carries wipe true
+  # Fails closed: a later maintenance-boot must never see `wipe: true`.
+  # Skipped in check mode (RUNBOOK §1.1 — replace reports but never writes).
+  ansible.builtin.assert:
+    that:
+      - not ((item.content | default('', true) | b64decode | trim) is search('(?m)^\s*wipe:\s*true\s*$'))
+    fail_msg: >-
+      Rendered nodes-{{ item.item.name }}-patches.yml still contains
+      `wipe: true` after the safe-default rewrite — refusing to bake machine
+      configs. Delete
+      build/{{ talos_cluster }}/nodes-{{ item.item.name }}-patches.yml and
+      re-run day-0 (fresh installs only:
+      -e talos_bootstrap_fresh_install=true, RUNBOOK §1.5).
+    success_msg: "Rendered node patch for {{ item.item.name }} carries wipe:false."
+  loop: "{{ talos_render_wipe_slurp.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - not (talos_render_fresh_install | default(false) | bool)
+    - not ansible_check_mode
+
 - name: Render PAT file via pass-cli inject
   # Source: clusters/<cluster>/pat.yml.template. No no_log (see cluster inject above).
   ansible.builtin.command:

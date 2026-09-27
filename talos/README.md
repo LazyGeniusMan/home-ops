@@ -92,6 +92,12 @@ Disks are unencrypted — accepted for this homelab (physical access is trusted)
 Real production must add `SystemDiskEncryption` (TPM2/KMS or an ESO-held key)
 with documented key custody + recovery before storing non-replaceable data.
 
+Node `UnattendedInstallConfig` `wipe: true` is bootstrap-only: sources keep it
+for first boot, and automation forces `wipe: false` in `ansible/build/`
+unless day-0 renders with `-e talos_bootstrap_fresh_install=true` (day-1
+requires the same flag; day-2 always forces safe). Never edit the source per
+install — see `ansible/RUNBOOK.md` §1.5.
+
 ## RPCNFSDCOUNT (single source)
 
 Thread counts live in the node headers: dev 32 / prd 64 slots/threads, matching

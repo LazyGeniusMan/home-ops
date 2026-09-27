@@ -25,6 +25,51 @@
       day-1, then re-run the play.
     success_msg: "pass-cli session authenticated."
 
+- name: Assert fresh-install intent for the insecure bootstrap
+  # Day-1 insecure-apply is maintenance-boot only and needs the bootstrap-only
+  # `wipe: true` baked in by day-0. Require the same explicit flag day-0
+  # rendered with (RUNBOOK §1.5, §2.1) — a safe-default render must never feed
+  # a first-boot install. Build markers are regenerable, so intent (not file
+  # existence) is the signal.
+  ansible.builtin.assert:
+    that:
+      - talos_bootstrap_fresh_install | default(false) | bool
+    fail_msg: >-
+      Day-1 bootstrap needs explicit fresh-install intent: re-run with
+      -e talos_bootstrap_fresh_install=true (and render day-0 with the same
+      flag first, RUNBOOK §1.5). Refusing to insecure-apply a safe-default
+      render to a brand-new node.
+    success_msg: "Fresh-install intent confirmed for the day-1 bootstrap."
+
+- name: Slurp rendered node patches for the bootstrap wipe check
+  ansible.builtin.slurp:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  check_mode: false
+  failed_when: false
+  register: talos_bootstrap_wipe_slurp
+
+- name: Assert the day-0 render kept wipe true for the fresh bootstrap
+  # Fails closed: day-0 must have rendered with
+  # -e talos_bootstrap_fresh_install=true (RUNBOOK §1.5); a safe-default
+  # render (wipe:false) cannot seed a first-boot install.
+  ansible.builtin.assert:
+    that:
+      - (item.content | default('', true) | b64decode | trim) is search('(?m)^\s*wipe:\s*true\s*$')
+    fail_msg: >-
+      Rendered nodes-{{ item.item.name }}-patches.yml lacks `wipe: true` —
+      day-0 rendered safe-default. Delete
+      build/{{ talos_cluster }}/nodes-{{ item.item.name }}-patches.yml,
+      re-run day-0 with -e talos_bootstrap_fresh_install=true, then re-run
+      day-1 with the same flag (RUNBOOK §1.5).
+    success_msg: "Rendered node patch for {{ item.item.name }} carries wipe:true for the fresh bootstrap."
+  loop: "{{ talos_bootstrap_wipe_slurp.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: not ansible_check_mode
+
 - name: Assert node roles map to a Talos machine type
   # Unknown role: strings fail here with the node name + valid roles instead
   # of a raw Jinja KeyError inside the apply-config invocation below.

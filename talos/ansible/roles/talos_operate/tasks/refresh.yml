@@ -136,6 +136,50 @@
     - talos_operate_refresh_active | bool
     - (talos_operate_refresh_ids | default({})).get(item.name, '') | length > 0
 
+- name: Force wipe false in re-rendered node patches
+  # Day-2 never bootstraps (RUNBOOK §1.5): ALWAYS force wipe:false in build/
+  # regardless of talos_bootstrap_fresh_install — belt-and-braces alongside the
+  # safe-default render behavior, BEFORE `gen config` bakes machine configs.
+  ansible.builtin.replace:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml"
+    regexp: '(?m)^(\s*wipe:\s*)true\s*$'
+    replace: '\1false'
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: talos_operate_refresh_active | bool
+
+- name: Slurp re-rendered node patches for the wipe gate
+  ansible.builtin.slurp:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml"
+  loop: "{{ talos_clusters[talos_cluster].nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  check_mode: false
+  failed_when: false
+  register: talos_operate_refresh_wipe
+  when: talos_operate_refresh_active | bool
+
+- name: Fail when a re-rendered node patch still carries wipe true
+  # Fails closed before `gen config`: a later maintenance-boot must never see
+  # `wipe: true`. Day-2 ignores the fresh-install flag entirely.
+  ansible.builtin.assert:
+    that:
+      - not ((item.content | default('', true) | b64decode | trim) is search('(?m)^\s*wipe:\s*true\s*$'))
+    fail_msg: >-
+      Re-rendered nodes-{{ item.item.name }}-patches.yml still contains
+      `wipe: true` — day-2 refuses to bake machine configs that could wipe an
+      installed node. Delete
+      build/{{ talos_cluster }}/nodes-{{ item.item.name }}-patches.yml and
+      re-run day-2 -e refresh_secrets=true (or -e reapply_configs=true).
+    success_msg: "Re-rendered node patch for {{ item.item.name }} carries wipe:false."
+  loop: "{{ talos_operate_refresh_wipe.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - talos_operate_refresh_active | bool
+    - not ansible_check_mode
+
 - name: Assert node roles map to a Talos machine type
   # Unknown role: strings fail here with the node name + valid roles instead
   # of a raw Jinja KeyError inside the gen config invocation below.

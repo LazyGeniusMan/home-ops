@@ -2,6 +2,9 @@
 # Day-0 single-node: render secrets + generate + validate machine configs.
 # Local-only: ansible-playbook playbooks/day0.yml -i localhost,
 #   -e talos_cluster=acme-dev-bdo1-talos-apps-01 [--check --diff]
+# Fresh node first render only (keeps bootstrap-only wipe:true in build/):
+#   -e talos_bootstrap_fresh_install=true
+# Default (unset/false) rewrites wipe to false in build/ (RUNBOOK §1.5).
 - name: Day-0 render and generate Talos configs
   hosts: localhost
   connection: local

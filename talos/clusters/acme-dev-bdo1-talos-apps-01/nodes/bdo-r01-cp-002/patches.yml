@@ -30,9 +30,10 @@ installer:
 provisioning:
   diskSelector:
     match: disk.dev_path == "/dev/sda"
-  # Bootstrap-only: wipe clears a reused OS disk on first install. After a
-  # successful day-1, set wipe: false (or remove unattended install) and
-  # re-apply (§3.6) so a later maintenance-boot can never wipe the node.
+  # Bootstrap-only: wipe clears a reused OS disk on first install. Source
+  # stays true; automation forces wipe:false in build/ unless day-0 rendered
+  # with -e talos_bootstrap_fresh_install=true (RUNBOOK §1.5). Never edit the
+  # source per install — later renders default safe on their own.
   wipe: true
 ---
 apiVersion: v1alpha1

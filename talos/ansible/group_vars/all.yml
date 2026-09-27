@@ -24,6 +24,13 @@ talos_schematic_factory_url: https://factory.talos.dev/schematics
 # Image Factory schematic IDs are 64 lowercase hex chars; uploads that return
 # anything else fail fast instead of rendering pending-schematic-upload.
 talos_schematic_id_pattern: "^[0-9a-f]{64}$"
+# Bootstrap-only wipe intent (RUNBOOK §1.5, §2.x): source node patches keep
+# `wipe: true` (UnattendedInstallConfig) so first boot clears a reused OS
+# disk. Default false = safe: day-0 rewrites wipe to false in build/ (never
+# the source) before `gen config`, and day-2 refresh/reapply ALWAYS force
+# wipe:false + fail closed. Pass -e talos_bootstrap_fresh_install=true on
+# day-0 AND day-1 for a brand-new node only.
+talos_bootstrap_fresh_install: false
 talos_build_dir: "{{ playbook_dir }}/../build"
 # Inventory role -> Talos machine type for `gen config -t` and output files.
 talos_machine_roles:

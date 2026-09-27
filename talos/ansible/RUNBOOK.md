@@ -190,6 +190,35 @@ grep -o 'factory.talos.dev/metal-installer/[0-9a-f]*' build/$C/nodes-*-patches.y
 talosctl validate -c build/$C/nodes/<node>/controlplane.yaml -m metal
 ```
 
+### 1.5 Bootstrap-only wipe (explicit intent flag)
+
+Source node patches keep `wipe: true` in `UnattendedInstallConfig` so a
+first boot clears a reused OS disk. Automation makes it bootstrap-only —
+source is never edited per install:
+
+- Day-0 default (flag unset/false, `talos_bootstrap_fresh_install: false` in
+  `group_vars/all.yml`): rewrites `wipe: true` → `wipe: false` in
+  `build/<cluster>/nodes-*-patches.yml` post-inject (same layer as the
+  schematic-ID rewrite), then asserts no render still carries `wipe: true`
+  before `gen config` bakes machine configs.
+- Fresh node first render only: day-0 with
+  `-e talos_bootstrap_fresh_install=true` keeps source `wipe: true` in
+  build/. Day-1 **requires** the same flag plus asserts the render carries
+  `wipe: true` (§2.1) — a safe-default render can never seed a first boot.
+- Day-2 refresh/reapply ALWAYS forces `wipe: false` in build/ regardless of
+  the flag (belt-and-braces) and fails closed on `wipe: true` before
+  `gen config` (§3.6a) and before `apply-config` (§3.6).
+
+```bash
+# Working dir: talos/ansible/ (fresh node only — brand-new install)
+ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=<cluster> -e talos_bootstrap_fresh_install=true
+ansible-playbook playbooks/day1.yml -i localhost, -e talos_cluster=<cluster> -e talos_bootstrap_fresh_install=true
+# Every later render omits the flag and defaults safe.
+```
+
+Build markers (`.installed-*`, `.bootstrapped`) are gitignored/regenerable
+and never gate this behavior — operator intent (the flag) is the signal.
+
 ### 1.6 NFS server stack (per node)
 
 Each node runs NFS server daemons for LAN clients (ports `2049`, `20048`, `111`).
@@ -229,20 +258,23 @@ and re-run — see the canonical guard/recovery table (§4.3).
 
 Installs machine configs onto maintenance-booted nodes, bootstraps etcd on the first
 node, fetches the admin kubeconfig. Run **after a successful day-0 real run** for the
-same cluster.
+same cluster — day-0 must have rendered with the same fresh-install flag.
 
-Role order (`talos_bootstrap`): session check → `apply-config --insecure` per node →
+Role order (`talos_bootstrap`): session check → fresh-install intent assert →
+wipe:true render assert → `apply-config --insecure` per node →
 TCP 50000 wait per node → authenticated `talosctl version` poll on **every** node →
 control-plane assert on `nodes[0]` → `bootstrap` on `nodes[0]` (retried) →
 `kubeconfig` fetch (retried) → markers.
 
 ### 2.1 Command
 
+Day-1 is fresh-bootstrap only and fails closed without the flag (§1.5):
+
 ```bash
-# Working dir: talos/ansible/
-ansible-playbook playbooks/day1.yml -i localhost, -e talos_cluster=<cluster>
+# Working dir: talos/ansible/ (fresh node only — same flag as day-0)
+ansible-playbook playbooks/day1.yml -i localhost, -e talos_cluster=<cluster> -e talos_bootstrap_fresh_install=true
 # Apply-mode override (default `auto`):
-ansible-playbook playbooks/day1.yml -i localhost, -e talos_cluster=<cluster> -e talos_bootstrap_mode=no-reboot
+ansible-playbook playbooks/day1.yml -i localhost, -e talos_cluster=<cluster> -e talos_bootstrap_fresh_install=true -e talos_bootstrap_mode=no-reboot
 ```
 
 ### 2.1b PAT source (day-0 render) + one-time interactive `agent create`
@@ -420,9 +452,10 @@ ansible-playbook playbooks/day2.yml -i localhost, \
 ```
 
 Re-renders patches + PAT from the vault (rotations flow into `build/`),
-rewrites the NetBird placeholder (§1.0b), refreshes schematic IDs, regenerates
-+ validates machine configs — but NEVER runs `apply-config`. Inspect the diff,
-then push explicitly with §3.6.
+rewrites the NetBird placeholder (§1.0b), refreshes schematic IDs, forces
+`wipe: false` in re-rendered node patches (§1.5, fails closed on `wipe: true`),
+regenerates + validates machine configs — but NEVER runs `apply-config`.
+Inspect the diff, then push explicitly with §3.6.
 
 ### 3.6 Re-apply machine configs (installed cluster)
 
@@ -430,10 +463,11 @@ Day-0 re-render does **not** push to nodes; day-1 insecure apply is maintenance-
 This is the installed-cluster path: the §3.6a render half (forced re-render of
 edited patches, needs the PAT like day-0; forced PAT re-render so vault
 rotations flow; NetBird rewrite §1.0b; live schematic refresh where changed
-schematics re-upload) + regen + authenticated `apply-config --mode
-<reapply_mode>` (default `staged`; one of `auto`, `no-reboot`, `reboot`,
-`staged`, `try`; diffs live node state server-side). Asserts each node's `.id`
-is 64-hex (re-run day-0 if missing).
+schematics re-upload; ALWAYS forces `wipe: false` in build/ and fails closed
+on `wipe: true` §1.5) + regen + a pre-apply wipe gate + authenticated
+`apply-config --mode <reapply_mode>` (default `staged`; one of `auto`,
+`no-reboot`, `reboot`, `staged`, `try`; diffs live node state server-side).
+Asserts each node's `.id` is 64-hex (re-run day-0 if missing).
 
 ```bash
 # Working dir: talos/ansible/
@@ -648,6 +682,7 @@ two data volumes only (`/var/mnt/nvme-data`, `/var/mnt/sata-data`; LAN-only
 | Var | Play | Default | Effect |
 | --- | --- | --- | --- |
 | `talos_cluster` | all | `acme-dev-bdo1-talos-apps-01` | Selects `talos_clusters[<name>]` (vault, endpoint, nodes). |
+| `talos_bootstrap_fresh_install` | day-0 + day-1 | `false` (safe) | Bootstrap-only wipe intent (§1.5): day-0 keeps `wipe: true` in build/ only when `true`; default rewrites to `false`. Day-1 requires `true`. Ignored on day-2 (always safe). |
 | `talos_bootstrap_mode` | day-1 | `auto` | `--mode` for insecure `apply-config` (`auto` / `no-reboot` / …). |
 | `upgrade_image` | day-2 | `""` (no upgrade) | Maps to `talos_operate_upgrade_image`; when set, each node runs `talosctl upgrade -n <ip> -i <image>`. Example: `factory.talos.dev/metal-installer/<id-from-build-schematic-*.id>:v1.15.0-alpha.0` (alpha tracks the 1.15 line; §3.3). |
 | `upgrade_talos_version` | day-2 | `""` (no upgrade) | Auto-builds installer per node from `build/<cluster>/schematic-<node>.id`. Adjacent minors only. Example: `v1.15.0-alpha.0` (alpha tracks the 1.15 line — see group_vars why-alpha; see §3.3). |
