@@ -1,20 +1,9 @@
 ---
 # Day-2 operate: health + etcd status; optional upgrades, regen, secrets
-# refresh, re-apply. Kubernetes upgrades are explicit -e opt-in only (the group
-# pin is record-only — a pin bump alone never mutates the cluster).
-# Local-only: ansible-playbook playbooks/day2.yml -i localhost,
-#   -e talos_cluster=acme-dev-bdo1-talos-apps-01
-#   [-e upgrade_image=<installer>] [-e upgrade_talos_version=<ver>]
-#   [-e kubernetes_version=<ver>]
-#   [-e regen_talosconfig=true] [-e regen_kubeconfig=true]
-#   [-e refresh_secrets=true]
-#   [-e reapply_configs=true [-e reapply_mode=staged]]
-# Day-2 never bootstraps: the refresh/reapply planes ALWAYS force wipe:false
-# in build/ and fail closed on wipe:true (RUNBOOK §1.5) — the fresh-install
-# flag is ignored here.
-#   [-e pat_apply=true [-e pat_renew=true] [-e pat_name=...] [-e pat_expiration=1y]]
-#   [-e skip_health=true]  # break-glass only: skips the health probe AND the
-#   mutating-plane health gate (RUNBOOK §3.1).
+# refresh, re-apply (flags in RUNBOOK §3.2). Kubernetes upgrades are explicit
+# -e opt-in only (the group pin is record-only). Day-2 never bootstraps:
+# refresh/reapply ALWAYS force wipe:false (RUNBOOK §1.5); skip_health=true is
+# break-glass only (RUNBOOK §3.1).
 - name: Day-2 operate Talos cluster
   hosts: localhost
   connection: local

@@ -1,8 +1,5 @@
 ---
-# Secrets refresh without a push (RUNBOOK §3.6b): re-render patches + PAT from
-# the vault (vault rotations flow into build/), rewrite the NetBird placeholder
-# + schematic IDs, regenerate + validate machine configs — but NEVER
-# apply-config. Runs on -e refresh_secrets=true; reapply_configs implies it.
+# Secrets refresh without a push (RUNBOOK §3.6a): re-render + regenerate, never apply-config.
 - name: Decide whether secrets refresh runs
   ansible.builtin.set_fact:
     talos_operate_refresh_active: "{{ talos_operate_refresh_secrets | bool or talos_operate_reapply_configs | bool }}"
@@ -57,9 +54,8 @@
   when: talos_operate_refresh_active | bool
   changed_when: true
 
-# NetBird rewrite: the forced re-render restores the placeholder, so re-apply the day-0
-# module plane (via include_role; cross-role include_tasks paths do not resolve).
-# Needs vault PAT + api.netbird.io on EVERY refresh.
+# NetBird rewrite: the forced re-render restores the placeholder, so re-apply the
+# day-0 module plane via include_role.
 - name: Rewrite NetBird setup-key placeholder in the re-rendered cluster patch
   ansible.builtin.include_role:
     name: talos_render

@@ -1,8 +1,7 @@
 ---
-# Talos OS upgrade, one node at a time in cluster-map order (upgrade →
-# ready-gate → next per node, via upgrade_node.yml). Explicit upgrade_image wins;
-# otherwise the installer ref is built per node from the schematic .id files.
-# Adjacent minors only (never skip a minor) — enforced by the gate below.
+# Talos OS upgrade, one node at a time in cluster-map order (via upgrade_node.yml).
+# Explicit upgrade_image wins; otherwise the installer ref is built per node
+# from the schematic .id files. Adjacent minors only (gate below).
 - name: Parse upgrade target and pin versions for the adjacency gate
   # Split-based parsing by design (no regex escapes): startswith/split plus
   # digit-only match() checks, so the gate reads identically in every context.

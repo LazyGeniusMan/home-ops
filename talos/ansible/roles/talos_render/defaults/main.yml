@@ -1,14 +1,12 @@
 ---
 talos_render_talosctl: talosctl
 talos_render_version: "{{ talos_version }}"
-# Image Factory endpoint for schematic uploads (single source: group_vars).
+# Image Factory endpoint (single source: group_vars).
 talos_render_schematic_factory_url: "{{ talos_schematic_factory_url }}"
 # Image Factory upload timeout (seconds); unreachable factory fails fast (§4.1).
 talos_render_schematic_factory_timeout: 30
-# PROTON_PASS_AGENT_REASON prefix (`<prefix>-<cluster>[-<node>]-exec-<16 hex>`).
+# PROTON_PASS_AGENT_REASON prefix for inject execs.
 talos_render_pass_agent_reason_prefix: talos-render
-# Fresh-install intent for bootstrap-only wipe (RUNBOOK §1.5): true only on a
-# day-0 first render for brand-new nodes (keeps source `wipe: true` in
-# build/). Default false = safe (rewrites wipe to false). Single source is
-# the talos_bootstrap_fresh_install group var; day-1 requires the same flag.
+# Fresh-install intent for bootstrap-only wipe (RUNBOOK §1.5): single source is
+# the talos_bootstrap_fresh_install group var.
 talos_render_fresh_install: "{{ talos_bootstrap_fresh_install | default(false) }}"

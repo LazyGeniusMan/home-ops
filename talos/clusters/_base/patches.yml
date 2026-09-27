@@ -1,11 +1,7 @@
-# Shared barebone base patch (Talos v1.15.0-alpha.0 — why-alpha: the
-# nfs-server system extension requires Talos >= 1.15, and 1.15 ships only as
-# alpha today; see the pin comment in talos/ansible/group_vars/all.yml),
-# applied first via --config-patch.
+# Shared barebone base patch (why-alpha: see group_vars/all.yml), applied first.
 # CNI none (Cilium arrives via GitOps), CoreDNS off, discovery off.
-# kube-proxy runs in iptables mode HERE so the base alone is a bootable shape;
-# every cluster patch disables it (Cilium replaces kube-proxy) — see the
-# KubeProxyConfig doc in each clusters/<cluster>/patches.yml.
+# kube-proxy runs in iptables mode HERE so the base alone boots;
+# every cluster patch disables it.
 ---
 apiVersion: v1alpha1
 kind: KubeFlannelCNIConfig
@@ -26,8 +22,7 @@ $patch: delete
 ---
 apiVersion: v1alpha1
 kind: TimeSyncConfig
-# Two NTP sources: chrony falls over to the second when the first is
-# unreachable (single-node clusters have no LAN NTP yet — see RUNBOOK §4.5).
+# Two NTP sources (no LAN NTP yet — see RUNBOOK §4.5).
 ntp:
   servers:
     - time.cloudflare.com

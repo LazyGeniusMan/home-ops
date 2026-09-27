@@ -1,4 +1,3 @@
-# Base Image Factory schematic layer (Talos v1.15.0-alpha.0): merges base -> cluster -> node.
+# Base schematic layer (merges base -> cluster -> node).
 # Bare `siderolabs/<name>` entries only (factory pins versions to the release).
-# Kernel args: customization.extraKernelArgs.
 customization: {}

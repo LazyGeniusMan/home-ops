@@ -1,46 +1,38 @@
 ---
 talos_operate_talosctl: talosctl
 talos_operate_upgrade_image: ""
-# Auto-constructed installer ref target (adjacent minors only). Empty = no upgrade;
-# explicit upgrade_image wins when both are set.
+# Installer ref target (adjacent minors only). Empty = no upgrade.
 talos_operate_upgrade_talos_version: ""
-# Desired Kubernetes version (no leading v); runs only on drift vs the rendered kubelet image.
+# Desired Kubernetes version (no leading v); drift-only.
 talos_operate_kubernetes_version: ""
 talos_operate_regen_talosconfig: false
 talos_operate_regen_kubeconfig: false
 talos_operate_reapply_configs: false
-# apply-config mode for re-apply (staged default; full set: auto, no-reboot,
-# reboot, staged, try — enforced in reapply.yml).
+# apply-config mode for re-apply (staged default).
 talos_operate_reapply_mode: staged
 # PROTON_PASS_AGENT_REASON prefix for re-apply inject execs.
 talos_operate_pass_agent_reason_prefix: talos-operate
-# kubectl for post-Flux ESO PAT Secret management.
+# kubectl for the post-Flux PAT Secret plane.
 talos_operate_kubectl: kubectl
-# ESO PAT Secret wiring: ns/name/key + webhook Deployment (reads PROTON_PASS_PAT_FILE at startup).
+# PAT Secret wiring: ns/name/key + webhook Deployment.
 talos_operate_pat_namespace: external-secrets
 talos_operate_pat_secret: proton-pass-pat
 talos_operate_pat_key: pat
 talos_operate_pat_deployment: eso-proton-pass
-# Local PAT store filename under build/<cluster>/ (see talos_pat_filename).
+# Local PAT store filename (see talos_pat_filename).
 talos_operate_pat_filename: "{{ talos_pat_filename }}"
-# Agent identity for the optional renew attempt. Expiration enum: 1h,1d,1w,1m,3m,6m,1y.
+# Renew identity / expiration enum.
 talos_operate_pat_name: home-ops-eso
 talos_operate_pat_expiration: 1y
-# Apply the stored PAT to the cluster Secret (post-Flux only). Default false keeps
-# day-2 read-only; renew additionally needs talos_operate_pat_renew.
+# Apply the stored PAT (post-Flux only). Default false keeps day-2 read-only.
 talos_operate_pat_apply: false
 talos_operate_pat_renew: false
-# Image Factory endpoint for the re-apply schematic refresh (single source:
-# group_vars — render-role defaults do not load on day-2).
+# Image Factory endpoint (single source: group_vars).
 talos_operate_schematic_factory_url: "{{ talos_schematic_factory_url }}"
-# Upload timeout for the re-apply schematic refresh (passed into the render plane).
+# Upload timeout for the re-apply schematic refresh.
 talos_operate_schematic_factory_timeout: 30
-# Post-upgrade readiness poll: authenticated `talosctl version` per node until
-# rc==0 before the play reports success (single-node ready-gate; multi-node
-# operators additionally watch each node Ready before the next proceeds, §4.5).
+# Post-upgrade readiness poll per node (§4.5).
 talos_operate_upgrade_wait_retries: 30
 talos_operate_upgrade_wait_delay: 10
-# Secrets refresh without a push: re-render patches + PAT from the vault
-# (vault rotations flow into build/), regenerate + validate machine configs,
-# but never apply-config. reapply_configs implies this render path.
+# Secrets refresh without a push (RUNBOOK §3.6a).
 talos_operate_refresh_secrets: false

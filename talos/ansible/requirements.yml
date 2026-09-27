@@ -1,7 +1,5 @@
 ---
 collections:
-  # Exact pin: galaxy installs exactly this build. Day-0 needs the terraform
-  # module + random_string lookup; bump only after re-testing §0.2 with the new
-  # version (current: 13.4.0).
+  # Exact pin (terraform module + random_string lookup); bump only after re-testing.
   - name: community.general
     version: "13.4.0"

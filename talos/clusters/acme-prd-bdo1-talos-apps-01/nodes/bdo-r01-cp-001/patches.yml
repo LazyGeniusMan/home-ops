@@ -1,17 +1,13 @@
-# Node patch: bdo-r01-cp-001 (Talos v1.15.0-alpha.0 — why-alpha: the nfs-server
-# system extension requires Talos >= 1.15). Bare metal: 192.168.1.101/24 on
-# enp45s0 (RTL8125), install /dev/nvme0n1 (512 GiB NVMe), data /dev/sda.
+# Node patch: bdo-r01-cp-001. Bare metal: 192.168.1.101/24 on enp45s0,
+# install /dev/nvme0n1 (512 GiB NVMe), data /dev/sda.
 # Volume math on the 512 GiB system disk: EPHEMERAL maxSize -400GiB (negative =
-# disk size minus 400 GiB, i.e. ~112 GiB ceiling for EPHEMERAL) and nvme-data
-# maxSize 400GiB (capped claim inside the same 512 GiB disk — EPHEMERAL's
-# ~112 GiB + nvme-data's 400 GiB ≈ full disk by design). sata-data (min 64 GiB,
-# grow) takes /dev/sda (size unrecorded — verify with
+# disk size minus 400 GiB, i.e. ~112 GiB ceiling) and nvme-data maxSize 400GiB
+# (~112 + 400 GiB ≈ full disk by design). sata-data (min 64 GiB, grow) takes
+# /dev/sda (size unrecorded — verify with
 # `talosctl get disks --insecure -n 192.168.1.101` and record it here before
-# first apply; never guess). Until recorded, the undersized-disk risk rides the
-# accepted single-node RTO (RUNBOOK §4.5).
+# first apply; never guess).
 # Pre-flight (required): talosctl get links/disks --insecure -n 192.168.1.101.
-# NFS tuning is bare-metal sized (64 slots/threads); dev runs 32 for the
-# single-client QEMU VM — see the SysctlConfig/nfs.conf docs below.
+# NFS tuning is bare-metal sized (64 slots/threads; dev runs 32).
 ---
 apiVersion: v1alpha1
 kind: HostnameConfig
@@ -108,12 +104,9 @@ name: nfs-server
 environment:
   - RPCNFSDCOUNT=64 # matches [nfsd] threads above (bare-metal size; dev runs 32)
 ---
-# NFS exports for the nvme-data + sata-data volumes above (<name> mounts at
-# /var/mnt/<name>). Data volumes only (no bare /var root — clients mount each
-# dataset path directly); LAN-only 192.168.1.0/24, all_squash to nobody (keep
-# the safer root_squash-family default — never no_root_squash here).
-# The /24 CIDR is accepted: access is limited by the VLAN (VLAN owns NFS
-# scoping — no per-client allowlist here by design).
+# NFS exports for nvme-data + sata-data (<name> mounts at /var/mnt/<name>).
+# Data volumes only (no bare /var root); LAN-only 192.168.1.0/24, all_squash.
+# The /24 CIDR is accepted: access is limited by the VLAN.
 apiVersion: v1alpha1
 kind: EtcFileConfig
 name: exports
@@ -129,7 +122,7 @@ mode: 0o644
 contents: |
   udp        tpi_clts      v     inet     udp     -       -
   tcp        tpi_cots_ord  v     inet     tcp     -       -
-# libtirpc IPv4 server table (nfs-server needs both /etc/exports and /etc/netconfig).
+# libtirpc IPv4 server table.
 ---
 apiVersion: v1alpha1
 kind: KubeNodeConfig

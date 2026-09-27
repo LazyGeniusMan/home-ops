@@ -1,11 +1,7 @@
-# Cluster patch: acme-dev-bdo1-talos-apps-01 (Talos v1.15.0-alpha.0 — why-alpha:
-# the nfs-server system extension requires Talos >= 1.15; single control-plane),
-# applied after ../_base/patches.yml. Own Proton Pass vault (no cross-env refs); secrets are
-# double-brace refs; __TALOS_NETBIRD_SETUP_KEY__ is rewritten at render time (RUNBOOK §1.0b).
-# KubeProxyConfig disabled (Cilium replaces kube-proxy — the base patch keeps
-# iptables mode only so the base alone boots; this cluster doc is the one that
-# turns it off); control-plane taint removed (single-node runs workloads on
-# the control-plane).
+# Cluster patch: acme-dev-bdo1-talos-apps-01 (why-alpha: see group_vars/all.yml; single control-plane),
+# applied after ../_base/patches.yml. Own vault; double-brace refs only;
+# __TALOS_NETBIRD_SETUP_KEY__ is rewritten at render (RUNBOOK §1.0b).
+# kube-proxy disabled (Cilium replaces it); control-plane taint removed.
 ---
 apiVersion: v1alpha1
 kind: KubeClusterConfig
@@ -22,13 +18,11 @@ taints:
 ---
 apiVersion: v1alpha1
 kind: Layer2VIPConfig
-# Single-node: one speaker only (no HA) — the VIP is the stable API endpoint so
-# a 1→3 control-plane scale-up (RUNBOOK §4.6) keeps clients on the same address.
+# Single speaker (no HA) — stable endpoint across scale-up (RUNBOOK §4.6).
 name: 192.168.1.248 # K8s API VIP, advertised from the control-plane node
 link: ens18 # QEMU/KVM virtio NIC (pre-flight: talosctl get links --insecure -n 192.168.1.201)
 ---
-# Registry creds rotate in Proton Pass (own-vault `talos` item), then pick up
-# via day-2 -e reapply_configs=true (RUNBOOK §3.6) — never committed plaintext.
+# Registry creds rotate in Proton Pass, pick up via day-2 reapply (§3.6).
 apiVersion: v1alpha1
 kind: RegistryAuthConfig
 name: docker.io

@@ -1,12 +1,9 @@
-# talos/ansible — day-0/1/2 automation (idempotent, talosctl + kubectl)
+# talos/ansible — day-0/1/2 automation (idempotent, `talosctl`-only)
 
-Day-0 renders per-node machine configs + cluster talosconfig, and renders
-the ESO webhook PAT from the vault (`build/<cluster>/proton-pass-pat`);
-day-1 applies each node's own config, bootstraps etcd, and fetches
-kubeconfig; day-2 is ongoing operate (health, upgrade, config re-apply,
-ESO PAT Secret apply/renew).
-All node contact is `talosctl` over the Talos API — no SSH. `kubectl` is
-used only by the day-2 PAT Secret plane (post-Flux apply + webhook restart).
+Day-0 renders machine configs + talosconfig + ESO PAT; day-1 applies configs,
+bootstraps etcd, fetches kubeconfig; day-2 operates (health, upgrade,
+re-apply, PAT apply/renew). All node contact is `talosctl` — no SSH.
+`kubectl` is used only by the day-2 PAT Secret plane.
 
 > Operator? Start with [`RUNBOOK.md`](RUNBOOK.md) — step-by-step Day 0/1/2
 > commands, verification, troubleshooting, and reference tables. This README
@@ -30,65 +27,39 @@ ansible/
 
 ## Variables (group_vars/all.yml)
 
-- `talos_cluster` (default `acme-dev-bdo1-talos-apps-01`) + `talos_clusters.<name>`
-  (`vault`, `endpoint`, `nodes: [{name, ip, role}]`) — node IPs only feed
-  `talosctl -n/-e` flags; `talos_machine_roles` maps `role` to the
-  `gen config -t` machine type.
-- `talos_talosconfig` — explicit `--talosconfig` path on every call (never ambient
+- `talos_cluster` + `talos_clusters.<name>` (`vault`, `endpoint`,
+  `nodes: [{name, ip, role}]`) — node IPs feed `talosctl -n/-e` flags only;
+  `talos_machine_roles` maps `role` to the `gen config -t` machine type.
+- `talos_talosconfig` — explicit `--talosconfig` on every call (never ambient
   `TALOSCONFIG`); `talosconfig` / `kubeconfig` stay under `build/<cluster>/`.
-- Auth + secrets (procedures: `RUNBOOK.md` §0.3, §1.0b, §2.1b): `pass-cli login`
-  session gate (Ansible never logs in; every play probes via `pass-cli info -o json`);
-  ESO PAT renders via `pass-cli inject` to `build/<cluster>/proton-pass-pat`
-  (`0600`, pinned by `talos_pat_filename`); NetBird PAT resolves via
-  `pass-cli item view` into `NB_PAT` env only, and the Terraform-minted setup key
-  rewrites `__TALOS_NETBIRD_SETUP_KEY__`. Inject tasks carry no `no_log` in
-  `--out-file` mode so failures name the unresolved `pass://` ref.
+- Pins live only in `group_vars/all.yml` + `requirements.yml` — never in prose.
+- Auth + secrets (procedures: `RUNBOOK.md` §0, §1.0b, §2.1b): `pass-cli login`
+  session gate (every play probes via `pass-cli info -o json`); ESO PAT
+  renders to `build/<cluster>/proton-pass-pat`; NetBird PAT resolves into
+  `NB_PAT` env only, and the Terraform-minted setup key rewrites
+  `__TALOS_NETBIRD_SETUP_KEY__`.
 
-## Schematics (Image Factory upload + --install-image)
+## Schematics + machine configs
 
-Day-0 deep-merges three layers per node (base → cluster → node, recursive `combine`
-with dedup list-union; node files hold node-only entries):
+Day-0 deep-merges three layers per node (base → cluster → node), stages
+`build/<cluster>/schematics-<node>.yml`, uploads it to the factory URL from
+group_vars, persists `schematic-<node>.id` + `.sha256`, and rewrites
+`PLACEHOLDER_SCHEMATIC_ID` to the per-node ID. `gen config` receives
+`--install-image factory.talos.dev/metal-installer/<that-node-ID>:<talos_version>`.
 
-1. `talos/clusters/_base/schematics.yml` (shared; vanilla)
-2. `talos/clusters/<cluster>/schematics.yml` (env-wide, e.g. netbird)
-3. `talos/clusters/<cluster>/nodes/<node>/schematics.yml` (node-only)
+One `gen config` per node (plus one `-t talosconfig` per cluster): base +
+cluster patches via `--config-patch`, only that node's patch via
+`--config-patch-control-plane` / `--config-patch-worker`; output
+`build/<cluster>/nodes/<node>/<type>.yaml`, validated
+(`talosctl validate -c <node file> -m metal`). Day-1 `apply-config` is
+role-aware.
 
-The role stages `build/<cluster>/schematics-<node>.yml`, uploads it via
-`POST` to the single group-vars factory URL (30s timeout), and persists
-`schematic-<node>.id` + `.sha256` (upload only on content change; missing/empty/non-64-hex
-`.id` or unparseable upload fails fast naming the `rm` + re-run day-0 recovery).
-`PLACEHOLDER_SCHEMATIC_ID` in `nodes-<node>-patches.yml` is rewritten to the per-node
-ID. `gen config` receives
-`--install-image factory.talos.dev/metal-installer/<that-node-ID>:<talos_version>`
-(`talos_version` carries the leading `v`, e.g. `v1.15.0-alpha.0`).
-
-## Machine configs (per-node, role-based)
-
-One `gen config` per node (plus one `-t talosconfig` per cluster), each node scoped to
-its role:
-
-- output: `build/<cluster>/nodes/<node>/<type>.yaml` (`talos_machine_roles`: role →
-  `controlplane.yaml` / `worker.yaml`).
-- invocation: base + cluster patches via `--config-patch`, only that node's patch via
-  `--config-patch-control-plane` / `--config-patch-worker`.
-- `talosconfig`: once per cluster (`build/<cluster>/talosconfig`, base + cluster
-  patches, cluster endpoint), reused via `talos_talosconfig`.
-- every node file validated (`talosctl validate -c <node file> -m metal`); day-1
-  `apply-config` is role-aware.
-
-`build/` outputs per cluster (all gitignored) — see the canonical table
+`build/` outputs per cluster are all gitignored — see the canonical table
 (`RUNBOOK.md` §5.2); backup rules in §6. The staged `netbird-tf/` dir keeps
 persistent plaintext local state so re-applies upsert — backed up encrypted
 with the PKI bundle (§6.1); never committed or deleted between runs (see
-`RUNBOOK.md` §1.0b).
-
-NFS server stack per node: `siderolabs/nfsd` + `nfs-utils` + `nfs-server` in the node
-schematic, `EtcFileConfig` `exports` (two data-volume LAN-only `192.168.1.0/24`
-`all_squash` lines, `fsid=1/2` — the `/24` CIDR is accepted, access limited by
-the VLAN) + `netconfig` + `ExtensionServiceConfig` `nfs-server` (thread counts
-live in the node headers: dev 32 / prd 64 `RPCNFSDCOUNT` matching `[nfsd]`
-threads); exports resolve against the `nvme-data` + `sata-data` volumes
-(`RUNBOOK.md` §1.6).
+`RUNBOOK.md` §1.0b). NFS stack (node schematic + exports + netconfig +
+nfs-server service) is per node — see `RUNBOOK.md` §1.6.
 
 ## Inventory (local-only — no node inventory)
 

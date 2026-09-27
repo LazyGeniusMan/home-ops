@@ -1,6 +1,5 @@
 ---
-# Per-node schematic: deep-merge _base -> cluster -> node (loop_var `node`).
-# Outputs: schematics-<node>.yml, schematic-<node>.id, schematic-<node>.sha256.
+# Per-node schematic: merge _base -> cluster -> node (loop_var `node`).
 - name: Reset per-node schematic ID guard
   ansible.builtin.set_fact:
     talos_render_schematic_id: ""
@@ -133,8 +132,7 @@
   when: talos_render_schematic_need_upload and not ansible_check_mode
 
 - name: Fail when the uploaded schematic yields no ID
-  # A 2xx without a parseable ID would silently render pending-schematic-upload; fail fast.
-  # The 64-hex shape gate rejects truncated/garbled factory responses.
+  # 64-hex shape gate (RUNBOOK §1.4).
   ansible.builtin.assert:
     that:
       - talos_render_schematic_id is match(talos_schematic_id_pattern)
@@ -160,8 +158,7 @@
   when: not talos_render_schematic_need_upload and talos_render_schematic_stored_id.content is defined
 
 - name: Fail when the schematic hash matches but no ID resolves
-  # Hash unchanged yet .id missing/empty; without this gen config falls back to
-  # pending-schematic-upload. Skipped in check mode (RUNBOOK §1.1).
+  # Skipped in check mode (RUNBOOK §1.1).
   ansible.builtin.assert:
     that:
       - talos_render_schematic_id is match(talos_schematic_id_pattern)

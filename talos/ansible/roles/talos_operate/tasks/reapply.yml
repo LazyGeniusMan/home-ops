@@ -1,7 +1,5 @@
 ---
-# Config push to installed nodes (RUNBOOK §3.6): the render half lives in
-# refresh.yml (shared with -e refresh_secrets=true); this file only validates
-# the reapply mode and pushes via authenticated apply-config.
+# Config push to installed nodes (RUNBOOK §3.6): render half lives in refresh.yml.
 - name: Assert re-apply mode is valid
   # Full talosctl apply-config mode set (reboot included — valid upstream mode).
   ansible.builtin.assert:

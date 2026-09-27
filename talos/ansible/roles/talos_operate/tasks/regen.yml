@@ -1,5 +1,5 @@
 ---
-# Regen plane: rebuild client configs from the EXISTING secrets bundle (never mints new PKI).
+# Regen plane: rebuild client configs from the EXISTING secrets bundle (RUNBOOK §3.5).
 - name: Regenerate cluster talosconfig from existing secrets bundle
   ansible.builtin.command:
     cmd: >-

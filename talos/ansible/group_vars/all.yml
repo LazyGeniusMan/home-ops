@@ -1,55 +1,37 @@
 ---
-# Shared vars: `pass-cli login` gates auth; the PAT value renders from the
-# vault via `pass-cli inject`, never the shell.
-#
-# Local-only: playbooks run on localhost and reach nodes via `talosctl` over
-# the Talos API (no SSH inventory). `talos_clusters` is the single source of
-# truth for node IPs (data for `talosctl -n/-e` flags only).
-# Shared PAT filename for build/<cluster>/ (0600, gitignored): day-0
-# renders it, day-2 reads/renews it.
+# Shared vars: vault login gates auth; renders land in build/<cluster>/ (gitignored).
+# Local-only: playbooks run on localhost, nodes via `talosctl` (no SSH inventory).
 talos_pat_filename: proton-pass-pat
 # why-alpha: the nfs-server system extension requires Talos >= 1.15, and 1.15
 # ships only as alpha today (no stable). Deliberate pin — re-check each
 # release for a 1.15 stable and move off alpha then (blocks prd wide-NFS).
 talos_version: v1.15.0-alpha.0
-# Recorded kubelet image version day-0 renders (day-0 passes no
-# --kubernetes-version flag, so day-0 bakes the Talos-default kubelet).
-# Record only: day-2 NEVER reads this for upgrades — Kubernetes upgrades are
-# explicit `-e kubernetes_version=<ver>` opt-in only (a pin bump alone must
-# never mutate the live cluster on a plain day-2 run).
+# Recorded kubelet version day-0 renders (record only: day-2 NEVER reads this —
+# Kubernetes upgrades are explicit `-e kubernetes_version=<ver>` opt-in only).
 talos_kubernetes_pinned_version: 1.37.0
-# Image Factory endpoint, single source for both render (day-0) and operate
-# (day-2 re-apply) schematic planes.
+# Image Factory endpoint (single source for render + re-apply schematic planes).
 talos_schematic_factory_url: https://factory.talos.dev/schematics
-# Image Factory schematic IDs are 64 lowercase hex chars; uploads that return
-# anything else fail fast instead of rendering pending-schematic-upload.
+# Schematic IDs are 64 lowercase hex; anything else fails fast.
 talos_schematic_id_pattern: "^[0-9a-f]{64}$"
-# Bootstrap-only wipe intent (RUNBOOK §1.5, §2.x): source node patches keep
-# `wipe: true` (UnattendedInstallConfig) so first boot clears a reused OS
-# disk. Default false = safe: day-0 rewrites wipe to false in build/ (never
-# the source) before `gen config`, and day-2 refresh/reapply ALWAYS force
-# wipe:false + fail closed. Pass -e talos_bootstrap_fresh_install=true on
-# day-0 AND day-1 for a brand-new node only.
+# Bootstrap-only wipe intent (RUNBOOK §1.5): default false = safe (day-0 rewrites
+# wipe to false in build/; day-2 always forces wipe:false). Pass
+# -e talos_bootstrap_fresh_install=true on day-0 AND day-1 for a new node only.
 talos_bootstrap_fresh_install: false
 talos_build_dir: "{{ playbook_dir }}/../build"
-# Inventory role -> Talos machine type for `gen config -t` and output files.
+# Inventory role -> `gen config -t` machine type.
 talos_machine_roles:
   controlplane: controlplane
   worker: worker
-# Explicit talosctl auth: bootstrap/operate pass this via --talosconfig
-# instead of relying on an ambient TALOSCONFIG or ~/.talos/config.
+# Explicit talosctl auth (never ambient TALOSCONFIG).
 talos_talosconfig: "{{ talos_build_dir }}/{{ talos_cluster }}/talosconfig"
-# NetBird wiring (RUNBOOK §1.0b): vault PAT reaches Terraform only as
-# NB_PAT env.
-# The reusable setup key leaves only via the sensitive talos_setup_key output
-# into __TALOS_NETBIRD_SETUP_KEY__ (0600, no_log, never committed). Root staged
-# at build/<cluster>/netbird-tf/ with persistent state (re-applies upsert).
+# NetBird wiring (RUNBOOK §1.0b): vault PAT reaches Terraform only as NB_PAT env;
+# the setup key leaves only via the sensitive talos_setup_key output.
+# Root staged at build/<cluster>/netbird-tf/ with persistent state.
 talos_netbird_terraform_dir: "{{ playbook_dir }}/../build/{{ talos_cluster }}/netbird-tf"
 talos_netbird_placeholder: __TALOS_NETBIRD_SETUP_KEY__
 talos_netbird_setup_key_pattern: "^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}$"
-# Day-2 netbird/schematic planes run via include_role: talos_render, so the
-# render-role defaults DO load — but the planes consume only shared/group
-# talos_* vars plus the explicit per-call overrides in refresh.yml.
+# Day-2 netbird/schematic planes run via include_role: talos_render (shared/group
+# talos_* vars plus the explicit per-call overrides in refresh.yml).
 talos_netbird_tofu: tofu
 talos_netbird_pat_item: talos
 talos_netbird_pat_field: netbird-pat

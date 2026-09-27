@@ -1,14 +1,11 @@
-# Node patch: bdo-r01-cp-002 (Talos v1.15.0-alpha.0 — why-alpha: the nfs-server
-# system extension requires Talos >= 1.15). QEMU/KVM VM: virtio NIC ens18,
+# Node patch: bdo-r01-cp-002. QEMU/KVM VM: virtio NIC ens18,
 # install /dev/sda (20 GiB OS), data /dev/sdb (960 GB).
 # Volume math on the 20 GiB system disk: EPHEMERAL maxSize -8GiB (negative =
-# disk size minus 8 GiB, i.e. ~12 GiB ceiling for EPHEMERAL) and nvme-data
-# maxSize 8GiB (capped claim inside the same 20 GiB disk — EPHEMERAL's ~12 GiB
-# + nvme-data's 8 GiB ≈ full disk by design, same pattern as prd's 112+400).
-# sata-data (min 10 GiB, grow) takes /dev/sdb (960 GB).
-# nvme-data + sata-data are XFS. Pre-flight: talosctl get links/disks --insecure -n 192.168.1.201.
-# NFS tuning is single-client-LAN sized (32 slots/threads); prd runs 64 for
-# the larger bare-metal fleet — see the SysctlConfig/nfs.conf docs below.
+# disk size minus 8 GiB, i.e. ~12 GiB ceiling) and nvme-data maxSize 8GiB
+# (~12 + 8 GiB ≈ full disk by design). sata-data (min 10 GiB, grow) takes
+# /dev/sdb (960 GB). nvme-data + sata-data are XFS.
+# Pre-flight: talosctl get links/disks --insecure -n 192.168.1.201.
+# NFS tuning is single-client-LAN sized (32 slots/threads; prd runs 64).
 ---
 apiVersion: v1alpha1
 kind: HostnameConfig
@@ -105,12 +102,9 @@ name: nfs-server
 environment:
   - RPCNFSDCOUNT=32
 ---
-# NFS exports for the nvme-data + sata-data volumes above (<name> mounts at
-# /var/mnt/<name>). Data volumes only (no bare /var root — clients mount each
-# dataset path directly); LAN-only 192.168.1.0/24, all_squash to nobody (keep
-# the safer root_squash-family default — never no_root_squash here).
-# The /24 CIDR is accepted: access is limited by the VLAN (VLAN owns NFS
-# scoping — no per-client allowlist here by design).
+# NFS exports for nvme-data + sata-data (<name> mounts at /var/mnt/<name>).
+# Data volumes only (no bare /var root); LAN-only 192.168.1.0/24, all_squash.
+# The /24 CIDR is accepted: access is limited by the VLAN.
 apiVersion: v1alpha1
 kind: EtcFileConfig
 name: exports
@@ -126,7 +120,7 @@ mode: 0o644
 contents: |
   udp        tpi_clts      v     inet     udp     -       -
   tcp        tpi_cots_ord  v     inet     tcp     -       -
-# libtirpc IPv4 server table (nfs-server needs both /etc/exports and /etc/netconfig).
+# libtirpc IPv4 server table.
 ---
 apiVersion: v1alpha1
 kind: KubeNodeConfig

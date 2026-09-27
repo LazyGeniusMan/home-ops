@@ -1,5 +1,4 @@
-# Cluster schematic layer (Talos v1.15.0-alpha.0): env-wide entries over _base.
-# Bare `siderolabs/<name>` entries only (factory pins versions to the release).
+# Cluster schematic layer: env-wide entries over _base.
 customization:
   systemExtensions:
     officialExtensions:

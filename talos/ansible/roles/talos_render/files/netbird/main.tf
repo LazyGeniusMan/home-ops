@@ -1,20 +1,11 @@
-# Dedicated Talos NetBird access-fabric root — Ansible-managed only (RUNBOOK §1.0b), never Flux.
-# Upsert-only: `prevent_destroy` on every resource except the setup key —
-# replacement is the sanctioned rotation path (other delete/replace plans fail
-# closed; no destroy path).
-# Staged at build/<cluster>/netbird-tf/ with persistent local state (re-applies upsert — never delete).
-# PAT rides NB_PAT env only (provider reads it straight from the environment;
-# there is no token variable by design); setup key is reusable but scoped
-# (90d expiry, usage_limit 3 — rotate before expiry, RUNBOOK §1.0b), plaintext
-# only via the sensitive talos_setup_key output; routing via
-# netbird_network_router peer_groups (netbird_route unused); admin peer + LAN
-# chains ride two policies (one rule per policy).
+# Dedicated Talos NetBird root — Ansible-managed only (RUNBOOK §1.0b), never Flux.
+# Upsert-only: `prevent_destroy` everywhere except the setup key (replacement is
+# the sanctioned rotation path). Staged at build/<cluster>/netbird-tf/.
+# PAT rides NB_PAT env only (no token variable); setup key is reusable but scoped
+# (90d, usage_limit 3 — rotate before expiry); routing via peer_groups.
 # No Service-LB resource (LB VIP owned by the Flux consumer).
-# Single-writer rule: both clusters share one NetBird account, so the
-# account-global groups/policies below are managed by exactly one cluster root
-# at a time (whichever cluster applied first). Before applying a second
-# cluster, import the globals into its state (see README.md) or the apply
-# fails on duplicates.
+# Single-writer: both clusters share one account — import the globals into the
+# second cluster's state first (see README.md).
 provider "netbird" {
   management_url = var.management_url
 }
@@ -43,8 +34,7 @@ resource "netbird_group" "cluster_nodes" {
   }
 }
 
-# Resource groups associate by NAME. Only the network_resource.groups edge is managed here
-# (the API mirrors membership back as computed state; managing both edges would cycle).
+# Resource groups associate by NAME (only the network_resource.groups edge is managed).
 resource "netbird_group" "admin_users_resources" {
   name = "admin-users-resources"
 
@@ -61,7 +51,7 @@ resource "netbird_group" "guest_users_resources" {
   }
 }
 
-# Built-in catch-all group (exists on every account) — read, never manage.
+# Built-in catch-all group — read, never manage.
 data "netbird_group" "all" {
   name = "All"
 }
@@ -75,13 +65,9 @@ resource "netbird_network" "cluster" {
   }
 }
 
-# Reusable setup key: peers minted through it land in the per-cluster nodes group.
-# Plaintext leaves ONLY via the sensitive talos_setup_key output.
-# Scoped, not eternal: 90d expiry + tight usage_limit (credential rule — every
-# credential carries an expiration). Rotate well before expiry (RUNBOOK §1.0b);
-# raise usage_limit when adding nodes (1 active peer + rejoin headroom today).
-# No prevent_destroy here by design: replacement is the sanctioned rotation
-# path (every other resource keeps it — globals fail closed).
+# Reusable setup key, scoped (90d + usage_limit 3); plaintext only via the
+# sensitive talos_setup_key output. No prevent_destroy: replacement is the
+# sanctioned rotation path (RUNBOOK §1.0b).
 resource "netbird_setup_key" "talos" {
   name           = var.cluster_name
   type           = "reusable"
@@ -90,7 +76,7 @@ resource "netbird_setup_key" "talos" {
   auto_groups    = [netbird_group.cluster_nodes.id]
 }
 
-# Routing: per-cluster nodes group serves as routing peers (netbird_network_router peer_groups).
+# Routing: per-cluster nodes group serves as routing peers.
 resource "netbird_network_router" "cluster" {
   network_id  = netbird_network.cluster.id
   peer_groups = [netbird_group.cluster_nodes.id]
@@ -115,7 +101,7 @@ resource "netbird_network_resource" "lan" {
   }
 }
 
-# Admin peer policy (peer chain only; LAN resources ride admin_users_lan_access below).
+# Admin peer policy (peer chain; LAN rides admin_users_lan_access).
 resource "netbird_policy" "admin_users_access" {
   name        = "admin-users-access"
   description = "Admin users reach all mesh groups (peer-to-peer / input chain)"
@@ -158,7 +144,7 @@ resource "netbird_policy" "admin_users_lan_access" {
   }
 }
 
-# Guest policy: guest-users reach ONLY guest-users-resources on TCP 80/443 (peer chain).
+# Guest policy: guest-users reach guest-users-resources on TCP 80/443 only.
 resource "netbird_policy" "guest_users_access" {
   name        = "guest-users-access"
   description = "Guest users reach the guest-users-resources group on HTTP/HTTPS only"

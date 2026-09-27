@@ -1,6 +1,4 @@
-# No netbird_token variable by design: the provider reads NB_PAT straight from
-# the environment (Ansible sets it from `pass-cli item view`, never -var,
-# never on disk, never in state).
+# No netbird_token variable: the provider reads NB_PAT from the environment.
 variable "cluster_name" {
   description = "Talos cluster name owning this NetBird fabric (network, nodes group, setup key names)"
   type        = string

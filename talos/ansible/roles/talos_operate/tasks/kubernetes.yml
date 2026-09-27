@@ -1,9 +1,5 @@
 ---
-# Kubernetes upgrade on version drift only (rendered kubelet image vs talos_operate_kubernetes_version,
-# no leading v). Runs after any Talos upgrade; targets ALL control-plane nodes
-# (comma-joined --nodes). --dry-run plans first. Drift detection reads the
-# nodes[0] rendered config as representative (kubelet version tracks the Talos
-# release, not per-node schematics).
+# Kubernetes upgrade on version drift only (RUNBOOK §3.4): --dry-run plans first.
 - name: Resolve rendered machine config path for drift detection
   ansible.builtin.set_fact:
     talos_operate_k8s_node: "{{ talos_clusters[talos_cluster].nodes[0] }}"

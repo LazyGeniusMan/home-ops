@@ -1,5 +1,5 @@
 ---
-# Day-1: insecure-apply per node, wait gates, bootstrap etcd, fetch kubeconfig.
+# Day-1: insecure-apply per node, wait gates, bootstrap etcd, fetch kubeconfig (RUNBOOK §2).
 - name: Check pass-cli session is authenticated
   # Ansible never logs in. check_mode:false so --check still validates auth.
   ansible.builtin.command:

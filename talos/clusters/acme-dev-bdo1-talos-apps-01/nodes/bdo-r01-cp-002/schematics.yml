@@ -1,5 +1,4 @@
-# Node schematic layer for bdo-r01-cp-002 (Talos v1.15.0-alpha.0): node-only entries
-# (netbird comes from the cluster layer). Bare `siderolabs/<name>` entries only.
+# Node schematic layer for bdo-r01-cp-002: node-only entries.
 customization:
   systemExtensions:
     officialExtensions:

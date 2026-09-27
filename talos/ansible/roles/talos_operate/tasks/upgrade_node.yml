@@ -1,8 +1,5 @@
 ---
-# Per-node Talos upgrade body (looped from upgrade.yml with loop_var upgrade_node):
-# upgrade this node, then wait for its Talos API before the outer loop advances
-# to the next node. Authenticated `talosctl version` proves the node rebooted
-# into the new installer (RUNBOOK §4.5).
+# Per-node upgrade body (looped from upgrade.yml): upgrade, then wait for the API (RUNBOOK §4.5).
 - name: Upgrade Talos on {{ upgrade_node.name }}
   ansible.builtin.command:
     cmd: >-

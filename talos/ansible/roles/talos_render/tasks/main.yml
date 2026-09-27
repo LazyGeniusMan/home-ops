@@ -1,5 +1,5 @@
 ---
-# Day-0 render: inject secrets, generate machine configs, validate (needs a live pass-cli session; RUNBOOK §0.3).
+# Day-0 render: inject secrets, generate machine configs, validate (RUNBOOK §0.3).
 - name: Ensure build directory exists
   ansible.builtin.file:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}"
@@ -160,8 +160,7 @@
   changed_when: true
 
 - name: Stat rendered node patches for the wipe gate
-  # `creates:`-skipped injects leave older renders behind; the rewrite below
-  # must still sanitize them, so gate on real disk state (RUNBOOK §1.5).
+  # `creates:`-skipped injects leave older renders; gate on disk state (RUNBOOK §1.5).
   ansible.builtin.stat:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml"
   loop: "{{ talos_clusters[talos_cluster].nodes }}"
@@ -171,10 +170,7 @@
   register: talos_render_wipe_stat
 
 - name: Force wipe false in rendered node patches unless fresh install
-  # Bootstrap-only wipe (RUNBOOK §1.5): source node patches keep `wipe: true`
-  # for first boot; every default render rewrites it to false in build/
-  # (never the source) BEFORE `gen config` bakes machine configs. Fresh
-  # installs render day-0 with -e talos_bootstrap_fresh_install=true.
+  # Bootstrap-only wipe (RUNBOOK §1.5): default rewrites to false in build/.
   ansible.builtin.replace:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml"
     regexp: '(?m)^(\s*wipe:\s*)true\s*$'
@@ -199,8 +195,7 @@
   when: not (talos_render_fresh_install | default(false) | bool)
 
 - name: Fail when a rendered node patch still carries wipe true
-  # Fails closed: a later maintenance-boot must never see `wipe: true`.
-  # Skipped in check mode (RUNBOOK §1.1 — replace reports but never writes).
+  # Fails closed (RUNBOOK §1.5).
   ansible.builtin.assert:
     that:
       - not ((item.content | default('', true) | b64decode | trim) is search('(?m)^\s*wipe:\s*true\s*$'))
@@ -235,7 +230,7 @@
         override_all='0123456789abcdef') }}
   changed_when: true
 
-# NetBird setup key (RUNBOOK §1.0b): resolves the PAT, applies the dedicated root, rewrites the placeholder.
+# NetBird setup key (RUNBOOK §1.0b): PAT → terraform root → placeholder rewrite.
 - name: Resolve NetBird setup key from Terraform and rewrite cluster patch
   ansible.builtin.include_tasks: netbird_setup_key.yml
 
