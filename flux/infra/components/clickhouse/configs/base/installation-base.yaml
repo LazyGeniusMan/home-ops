@@ -1,5 +1,7 @@
 # Reusable ClickHouseInstallation base: 2 shards x 2 replicas against a 3-replica Keeper; local-ssd-nvme; S3 backups via backups_s3 disk (clickhouse-s3-backup Secret).
 # Server/keeper images pinned to the 26.8 LTS line in lockstep. Tables use ReplicatedMergeTree + ON CLUSTER DDL.
+# Auth: dedicated `otel` user (password from the ESO-synced `clickhouse-auth` Secret, key `otel-password`);
+# the operator-locked `default` user keeps its empty password for localhost/distributed-query only (never over the wire).
 ---
 apiVersion: clickhouse-keeper.altinity.com/v1
 kind: ClickHouseKeeperInstallation
@@ -37,13 +39,18 @@ spec:
             prometheus.io/scrape: "true"
             prometheus.io/port: "7000"
         spec:
+          # Preferred (not required) hostname spread: dev runs a single node
+          # where required anti-affinity would strand keeper replicas Pending;
+          # prd still spreads 3 keepers across nodes (weight 100, dragonfly-base.yaml style).
           affinity:
             podAntiAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-                - labelSelector:
-                    matchLabels:
-                      app: clickhouse-keeper
-                  topologyKey: "kubernetes.io/hostname"
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    labelSelector:
+                      matchLabels:
+                        app: clickhouse-keeper
+                    topologyKey: "kubernetes.io/hostname"
           containers:
             - name: clickhouse-keeper
               image: clickhouse/clickhouse-keeper:26.8.10.6 # {"$imagepolicy": "infra:clickhouse-keeper:tag"}
@@ -80,6 +87,15 @@ spec:
           replicasCount: 2 # placeholder - overridden by dev/prd overlays
     settings:
       backups/allowed_disk: backups_s3
+    users:
+      # Dedicated telemetry writer: password injected from the ESO-synced
+      # `clickhouse-auth` Secret (key `otel-password`) via same-namespace
+      # secretKeyRef (operator renders it as from_env; never committed).
+      otel/password:
+        valueFrom:
+          secretKeyRef:
+            name: clickhouse-auth
+            key: otel-password
     files:
       storage.xml: |
         <yandex>

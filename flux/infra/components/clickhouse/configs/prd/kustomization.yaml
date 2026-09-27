@@ -4,6 +4,15 @@ resources:
   - ../base
   - cloudflare-api-token.yaml
 patches:
+  # Prd Proton vault for the `otel` user password (base placeholder;
+  # prd fills pass://acme-prd-bdo1-talos-apps-01/clickhouse/otel-password).
+  - patch: |
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: pass://acme-prd-bdo1-talos-apps-01/clickhouse/otel-password
+    target:
+      kind: ExternalSecret
+      name: clickhouse-auth
   - patch: |
       - op: replace
         path: /spec/templates/volumeClaimTemplates/0/spec/resources/requests/storage

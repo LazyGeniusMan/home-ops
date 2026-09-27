@@ -5,7 +5,9 @@
 # __ZITADEL_ISSUER_URL__, redirect https://__SEAWEEDFS_UI_HOST__/oauth2/callback,
 # scopes openid profile email groups, admin-only via --allowed-group=seaweedfs-admin,
 # cookie domain .__BASE_DOMAIN__.
-# Credentials from seaweedfs-sso-outputs via the seaweedfs-k8s SecretStore.
+# Credentials from seaweedfs-sso-outputs via the seaweedfs-k8s SecretStore
+# (in-Terraform cookie secret — never Proton Pass; the ESO reader Role is
+# narrowed to seaweedfs-sso-outputs only, matching the zitadel-bootstrap reader pattern).
 # Chart oci://ghcr.io/oauth2-proxy/charts/oauth2-proxy 10.7.0 (app v7.15.4); tags track update-policies/seaweedfs.yaml.
 apiVersion: v1
 kind: ServiceAccount
@@ -23,8 +25,12 @@ metadata:
     app.kubernetes.io/name: seaweedfs
     app.kubernetes.io/part-of: seaweedfs
 rules:
+  # Narrowed to the Terraform outputs Secret this store actually mirrors
+  # (seaweedfs-sso-outputs -> ui-auth-credentials); the reader cannot see
+  # any other Secret in the namespace.
   - apiGroups: [""]
     resources: ["secrets"]
+    resourceNames: ["seaweedfs-sso-outputs"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["authorization.k8s.io"]
     resources: ["selfsubjectrulesreviews"]
@@ -134,6 +140,10 @@ spec:
       retryInterval: 5m
   # https://github.com/oauth2-proxy/manifests/tree/main/helm/oauth2-proxy
   values:
+    # Reloader opt-in: roll the proxy Deployment when the ESO-synced
+    # ui-auth-credentials rotate (client/cookie secrets from seaweedfs-sso-outputs).
+    podAnnotations:
+      reloader.stakater.com/auto: "true"
     fullnameOverride: ui-auth
     config:
       existingSecret: ui-auth-credentials

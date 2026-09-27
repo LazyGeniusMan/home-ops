@@ -1,6 +1,10 @@
 # S3 to ProtonDrive backups for zitadel-db, zitadel-cache, zitadel-assets (one helm-rclone CronJob per bucket, direction 05; chart 0.1.0).
 # Chart source: projects/helm-rclone.
 # Source is the live bc-<uuid> bucket via BucketInfo.spec.bucketName (assets sync reads the account root with --include "zitadel-assets*/**"). Destination /home-ops/backups/<cluster>/zitadel/<bucket>. Schedules db 01:15, cache 02:15, assets 03:15 UTC (staggered off the 00:00 CNPG base + 03:00 ClickHouse backup); sync-mirror (source deletion is the storage backend or db/app operator's job), Forbid.
+# Vault key note (M-A8): this component reads .../rclone/proton-password-obscured while cnpg/dragonfly/clickhouse
+# read .../rclone/proton-password — BOTH vault fields must be seeded (same password, two encodings: the raw
+# password for pass-cli/API use, the `rclone obscure` form for the helm-rclone proton-drive remote, which
+# requires the obscured format — see projects/helm-rclone README "Proton obscure step").
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

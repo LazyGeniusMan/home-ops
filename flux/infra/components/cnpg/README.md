@@ -17,7 +17,9 @@ bump.
 ## HA
 
 `spec.instances: 3`, one primary + two streaming standbys;
-`enablePodAntiAffinity: true`. Failover automatic (operator promotes the
+`enablePodAntiAffinity: true` (PREFERRED spread — the operator default;
+required spread would strand instances Pending on the single-node dev
+cluster). Failover automatic (operator promotes the
 most caught-up standby); switchover via `kubectl cnpg switchover <cluster>`.
 
 ## Backup / PITR

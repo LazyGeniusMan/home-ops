@@ -41,6 +41,11 @@ spec:
       retryInterval: 5m
   # https://kubernetes-sigs.github.io/external-dns/latest/charts/external-dns/
   values:
+    # Reloader opt-in: roll the singleton when the ESO-synced netbird-pat
+    # rotates (sidecar reads NETBIRD_PAT_FILE from the mounted Secret at
+    # startup; no HPA watches this singleton).
+    podAnnotations:
+      reloader.stakater.com/auto: "true"
     # Singleton placeholder: external-dns has no leader election (chart schema
     # caps replicaCount at 1); pinned to 1 in dev/prd overlays. NO HPA: >1
     # replica would issue duplicate/conflicting DNS writes.

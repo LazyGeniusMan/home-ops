@@ -1,0 +1,29 @@
+# Dedicated ClickHouse `otel` user password (Proton Pass; Git holds the remoteRef only).
+# Bootstrap: seed `pass://<cluster>/clickhouse/otel-password` once via pass-cli with a
+# 32+ char random value, then ESO syncs `clickhouse-auth` (key `otel-password`).
+# The CHI wires it via `spec.configuration.users` `otel/password` valueFrom/secretKeyRef
+# (same namespace; operator renders it as from_env). Consumers: otel-gateway exporter
+# (username `otel`, `${env:CLICKHOUSE_PASSWORD}`) + backup CronJob (`--user=otel --password=$...`).
+# Rotation: write the new value to the same Proton Pass field (and mirror it into
+# pass://<cluster>/otel-collectors/clickhouse-password — one password, two vault
+# fields), wait for the 1h ESO refresh, then restart/roll the otel-gateway
+# StatefulSet and re-run one backup to confirm.
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: clickhouse-auth
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: proton-pass
+    kind: ClusterSecretStore
+  target:
+    name: clickhouse-auth
+    template:
+      data:
+        otel-password: "{{ .password }}"
+  data:
+    - secretKey: password
+      remoteRef:
+        key: __PROTON_PASS_BASE__/clickhouse/otel-password

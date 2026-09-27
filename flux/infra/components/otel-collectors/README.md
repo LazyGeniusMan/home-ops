@@ -13,8 +13,11 @@ ServiceAccounts from each CR).
 
 Gateway exports to the shared infra CHI (`clickhouse-clickhouse.clickhouse`,
 `create_schema: true`, exporter-internal `sending_queue.batch` 5000/10s,
-`ttl: 0s` — DBA-managed table TTLs default 30d). Auth via
-`ExternalSecret/otel-clickhouse` (proton-pass `pass://<cluster>/otel-collectors/clickhouse-password`).
+`ttl: 0s` — DBA-managed table TTLs default 30d). Auth as the dedicated `otel`
+CHI user via `ExternalSecret/otel-clickhouse` (proton-pass
+`pass://<cluster>/otel-collectors/clickhouse-password` — seed with the SAME
+value as `pass://<cluster>/clickhouse/otel-password`; one password, two vault
+mirrors, one per namespace). Never the `default` user.
 ClusterIP only — no Ingress/Gateway (OTLP stays in-cluster).
 
 Trust boundary: agent->gateway `:4317` (`tls.insecure: true`), webhook `:4318`

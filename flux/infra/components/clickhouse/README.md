@@ -21,6 +21,17 @@ in-namespace `clickhouse-cosi` SecretStore (GJSON extracts
 `configs/base/bucketclaims.yaml`. In-cluster S3 endpoint
 `http://seaweed-main-s3.seaweedfs.svc.cluster.local:8333`.
 
+Client auth: dedicated `otel` CHI user — `ExternalSecret/clickhouse-auth`
+syncs `otel-password` from `pass://<cluster>/clickhouse/otel-password`
+(Proton Pass; seed 32+ chars via pass-cli), wired via
+`spec.configuration.users` `otel/password` valueFrom/secretKeyRef in
+`configs/base/installation-base.yaml`. Consumers: the otel-gateway exporter
+(`username: otel`, `CLICKHOUSE_PASSWORD` from the `otel-clickhouse` mirror in
+the otel-collectors namespace — same password, two vault fields, one per
+namespace) and the nightly backup CronJob (`--user=otel`). The
+operator-locked `default` user keeps its empty password for
+localhost/distributed-query only and is never used over the wire.
+
 ## Environments
 
 | Env | Replicas | Patches |
@@ -34,8 +45,9 @@ uses `concurrencyPolicy: Forbid` (no scaling).
 
 ## HA / backup
 
-Keeper quorum (3, hostname anti-affinity) backs replicated tables; create
-tables replicated from day one
+Keeper quorum (3, PREFERRED hostname anti-affinity — required spread would
+strand replicas Pending on the single-node dev cluster) backs replicated
+tables; create tables replicated from day one
 (`ReplicatedMergeTree('/clickhouse/tables/{shard}/events', '{replica}')`).
 Keeper holds coordination state only -- no backup needed.
 `CronJob/clickhouse-backup` nightly `0 3 * * *`:

@@ -72,5 +72,9 @@ test. Controller + webhook + cert-controller metrics Services on; single
 `infra:external-secrets:tag` + webhook `:dev` marker
 `infra:eso-proton-pass:tag`, range >=0.0.0) -> PR automation; keep chart
 and webhook in the same PR.
+Backlog (M-A9): the eso-proton-pass webhook rides the `:dev`
+single-stream in prd too (`configs/base/eso-proton-pass-webhook.yaml`
+already notes the `:stable` cutover) — cut prd to `:stable` once the first
+`eso-proton-pass-v*` tag lands.
 Changelogs: https://github.com/external-secrets/external-secrets/releases
 (webhook changelog in-repo).

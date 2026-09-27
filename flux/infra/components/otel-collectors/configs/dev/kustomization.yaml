@@ -5,6 +5,8 @@ resources:
 patches:
   # Dev Proton vault + database. The overlay replaces the full literal
   # (base holds the __PROTON_PASS_BASE__/__OTEL_DATABASE__ shape).
+  # Same password as pass://acme-dev-bdo1-talos-apps-01/clickhouse/otel-password
+  # (one password, two vault mirrors — see configs/base/clickhouse-credentials.yaml).
   - patch: |
       - op: replace
         path: /spec/data/0/remoteRef/key

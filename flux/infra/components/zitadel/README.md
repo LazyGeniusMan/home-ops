@@ -26,6 +26,11 @@ intent + bootstrap handoff + COSI claims).
   instances, sync quorum 1, `local-ssd-nvme`, continuous WAL + daily base backup
   to SeaweedFS S3). dbname/owner `zitadel`. Connection via DSN
   (`ZITADEL_DATABASE_POSTGRES_DSN`, `sslmode=require`).
+  TLS note (M-A7): the operator mints its own self-signed server CA/certs for
+  every Cluster (no `spec.certificates` stanza — operator-managed mode), so
+  `sslmode=require` verifies against the operator CA, not the LE
+  `wildcard-postgres-tls` Certificate (that cert serves human/admin TLS
+  routes, never the Postgres wire). No extra wiring needed.
 - Cache: `configs/base/zitadel-cache.yaml` — namespace-local Dragonfly (3
   replicas, tiered persistence, hourly S3 snapshots, AUTH password from the
   ESO-synced `zitadel-cache-auth` Secret). Host
@@ -47,9 +52,17 @@ the DSN and the CNPG app secret — rotate in one place),
 `pass://<cluster>/zitadel/smtp-*` (unwired until a relay exists),
 `pass://<cluster>/zitadel/cache-password` (Dragonfly AUTH, 32+ chars).
 Rotating credentials live behind Reloader: the `zitadel` + `zitadel-login`
-Deployments carry `reloader.stakater.com/auto: "true"`. S3 keys are
+Deployments carry `reloader.stakater.com/auto: "true"` (both as chart
+`podAnnotations` values and as the Deployment patch in
+`controllers/base/kustomization.yaml`). S3 keys are
 COSI-minted, not Proton Pass (claims `zitadel-db` / `zitadel-cache` /
 `zitadel-assets` through the in-namespace `zitadel-cosi` SecretStore).
+Terraform `varsFrom` Secrets (`seaweedfs-terraform-vars`,
+`zitadel-login-proxy-vars`, per-app `<app>-terraform-vars`) are re-read on
+each runner reconcile — no Reloader coverage exists on `kind: Terraform` CRs,
+so rotation takes effect on the next 30m reconcile, not instantly.
+ESO's own bootstrap credential (`proton-pass-pat`) is managed via Talos
+Ansible, never through this component.
 `pass://<cluster>/cert-manager/cloudflare-api-token` mirrors the DNS-01 secret
 into this namespace.
 

@@ -31,7 +31,15 @@ spec:
               command: ["clickhouse-client"]
               args:
                 - --host=clickhouse
+                - --user=otel
+                - --password=$(CLICKHOUSE_PASSWORD)
                 - --query=BACKUP ALL ON CLUSTER 'main' TO Disk('backups_s3', 'nightly/')
+              env:
+                - name: CLICKHOUSE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: clickhouse-auth
+                      key: otel-password
               resources:
                 requests:
                   cpu: 100m

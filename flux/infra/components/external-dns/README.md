@@ -51,5 +51,9 @@ ExternalDNS reports nothing upstream; the sidecar documents no telemetry.
 (chart >=1.22.0 marker `infra:external-dns:tag` + sidecar `:dev` marker
 `infra:external-dns-netbird:tag`, range >=0.0.0) -> PR automation; keep
 chart and sidecar in the same PR.
+Backlog (M-A9): the webhook sidecar rides the `:dev` single-stream in prd
+too — cut prd to a stable tag (`external-dns-netbird-v*`) once the first
+sidecar release lands, then track dev->stable promotion like every other
+first-party image.
 Changelog: https://github.com/kubernetes-sigs/external-dns/releases
 (sidecar changelog in-repo).

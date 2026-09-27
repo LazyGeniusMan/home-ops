@@ -24,11 +24,21 @@ metadata:
 ```
 
 Annotated consumers in this scope: Zitadel Deployments (`zitadel`,
-`zitadel-login`), ESO webhook Deployments, Zitadel login-proxy Terraform runner
-(via its `varsFrom` Secret), Dragonfly operator Deployment. Dragonfly `Dragonfly`
+`zitadel-login`, via chart `podAnnotations` + the Deployment patch in the
+zitadel controllers kustomization), ESO webhook Deployment, external-dns
+Deployment (singleton, `podAnnotations`), seaweedfs `ui-auth` proxy
+(`podAnnotations`), Dragonfly operator Deployment. Dragonfly `Dragonfly`
 CR pods are operator-owned — annotate the operator Deployment only; cache
 password rotation takes effect on pod restart via the operator StatefulSet
-reconcile.
+reconcile. Exempt by design (documented at each site, not annotated):
+Terraform `varsFrom` Secrets (runners re-read vars every 30m reconcile —
+no Reloader coverage on `kind: Terraform` CRs), COSI-minted S3 credentials
+(CNPG/ClickHouse/Dragonfly/Zitadel S3 keys rotate by re-minting the
+BucketAccess, which restarts consumers via the operator reconcile, not
+Reloader), and the otel-gateway `otel-clickhouse` mirror (operator-owned
+`OpenTelemetryCollector` CRs — Reloader watches Deployments/StatefulSets
+directly, not CRs; rotation takes effect on pod restart via the operator
+reconcile).
 
 ## Environments
 

@@ -30,11 +30,16 @@ pre-flight DaemonSet Ready, then delete it before landing the chart bump.
   `cilium` in `kube-system` (`targetNamespace` + `storageNamespace`).
 - `encryption.enabled: true` + `type: wireguard` (automatic per-node keys;
   `nodeEncryption: false` — pod-to-pod encrypted, host traffic plain on the
-  trusted LAN). This is the trust boundary for every cleartext
+  trusted LAN). Trust boundary: the cluster runs private on the trusted LAN
+  (no public node ingress; user traffic enters only through the NetBird mesh
+  and the Gateway). Service-domain cleartext is CORRECT — every cleartext
   service-domain `http://` endpoint in the repo (S3 :8333, OTLP :4317/:4318,
-  ESO webhook :8080, Dragonfly :6379): no in-cluster TLS by design, CNI
-  encryption instead. Outside-cluster access stays TLS-terminated at the
-  Gateway API + cert-manager layer.
+  ESO webhook :8080, Dragonfly :6379, ClickHouse :8123/:9000) stays
+  unencrypted by design with the CNI owning wire encryption; edge TLS
+  terminates ONLY at the Gateway API + cert-manager layer, never in-cluster.
+  Single-node veth/host cleartext is accepted (same-node pods share the host
+  path with no WireGuard hop — no secret traverses it that is not already
+  visible to the host root).
 
 ## VIP split
 

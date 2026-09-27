@@ -88,6 +88,11 @@ spec:
         # first install: the setup Job runs once, then these credentials are
         # rotated to 90-day expiries via the runbook in configs/base/
         # zitadel-bootstrap-handoff.yaml (bootstrap obtain + rotate steps).
+        # Rotation tracker (owner: platform; seeded at first install):
+        # | credential | first-install date | rotated-to-90d date |
+        # | machine key (zitadel-bootstrap-sa) | __SEED_DATE__ | __ROTATE_DATE__ |
+        # | PAT (zitadel-bootstrap-sa-pat) | __SEED_DATE__ | __ROTATE_DATE__ |
+        # Fill both dates at install; alert if 90d past seed with no rotation.
         # Scopes: [] keeps PAT wiring rendered (a bare Pat: {} would drop it).
         FirstInstance:
           Org:
@@ -171,6 +176,12 @@ spec:
         enabled: false
     postgresql:
       enabled: false
+    # Reloader opt-in (chart-native podAnnotations knob): roll API + login pods
+    # when the ESO-synced Secrets rotate (zitadel-db-credentials DSN,
+    # zitadel-cache-auth password, zitadel-asset-storage keys). Complements the
+    # Deployment-level patch in controllers/base/kustomization.yaml.
+    podAnnotations:
+      reloader.stakater.com/auto: "true"
     # Metrics endpoint + ServiceMonitor on (two-step: `metrics.enabled: true` adds the prometheus.io
     # scrape annotations first, then the monitor scrapes them). Monitoring CRDs arrive via the otel-operator
     # infra-crds delivery (prune:false), and the gateway TA scrapes monitors labeled `otel-scrape: "true"`

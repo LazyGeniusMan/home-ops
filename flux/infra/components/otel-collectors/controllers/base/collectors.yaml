@@ -186,7 +186,9 @@ spec:
     exporters:
       # Shared infra ClickHouse (service `clickhouse-clickhouse` in the
       # clickhouse tenant namespace). Auth via the ESO-synced Secret
-      # (otel-clickhouse, configs/base). `create_schema: true` lets the
+      # (otel-clickhouse, configs/base) as the dedicated `otel` CHI user —
+      # never the operator-locked `default` user (empty password, localhost +
+      # distributed-query only). `create_schema: true` lets the
       # exporter create `__OTEL_DATABASE__` + otel_* tables on first insert;
       # DBA-managed TTLs: exporter `ttl` stays 0 (tables default 30d).
       # Batching is exporter-internal (`sending_queue.batch`, NOT a batch
@@ -194,7 +196,7 @@ spec:
       clickhouse:
         endpoint: tcp://clickhouse-clickhouse.clickhouse.svc:9000?dial_timeout=10s
         database: __OTEL_DATABASE__
-        username: default
+        username: otel
         password: ${env:CLICKHOUSE_PASSWORD}
         create_schema: true
         ttl: 0s

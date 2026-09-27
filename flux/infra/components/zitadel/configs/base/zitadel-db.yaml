@@ -1,6 +1,10 @@
 # Zitadel PostgreSQL Cluster: namespace-local CNPG Cluster (dbname/owner zitadel; 3 instances, sync quorum 1, local-ssd-nvme).
 # Backup: continuous WAL + daily base backup to s3://cnpg-backups/zitadel/ (bucket prefix must pre-exist).
 # Credentials: cnpg-s3-credentials from the COSI BucketInfo (zitadel-db-cosi-creds) via in-namespace zitadel-cosi SecretStore.
+# Anti-affinity is PREFERRED (not required): dev runs a single node where required spread would strand
+# instances Pending; prd still spreads across nodes (see cnpg/configs/base/cluster-base.yaml).
+# TLS: the operator mints its own self-signed server CA/certs (see M-A7 note in the zitadel README);
+# the app DSN keeps sslmode=require against the operator CA — never the LE wildcard-postgres cert.
 # PITR: apply a NEW Cluster with bootstrap.recovery (example below) instead of initdb.
 ---
 apiVersion: external-secrets.io/v1

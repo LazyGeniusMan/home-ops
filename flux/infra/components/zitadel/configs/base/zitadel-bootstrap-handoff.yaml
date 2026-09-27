@@ -1,19 +1,28 @@
 # Bootstrap handoff: mirrors the setup-Job kept Secrets into zitadel-bootstrap-credentials (jwt_profile_json + pat) via the in-namespace zitadel-bootstrap SecretStore.
 # zitadel-bootstrap-outputs (org_id + admin_user_id) is a plain Secret created once by the operator. zitadel-asset-storage mirrors the zitadel-assets claim via the zitadel-cosi store.
+# ESO bootstrap boundary: the generated (non-vault) handoff Secrets stay in-cluster behind the narrow
+# eso-zitadel-reader Role (resourceNames: the two kept Secrets only); ESO's own bootstrap credential
+# (proton-pass-pat) is managed via Talos Ansible, never here.
 #
-# BOOTSTRAP OBTAIN (first install):
+# BOOTSTRAP OBTAIN (first install; owner: platform):
 # 1. Flux applies controllers -> chart setup Job creates org home-ops + IAM_OWNER machine user (zitadel-bootstrap-sa, non-expiring key JSON + PAT)
 #    and the kept Secrets `zitadel-bootstrap-sa` / `zitadel-bootstrap-sa-pat`.
 # 2. ESO mirrors them into `zitadel-bootstrap-credentials` (jwt_profile_json + pat); the operator records
 #    `zitadel-bootstrap-outputs` (org_id + admin_user_id) once.
-# 3. Invite the human admin via the console; per-app Terraform slices consume the handoff via same-namespace varsFrom.
+# 3. Record the first-install date in the rotation tracker in controllers/base/zitadel.yaml
+#    (`__SEED_DATE__` -> YYYY-MM-DD) and set a 90-day rotation reminder.
+# 4. Invite the human admin via the console; per-app Terraform slices consume the handoff via same-namespace varsFrom.
 #
-# ROTATE (every 90 days; Reloader restarts consumers on Secret change):
+# ROTATE (every 90 days; Reloader rolls annotated consumers on Secret change):
 # 1. Create a new machine key + PAT for zitadel-bootstrap-sa in the Zitadel console (90-day expiry).
 # 2. Patch the kept Secrets (`zitadel-bootstrap-sa.json` / `zitadel-bootstrap-sa-pat:pat`) with the new values.
-# 3. ESO syncs within 1h into `zitadel-bootstrap-credentials`; Reloader (annotation on consumer workloads)
-#    rolls the Zitadel Deployments + Terraform runners. Verify login + one per-app plan, then delete the old key/PAT.
-# 4. Never rotate by reinstalling (cleanupJob stays disabled — reinstall would orphan the handoff mirror).
+# 3. ESO syncs within 1h into `zitadel-bootstrap-credentials`; Reloader rolls the annotated
+#    Zitadel Deployments (reloader.stakater.com/auto via podAnnotations + the Deployment patch in
+#    controllers/base/kustomization.yaml). Terraform runners pick up the new vars on their next
+#    reconcile (varsFrom re-read; no Reloader coverage on Terraform CRs — see README Credentials).
+#    Verify login + one per-app plan, then delete the old key/PAT.
+# 4. Record the rotation date in the tracker (`__ROTATE_DATE__` -> YYYY-MM-DD) and set the next 90-day reminder.
+# 5. Never rotate by reinstalling (cleanupJob stays disabled — reinstall would orphan the handoff mirror).
 ---
 apiVersion: v1
 kind: ServiceAccount
