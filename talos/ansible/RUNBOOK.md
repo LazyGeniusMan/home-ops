@@ -350,8 +350,8 @@ Expect the node `Ready`, VIP endpoint serving the API.
 Default (no flags) is read-only health/etcd, but still checks the `pass-cli`
 session first (re-apply/renew need it). Flags opt into regen, secrets refresh,
 re-apply, upgrades, and the ESO PAT Secret plane. Order: auth probe → health
-gate → regen → secrets refresh → re-apply → Talos upgrade → Kubernetes upgrade
-→ PAT apply/renew (§3.7). Talos always precedes k8s. Every mutating plane
+gate → regen → secrets refresh → PAT apply → re-apply (`staged` default) → Talos upgrade → Kubernetes upgrade
+(→ PAT renew with `pat_renew=true`, §3.7). Talos always precedes k8s. Every mutating plane
 requires the health probe to return `rc==0` this run (or explicit
 `-e skip_health=true`, which bypasses the gate at your own risk). The group pin
 `talos_kubernetes_pinned_version` is record-only — Kubernetes upgrades are
@@ -557,8 +557,12 @@ the stale render first (next table).
 ### 4.3 `creates:`-skip staleness — when to delete what
 
 A `creates:` guard never re-runs while its file exists, even if the **source** changed.
-Day-0 fails fast with an mtime preflight when a source is newer than its render, naming
-the `rm` below (vault rotations stay invisible — still delete + re-run after one).
+Adjacency rule: day-0 must render (and day-1 must bootstrap) with the same
+`talos_bootstrap_fresh_install` flag value — a safe-default render can never
+seed a first boot, and a fresh render can never touch an installed cluster.
+Day-0 fails fast with an mtime preflight when a source patch is newer than its
+render, naming the `rm` below (vault rotations stay invisible — still delete +
+re-run after one).
 
 | Guard file (`build/<cluster>/...`) | Goes stale when… | Recovery |
 | --- | --- | --- |

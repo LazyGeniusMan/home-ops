@@ -11,14 +11,14 @@ Vault naming: `pass://acme-<env>-bdo1-talos-apps-01/<path>` (`dev`/`prd`).
 pass-cli item create login --vault-name 'acme-<env>-bdo1-talos-apps-01' --title '<path>'
 ```
 
-**12** fields per env (1 cert-manager + 1 registration-secret +
-8 mautrix-discord + 2 element-web). Bot credentials are minted in-cluster
+**14** fields per env (1 cert-manager + 1 registration-secret +
+8 mautrix-discord + 2 element-web + 2 rclone Proton Drive). Bot credentials are minted in-cluster
 by the bootstrap Job; everything else minted in-cluster (COSI, Terraform
 outputs, CNPG, kept Secret) needs NO seeding — see "Not vault-seeded".
 
 ## Per-env seed table
 
-Same 12 rows for `dev` and `prd`; only values differ per env.
+Same 14 rows for `dev` and `prd`; only values differ per env.
 
 | # | Vault field (`<prefix>/<path>`) | ExternalSecret → Secret (key) | Consumed by | Value notes |
 |---|---|---|---|---|
@@ -34,6 +34,8 @@ Same 12 rows for `dev` and `prd`; only values differ per env.
 | 10 | `mautrix-discord/db-password` | `mautrix-discord-db-credentials` → `mautrix-discord-db-credentials` (`connection-url`, templated `postgres://discord:<pw>@mautrix-discord-db-rw.matrix.svc:5432/discord?sslmode=require`) AND `mautrix-discord-db-app-secret` → `mautrix-discord-db-app-secret` (basic-auth `discord`/`<pw>`; username MUST equal `spec.bootstrap.initdb.owner`) | Bridge `DATABASE_URL` env + CNPG `mautrix-discord-db` Cluster initdb owner password | Random ≥32ch; single field feeds BOTH Secrets |
 | 11 | `element-web/netbird-pat` | `element-proxy-vars` → `element-proxy-vars` (`netbird_token`) | Terraform `element-proxy` CR via `varsFrom` (NetBird custom-domain + reverse-proxy service registration) | Per-env NetBird PAT |
 | 12 | `element-web/cloudflare-api-token` | (same ES/Secret, `cloudflare_api_token`) | (same CR — Cloudflare side of the NetBird registration) | Distinct vault field from #1 (separate consumer), same upstream token value is fine |
+| 13 | `rclone/proton-username` | `rclone-proton-credentials` → `rclone-proton-credentials` (`username`) | `rclone-sync-matrix` CronJob Proton Drive remote (`RCLONE_CONFIG_*` env) | Proton account username; shared with the other six rclone legs |
+| 14 | `rclone/proton-password` | (same ES/Secret, `password`) | (same CronJob remote) | Proton account password / app password; shared with the other six rclone legs |
 
 Seed commands (dev shown; repeat with `acme-prd-bdo1-talos-apps-01` for prd):
 
@@ -50,6 +52,8 @@ pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'm
 pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'mautrix-discord/db-password'
 pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'element-web/netbird-pat'
 pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'element-web/cloudflare-api-token'
+pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'rclone/proton-username'
+pass-cli item create login --vault-name 'acme-dev-bdo1-talos-apps-01' --title 'rclone/proton-password'
 ```
 
 ## Not vault-seeded (in-cluster minted — DO NOT `pass-cli item create`)

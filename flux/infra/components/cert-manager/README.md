@@ -18,10 +18,12 @@ DNS:Edit). Seed with pass-cli.
 | `prd` | controller + webhook + cainjector 2 | LE production ACME server, prd vault ref, ACME email, `Certificate/wildcard-home-ops` |
 
 Base issuer leaves the ACME server unset; overlays set LE production plus
-vault ref, email, and wildcard `Certificate`. The gateway-api component
-mints its own duplicate wildcard `Certificate` in its own namespace (same
-issuer, same dnsNames) because Gateway listeners need the TLS Secret
-namespace-local.
+vault ref, email, and wildcard `Certificate`. Duplicate-cert discipline:
+cert-manager Secrets are namespace-local, so every namespace needing edge
+TLS mints its own duplicate wildcard `Certificate` from this ClusterIssuer
+(same issuer, same dnsNames) — gateway-api, coder (two certs for the nested
+`*.coder` shape), matrix (two certs for the nested `*.matrix` shape), and
+every other TLS namespace. One wildcard covers a single DNS label only.
 
 Rate-limit math (why LE prod in dev too): dev mints ~10 wildcard Certificates
 (once each, then auto-renewal at 2/3 lifetime = ~60d), far below the LE

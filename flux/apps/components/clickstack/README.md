@@ -21,8 +21,8 @@ HTTPRoute); env overlays `{dev,prd}/` patch hostnames, vault refs, and endpoints
 
 - ClickHouse (`base/clickstack-clickhouse.yaml`): namespace-local CHI, 1 shard x 2 replicas, `local-ssd-nvme`, S3
   backups to `clickhouse/clickstack/`, no users (operator `default`, empty password). Keeper reuses the shared infra `clickhouse-keeper` ensemble. Tables use ReplicatedMergeTree + ON CLUSTER DDL.
-- FerretDB (`base/ferretdb-postgres.yaml` + `base/ferretdb.yaml`): CNPG Cluster (3 instances, sync quorum 1, WAL + daily
-  base backup to `s3://cnpg-backups/ferretdb/`, dbname/owner `ferretdb`) + stateless Mongo-wire proxy. `sslmode=require`.
+- FerretDB (`base/ferretdb-postgres.yaml` + `base/ferretdb.yaml`): CNPG Cluster (production-shaped live placeholder: 3 instances, sync quorum 1, WAL + daily
+  base backup to `s3://cnpg-backups/ferretdb/`, dbname/owner `ferretdb`; dev overlay → 1, prd overlay → 3) + stateless Mongo-wire proxy singleton (Deployment 1 + HPA capped 1/1, VPA `Off`; no HPA scaling — single Mongo-wire proxy cannot shard). `sslmode=require`.
 
 | Item | Value |
 |---|---|

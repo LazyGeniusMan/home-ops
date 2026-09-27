@@ -3,7 +3,8 @@
 Dragonfly operator v1.6.1
 (`oci://ghcr.io/dragonflydb/dragonfly-operator/helm/dragonfly-operator`,
 chart == operator so no chart->operator mapping to re-verify) plus a
-reusable `Dragonfly` base template: 3 replicas (1 primary + 2 replicas)
+reusable `Dragonfly` base template (`dragonfly-base.yaml`, production-shaped live
+placeholder): 3 replicas (1 primary + 2 replicas)
 with automatic failover, tiered persistence on `local-ssd-nvme` (20Gi),
 hourly snapshots to SeaweedFS S3 (`0 * * * *`, master-only, prefix
 `s3://dragonfly-backups/dragonfly/`), and a

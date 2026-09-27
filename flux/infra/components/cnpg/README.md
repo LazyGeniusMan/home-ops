@@ -2,7 +2,8 @@
 
 CloudNativePG operator 1.30.0 via chart 0.29.1
 (`oci://ghcr.io/cloudnative-pg/charts/cloudnative-pg`) plus a reusable
-`Cluster` base template: 3 instances, streaming replication with
+`Cluster` base template (`cluster-base.yaml`, production-shaped live
+placeholder): 3 instances, streaming replication with
 synchronous quorum (`standbyNames: ["*"]`, number 1), `local-ssd-nvme`
 storage (20Gi), Barman S3 backup to SeaweedFS (continuous WAL gzip + daily
 base backup `0 0 0 * * *`, retention `30d`, prefix
