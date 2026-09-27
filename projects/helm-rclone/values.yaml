@@ -5,6 +5,8 @@
 # -- Container image for the sync job. Tag must be an exact pin, never "latest";
 # digest pins the registry content (tag-only images are rejected at render).
 # Re-pin on every tag bump: docker buildx imagetools inspect rclone/rclone:<tag>.
+# Accepted risk: digest verified by hand at last bump; no automated cosign/signature
+# check exists for this image (re-verify the digest out-of-band on every bump).
 image:
   repository: rclone/rclone
   tag: "1.75.0"
@@ -104,7 +106,8 @@ podSecurityContext:
     type: RuntimeDefault
 
 # -- Container-level security (no privilege escalation, read-only root,
-# all capabilities dropped).
+# all capabilities dropped). Note: readOnlyRootFilesystem runs WITHOUT a
+# writable /tmp mount — rclone needs none (env-only config, no state files).
 securityContext:
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true

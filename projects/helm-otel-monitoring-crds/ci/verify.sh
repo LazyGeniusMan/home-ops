@@ -39,15 +39,18 @@ else
   bad "fetch --check"; sed 's/^/  /' "$OUT/check.txt"
 fi
 
-# -- 4. staged bundle(s) render (fetch to temp dir, copy into chart, render) -
+# -- 4. staged bundle(s) render (fetch to temp dir, copy into a working
+# chart copy, render) ------------------------------------------------------
 STAGE="$OUT/stage"
 if bash "$CHART/ci/fetch.sh" --out "$STAGE" >"$OUT/fetch.txt" 2>&1; then
   ok "fetch stages bundle"
   sed 's/^/  /' "$OUT/fetch.txt"
-  rm -rf "$CHART/upstream"
-  mkdir -p "$CHART/upstream"
-  cp "$STAGE/"*.yaml "$CHART/upstream/"
-  if helm template staged "$CHART" >"$OUT/render.yaml" 2>"$OUT/render.err"; then
+  # Render from a working copy so a pre-staged upstream/ in the checkout is never wiped.
+  WORK="$OUT/chart-work"
+  cp -a "$CHART" "$WORK"
+  mkdir -p "$WORK/upstream"
+  cp "$STAGE/"*.yaml "$WORK/upstream/"
+  if helm template staged "$WORK" >"$OUT/render.yaml" 2>"$OUT/render.err"; then
     ok "helm template renders staged bundle"
     CRD_COUNT="$(grep -c 'kind: CustomResourceDefinition' "$OUT/render.yaml" || true)"
     [[ "$CRD_COUNT" == "2" ]] \
@@ -68,7 +71,6 @@ if bash "$CHART/ci/fetch.sh" --out "$STAGE" >"$OUT/fetch.txt" 2>&1; then
 else
   bad "fetch stages bundle"; sed 's/^/  /' "$OUT/fetch.txt"
 fi
-rm -rf "$CHART/upstream"
 
 # -- 5. fail-fast: bare render without staged upstream must fail -------------
 # (bare checkout has no upstream/ dir, so the template fail() must fire.)
@@ -81,12 +83,12 @@ else
 fi
 
 # -- 6. no CRD bundles committed (only fixtures allowed) ----------------------
-if git ls-files "$CHART" | grep -Ev 'ci/|README.md|Chart.yaml|values.yaml|templates/(bundle.yaml.tpl|_helpers.tpl|NOTES.txt)' | grep -q .; then
+if git ls-files "$CHART" | grep -Ev 'ci/|README.md|Chart.yaml|values.yaml|templates/(podmonitors.yaml.tpl|servicemonitors.yaml.tpl|_helpers.tpl|NOTES.txt)' | grep -q .; then
   bad "unexpected committed files under $CHART"; git ls-files "$CHART" | sed 's/^/  /'
 else
   ok "no CRD bundles committed under $CHART"
 fi
-if git ls-files "$CHART" | grep -q 'upstream/|.fetch-staging/'; then
+if git ls-files "$CHART" | grep -Eq 'upstream/|\.fetch-staging/'; then
   bad "staged upstream committed under $CHART"
 else
   ok "no staged upstream committed under $CHART"

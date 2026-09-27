@@ -170,10 +170,11 @@ example-backups) never trip it. */}}
 {{- define "helm-rclone.renderOptional" -}}
 {{- if hasKey .creds .key -}}
 {{- $f := index .creds .key -}}
+{{- /* Flux $imagepolicy-style {{ }} sentinel strings are template text, not real values: skip them like any other empty literal. */ -}}
 {{- $skip := false -}}
 {{- if kindIs "invalid" $f }}{{ $skip = true }}{{ end -}}
-{{- if kindIs "string" $f }}{{ if eq $f "" }}{{ $skip = true }}{{ end }}{{ end -}}
-{{- if and (kindIs "map" $f) (hasKey $f "value") }}{{ if eq ($f.value | toString) "" }}{{ $skip = true }}{{ end }}{{ end -}}
+{{- if kindIs "string" $f }}{{ if or (eq $f "") (regexMatch "^\\{\\{.*\\}\\}$" ($f | toString | trim)) }}{{ $skip = true }}{{ end }}{{ end -}}
+{{- if and (kindIs "map" $f) (hasKey $f "value") }}{{ if or (eq ($f.value | toString) "") (regexMatch "^\\{\\{.*\\}\\}$" ($f.value | toString | trim)) }}{{ $skip = true }}{{ end }}{{ end -}}
 {{- if not $skip }}
 {{ include "helm-rclone.renderEnv" (dict "name" .name "field" $f "ctx" (printf "%s" .ctx)) }}
 {{- end -}}

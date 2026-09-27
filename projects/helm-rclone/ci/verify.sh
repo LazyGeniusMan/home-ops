@@ -16,8 +16,19 @@ ok()   { pass=$((pass + 1)); echo "PASS: $1"; }
 bad()  { fail=$((fail + 1)); echo "FAIL: $1"; }
 
 # -- 1. helm lint -----------------------------------------------------------
-if helm lint "$CHART" >"$OUT/lint.txt" 2>&1; then ok "helm lint"; else
+# Lint with a direction fixture: values.yaml ships no real credentials by
+# design (fail-fast guards reject empty/placeholder), so bare-defaults lint
+# only proves the fail-fast fires. The fixture lint proves the chart is sound.
+if helm lint "$CHART" -f "$CI/values-direction-01-pvc-rwo-to-s3.yaml" >"$OUT/lint.txt" 2>&1; then ok "helm lint"; else
   bad "helm lint"; sed 's/^/  /' "$OUT/lint.txt"
+fi
+# Bare-defaults render must still fail fast (fail-fast firing under template).
+if helm template bare-defaults "$CHART" >"$OUT/bare-defaults.yaml" 2>"$OUT/bare-defaults.err"; then
+  bad "bare-defaults render passed but must fail fast (values.yaml ships no credentials)"
+elif grep -qF 'secretAccessKey' "$OUT/bare-defaults.err" || grep -qF 'is required' "$OUT/bare-defaults.err"; then
+  ok "bare-defaults render fails fast (no credentials by design)"
+else
+  bad "bare-defaults render failed without a field-naming message"; sed 's/^/  /' "$OUT/bare-defaults.err"
 fi
 
 # -- 2. render all fixtures (source/destination are required; there is no

@@ -13,8 +13,13 @@ lives in `templates/_helpers.tpl` behind the `helm-rclone.*` prefix.
 
 Consumed in Flux by seven wrappers pinning the exact chart version (no
 `$imagepolicy` marker — Helm OCIRepositories are untracked):
-`flux/apps/components/{coder,clickstack,matrix}/base/rclone-sync-*.yaml`,
-`flux/infra/components/{zitadel,clickhouse,cnpg,dragonfly}/configs/base/rclone-sync*.yaml`.
+`flux/apps/components/{coder,clickstack,matrix}/base/rclone-sync-*.yaml`
+(3: `rclone-sync-coder-db.yaml`, `rclone-sync-buckets.yaml`,
+`rclone-sync-matrix.yaml`) plus
+`flux/infra/components/{zitadel,clickhouse,cnpg,dragonfly}/configs/base/rclone-sync*.yaml`
+(4: `rclone-sync-buckets.yaml`, `rclone-sync-clickhouse.yaml`,
+`rclone-sync-cnpg-backups.yaml`, `rclone-sync-dragonfly-backups.yaml`).
+Bump the chart version + all seven consumer pins atomically (see Chart.yaml).
 Every leg uses `operation: sync` (mirror; source deletion is the storage
 backend or db/app operator's job).
 
@@ -38,10 +43,11 @@ helm upgrade --install rclone-nightly ./projects/helm-rclone \
   --values my-sync-values.yaml
 ```
 
-Verify before applying:
+Verify before applying (`values.yaml` ships no credentials by design, so
+lint needs a direction fixture — bare defaults only prove the fail-fast):
 
 ```bash
-helm lint projects/helm-rclone
+helm lint projects/helm-rclone -f projects/helm-rclone/ci/values-direction-01-pvc-rwo-to-s3.yaml
 bash projects/helm-rclone/ci/verify.sh   # lint + all 10 directions + guards
 ```
 
@@ -137,6 +143,9 @@ messages:
   `secretRef`/`configMapRef`/`esoRef`.
 - PVC `uri` via `secretRef`/`configMapRef`/`esoRef` aborts: `claimName` cannot
   use `valueFrom`, so PVC claims must be literals naming the existing claim.
+- Optional credential fields skip Flux `{{ }}` sentinel strings (e.g.
+  `$imagepolicy` markers) like any other empty literal — sentinels are
+  template text, never real values.
 
 ## Schedule and version
 
@@ -156,8 +165,11 @@ history limits, `ttlSecondsAfterFinished`, `activeDeadlineSeconds`)
 are configurable in `values.yaml`. Only `sync`/`copy` render; anything
 else fails fast. Containers default to requests (`50m`/`128Mi`) plus
 limits (`1` CPU/`512Mi`), non-root (`65532`), `RuntimeDefault` seccomp,
-no privilege escalation, read-only root, and dropped capabilities —
-`verify.sh` asserts each on every rendered fixture.
+no privilege escalation, read-only root (no writable `/tmp` mount —
+rclone runs env-only with no state files), and dropped capabilities —
+`verify.sh` asserts each on every rendered fixture. The rclone image
+digest is re-verified by hand on every tag bump (accepted risk: no
+automated signature check; see `values.yaml`).
 
 ## Proton obscure step
 
@@ -234,7 +246,7 @@ whole-file `-f` values (like the `ci/` fixtures) over `--set`. See
 ## Verifying
 
 ```bash
-helm lint projects/helm-rclone
+helm lint projects/helm-rclone -f projects/helm-rclone/ci/values-direction-01-pvc-rwo-to-s3.yaml
 bash projects/helm-rclone/ci/verify.sh
 # env-only proof for all renders:
 for f in projects/helm-rclone/ci/values-*.yaml; do
