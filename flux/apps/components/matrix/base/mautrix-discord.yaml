@@ -336,6 +336,8 @@ spec:
             tcpSocket:
               port: appservice
             periodSeconds: 30
+          # CPU limit 10x request is bridge/media burst headroom (VPA Initial
+          # owns singleton sizing; no HPA on this singleton).
           resources:
             requests:
               cpu: 100m

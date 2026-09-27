@@ -1,0 +1,56 @@
+# Sink allowlist for the shared apprise-go-api sink (ACCEPTED-RISK
+# containment: the sink accepts unauthenticated in-cluster POSTs — no HMAC
+# path upstream — so access is fenced here, not by Gateway routing).
+# PLACEMENT: this file is REFERENCE ONLY — it is NOT in
+# base/kustomization.yaml resources. The sink workload lives in the INFRA
+# `apprise-go-api` tenant (namespace `apprise-go-api`); these NetworkPolicies
+# carry that namespace but ship beside the consumer wiring so the notifier
+# contract (notifications.yaml + NOTIFICATIONS.md) and its fence travel
+# together. The sink owner copies these rules into the sink tenant when that
+# tenant gains a configs overlay. Until then, containment is DNS-name
+# discipline (only notification-controller + coderd hold the sink DNS name).
+# Cilium (kube-proxy replacement) enforces standard NetworkPolicy semantics.
+# Intended rules once placed in namespace `apprise-go-api`:
+# - default-deny ingress to `app.kubernetes.io/name=apprise-go-api` pods;
+# - allow TCP :8080 ONLY from (a) flux-system notification-controller pods
+#   (Flux Providers/Alerts) and (b) coder-namespace pods labelled
+#   app.kubernetes.io/name=coder (coderd CODER_* webhook env).
+# ---
+# apiVersion: networking.k8s.io/v1
+# kind: NetworkPolicy
+# metadata:
+#   name: apprise-go-api-default-deny
+#   namespace: apprise-go-api
+# spec:
+#   podSelector:
+#     matchLabels:
+#       app.kubernetes.io/name: apprise-go-api
+#   policyTypes: [Ingress]
+# ---
+# apiVersion: networking.k8s.io/v1
+# kind: NetworkPolicy
+# metadata:
+#   name: apprise-go-api-allow-notifiers
+#   namespace: apprise-go-api
+# spec:
+#   podSelector:
+#     matchLabels:
+#       app.kubernetes.io/name: apprise-go-api
+#   policyTypes: [Ingress]
+#   ingress:
+#     - ports:
+#         - port: 8080
+#           protocol: TCP
+#       from:
+#         - namespaceSelector:
+#             matchLabels:
+#               kubernetes.io/metadata.name: flux-system
+#           podSelector:
+#             matchLabels:
+#               app.kubernetes.io/name: notification-controller
+#         - namespaceSelector:
+#             matchLabels:
+#               kubernetes.io/metadata.name: coder
+#           podSelector:
+#             matchLabels:
+#               app.kubernetes.io/name: coder

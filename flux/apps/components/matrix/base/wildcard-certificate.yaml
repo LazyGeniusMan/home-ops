@@ -1,7 +1,16 @@
-# In-namespace wildcard Certificate (cert-manager Secrets are namespace-local):
-# mints __WILDCARD_TLS_SECRET__ HERE via ClusterIssuer/letsencrypt DNS-01 for
-# *.__BASE_DOMAIN__. Covers BOTH nested hostnames (tuwunel.matrix.* + element.matrix.*).
+# In-namespace wildcard Certificates (cert-manager Secrets are namespace-local):
+# TWO certs because one wildcard covers a single label only (mirrors the
+# coder two-cert shape in coder/base/wildcard-certificates.yaml):
+# - __WILDCARD_CERT_NAME__ mints __WILDCARD_TLS_SECRET__ for *.__BASE_DOMAIN__.
+# - matrix-nested mints __MATRIX_NESTED_TLS_SECRET__ for
+#   *.matrix.__BASE_DOMAIN__, covering BOTH nested hostnames
+#   (tuwunel.matrix.* + element.matrix.*).
+# Both via ClusterIssuer/letsencrypt DNS-01; issuance uses DNS-01 TXT, A
+# records ride external-dns. Placeholders are overlay-replaced.
 # cloudflare-api-token ES (tuwunel-secrets.yaml) mirrors the cluster-issuer remoteRef.
+# NOTE: edge TLS terminates at the shared `main` Gateway (gateway-api
+# namespace) — its wildcard Certificate must carry the same *.matrix.<base>
+# SAN; that issuance lives in the gateway-api component, outside this tenant.
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -14,3 +23,15 @@ spec:
     kind: ClusterIssuer
   dnsNames:
     - "*.__BASE_DOMAIN__"
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: matrix-nested
+spec:
+  secretName: __MATRIX_NESTED_TLS_SECRET__
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.matrix.__BASE_DOMAIN__"

@@ -6,6 +6,10 @@
 # `__SERVICE_HOST__`, `__BASE_DOMAIN__`, `__ZITADEL_ISSUER_URL__`,
 # `__EMAIL_DOMAIN__`, `__SSO_SIGN_IN_TEXT__` are overlay-replaced.
 # https://coder.com/docs/install/kubernetes
+# Chart `coder.resources` defaults are empty — coderd requests/limits are set
+# explicitly here (requests feed the HPA denominator; the CPU limit is burst
+# headroom for provisioner spikes, never the HPA signal — same convention as
+# flux-operator-ui `resources`).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -53,6 +57,16 @@ spec:
         repo: ghcr.io/coder/coder
         tag: v2.37.3 # {"$imagepolicy": "apps:coder:tag"}
         pullPolicy: IfNotPresent
+      # Coderd requests/limits (chart defaults are empty): requests feed the
+      # HPA denominator; the CPU limit is burst headroom for provisioner
+      # spikes, never the HPA signal.
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          cpu: 2000m
+          memory: 4096Mi
       # ClusterIP (Gateway routes to the Service); chart-managed routing stays off
       # (HTTPRoutes in coder-httproutes.yaml).
       service:

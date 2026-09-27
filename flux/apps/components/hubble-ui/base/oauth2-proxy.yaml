@@ -108,6 +108,8 @@ spec:
       enabled: false
     podDisruptionBudget:
       enabled: false
+    # CPU limit 8x request absorbs login-burst spikes; the auth sidecar must
+    # never throttle logins.
     resources:
       requests:
         cpu: 25m

@@ -1,6 +1,6 @@
 # Coder
 
-Self-hosted remote dev environments at `https://coder.home-ops.yansyah.my.id`, app `v2.37.3` via chart `oci://ghcr.io/coder/chart/coder` **2.37.3** (digest `sha256:922fa45fae4cb2e2cb92d73fb0327878cc84177c3c701affa5cfb866706b4d50`; chart<->app lockstep — chart tag and `ghcr.io/coder/coder` image tag track together via `update-policies/coder.yaml`). No custom workspace template.
+Self-hosted remote dev environments at `https://coder.home-ops.yansyah.my.id`, app `v2.37.3` via chart `oci://ghcr.io/coder/chart/coder` **2.37.3** (chart<->app lockstep — chart tag and `ghcr.io/coder/coder` image tag track together via `update-policies/coder.yaml`; no digest pin — the OCIRepository carries no `verify` block because upstream publishes the chart OCI artifact unsigned). Coderd requests/limits are set explicitly in `base/coder.yaml` `coder.resources` (chart defaults are empty): requests `500m/512Mi` feed the HPA denominator; the `2000m` CPU limit is burst headroom for provisioner spikes, never the HPA signal. No custom workspace template.
 
 ## Layout
 

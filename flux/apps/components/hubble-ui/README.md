@@ -56,6 +56,13 @@ Secrets: `ExternalSecret/oauth2-proxy` syncs `client-id` + `client-secret` +
 at the Gateway via the in-namespace wildcard `Certificate`
 (cert-manager Secrets are namespace-local).
 
+## Probes
+
+Fixed-path exceptions (no `/healthz` + `/readyz` on these images — each
+carries a why-comment in `base/hubble-ui.yaml`): frontend `livenessProbe`
+`/healthz` + `readinessProbe` `/` on `:8081`; backend serves gRPC only, so
+both probes are TCP sockets on `:8090`.
+
 ## Telemetry / monitoring / updates
 
 - No usage-reporting keys; no analytics env/args on either container.

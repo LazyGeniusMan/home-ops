@@ -236,6 +236,7 @@ spec:
                   print("FATAL: secret write %s %s" % (status, doc), flush=True)
                   sys.exit(1)
               print("kept Secret matrix-bot-bootstrap-outputs written", flush=True)
+          # CPU limit 10x request is bootstrap burst headroom (Job, no HPA).
           resources:
             requests:
               cpu: 50m

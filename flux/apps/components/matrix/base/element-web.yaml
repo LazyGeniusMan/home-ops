@@ -21,7 +21,8 @@ data:
   # default_server_config.base_url is the public tuwunel URL (explicit-URL method,
   # no .well-known lookup; MUST match tuwunel server_name). disable_custom_urls locks
   # the picker to our homeserver. permalink_prefix is our Element hostname (overlays
-  # replace). room_directory.servers points at our server. integrations null =
+  # replace). room_directory.servers points at our tuwunel server_name (the
+  # public homeserver host, NOT the bare base domain). integrations null =
   # manager disabled. default_federate false (federation stays off). rageshake
   # omitted = feedback disabled.
   config.json: |
@@ -42,7 +43,7 @@ data:
         "embedded_pages": {},
         "room_directory": {
             "servers": [
-                "matrix.home-ops.yansyah.my.id"
+                "tuwunel.matrix.home-ops.yansyah.my.id"
             ]
         },
         "integrations_ui_url": null,
@@ -107,6 +108,7 @@ spec:
               port: http
             initialDelaySeconds: 10
             periodSeconds: 10
+          # CPU limit 10x request is SPA burst headroom (never the HPA signal).
           resources:
             requests:
               cpu: 50m

@@ -72,6 +72,8 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
+          # CPU limit 10x request is proxy burst headroom (VPA Initial owns
+          # singleton sizing; no HPA on this singleton).
           resources:
             requests:
               cpu: 100m

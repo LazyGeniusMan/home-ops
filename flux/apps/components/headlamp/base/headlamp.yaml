@@ -52,6 +52,7 @@ spec:
     # base/headlamp-hpa.yaml scales via overlays.
     replicaCount: 1 # placeholder - overridden by dev/prd
     # Chart defaults `resources: {}` — requests required for the HPA metric.
+    # CPU limit 5x request is UI burst headroom (never the HPA signal).
     resources:
       requests:
         cpu: 100m

@@ -4,7 +4,9 @@
 # features.smm block; contrast win11-vm). No `metadata.namespace` (apps tenant
 # applies with targetNamespace). Secondary net: NAD `multus/lan-dhcp`
 # (multus-owned, single-writer). Storage: DataVolume on local-ssd-nvme.
-# {"$imagepolicy": "apps:talos-vm:tag"}
+# Manual-only ISO: NO $imagepolicy marker — update automation cannot rewrite
+# a static ISO URL, and talos-vm carries no ImageRepository/ImagePolicy (see
+# flux/apps/update-policies/talos-vm.yaml). Refresh by hand with Talos bumps.
 ---
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine

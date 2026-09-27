@@ -112,6 +112,7 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
+          # CPU limit 10x request is UI/API burst headroom (never the HPA signal).
           resources:
             requests:
               cpu: 100m
@@ -244,6 +245,7 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
+          # CPU limit 10x request is collector burst headroom (never the HPA signal).
           resources:
             requests:
               cpu: 100m

@@ -128,6 +128,7 @@ spec:
             httpGet:
               path: /
               port: http
+          # CPU limit 10x request is UI burst headroom (never the HPA signal).
           resources:
             requests:
               cpu: 50m
@@ -168,6 +169,7 @@ spec:
           readinessProbe:
             tcpSocket:
               port: grpc
+          # CPU limit 10x request is relay-stream burst headroom (never the HPA signal).
           resources:
             requests:
               cpu: 50m

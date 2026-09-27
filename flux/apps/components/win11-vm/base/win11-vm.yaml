@@ -6,7 +6,9 @@
 # BLOCKED until ISO staged: `spec.source` is a REPLACE-ME placeholder that fails
 # closed (CDI import error-loops by design) — follow README "Windows 11 ISO import"
 # to stage + fill; never commit licensed ISO URLs.
-# {"$imagepolicy": "apps:win11-vm:tag"}
+# Manual-only ISO: comment-only, never a live semver range (`24H2` is a build
+# label, NOT semver) — NO $imagepolicy marker and NO ImageRepository/ImagePolicy
+# (see flux/apps/update-policies/win11-vm.yaml). Stage by hand per the README.
 ---
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine

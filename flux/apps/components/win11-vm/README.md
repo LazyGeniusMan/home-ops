@@ -90,7 +90,12 @@ Upstream reference (read-only): `/tmp/home-ops-docs/kubevirt-docs` (guest shape;
 
 - No guest-agent reporting; Windows telemetry is out of scope for Flux
   (harden in the image/Setup). No ServiceMonitors.
-- The `$imagepolicy` marker (`apps:win11-vm:tag`) anchors the ISO — update
-  source + marker together on refresh so update-automation opens a PR, and
-  record the build here. Version source: the staged ISO behind `spec.source`
-  in `base/win11-vm.yaml` (licensed Microsoft image, never committed).
+- Manual-only ISO (comment-only, never a live semver range — `24H2` is a
+  build label, NOT semver; no `$imagepolicy` marker, no
+  ImageRepository/ImagePolicy — see
+  `flux/apps/update-policies/win11-vm.yaml`). Stage by hand per "Windows 11
+  ISO import" above and record the build here. Version source: the staged
+  ISO behind `spec.source` in `base/win11-vm.yaml` (licensed Microsoft
+  image, never committed). `dev` is a passthrough of `../base` (no static
+  MAC); `prd` adds only the static `lan` MAC patch
+  (`win11-vm-prd-patch.yaml`) — base specs (4 cores / 8Gi / 80Gi) unchanged.

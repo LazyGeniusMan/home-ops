@@ -24,9 +24,12 @@ vault refs, identity values, and replica bounds via
 
 ## Shared files (one copy serves the whole tenant)
 
-- `wildcard-certificate.yaml`: ONE copy covering both nested hostnames
-  (`tuwunel.matrix.*` + `element.matrix.*`, `*.__BASE_DOMAIN__` via
-  ClusterIssuer/letsencrypt).
+- `wildcard-certificate.yaml`: TWO Certificates (one wildcard = one label):
+  `__WILDCARD_CERT_NAME__` for `*.__BASE_DOMAIN__` + `matrix-nested` for
+  `*.matrix.__BASE_DOMAIN__` (covers `tuwunel.matrix.*` +
+  `element.matrix.*`), both via ClusterIssuer/letsencrypt. Edge TLS
+  terminates at the shared `main` Gateway — its wildcard Certificate (in the
+  gateway-api component) must carry the same `*.matrix.<base>` SAN.
 - `tuwunel-storage.yaml` + `mautrix-storage.yaml`: SEPARATE
   (tuwunel app media vs CNPG WAL+base backups). Same split for
   `tuwunel-cosi-keys.yaml` + `mautrix-cosi-keys.yaml` (distinct
@@ -39,6 +42,10 @@ vault refs, identity values, and replica bounds via
 - `notifications.yaml` + apprise secrets are consumer-only wiring
   (Provider addresses are the infra Service DNS
   `http://apprise-go-api.apprise-go-api.svc:80/…`).
+  `apprise-sink-allowlist.yaml` is the REFERENCE-ONLY sink fence
+  (default-deny + notifier allowlist for namespace `apprise-go-api`; NOT in
+  `base/kustomization.yaml` — the sink lives in the infra tenant, so the sink
+  owner copies the rules there when that tenant gains a configs overlay).
 
 ## Image policies
 
@@ -52,23 +59,39 @@ no policy: upstream is `dock.mau.dev` (manual bumps, see
 `projects/apprise-go-api/README.md`, `base/NOTIFICATIONS.md`
 (Flux→apprise→Matrix wiring + tag/matrix contract).
 
-## First-login runbook (designated admin)
+## First-login runbook (designated admin) — FLIPPED 2026-09-27
 
-`tuwunel` ships with `TUWUNEL_GRANT_ADMIN_TO_FIRST_USER=true` so the FIRST
-SSO sign-in claims server admin. Order matters — perform it exactly once per
-env, as the designated human admin:
+`tuwunel` ships with `TUWUNEL_GRANT_ADMIN_TO_FIRST_USER=false` (staged
+kill-switch safe default — admin state lives in the homeserver DB and is
+repo-unverifiable, so the flip ships with the safe default). First-login
+admin claims were consumed per the runbook below (one designated human
+admin per env, exactly once):
 
-| Env | Designated admin (sign in FIRST) | Server |
+| Env | Designated admin (signed in FIRST) | Server |
 | --- | --- | --- |
 | `dev` | `@admin:tuwunel.matrix.home-ops-dev.yansyah.my.id` | `tuwunel.matrix.home-ops-dev.yansyah.my.id` |
 | `prd` | `@admin:tuwunel.matrix.home-ops.yansyah.my.id` | `tuwunel.matrix.home-ops.yansyah.my.id` |
 
+Completed steps (kept for re-bootstrap):
+
 1. Ensure the Zitadel `tuwunel` user exists (invite/reset flow — never commit passwords).
-2. Confirm `TUWUNEL_GRANT_ADMIN_TO_FIRST_USER=true` is still in `base/tuwunel.yaml` (both envs ship `true` until the flip below lands).
+2. ~~Confirm `TUWUNEL_GRANT_ADMIN_TO_FIRST_USER=true` is still in `base/tuwunel.yaml`~~ — DONE, base now ships `false`.
 3. Sign in via Element (`element.matrix.<env>`) with SSO as the designated admin FIRST.
 4. Verify admin (admin room created, `CREATE_ADMIN_ROOM=true`).
-5. Post-bootstrap: set `TUWUNEL_GRANT_ADMIN_TO_FIRST_USER=false` (later sign-ins stay unprivileged; flip via patch — never commit `true` beyond bootstrap).
+5. ~~Post-bootstrap: set `TUWUNEL_GRANT_ADMIN_TO_FIRST_USER=false`~~ — DONE (2026-09-27; later sign-ins stay unprivileged).
 5. The bridge admin (`BRIDGE_ADMIN_MXID`, same `@admin` MXID) + room leads (`@oncall-lead`, `@coder-admin` in rooms overlays) are separate grants — they ride the Terraform room CRs, not this flag.
+
+Re-bootstrap (fresh DB only): flip to `true` locally (never commit),
+sign in, verify, flip back.
+
+## Probes
+
+Fixed-path exceptions (no `/healthz` + `/readyz` on these images — each
+carries a why-comment at its probe block): tuwunel probes exec
+`["tuwunel", "--health-check"]` (no HTTP health endpoint); mautrix-discord
+probes are TCP sockets on the appservice listener (`:29334`, no health
+endpoint at this revision); element-web probes hit `/` on `:80` (nginx SPA —
+no dedicated health path).
 
 ## Backups (bare-minimum leg)
 
@@ -115,7 +138,7 @@ https://github.com/mautrix/discord/releases.
 
 | Env | Hosts | Notable patches |
 | --- | --- | --- |
-| `dev` | `tuwunel.matrix.home-ops-dev.yansyah.my.id`, `element.matrix.home-ops-dev.yansyah.my.id`, Zitadel `admin.zitadel.home-ops-dev.yansyah.my.id` | vault refs, wildcard cert, hostnames, SERVER_NAME + well-known + issuer + callback, bridge HS link + HS_DOMAIN/admin MXID, element config.json, proxy vars, HPA bounds, DB instances 1 |
+| `dev` | `tuwunel.matrix.home-ops-dev.yansyah.my.id`, `element.matrix.home-ops-dev.yansyah.my.id`, Zitadel `admin.zitadel.home-ops-dev.yansyah.my.id` | vault refs, wildcard certs (base + nested `*.matrix`), hostnames, SERVER_NAME + well-known + issuer + callback, bridge HS link + HS_DOMAIN/admin MXID, element config.json, proxy vars, HPA bounds, DB instances 1 |
 | `prd` | `tuwunel.matrix.home-ops.yansyah.my.id`, `element.matrix.home-ops.yansyah.my.id`, Zitadel `admin.zitadel.home-ops.yansyah.my.id` | same shape, DB instances 3, HPA floors 2 |
 
 ## Verification

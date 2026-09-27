@@ -103,11 +103,14 @@ spec:
             # file mount from the vault-seeded `tuwunel-registration-secret` Secret.
             - name: TUWUNEL_REGISTRATION_SHARED_SECRET_FILE
               value: /etc/tuwunel-registration/shared-secret
-            # First-login bootstrap (see README "First-login runbook"): the FIRST
-            # SSO sign-in claims admin via this flag. Set to "false" right after
-            # the designated admin signs in (post-bootstrap step, never in git).
+            # First-login bootstrap (see README "First-login runbook"): safe
+            # default "false" (staged kill-switch rule — never commit "true"
+            # beyond bootstrap). Admin state is repo-unverifiable (lives in the
+            # homeserver DB), so the flip ships now: first-login admin claims
+            # are already consumed per the runbook. To re-bootstrap, flip to
+            # "true" locally (never commit), sign in, verify, flip back.
             - name: TUWUNEL_GRANT_ADMIN_TO_FIRST_USER
-              value: "true"
+              value: "false"
             - name: TUWUNEL_CREATE_ADMIN_ROOM
               value: "true"
             - name: TUWUNEL_SSO_CLIENT_ID
@@ -171,6 +174,8 @@ spec:
               command: ["tuwunel", "--health-check"]
             periodSeconds: 10
             failureThreshold: 3
+          # CPU limit 20x request is compaction/migration burst headroom
+          # (VPA Initial owns singleton sizing; no HPA on this singleton).
           resources:
             requests:
               cpu: 100m

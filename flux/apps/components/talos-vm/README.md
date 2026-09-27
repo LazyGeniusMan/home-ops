@@ -67,8 +67,10 @@ Upstream reference (read-only): `/tmp/home-ops-docs/talos-docs` (guest image/ISO
 
 - Talos ships no phone-home; no guest reporting is configured here.
 - No ServiceMonitors (KubeVirt VM metrics flow via kubevirt infra).
-- The `$imagepolicy` marker (`apps:talos-vm:tag`) anchors the nocloud ISO
-  URL. Refresh the URL on Talos minor bumps so update-automation opens a PR.
+- Manual-only ISO (no `$imagepolicy` marker, no ImageRepository/ImagePolicy —
+  see `flux/apps/update-policies/talos-vm.yaml`; update automation cannot
+  rewrite a static ISO URL). Refresh the nocloud ISO URL in
+  `base/talos-vm.yaml` by hand on Talos minor bumps.
   Version source: the nocloud ISO URL in `base/talos-vm.yaml`
   (v1.15.0-alpha.0) — MUST stay aligned to the Talos version in
   `talos/ansible/group_vars/all.yml`.

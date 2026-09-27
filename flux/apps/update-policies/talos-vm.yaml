@@ -1,22 +1,9 @@
-# talos-vm nocloud ISO policy (auto; stays aligned to talos/ansible/group_vars/all.yml — refresh together).
-# Changelog: https://github.com/siderolabs/talos/releases. Coupled: components/talos-vm/base/talos-vm.yaml.
----
-apiVersion: image.toolkit.fluxcd.io/v1
-kind: ImageRepository
-metadata:
-  name: talos-vm
-spec:
-  image: "factory.talos.dev/image/nocloud/amd64"
-  interval: 12h
-  provider: generic
----
-apiVersion: image.toolkit.fluxcd.io/v1
-kind: ImagePolicy
-metadata:
-  name: talos-vm
-spec:
-  imageRepositoryRef:
-    name: talos-vm
-  policy:
-    semver:
-      range: ">=1.14.0"
+# talos-vm nocloud ISO policy (manual-only by hand-bump: the talos-vm
+# VirtualMachine carries a static ISO URL and NO inline $imagepolicy marker,
+# so automation cannot rewrite it — no ImageRepository/ImagePolicy is
+# shipped). Refresh the ISO URL in components/talos-vm/base/talos-vm.yaml by
+# hand, staying aligned to talos/ansible/group_vars/all.yml (refresh
+# together). Version source: the nocloud ISO URL in base/talos-vm.yaml.
+# Changelog: https://github.com/siderolabs/talos/releases.
+# (Dropped 2026-09-27: a dead ImageRepository/ImagePolicy pair with no
+# matching inline marker — automation PRs could never land.)

@@ -81,6 +81,31 @@ patches:
     target:
       kind: Certificate
       name: wildcard-home-ops
+  # Prd nested wildcard Certificate (matrix-nested): covers tuwunel.matrix.* +
+  # element.matrix.* under the prd base domain (one wildcard = one label).
+  - patch: |
+      - op: replace
+        path: /metadata/name
+        value: matrix-nested-prd
+    target:
+      kind: Certificate
+      name: matrix-nested
+
+  - patch: |
+      - op: replace
+        path: /spec/secretName
+        value: matrix-nested-prd-tls
+    target:
+      kind: Certificate
+      name: matrix-nested-prd
+
+  - patch: |
+      - op: replace
+        path: /spec/dnsNames/0
+        value: "*.matrix.home-ops.yansyah.my.id"
+    target:
+      kind: Certificate
+      name: matrix-nested-prd
   # Prd identity: server_name + well-known + issuer + SSO callback.
   # POSITIONAL: env/0 + env/5 + env/25 + env/26 (see base/tuwunel.yaml order note).
   # Callback embeds the matrix host; client_id suffix rides k8s $(VAR) expansion.
@@ -227,7 +252,7 @@ patches:
               "embedded_pages": {},
               "room_directory": {
                   "servers": [
-                      "matrix.home-ops.yansyah.my.id"
+                      "tuwunel.matrix.home-ops.yansyah.my.id"
                   ]
               },
               "integrations_ui_url": null,

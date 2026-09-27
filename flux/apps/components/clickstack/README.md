@@ -56,6 +56,15 @@ the in-cluster `clickstack-k8s` SecretStore (no pass:// seeding for OIDC creds);
 HTTPRoute on the shared `main` Gateway (`https` section, cross-namespace parentRef): `clickstack.home-ops.yansyah.my.id`
 → `oauth2-proxy:4180`. TLS terminates at the Gateway via the in-namespace wildcard `Certificate` (cert-manager Secrets are namespace-local).
 
+## Probes
+
+Fixed-path exceptions (no `/healthz` + `/readyz` on these images — each
+carries a why-comment in `base/clickstack.yaml`): HyperDX app probes on
+`/health` (`:8000`, upstream hdx-oss-v2 hardcodes that path); OTel Collector
+probes on `/` (`:13133`, same upstream hardcode); FerretDB has no HTTP
+endpoint, so all three probes are TCP sockets on the mongo listener
+(`:27017`, same convention as `matrix/base/mautrix-discord.yaml`).
+
 ## Telemetry / monitoring / updates
 
 - Telemetry off: `USAGE_STATS_ENABLED=false`; app OTLP points at the in-namespace collector — nothing leaves the cluster. `ServiceMonitor: off`.
