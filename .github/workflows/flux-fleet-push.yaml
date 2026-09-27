@@ -18,6 +18,7 @@ on:
 
 jobs:
   flux-push:
+    if: github.ref == 'refs/heads/main' # dev artifacts only from main (guards manual dispatch off-main)
     runs-on: ubuntu-latest
     permissions:
       contents: read

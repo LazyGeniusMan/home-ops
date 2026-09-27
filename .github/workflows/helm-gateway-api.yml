@@ -4,12 +4,16 @@
 # version overwrites the same OCI tag (helm push OCI replace semantics).
 # Upstream is fetched at publish time by ci/fetch.sh (no YAML committed); the
 # staged bundle is bundled by helm package.
+# PR legs run test only; publish runs on main pushes (dev artifacts only from main).
 name: helm-gateway-api
 
 on:
   push:
     branches:
       - 'main'
+    paths:
+      - 'projects/helm-gateway-api/**'
+  pull_request:
     paths:
       - 'projects/helm-gateway-api/**'
   workflow_dispatch:
@@ -40,6 +44,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' # dev artifacts only from main
     permissions:
       contents: read
       packages: write # helm push + oras tag

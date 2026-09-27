@@ -32,6 +32,8 @@ cover.out
 # mirrors talos/.gitignore scoping — only *.template files are ever committed).
 **/secrets.bundle.yml
 **/proton-pass-pat
+**/pat.yml
+!**/pat.yml.template
 *.tgz
 # Staged upstreams fetched at publish time by projects/helm-*/ci/fetch.sh; never commit.
 projects/helm-*/upstream/

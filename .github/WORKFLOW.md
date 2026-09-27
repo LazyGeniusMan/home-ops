@@ -1,6 +1,6 @@
 # GitHub Actions
 
-15 self-contained workflows in `.github/workflows/` (only pinned external
+25 self-contained workflows in `.github/workflows/` (only pinned external
 `owner/repo@sha` actions). Each header states its purpose + path filters.
 
 - Validate: `flux-{infra,apps,fleet}-validate.yaml` (PR + main + dispatch,
@@ -20,10 +20,20 @@
 - Projects: `apprise-go-api.yml`, `eso-proton-pass.yml`,
   `external-dns-netbird.yml` (test + GHCR publish/sign),
   `helm-rclone.yml` (verify + chart OCI publish/sign).
+- First-party fetch-time charts: `helm-{cosi,gateway-api,kubevirt,multus,otel-monitoring-crds}.yml`
+  (push-to-main + PR legs; PR runs verify/test only, publish runs on main) +
+  `helm-*-check.yml` (daily schedule + dispatch; compares Chart.yaml against
+  upstream, opens version-bump PRs with push scope).
 
-All `uses:` are SHA-pinned, deny-all `permissions: {}` default with per-job
-minimums, concurrency groups, path-gated triggers. Vendored `.github` copies
+Push/release/check/update workflows use deny-all `permissions: {}` default
+with per-job minimums; publish jobs additionally gate on
+`github.event_name != 'pull_request'` (test-only PR legs) and
+`github.ref == 'refs/heads/main'` (dev artifacts only from main, tag legs
+excepted). Validate/lint workflows grant top-level `contents: read`.
+Concurrency groups, path-gated triggers throughout. Vendored `.github` copies
 (e.g. under `flux/**/.terraform/`) are third-party, not owned. Cosign legs pin
 the binary via `cosign-release: v3.1.3` (match `.flox`); setup lines carry
 `# match .flox ...` parity comments. No dependabot/renovate (forbidden:
 automation proposes image/chart updates via `flux-image-updates.yaml`).
+`.terraform.lock.hcl` files are gitignored by policy (single-writer: the
+bootstrapping operator regenerates them; never committed).
