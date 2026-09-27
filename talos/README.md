@@ -21,7 +21,7 @@ talos/
       patches.yml                    # multi-doc split-doc kinds (all docs carry explicit kind)
       schematics.yml                 # cluster-shared schematic (e.g. netbird)
       secrets.yml.template           # committed; intentionally field-free manual `talosctl gen secrets` notes (output never committed)
-      secrets.yml                    # GITIGNORED manual output (day-0 automation writes ansible/build/<cluster>/secrets.bundle.yml)
+      secrets.yml                    # GITIGNORED manual output of `talosctl gen secrets -o secrets.yml` (day-0 automation instead writes `ansible/build/<cluster>/secrets.bundle.yml`)
       nodes/<node-name>/
         patches.yml                  # node multi-doc: hostname, LinkConfig, install, volumes
         schematics.yml               # AUTHORITATIVE schematic for this node's installer image
