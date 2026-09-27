@@ -78,6 +78,7 @@ spec:
   # https://github.com/seaweedfs/seaweedfs-operator/tree/master/deploy/helm
   values:
     # Replica seed (dev 1, prd 2); HPA owns the count. CPU requests required for the targetCPU HPA.
+    # CPU limit 5x request is operator burst headroom (never the HPA signal).
     resources:
       requests:
         cpu: 100m

@@ -3,8 +3,11 @@
 # Chart: oci://chartproxy.container-registry.com/kubernetes-sigs.github.io/headlamp/headlamp
 # tag 0.45.0 (proxy of classic chart https://kubernetes-sigs.github.io/headlamp/;
 # chart 0.45.0 carries app 0.45.0 — bump OCIRepository ref.tag AND image.tag
-# together). No cosign verify block (chartproxy live-translates tarballs, so no
-# upstream signature applies). App image ghcr.io/headlamp-k8s/headlamp:v0.45.0.
+# together). Chart ref.tag is manual-only (no $imagepolicy marker — Helm
+# OCIRepositories are untracked by image automation); the app image.tag below
+# IS auto-tracked (marker `apps:headlamp:tag`). No cosign verify block
+# (chartproxy live-translates tarballs, so no upstream signature applies).
+# App image ghcr.io/headlamp-k8s/headlamp:v0.45.0.
 # No telemetry knobs, no ServiceMonitor.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -19,7 +22,8 @@ spec:
     operation: copy
   # Manual-only: no $imagepolicy marker — Helm OCIRepositories are untracked by
   # image automation. Bump ref.tag + image.tag + plugin pins in the same PR
-  # (see update-policies/headlamp.yaml).
+  # (see update-policies/headlamp.yaml; the auto image policy proposes the
+  # image.tag half, the chart half stays manual).
   ref:
     tag: 0.45.0
 ---

@@ -69,6 +69,8 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
+          # CPU limit 10x request is notify-burst headroom (never the HPA
+          # signal — HPA scales on CPU/memory utilization against requests).
           resources:
             requests:
               cpu: 50m

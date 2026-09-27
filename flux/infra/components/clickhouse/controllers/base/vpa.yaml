@@ -3,7 +3,8 @@
 # pods only, no auto-evict (operator restarts churn all managed ClickHouse
 # reconciliation). Release name `clickhouse-operator` renders the operator
 # Deployment in the release namespace (chart 0.27.3). CHI/CHK CRs stay
-# VPA-free (Group C — operator-managed).
+# VPA-free (Group C — operator-managed). Single replica: no PDB (a PDB cannot
+# protect 1 replica); disruption tolerance is scale-to-HA, not eviction gating.
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler

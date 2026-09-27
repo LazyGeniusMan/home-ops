@@ -5,6 +5,10 @@
 # monitoring.coreos.com ServiceMonitors/PodMonitors with the
 # `otel-scrape: "true"` selector); the agent uses static scrape targets.
 # Collector image tracks the contrib line (`infra:otel-collector:tag` marker).
+# No VPA on either CR: the operator renders StatefulSet/DaemonSet pods whose
+# resource envelope (memory_limiter + requests/limits) is tuned to pipeline
+# cardinality in this file, not to VPA recommendations (VPA-apply would fight
+# the operator reconcile loop on every recommendation).
 # API: opentelemetry.io/v1beta1 (v1alpha1 deprecated in operator 0.159.0).
 # Telemetry off: own metrics pipeline exports to debug only; no usage reporting.
 ---

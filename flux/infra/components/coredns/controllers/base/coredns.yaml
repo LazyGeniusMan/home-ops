@@ -57,7 +57,7 @@ spec:
         memory: 128Mi
     image:
       repository: coredns/coredns
-      tag: 1.14.7
+      tag: 1.14.7 # {"$imagepolicy": "infra:coredns-app:tag"}
     # isClusterService adds the k8s-app labels, the CriticalAddonsOnly
     # toleration, and dnsPolicy Default, so `forward . /etc/resolv.conf`
     # reaches the node upstream instead of looping back into 10.96.0.10.

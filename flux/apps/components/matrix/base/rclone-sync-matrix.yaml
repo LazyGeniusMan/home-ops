@@ -159,7 +159,7 @@ spec:
     activeDeadlineSeconds: 3600
     concurrencyPolicy: Forbid
     rclone:
-      operation: sync
+      operation: sync # sync-mirror; source deletion is the storage backend or db/app operator's job
     source:
       type: pvc-rwo
       remoteName: ""
@@ -215,7 +215,7 @@ spec:
     activeDeadlineSeconds: 3600
     concurrencyPolicy: Forbid
     rclone:
-      operation: sync
+      operation: sync # sync-mirror; source deletion is the storage backend or db/app operator's job
     source:
       type: pvc-rwo
       remoteName: ""

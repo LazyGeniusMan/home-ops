@@ -1,0 +1,28 @@
+# PDBs for the HPA-scaled zitadel API + zitadel-login Deployments: keep 1
+# replica serving during voluntary disruption so OIDC stays up. Selectors mirror
+# the chart Deployment matchLabels (helm template, chart 10.0.4). Release name
+# `zitadel` renders Deployments `zitadel` + `zitadel-login`.
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: zitadel
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: zitadel
+      app.kubernetes.io/instance: zitadel
+      app.kubernetes.io/component: start
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: zitadel-login
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: zitadel-login
+      app.kubernetes.io/instance: zitadel
+      app.kubernetes.io/component: login

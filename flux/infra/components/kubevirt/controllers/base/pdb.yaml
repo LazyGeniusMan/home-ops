@@ -1,0 +1,13 @@
+# PDB for the virt-operator Deployment: keep 1 replica during voluntary
+# disruption so VM reconciliation stays up. Selector mirrors the upstream
+# manifest matchLabels (`kubevirt.io: virt-operator`).
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: virt-operator
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      kubevirt.io: virt-operator

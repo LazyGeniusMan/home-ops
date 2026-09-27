@@ -109,6 +109,7 @@ spec:
         reloader.stakater.com/auto: "true"
     spec:
       serviceAccountName: hubble-ui
+      automountServiceAccountToken: false # UI needs no API access (RoleBinding documents the limited read grant)
       securityContext:
         runAsNonRoot: true
         seccompProfile:

@@ -48,9 +48,10 @@ each hostname syncs with no file overlap. Seed the vault entry
 
 ExternalDNS reports nothing upstream; the sidecar documents no telemetry.
 `ServiceMonitor` on (monitoring CRDs via the infra-crds tenant). Bumps: `update-policies/external-dns.yaml`
-(chart >=1.22.0 marker `infra:external-dns:tag` + sidecar `:dev` marker
+(chart >=1.22.0 marker `infra:external-dns:tag` + runtime app marker
+`infra:external-dns-app:tag` + sidecar `:dev` marker
 `infra:external-dns-netbird:tag`, range >=0.0.0) -> PR automation; keep
-chart and sidecar in the same PR.
+chart, app, and sidecar in the same PR.
 Backlog (M-A9): the webhook sidecar rides the `:dev` single-stream in prd
 too — cut prd to a stable tag (`external-dns-netbird-v*`) once the first
 sidecar release lands, then track dev->stable promotion like every other

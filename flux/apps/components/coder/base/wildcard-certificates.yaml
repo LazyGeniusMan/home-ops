@@ -1,8 +1,11 @@
 # In-namespace Certificates (cert-manager Secrets are namespace-local): `coder-root`
-# mints `__WILDCARD_TLS_SECRET__` for `__SERVICE_HOST__`, wildcard
+# mints `__SERVICE_TLS_SECRET__` for `__SERVICE_HOST__`, wildcard
 # `__WILDCARD_CERT_NAME__` mints `__WILDCARD_TLS_SECRET__` for
 # `*.coder.__BASE_DOMAIN__` — two certs because one wildcard covers a single
-# label only (nested workspace subdomains need the second). Both via
+# label only (nested workspace subdomains need the second). The root cert gets
+# its own Secret (never the wildcard Secret: the Gateway `https` listener
+# serves `__WILDCARD_TLS_SECRET__` for every hostname, so sharing one Secret
+# would couple the root issuance to the wildcard). Both via
 # ClusterIssuer/letsencrypt DNS-01; issuance uses DNS-01 TXT, A records ride
 # external-dns. Placeholders are overlay-replaced.
 ---
@@ -30,7 +33,7 @@ kind: Certificate
 metadata:
   name: coder-root
 spec:
-  secretName: __WILDCARD_TLS_SECRET__
+  secretName: __SERVICE_TLS_SECRET__
   issuerRef:
     name: letsencrypt
     kind: ClusterIssuer

@@ -3,7 +3,8 @@
 # applied to new pods only, no auto-evict (provisioner restarts risk
 # orphaning in-flight volume creates). Release name
 # `local-path-provisioner` renders Deployment
-# `lpp-local-path-provisioner`.
+# `lpp-local-path-provisioner`. Single replica: no PDB (a PDB cannot protect
+# 1 replica); disruption tolerance is scale-to-HA, not eviction gating.
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler

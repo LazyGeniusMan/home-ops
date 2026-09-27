@@ -85,6 +85,7 @@ spec:
   # Plain per-env values; secrets come from varsFrom. `user_emails` empty =
   # admin-only. Positional: overlays patch /spec/vars by index — var order
   # must not change without updating them. Never commit passwords.
+  # Bool vars ride UNQUOTED (native HCL bool).
   vars:
     - name: domain
       value: __ZITADEL_HOST__
@@ -99,11 +100,11 @@ spec:
       value:
         - https://__SERVICE_HOST__/
     - name: create_user_role
-      value: "true"
+      value: true # UNQUOTED: native HCL bool (overlays patch by index — keep var order)
     - name: user_emails
       value: []
     - name: create_cookie_secret
-      value: "false"
+      value: false # UNQUOTED: native HCL bool
   varsFrom:
     - kind: Secret
       name: headlamp-terraform-vars

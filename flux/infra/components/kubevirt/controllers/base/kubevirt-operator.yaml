@@ -8,6 +8,9 @@
 # removing this release — deleting the operator first strands the CR Terminating
 # behind its finalizer (recovery: strip the finalizer).
 # No $imagepolicy — first-party Helm OCI bumps atomically (Chart.yaml + wrapper ref.tag in one PR, cf. helm-rclone).
+# NO HPA: the operator Deployment replicas stay 2 per the upstream manifest
+# (KubeVirt owns operator scaling itself). base/vpa.yaml (Initial) +
+# base/pdb.yaml (minAvailable 1) own sizing/disruption instead.
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository

@@ -1,4 +1,4 @@
-# zitadel chart policy. Chart 10.0.4 embeds app v4.15.3, app pinned to v4.18.0: fail-safe bump checklist — read the new chart's appVersion, set chart tag + both image tags together, never bump the chart tag alone.
+# zitadel chart + runtime app image policies. Chart 10.0.4 embeds app v4.15.3, app pinned to v4.18.0: fail-safe bump checklist — read the new chart's appVersion, set chart tag + both image tags together, never bump the chart tag alone.
 # Changelog: https://github.com/zitadel/zitadel-charts/releases, https://github.com/zitadel/zitadel/releases.
 # Coupled: controllers/base/zitadel.yaml.
 ---
@@ -21,3 +21,47 @@ spec:
   policy:
     semver:
       range: ">=10.0.4"
+# Zitadel API runtime image (app pinned to v4.18.0 via values.image.tag in
+# controllers/base/zitadel.yaml). Marker lives on values.image.tag.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: zitadel-app
+spec:
+  image: "ghcr.io/zitadel/zitadel"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: zitadel-app
+spec:
+  imageRepositoryRef:
+    name: zitadel-app
+  policy:
+    semver:
+      range: ">=4.18.0"
+# Zitadel login runtime image (app pinned to v4.18.0 via values.login.image.tag
+# in controllers/base/zitadel.yaml). Marker lives on values.login.image.tag.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: zitadel-login
+spec:
+  image: "ghcr.io/zitadel/zitadel-login"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: zitadel-login
+spec:
+  imageRepositoryRef:
+    name: zitadel-login
+  policy:
+    semver:
+      range: ">=4.18.0"

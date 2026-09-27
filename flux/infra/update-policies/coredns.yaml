@@ -1,4 +1,4 @@
-# coredns chart + node-cache image policy.
+# coredns chart + runtime app image + node-cache image policy.
 # Changelog: https://github.com/coredns/coredns/releases, https://github.com/coredns/helm/releases.
 # Coupled: controllers/base/coredns.yaml, configs/base/node-local-dns.yaml.
 ---
@@ -21,6 +21,29 @@ spec:
   policy:
     semver:
       range: ">=1.47.1"
+# CoreDNS runtime image (chart default registry; app pinned to 1.14.7 in
+# controllers/base/coredns.yaml via the values.image.tag override). Marker
+# lives on values.image.tag in controllers/base/coredns.yaml.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: coredns-app
+spec:
+  image: "coredns/coredns"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: coredns-app
+spec:
+  imageRepositoryRef:
+    name: coredns-app
+  policy:
+    semver:
+      range: ">=1.14.7"
 # Node-local DNS cache image (G5: pinned 1.26.8, matches upstream
 # nodelocaldns.yaml master; requires >= 1.15.16 for the LRP interface/
 # iptables knobs). Marker lives on the DaemonSet in

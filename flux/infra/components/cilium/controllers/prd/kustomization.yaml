@@ -12,11 +12,22 @@ patches:
     target:
       kind: HelmRelease
       name: cilium
-  # Prd HA scaling: operator placeholder -> 2 (chart default).
+  # Prd HA scaling: operator placeholder -> 2 (chart default). PDB keeps 1
+  # operator replica during voluntary disruption (chart-native
+  # operator.podDisruptionBudget knob).
   - patch: |
       - op: replace
         path: /spec/values/operator/replicas
         value: 2
+    target:
+      kind: HelmRelease
+      name: cilium
+  - patch: |
+      - op: add
+        path: /spec/values/operator/podDisruptionBudget
+        value:
+          enabled: true
+          minAvailable: 1
     target:
       kind: HelmRelease
       name: cilium

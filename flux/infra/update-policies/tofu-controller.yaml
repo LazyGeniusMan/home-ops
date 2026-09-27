@@ -1,6 +1,46 @@
-# tofu-controller chart policy. Chart == app: on bumps set chart tag + image.tag + runner.image.tag together.
+# tofu-controller chart + runtime controller/runner image policies. Chart == app: on bumps set chart tag + image.tag + runner.image.tag together.
 # Changelog: https://github.com/flux-iac/tofu-controller/releases.
 # Coupled: controllers/base/tofu-controller.yaml.
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: tofu-controller-app
+spec:
+  image: "ghcr.io/flux-iac/tofu-controller"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: tofu-controller-app
+spec:
+  imageRepositoryRef:
+    name: tofu-controller-app
+  policy:
+    semver:
+      range: ">=0.16.5"
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: tofu-runner
+spec:
+  image: "ghcr.io/flux-iac/tf-runner"
+  interval: 12h
+  provider: generic
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: tofu-runner
+spec:
+  imageRepositoryRef:
+    name: tofu-runner
+  policy:
+    semver:
+      range: ">=0.16.5"
 ---
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository

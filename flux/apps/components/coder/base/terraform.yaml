@@ -5,6 +5,7 @@
 # (no org literal, no vault seeding). Outputs land in `coder-sso-outputs` (via
 # `coder-k8s`, never Git/Pass). Upsert-only (`destroy` knobs false); in-cluster
 # state; drift on. Placeholders overlay-replaced (vars patched by index — keep order).
+# Bool vars ride UNQUOTED (native HCL bool).
 ---
 # Cross-namespace handoff mirror: `zitadel` namespace handoff Secrets into
 # `coder-terraform-vars` via the `coder-zitadel` store (RBAC in
@@ -99,7 +100,7 @@ spec:
       value:
         - https://__SERVICE_HOST__/
     - name: create_user_role
-      value: "true"
+      value: true # UNQUOTED: native HCL bool (overlays patch by index — keep var order)
     # `user_emails` is env-invariant (same humans in dev+prd; README mapping
     # table is the source of truth — never diverge via overlays).
     - name: user_emails
@@ -107,7 +108,7 @@ spec:
         - git@yansyah.my.id
         - git@lazygeniusman.my.id
     - name: create_cookie_secret
-      value: "false"
+      value: false # UNQUOTED: native HCL bool
   varsFrom:
     - kind: Secret
       name: coder-terraform-vars

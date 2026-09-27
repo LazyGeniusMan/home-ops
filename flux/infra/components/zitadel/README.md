@@ -142,7 +142,8 @@ No phone-home knobs in chart values. `metrics.enabled: true` +
 `serviceMonitor.enabled: true` (monitoring CRDs via the infra-crds tenant).
 Chart/app skew guard: chart 10.0.4 embeds app v4.15.3 — fail-safe bump
 checklist: 1) read the new chart's appVersion, 2) set `image.tag` +
-`login.image.tag` to it together (currently v4.18.0), 3) never bump the chart
+`login.image.tag` to it together (currently v4.18.0, markers
+`infra:zitadel-app:tag` + `infra:zitadel-login:tag`), 3) never bump the chart
 tag alone (a chart-only bump silently moves the app back to the embedded
 default). Bumps: `update-policies/zitadel.yaml` -> PR automation (chart tag +
 both image tags together). Snapshot DB + cache before major bumps (`masterkey`

@@ -4,10 +4,21 @@ resources:
   - ../base
 patches:
   # Prd fixed replicas: 2 (no HPA — self-scaling is circular, see base).
+  # PDB keeps 1 Metrics API server during voluntary disruption
+  # (chart-native podDisruptionBudget knob).
   - patch: |
       - op: replace
         path: /spec/values/replicas
         value: 2
+    target:
+      kind: HelmRelease
+      name: metrics-server
+  - patch: |
+      - op: add
+        path: /spec/values/podDisruptionBudget
+        value:
+          enabled: true
+          minAvailable: 1
     target:
       kind: HelmRelease
       name: metrics-server

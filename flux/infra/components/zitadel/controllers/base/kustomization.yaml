@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - zitadel.yaml
   - vpa.yaml
+  - pdb.yaml
 patches:
   # Reloader opt-in: restart the chart-rendered API + login Deployments when
   # the ESO-synced Secrets rotate (zitadel-db-credentials DSN,

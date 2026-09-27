@@ -46,7 +46,7 @@ spec:
         memory: 512Mi
     image:
       repository: ghcr.io/zitadel/zitadel
-      tag: v4.18.0
+      tag: v4.18.0 # {"$imagepolicy": "infra:zitadel-app:tag"}
       pullPolicy: IfNotPresent
     login:
       replicaCount: 1 # placeholder - singleton, pinned to 1 in dev/prd overlays
@@ -57,7 +57,7 @@ spec:
           memory: 128Mi
       image:
         repository: ghcr.io/zitadel/zitadel-login
-        tag: v4.18.0
+        tag: v4.18.0 # {"$imagepolicy": "infra:zitadel-login:tag"}
         pullPolicy: IfNotPresent
       # Slow-start: cold Zitadel + S3-backed login assets are slow on first
       # render — gate liveness/readiness behind a startupProbe (period 1 x

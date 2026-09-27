@@ -18,13 +18,15 @@ variables {
 
 # Allowlist must prefix-match every chart OCIRepository spec.url used by
 # components (scanned from all spec.url in flux/{infra,apps}/components;
-# ferretdb/headlamp-k8s/matrix-construct ship no OCIRepository spec.url).
+# ferretdb/matrix-construct ship image refs only, no OCIRepository spec.url).
+# Kept in sync with the exhaustive source list in tenants/policies.yaml.
 run "tenant_source_allowlist_covers_charts" {
   command = plan
 
   assert {
     condition = alltrue([
       for prefix in [
+        "oci://ghcr.io/lazygeniusman/",
         "oci://ghcr.io/coder/",
         "oci://ghcr.io/oauth2-proxy/",
         "oci://ghcr.io/coredns/",

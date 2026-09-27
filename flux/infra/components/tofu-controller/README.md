@@ -64,6 +64,7 @@ No phone-home knobs in chart values. `metrics.enabled: true` +
 the metrics Service first, then the monitor scrapes it; monitoring CRDs via
 the infra-crds tenant, `otel-scrape: "true"` label via sibling). Branch Planner off (`branchPlanner.enabled:
 false`). Bumps: `update-policies/tofu-controller.yaml` (>=0.16.5, marker
-`infra:tofu-controller:tag`) -> PR automation (chart tag + both image tags
-together).
+`infra:tofu-controller:tag` + controller marker `infra:tofu-controller-app:tag`
++ runner marker `infra:tofu-runner:tag`) -> PR automation (chart tag + both
+image tags together).
 Changelog: https://github.com/flux-iac/tofu-controller/releases.

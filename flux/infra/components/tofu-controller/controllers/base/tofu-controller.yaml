@@ -60,7 +60,8 @@ spec:
     caCertValidityDuration: 24h
     certRotationCheckFrequency: 30m
     image:
-      tag: v0.16.5
+      repository: ghcr.io/flux-iac/tofu-controller
+      tag: v0.16.5 # {"$imagepolicy": "infra:tofu-controller-app:tag"}
     # Watch Terraform CRs in every namespace (default true, stated explicitly).
     watchAllNamespaces: true
     # Allow cross-namespace sourceRefs (upstream default false since 0.16.0)
@@ -72,7 +73,8 @@ spec:
       install: false
     runner:
       image:
-        tag: v0.16.5
+        repository: ghcr.io/flux-iac/tf-runner
+        tag: v0.16.5 # {"$imagepolicy": "infra:tofu-runner:tag"}
       grpc:
         maxMessageSize: 30
       serviceAccount:

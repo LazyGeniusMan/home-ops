@@ -61,7 +61,8 @@ spec:
       limits:
         memory: 128Mi
     image:
-      tag: v0.22.0
+      repository: registry.k8s.io/external-dns/external-dns
+      tag: v0.22.0 # {"$imagepolicy": "infra:external-dns-app:tag"}
     provider:
       name: webhook
       webhook:
@@ -124,10 +125,10 @@ spec:
     # Sync sources narrowed to what this repo serves: Gateway API routes
     # (user-facing hostnames on the shared `main` Gateway) + the gateway's
     # Service LB record. `service` covers the Gateway's LB Service itself;
-    # `ingress` stays as a guard (no Ingress exists — the chart requires at
-    # least one classic source alongside the gateway set); `crd` covers
-    # DNSEndpoint CRs if ever added. grpcroute/tlsroute dropped (no such
-    # routes in flux/ — nothing to sync, smaller blast radius).
+    # `ingress` is guard-only (no Ingress exists — Gateway API only; the chart
+    # requires at least one classic source alongside the gateway set);
+    # `crd` covers DNSEndpoint CRs if ever added. grpcroute/tlsroute dropped
+    # (no such routes in flux/ — nothing to sync, smaller blast radius).
     sources:
       - service
       - ingress
