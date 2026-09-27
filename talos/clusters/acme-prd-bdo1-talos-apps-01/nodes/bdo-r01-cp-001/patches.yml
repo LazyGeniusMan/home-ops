@@ -7,7 +7,8 @@
 # ~112 GiB + nvme-data's 400 GiB ≈ full disk by design). sata-data (min 64 GiB,
 # grow) takes /dev/sda (size unrecorded — verify with
 # `talosctl get disks --insecure -n 192.168.1.101` and record it here before
-# first apply; never guess).
+# first apply; never guess). Until recorded, the undersized-disk risk rides the
+# accepted single-node RTO (RUNBOOK §4.5).
 # Pre-flight (required): talosctl get links/disks --insecure -n 192.168.1.101.
 # NFS tuning is bare-metal sized (64 slots/threads); dev runs 32 for the
 # single-client QEMU VM — see the SysctlConfig/nfs.conf docs below.

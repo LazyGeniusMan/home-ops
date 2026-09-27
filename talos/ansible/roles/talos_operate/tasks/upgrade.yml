@@ -2,7 +2,39 @@
 # Talos OS upgrade, one node at a time in cluster-map order (upgrade →
 # ready-gate → next per node, via upgrade_node.yml). Explicit upgrade_image wins;
 # otherwise the installer ref is built per node from the schematic .id files.
-# Adjacent minors only (never skip a minor).
+# Adjacent minors only (never skip a minor) — enforced by the gate below.
+- name: Parse upgrade target and pin versions for the adjacency gate
+  # Split-based parsing by design (no regex escapes): startswith/split plus
+  # digit-only match() checks, so the gate reads identically in every context.
+  ansible.builtin.set_fact:
+    talos_operate_upgrade_target_parts: "{{ talos_operate_upgrade_talos_version[1:].split('.') }}"
+    talos_operate_upgrade_pin_parts: "{{ talos_version[1:].split('.') }}"
+  when: talos_operate_upgrade_talos_version | length > 0
+
+- name: Assert the upgrade target is an adjacent minor
+  # Semver shape + adjacent-minor vs the group pin (talos_version is the live
+  # line): v1.15.x -> v1.17.x fails here; same-minor and next-minor pass.
+  # Skipped for explicit upgrade_image (a raw installer ref carries no version
+  # to gate on -- the caller owns the ref). Pre-release tags (alpha/rc) on the
+  # target are accepted as long as the minor step is adjacent.
+  ansible.builtin.assert:
+    that:
+      - talos_operate_upgrade_talos_version.startswith('v')
+      - talos_operate_upgrade_target_parts | length >= 3
+      - talos_operate_upgrade_target_parts[0] is match('^[0-9]+$')
+      - talos_operate_upgrade_target_parts[1] is match('^[0-9]+$')
+      - talos_operate_upgrade_target_parts[2] is match('^[0-9]+')
+      - talos_operate_upgrade_target_parts[0] | int == talos_operate_upgrade_pin_parts[0] | int
+      - (talos_operate_upgrade_target_parts[1] | int - talos_operate_upgrade_pin_parts[1] | int) in [0, 1]
+    fail_msg: >-
+      Refusing Talos upgrade to '{{ talos_operate_upgrade_talos_version }}':
+      target must be semver (v<major>.<minor>.<patch>[-tag]) on the same
+      major line as the group pin {{ talos_version }} and at most one minor
+      ahead (adjacent minors only -- v1.15.x -> v1.17.x must step through
+      v1.16.x). Fix -e upgrade_talos_version=, then re-run day-2.
+    success_msg: "Upgrade target {{ talos_operate_upgrade_talos_version }} is adjacent to {{ talos_version }}."
+  when: talos_operate_upgrade_talos_version | length > 0
+
 - name: Read per-node schematic IDs for upgrade image construction
   ansible.builtin.slurp:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}/schematic-{{ item.name }}.id"

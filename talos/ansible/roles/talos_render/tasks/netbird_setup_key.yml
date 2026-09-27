@@ -71,6 +71,26 @@
   register: talos_render_netbird_tf
   no_log: true
 
+- name: Stat NetBird Terraform state for the file-mode gate
+  # terraform.tfstate holds the setup-key secret in plaintext — must stay 0600.
+  ansible.builtin.stat:
+    path: "{{ talos_netbird_terraform_dir }}/terraform.tfstate"
+  check_mode: false
+  register: talos_render_netbird_tfstate
+
+- name: Fail when NetBird Terraform state is not mode 0600
+  ansible.builtin.assert:
+    that:
+      - talos_render_netbird_tfstate.stat.exists | default(false)
+      - talos_render_netbird_tfstate.stat.mode | default('') == "0600"
+    fail_msg: >-
+      {{ talos_netbird_terraform_dir }}/terraform.tfstate is missing or not
+      mode 0600 (it holds the setup-key secret in plaintext). Fix with
+      chmod 0600 {{ talos_netbird_terraform_dir }}/terraform.tfstate, then
+      re-run the play.
+    success_msg: "NetBird Terraform state is mode 0600."
+  when: not ansible_check_mode
+
 - name: Fail when the Terraform setup-key output is empty
   ansible.builtin.fail:
     msg: >-

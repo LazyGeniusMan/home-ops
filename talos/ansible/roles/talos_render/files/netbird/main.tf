@@ -1,5 +1,7 @@
 # Dedicated Talos NetBird access-fabric root — Ansible-managed only (RUNBOOK §1.0b), never Flux.
-# Upsert-only: `prevent_destroy` on every resource (delete/replace plans fail closed; no destroy path).
+# Upsert-only: `prevent_destroy` on every resource except the setup key —
+# replacement is the sanctioned rotation path (other delete/replace plans fail
+# closed; no destroy path).
 # Staged at build/<cluster>/netbird-tf/ with persistent local state (re-applies upsert — never delete).
 # PAT rides NB_PAT env only (provider reads it straight from the environment;
 # there is no token variable by design); setup key is reusable but scoped
@@ -78,16 +80,14 @@ resource "netbird_network" "cluster" {
 # Scoped, not eternal: 90d expiry + tight usage_limit (credential rule — every
 # credential carries an expiration). Rotate well before expiry (RUNBOOK §1.0b);
 # raise usage_limit when adding nodes (1 active peer + rejoin headroom today).
+# No prevent_destroy here by design: replacement is the sanctioned rotation
+# path (every other resource keeps it — globals fail closed).
 resource "netbird_setup_key" "talos" {
   name           = var.cluster_name
   type           = "reusable"
   expiry_seconds = 7776000
   usage_limit    = 3
   auto_groups    = [netbird_group.cluster_nodes.id]
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 # Routing: per-cluster nodes group serves as routing peers (netbird_network_router peer_groups).

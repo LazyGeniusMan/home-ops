@@ -114,7 +114,9 @@ system extension, minted by Terraform:
 2. **Terraform mints the setup key** — dedicated root
    (`roles/talos_render/files/netbird/`, staged at `build/<cluster>/netbird-tf/`
    with persistent plaintext local state so re-applies upsert — state shares the
-   §6.1 backup class; `prevent_destroy` on every resource). Fabric shape
+   §6.1 backup class and day-0 asserts `terraform.tfstate` stays `0600`;
+   `prevent_destroy` on every resource except the setup key, whose replacement
+   is the sanctioned rotation path). Fabric shape
    (groups, network, router, policies) is documented in
    `roles/talos_render/files/netbird/README.md`. Key is reusable but SCOPED
    (credential rule): `expiry_seconds = 7776000` (90d), `usage_limit = 3`,
@@ -135,8 +137,8 @@ Rotation (credential rule — the 90d key expires on its own, so rotate early):
 ```bash
 # Working dir: talos/ansible/
 C=<cluster>
-tofu -chdir=build/$C/netbird-tf plan    # expect REPLACE on netbird_setup_key.talos only
-tofu -chdir=build/$C/netbird-tf apply   # replace mints a NEW key value
+tofu -chdir=build/$C/netbird-tf plan    # expect REPLACE on netbird_setup_key.talos only (no prevent_destroy on it — globals keep theirs and fail closed)
+tofu -chdir=build/$C/netbird-tf apply   # replace mints a NEW key value (re-key every peer afterwards)
 rm build/$C/patches.yml build/$C/nodes-*-patches.yml
 ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=$C   # new key baked in
 # Installed cluster: day-2 -e reapply_configs=true pushes the new key (§3.6).
@@ -389,15 +391,20 @@ solely to recover a cluster too sick to pass health, then re-run without it).
 
 ### 3.3 Talos upgrade (per-node, sequential)
 
-Adjacent minors only (e.g. v1.15.x → v1.16.x, never skip a minor).
+Adjacent minors only (e.g. v1.15.x → v1.16.x, never skip a minor) —
+enforced by the day-2 gate (`roles/talos_operate/tasks/upgrade.yml` parses
+target vs the group pin `talos_version` by split-and-digit-check and requires
+same major plus at most one minor ahead; v1.15.x → v1.17.x fails — step
+through v1.16.x instead). Explicit `-e upgrade_image=<installer>` bypasses the
+gate (a raw installer ref carries no version to check — the caller owns the ref).
 
 ```bash
 # Working dir: talos/ansible/
-C=<cluster>
+C=<cluster>; NODE=<node-name>
 cat build/$C/schematic-*.id   # 64-hex factory ID per node (never invent one)
 ansible-playbook playbooks/day2.yml -i localhost, \
   -e talos_cluster=$C \
-  -e upgrade_image=factory.talos.dev/metal-installer/$(cat build/$C/schematic-<node>.id):v1.15.0-alpha.0
+  -e upgrade_image=factory.talos.dev/metal-installer/$(cat build/$C/schematic-$NODE.id):v1.15.0-alpha.0
 # Or auto-build the same ref per node from the .id files:
 ansible-playbook playbooks/day2.yml -i localhost, \
   -e talos_cluster=$C -e upgrade_talos_version=v1.15.0-alpha.0

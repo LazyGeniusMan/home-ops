@@ -10,7 +10,8 @@ Per cluster, staged at `build/<cluster>/netbird-tf/` (gitignored) with local
 `var.cluster_name`.
 
 Managed fabric (upsert only, never delete; `lifecycle { prevent_destroy = true }` on
-every resource — delete/replace plans fail closed; no `tofu destroy` path):
+every resource except `netbird_setup_key.talos` — replacement is the sanctioned
+rotation path; other delete/replace plans fail closed; no `tofu destroy` path):
 
 - groups `admin-users`, `guest-users`, `<cluster>-nodes`, plus resource groups
   `admin-users-resources` / `guest-users-resources`
@@ -70,7 +71,10 @@ router, setup key, LAN resource), then apply — its own per-cluster resources
 CREATE fresh.
 
 Rotation (90d scoped key — credential rule): the key expires on its own, so
-rotate well before `setup_key_expires`:
+rotate well before `setup_key_expires`. The setup key carries no
+`prevent_destroy` — replacement is the sanctioned rotation path (globals keep
+theirs and fail closed). Day-0 also asserts `terraform.tfstate` stays `0600`
+(it holds the key in plaintext):
 
 ```bash
 # Working dir: talos/ansible/ (day-0 staged build/<cluster>/netbird-tf/)
@@ -79,10 +83,9 @@ tofu -chdir=build/$C/netbird-tf plan   # expect REPLACE on netbird_setup_key.tal
 tofu -chdir=build/$C/netbird-tf apply  # replace mints a NEW key value (re-key every peer)
 rm build/$C/patches.yml build/$C/nodes-*-patches.yml     # force placeholder rewrite
 ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=$C   # re-renders with the new key
-# Installed cluster instead: day-2 re-apply pushes the new key to nodes (§3.6).
-# Revocation drill (lost key): NetBird admin console → Setup Keys → revoke
-# (`revoked = true` in config also revokes but REPLACES the key — same re-key
-# cost), then rotate as above; joined peers STAY connected, only new joins stop.
+# Installed cluster instead: day-2 re-apply pushes the new key to nodes (RUNBOOK §3.6).
+# Revocation drill (lost key): NetBird admin console → Setup Keys → revoke,
+# then rotate as above; joined peers STAY connected, only new joins stop.
 ```
 
 Watch `setup_key_used_times` / `setup_key_last_used` after every apply —
