@@ -32,6 +32,7 @@ jobs:
           - coder
           - matrix
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write # for pushing

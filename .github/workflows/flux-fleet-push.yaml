@@ -20,6 +20,7 @@ jobs:
   flux-push:
     if: github.ref == 'refs/heads/main' # dev artifacts only from main (guards manual dispatch off-main)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write # for pushing

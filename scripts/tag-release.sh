@@ -33,7 +33,9 @@ PREFIX_ENTRIES=(
   "helm-rclone-v|helm-rclone.yml"
 )
 
-SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
+# Strict semver without build metadata: +build suffixes are rejected so a
+# build-stamped tag can never match as previous nor validate as next.
+SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
 
 PREFIX=""
 BUMP=""

@@ -1,5 +1,6 @@
-# Daily check: compares Chart.yaml version against the latest upstream release;
-# opens a PR bumping Chart.yaml version + appVersion when upstream is newer.
+# Daily check: compares Chart.yaml version against the nearest in-scope upstream
+# release (current-minor patch, else next minor — N-1 -> N only, operator-first);
+# opens a PR bumping Chart.yaml version + appVersion and the wrapper ref.tag together.
 # GitHub releases API (kubevirt/kubevirt, tag v<X.Y.Z> -> chart <X.Y.Z>).
 name: helm-kubevirt-check
 
@@ -17,6 +18,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write # push version-bump branch
       pull-requests: write # open version-bump PRs with gh
@@ -26,18 +28,37 @@ jobs:
 
       - name: Setup yq
         uses: fluxcd/pkg/actions/yq@6d8d5d9e03f8da11e9685652e205f20aeb99c4ba # SHA-pinned
+        with:
+          version: v4.53.3 # match .flox yq pin
 
       - name: Compare Chart.yaml version with upstream latest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WRAPPER: flux/infra/components/kubevirt/controllers/base/kubevirt-operator.yaml
         run: |
           CURRENT="$(yq '.version' projects/helm-kubevirt/Chart.yaml)"
-          LATEST="$(gh api repos/kubevirt/kubevirt/releases/latest --jq '.tag_name')"
+          # KubeVirt upgrades N-1 -> N only (operator-first); cap auto-bump to the
+          # nearest next minor so the check never proposes skipping minors.
+          MAJOR="${CURRENT%%.*}"
+          MINOR="${CURRENT#*.}"; MINOR="${MINOR%%.*}"
+          NEXT_MINOR="$((MINOR + 1))"
+          TAGS="$(gh api repos/kubevirt/kubevirt/releases --paginate --jq '.[] | .tag_name')"
+          # Prefer a newer patch on the current minor; else the highest patch
+          # of the next minor.
+          LATEST="$(echo "${TAGS}" | grep -E "^v${MAJOR}\\.${MINOR}\\.[0-9]+$" | sort -V | tail -n 1)"
+          if [ "${LATEST#v}" = "${CURRENT}" ]; then
+            LATEST="$(echo "${TAGS}" | grep -E "^v${MAJOR}\\.${NEXT_MINOR}\\.[0-9]+$" | sort -V | tail -n 1)"
+          fi
           LATEST="${LATEST#v}" # strip leading v: tag v<X.Y.Z> -> chart <X.Y.Z>
           echo "current=${CURRENT} latest=${LATEST}"
-          if [ -z "${LATEST}" ]; then
-            echo "Could not resolve latest upstream release" >&2
+          export LATEST
+          if [ -z "${TAGS}" ]; then
+            echo "Could not resolve upstream kubevirt releases" >&2
             exit 1
+          fi
+          if [ -z "${LATEST}" ]; then
+            echo "No newer kubevirt release in scope (current ${CURRENT}); staying put."
+            exit 0
           fi
           if [ "${LATEST}" = "${CURRENT}" ]; then
             echo "Up to date: Chart.yaml already at ${CURRENT}."
@@ -49,13 +70,18 @@ jobs:
             exit 0
           fi
           git checkout -b "${BRANCH}"
-          yq -i '.version = "${LATEST}" | .appVersion = "v${LATEST}"' projects/helm-kubevirt/Chart.yaml
+          yq -i '.version=strenv(LATEST)|.appVersion="v"+strenv(LATEST)' projects/helm-kubevirt/Chart.yaml
+          # Atomic hand-bump: wrapper ref.tag must equal Chart.yaml version
+          # (no ImagePolicy/marker on first-party Helm OCIRepositories).
+          yq -i 'select(.kind == "OCIRepository").spec.ref.tag = strenv(LATEST)' "${WRAPPER}"
           bash projects/helm-kubevirt/ci/fetch.sh --check
-          git add projects/helm-kubevirt/Chart.yaml
+          git add "projects/helm-kubevirt/Chart.yaml" "${WRAPPER}"
           git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
             commit -m "chore(helm-kubevirt): bump to ${LATEST}"
           git push -u origin "${BRANCH}"
           gh pr create --fill --head "${BRANCH}" \
             --title "chore(helm-kubevirt): bump to ${LATEST}" \
             --body "Upstream kubevirt/kubevirt released ${LATEST}" \
-              " (Chart.yaml was ${CURRENT}). Verify with `bash projects/helm-kubevirt/ci/verify.sh` before merging."
+              " (Chart.yaml was ${CURRENT}). Merge checklist:" \
+              " (1) Chart.yaml + wrapper ref.tag bumped together;" \
+              " (2) `bash projects/helm-kubevirt/ci/verify.sh` is green."

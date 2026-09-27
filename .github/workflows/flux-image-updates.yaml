@@ -25,6 +25,7 @@ jobs:
       github.ref_name == 'image-updates-infra' ||
       github.ref_name == 'image-updates-apps'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       pull-requests: write
@@ -41,6 +42,14 @@ jobs:
           GITHUB_REF: ${{ github.ref }}
           HEAD_BRANCH: ${{ github.ref_name }}
         run: |
+          # Duplicate-PR guard: the create trigger re-fires on pushes to the
+          # branch; skip when a PR for this head already exists
+          # (same pattern as the helm-*-check workflows).
+          if gh pr list --repo="${GITHUB_REPO}" --head="${HEAD_BRANCH}" --json number --jq '.[0].number' \
+            | grep -qE '[0-9]+'; then
+            echo "PR for ${HEAD_BRANCH} already open; skipping."
+            exit 0
+          fi
           gh pr create \
             --repo="${GITHUB_REPO}" \
             --head="${HEAD_BRANCH}" \

@@ -9,10 +9,10 @@ concurrency:
   cancel-in-progress: true # release tags are unique refs; safe to supersede.
 
 on:
+  workflow_dispatch:
   push:
     tags:
-      - 'flux-apps-v*'
-      - 'flux-apps-v[0-9]*' # in-job semver gate is authoritative.
+      - 'flux-apps-v*' # in-job semver gate is authoritative.
 
 jobs:
   flux-push:
@@ -29,6 +29,7 @@ jobs:
           - coder
           - matrix
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write # for pushing

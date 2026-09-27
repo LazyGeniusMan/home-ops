@@ -9,14 +9,15 @@ concurrency:
   cancel-in-progress: true # release tags are unique refs; safe to supersede.
 
 on:
+  workflow_dispatch:
   push:
     tags:
-      - 'flux-fleet-v*'
-      - 'flux-fleet-v[0-9]*' # in-job semver gate is authoritative.
+      - 'flux-fleet-v*' # in-job semver gate is authoritative.
 
 jobs:
   flux-push:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write # for pushing
