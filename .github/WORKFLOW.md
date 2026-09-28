@@ -37,8 +37,7 @@ the repo root mirrors these path filters per hook; pre-commit = fast gates
 pre-push), pre-push = slow whole-scope gates, manual = day-2 `--check --diff`;
 flux scope validates and fetch-time chart verifies need GitHub network at
 pre-commit like CI does; push, release, sign, and bot workflows stay
-CI-only). Vendored `.github` copies
-(e.g. under `flux/**/.terraform/`) are third-party, not owned. Cosign legs pin
+CI-only). Vendored copies (e.g. under `.terraform/` or `.agents/`) are third-party, not owned. Cosign legs pin
 the binary via `cosign-release: v3.1.3` (match `.flox`); setup lines carry
 `# match .flox ...` parity comments. No dependabot/renovate (forbidden:
 automation proposes image/chart updates via `flux-image-updates.yaml`).

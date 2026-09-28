@@ -49,7 +49,6 @@ Key facts:
   | Dragonfly operator | https://github.com/dragonflydb/dragonfly-operator/releases |
   | VPA | https://github.com/kubernetes/autoscaler/releases |
   | ClickHouse (server + Altinity operator) | https://github.com/ClickHouse/ClickHouse/releases + https://github.com/Altinity/clickhouse-operator/releases |
-- Keep every doc current-state-only (see Living doc).
 - Toolchain source of truth is `.flox/env/manifest.toml` (`allow.unfree = true` is scoped to the four installs with no free catalog substitute: AGPL MCP server, BSD netbird, GPL pass-cli, MIT rclone — see the `[options]` why-comment). `talosctl` (version + sha256 track `talos_version` in `talos/ansible/group_vars/all.yml`) is curl-fetched by the `on-activate` hook into `.flox/cache/bin`, not from the catalog. On any tool upgrade, migrate every consumer together so pins keep parity across the Flox manifest, `talos/ansible/group_vars/all.yml`, Terraform/Ansible version constraints, GitHub workflows, Dockerfiles, and Flux manifests.
 - Secrets live in Proton Pass and are injected with the `pass-cli` binary. Gate on `pass-cli info` for login state, inject with double-brace templates plus `item view`, and always export the hardened env (`PROTON_PASS_DISABLE_TELEMETRY=1`, key provider `fs`, agent reason set, `*_FILE` file-backed pattern). Unencrypted secrets are gitignored at repo root and under `talos/.gitignore`; only double-brace `{{ }}` placeholders are ever committed. For every `pass://` reference you add, document its full path length, one redacted example, and the command that generates the value.
 
@@ -111,7 +110,7 @@ prek run --dry-run --files <path>    # preview which hooks a path selects
 
 CI mirrors these gates per path (Go workflows, `flux-*-validate.yaml`, `lint-shell-ansible.yaml`, push/release/image-update flows use deny-all `permissions: {}` with per-job minimums, concurrency groups, and path filters). Ansible changes require the `--check --diff` dry run plus `talosctl validate` and FQCN lint (syntax + lint in CI, `--check --diff` stays local — day-2 needs a live `pass-cli` session). Never run `kubectl` or `helm` against a cluster directly; only the Terraform-bootstrapped Flux Operator mutates cluster state.
 
-Local commits gate on the same CI test/validate/lint legs via prek (`.pre-commit-config.yaml`, staged-files-only): pre-commit runs the fast per-scope gates (meta hygiene, no-artifact guard, shellcheck, yamllint, ansible syntax+lint, `validate.sh -d` per scope, go-fast — vet + gofmt + tidy + build — per service, helm `ci/verify.sh` per chart); pre-push runs the slow whole-scope gates (tofu trio, go-full — test -race + lint + vuln — per service, talosctl pin); day-2 `--check --diff` is manual-only (needs live `pass-cli` + cluster). Flux scope validates and fetch-time chart verifies need GitHub network at pre-commit like CI does (pinned schema/URL fetches; retry with network on failure, never skip). Publishing (push/release/sign), image-update bots, and scheduled check-PR workflows never gate — CI-only. Run inside `flox activate` so `language: system` hooks resolve the Flox toolchain.
+Local prek hooks mirror these per-path gates (staged-files-only); see Essential commands above and .github/WORKFLOW.md.
 
 ## Patterns
 

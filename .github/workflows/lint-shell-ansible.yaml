@@ -52,9 +52,7 @@ jobs:
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c # v3.1.1
         with:
-          # Scoped to this gate's trigger paths: unscoped runs scan vendored
-          # .agents skill templates, .terraform modules, flux manifests, and
-          # go-templated helm charts that carry their own valid long lines.
+          # Scoped to this gate's trigger paths (unscoped runs hit vendored/generated long lines).
           file_or_dir: >-
             .github/workflows talos scripts flux/scripts
             projects/helm-rclone/ci

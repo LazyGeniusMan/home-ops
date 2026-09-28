@@ -31,8 +31,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout
-        # Shallow is enough: run steps only call `gh pr list/create`, never
-        # git log/merge-base, so full history is not needed.
+        # Shallow checkout suffices (only gh pr list/create).
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 1

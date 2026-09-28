@@ -2,8 +2,7 @@
 # Trigger: push to main on projects/helm-kubevirt/** + workflow_dispatch (no git tags;
 # version resolves purely from Chart.yaml). Re-publish of an unchanged Chart
 # version overwrites the same OCI tag (helm push OCI replace semantics).
-# Upstream is fetched at publish time by ci/fetch.sh (no YAML committed); the
-# staged bundle is bundled by helm package.
+# Upstream is fetched at publish time by ci/fetch.sh (no YAML committed).
 # PR legs run test only; publish runs on main pushes (dev artifacts only from main).
 name: helm-kubevirt
 

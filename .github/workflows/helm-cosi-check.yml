@@ -1,7 +1,5 @@
-# Daily check: compares Chart.yaml version against the highest v0.2.* upstream
-# release (COSI stays v0.2.x; releases/latest tracks the v1alpha2 line); opens
-# a PR bumping Chart.yaml version + appVersion and the wrapper ref.tag together.
-# GitHub releases API (container-object-storage-interface, tag v<X.Y.Z> -> chart <X.Y.Z>).
+# Daily check: compares Chart.yaml version against the highest v0.2.* upstream release;
+# opens a PR bumping Chart.yaml + wrapper ref.tag together.
 name: helm-cosi-check
 
 on:

@@ -298,7 +298,7 @@ rm -rf /tmp/home-ops-docs
 mkdir -p /tmp/home-ops-docs || exit 1
 cd /tmp/home-ops-docs || exit 1
 
-# /tmp/home-ops-docs/talos-docs/talos-v1.14.yaml + /tmp/home-ops-docs/talos-docs/public/talos/v1.14
+# /tmp/home-ops-docs/talos-docs/talos-v1.15.yaml + /tmp/home-ops-docs/talos-docs/public/talos/v1.15
 fetch_repo talos-docs https://github.com/siderolabs/docs main || record_fail talos-docs
 
 fetch_repo talos-system-extension-docs https://github.com/siderolabs/extensions main || record_fail talos-system-extension-docs

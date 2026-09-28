@@ -6,9 +6,7 @@
 #   tags must be "<prefix><semver>" (e.g. flux-apps-v1.2.3). This script
 #   picks the prefix, finds the previous semver tag, bumps it, and pushes
 #   only that ref. It never edits files, creates releases, or signs images.
-#   Tags are annotated but unsigned by design: CI cosign-signs the published
-#   OCI artifacts (keyless OIDC) those tags trigger, so a local GPG signature
-#   on the tag itself would add no supply-chain signal.
+#   Tags are annotated, unsigned (CI cosign-signs the triggered OCI artifacts).
 #
 # Usage:
 #   scripts/tag-release.sh [options]
