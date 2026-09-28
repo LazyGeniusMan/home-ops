@@ -77,9 +77,9 @@ jobs:
           git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
             commit -m "chore(helm-kubevirt): bump to ${LATEST}"
           git push -u origin "${BRANCH}"
-          gh pr create --fill --head "${BRANCH}" \
+          gh pr create --head "${BRANCH}" \
             --title "chore(helm-kubevirt): bump to ${LATEST}" \
-            --body "Upstream kubevirt/kubevirt released ${LATEST}" \
-              " (Chart.yaml was ${CURRENT}). Merge checklist:" \
-              " (1) Chart.yaml + wrapper ref.tag bumped together;" \
-              " (2) `bash projects/helm-kubevirt/ci/verify.sh` is green."
+            --body "Upstream kubevirt/kubevirt released ${LATEST} \
+              (Chart.yaml was ${CURRENT}). Merge checklist: \
+              (1) Chart.yaml + wrapper ref.tag bumped together; \
+              (2) \`bash projects/helm-kubevirt/ci/verify.sh\` is green."

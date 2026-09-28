@@ -63,9 +63,9 @@ jobs:
           git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
             commit -m "chore(helm-gateway-api): bump to ${LATEST}"
           git push -u origin "${BRANCH}"
-          gh pr create --fill --head "${BRANCH}" \
+          gh pr create --head "${BRANCH}" \
             --title "chore(helm-gateway-api): bump to ${LATEST}" \
-            --body "Upstream kubernetes-sigs/gateway-api released ${LATEST}" \
-              " (Chart.yaml was ${CURRENT}). Merge checklist:" \
-              " (1) Chart.yaml + wrapper ref.tag bumped together;" \
-              " (2) `bash projects/helm-gateway-api/ci/verify.sh` is green."
+            --body "Upstream kubernetes-sigs/gateway-api released ${LATEST} \
+              (Chart.yaml was ${CURRENT}). Merge checklist: \
+              (1) Chart.yaml + wrapper ref.tag bumped together; \
+              (2) \`bash projects/helm-gateway-api/ci/verify.sh\` is green."
