@@ -96,6 +96,12 @@ on-activate = '''
   }
   install_talosctl
   cd "$FLOX_ENV_PROJECT" || return
+  # prek shims auto-install on every activation: fast/idempotent (~10ms, no
+  # network, no lock), guarded to repo checkouts with the config present.
+  # Never fails activation. Refreshes the nix-store path on prek upgrades.
+  if [ -f ".pre-commit-config.yaml" ] && git rev-parse --git-dir >/dev/null 2>&1 && command -v prek >/dev/null 2>&1; then
+    prek install >/dev/null 2>&1 || true
+  fi
 '''
 
 [profile]

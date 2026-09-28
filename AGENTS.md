@@ -101,7 +101,7 @@ pass-cli info                        # must succeed (logged in) before any secre
 ```
 ```bash
 # Local CI gate (prek 0.5.3, Flox-pinned): staged-file-scoped hooks mirror CI path filters
-prek install                         # install pre-commit + pre-push shims (once per checkout)
+prek install                         # shims auto-install on `flox activate`; manual re-run only if hooks were removed
 prek run                             # staged files, pre-commit stage (fast gates only)
 prek run --all-files                 # whole repo, pre-commit stage (pre-PR check)
 prek run --all-files --stage pre-push  # pre-push stage (tofu, full go, talosctl pin)
