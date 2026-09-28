@@ -61,7 +61,7 @@ jobs:
           version: v4.3.0 # match .flox kubernetes-helm pin
 
       - name: Set up ORAS
-        uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d # v2.0.1
+        uses: oras-project/setup-oras@931fc544afc94506508c2dadf2679cb0ae65b964 # v2.0.1
         with:
           # setup-oras v2.0.1 bundles oras up to 1.3.3; 1.3.4 installs the
           # standalone binary instead (version takes no `v` prefix).
