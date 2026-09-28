@@ -12,8 +12,14 @@
 #                                                                     (<svc>.yml test legs)
 #   projects/helm-<name>/**                                        -> helm-verify-<name> (helm-<name>.yml test legs)
 #
-# Stage split: pre-commit = fast offline-only gates (seconds, commit-blocking);
-# pre-push = slow whole-scope gates (whole flux scope, tofu, full go).
+# Stage split: pre-commit = fast gates (seconds, commit-blocking); pre-push =
+# slow whole-scope gates (tofu, full go). Slow suites (go test -race,
+# golangci-lint, govulncheck) stay at pre-push; only the offline subset
+# (vet + gofmt + tidy -diff + build) runs at pre-commit.
+# Network note: flux validate.sh downloads pinned CRD schemas and fetch-time
+# chart verify.sh runs fetch --check against upstream URLs, so those
+# pre-commit hooks need GitHub network like CI does — dev machines normally
+# have it; a network failure there means "retry with network", not "skip".
 # Publishing (push/release/sign), image-update bots, and scheduled check-PR
 # workflows never gate commits or pushes — they run in CI only. Nothing here
 # touches a live cluster; day-2 --check --diff stays a documented local manual
@@ -175,7 +181,7 @@ repos:
         entry: scripts/hooks/go-gate.sh fast projects/external-dns-netbird
         pass_filenames: false
         files: ^projects/external-dns-netbird/
-        stages: [pre-push]
+        stages: [pre-commit]
       - id: go-full-apprise-go-api
         name: go full gate (apprise-go-api)
         language: system

@@ -32,9 +32,12 @@ with per-job minimums; publish jobs additionally gate on
 excepted). Validate/lint workflows grant top-level `contents: read`.
 Concurrency groups, path-gated triggers throughout. Each validate/test/lint leg
 above also runs locally before commit via prek (`.pre-commit-config.yaml` at
-the repo root mirrors these path filters per hook; pre-commit = fast gates,
-pre-push = slow whole-scope gates, manual = day-2 `--check --diff`; push,
-release, sign, and bot workflows stay CI-only). Vendored `.github` copies
+the repo root mirrors these path filters per hook; pre-commit = fast gates
+(go-fast is vet + gofmt + tidy + build only — test -race/lint/vuln stay at
+pre-push), pre-push = slow whole-scope gates, manual = day-2 `--check --diff`;
+flux scope validates and fetch-time chart verifies need GitHub network at
+pre-commit like CI does; push, release, sign, and bot workflows stay
+CI-only). Vendored `.github` copies
 (e.g. under `flux/**/.terraform/`) are third-party, not owned. Cosign legs pin
 the binary via `cosign-release: v3.1.3` (match `.flox`); setup lines carry
 `# match .flox ...` parity comments. No dependabot/renovate (forbidden:
