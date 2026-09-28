@@ -6,7 +6,7 @@ TXT ownership: `txtOwnerId`/`txtPrefix` pin the single txt registry (`home-ops-p
 
 ## Ordering
 
-The configs `ExternalSecret` resolves through `ClusterSecretStore/proton-pass` (external-secrets configs/), which needs the eso-proton-pass webhook Ready plus the `proton-pass-pat` bootstrap. On a fresh cluster expect fail-then-heal until ESO syncs (heals via `refreshInterval` + Flux `retryInterval`); alert past ~10m. Dev and prd TXT scope lives in `controllers/{dev,prd}`; vault keys live in `configs/{dev,prd}` — no second writer fights prd over the TXT registry.
+The configs `ExternalSecret` resolves through `ClusterSecretStore/proton-pass` (external-secrets configs/), which needs the eso-proton-pass webhook Ready plus the `proton-pass-pat` bootstrap. On a fresh cluster expect fail-then-heal until ESO syncs (see the external-secrets README); alert past ~10m. Dev and prd TXT scope lives in `controllers/{dev,prd}`; vault keys live in `configs/{dev,prd}` — no second writer fights prd over the TXT registry.
 
 ## Credentials
 

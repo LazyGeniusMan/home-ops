@@ -24,4 +24,6 @@ Dev and prd track `../base` with no patches.
 
 ## Updates
 
-Supported only N-1 -> N, never skip a minor; the operand locks to the operator version (no `spec.imageTag`), so the operator roll is the upgrade. Bump: daily check PR bumps `projects/helm-kubevirt` (Chart.yaml `version` + `appVersion`), then bump the wrapper `ref.tag` (no `$imagepolicy`, atomic hand-bump, human merges); never reorder the `infra-configs` `dependsOn` `infra-controllers` RBAC ordering. Deletion is CRs-first: delete the `KubeVirt` CR and wait for operands to drain before deleting the operator bundle (deleting the operator first strands the CR `Terminating` behind its finalizer).
+Supported only N-1 -> N, never skip a minor; the operand locks to the operator version (no `spec.imageTag`), so the operator roll is the upgrade.
+Bump: daily check PR bumps `projects/helm-kubevirt` (Chart.yaml `version` + `appVersion`), then bump the wrapper `ref.tag` (no `$imagepolicy`, atomic hand-bump, human merges); never reorder the `infra-configs` `dependsOn` `infra-controllers` RBAC ordering.
+Deletion is CRs-first: delete the `KubeVirt` CR and wait for operands to drain before deleting the operator bundle (deleting the operator first strands the CR `Terminating` behind its finalizer).

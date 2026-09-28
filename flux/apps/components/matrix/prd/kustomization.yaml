@@ -3,9 +3,11 @@ kind: Kustomization
 resources:
   - ../base
 patches:
+  # Legend: hostname patches swap the env domain; POSITIONAL patches pin base
+  # env/var indices (keep base order); replica patches restate base singletons
+  # so a future base change cannot silently scale them.
   # ---- apprise-go-api consumer wiring (workload in the infra tenant; bootstrapped — no vault patch) ----
   # ---- tuwunel homeserver ----
-  # Prd route hostnames.
   - patch: |
       - op: replace
         path: /spec/hostnames/0

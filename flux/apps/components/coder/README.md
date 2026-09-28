@@ -36,7 +36,7 @@ Two in-namespace Certificates: `coder-root` (`coder.home-ops.yansyah.my.id`) and
 
 ## Credentials
 
-`coder-oidc` (stored Terraform outputs via `coder-k8s`), `coder-db-credentials` + `coder-db-app-secret` (single `.../coder/db-password` vault source), `cnpg-s3-credentials` (COSI-minted, claim `coder-db`), `cloudflare-api-token` (DNS-01). Matrix notifier (`matrix-notify`) composes from the matrix kept Secret via `coder-matrix` (zero vault seeding). Known gap: apprise sink reads `urls` from the POST body only and coderd's payload is fixed, so posts return 204 with no message.
+`coder-oidc` (stored Terraform outputs via `coder-k8s`), `coder-db-credentials` + `coder-db-app-secret` (single `.../coder/db-password` vault source), `cnpg-s3-credentials` (COSI-minted, claim `coder-db`), `cloudflare-api-token` (DNS-01). Matrix notifier (`matrix-notify`) composes from the matrix kept Secret via `coder-matrix` (zero vault seeding; known 204 gap: see matrix `NOTIFICATIONS.md`).
 
 ## Environments
 

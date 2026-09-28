@@ -32,9 +32,8 @@ Envs are `dev` / `prd` (component overlays `{base,dev,prd}/`).
 `terraform/` runs a host-networked bootstrap Job that installs Cilium from
 the module's `prerequisites` slot before the Flux Operator; Cilium + CoreDNS
 then reconcile as infra tenants with Flux adopting the Cilium release. Only
-per-cluster difference is `var.cilium_k8s_service_host` (Talos API VIP: prd
-`.198`, dev `.248`; not the LB pool VIPs `.199`/`.249`). See
-`terraform/README.md`.
+per-cluster difference is `var.cilium_k8s_service_host` (see
+`terraform/README.md`).
 
 ## Artifacts
 

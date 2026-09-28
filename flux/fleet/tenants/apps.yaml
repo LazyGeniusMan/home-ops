@@ -17,27 +17,19 @@ spec:
   # reconciling, and the gate clears once infra is Ready. Finest available
   # granularity lives per-app in each app's base/terraform.yaml
   # (Kustomization-level dependsOn on its own backends).
-  # Apps reconcile after infra Ready; per-app ordering lives in each app's
-  # base/terraform.yaml (Kustomization-level dependsOn). The storage +
-  # observability backends (seaweedfs/cnpg/clickhouse/cosi via COSI claims,
-  # external-secrets via ESO-synced credentials, clickstack CHI via the infra
-  # CHI/keeper, otel-operator CRDs + otel-collectors gateway pipeline) gate
-  # here so BucketClaim/Cluster/ClickHouseInstallation/otel consumers never
-  # reconcile before their backends are Ready.
-  # Backend-serving gates: dragonfly infra-configs (Dragonfly CR applied for
-  # Redis API consumers), local-path-provisioner infra-controllers
-  # (local-ssd-nvme StorageClass for RWO PVCs: tuwunel 10Gi, discord 2Gi, VM
-  # DVIs), tofu-controller infra-configs (configs path exists, empty today;
-  # future-proofs consumer Terraform CRs), vpa infra-controllers (VPA CRDs for
-  # the VPA objects shipped by coder/clickstack/matrix/hubble/headlamp/
-  # flux-operator-ui). ResourceSet dependsOn only sees Kustomization Ready
-  # (wait:true apply success), NOT CR-level serving (CNPG available, CHI
-  # complete, BucketClaim bound, ExternalSecret synced, Zitadel serving) —
-  # that residual readiness stays per-app (base/terraform.yaml + in-namespace
-  # ordering). Ungated by design: metrics-server (HPA degrades, never blocks),
-  # external-dns (apps ship no DNSEndpoint), netbird (controllers/configs both
-  # empty; per-app ESO/Terraform owns creds), apprise-go-api (matrix reads the
-  # in-namespace kept Secret via tuwunel-k8s, no cross-namespace call).
+  # Apps reconcile after infra Ready. Backend gates so consumers never
+  # reconcile before backends are Ready: seaweedfs, cnpg, clickhouse + cosi
+  # (COSI claims), external-secrets (ESO credentials), clickstack CHI (infra
+  # CHI/keeper), otel-operator CRDs + otel-collectors gateway, dragonfly
+  # (Redis API), local-path-provisioner (local-ssd-nvme for RWO PVCs),
+  # tofu-controller (consumer Terraform CRs), vpa (VPA CRDs).
+  # Per-app ordering lives in each app's base/terraform.yaml.
+  # dependsOn sees Kustomization Ready only (wait:true apply success), NOT
+  # CR-level serving (CNPG available, CHI complete, BucketClaim bound,
+  # ExternalSecret synced, Zitadel serving) — that stays per-app.
+  # Ungated by design: metrics-server (HPA degrades, never blocks),
+  # external-dns (no DNSEndpoint), netbird (empty controllers/configs),
+  # apprise-go-api (in-namespace kept Secret, no cross-namespace call).
   dependsOn:
     - apiVersion: kustomize.toolkit.fluxcd.io/v1
       kind: Kustomization

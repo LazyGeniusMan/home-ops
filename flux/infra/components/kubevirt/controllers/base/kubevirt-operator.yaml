@@ -41,7 +41,7 @@ spec:
     name: kubevirt-chart
   install:
     # CreateReplace: chart CRDs advance in place; HelmRelease deletion never
-    # cascade-deletes CRs (replicates the old prune:false infra-crds intent).
+    # cascade-deletes CRs.
     crds: CreateReplace
     strategy:
       name: RetryOnFailure

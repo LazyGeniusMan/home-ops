@@ -3,11 +3,8 @@
 # are secretKeyRefs to ESO-synced Secrets. Images track the hdx-oss-v2
 # appVersion line (`apps:hyperdx(-otel-collector):tag` markers). Telemetry off
 # (`USAGE_STATS_ENABLED=false`; app OTLP points at the in-namespace collector).
-# No ServiceMonitor: the Deployments expose no scrape endpoint yet, and the flip
-# waits for monitoring CRDs via the otel pipeline (see the ESO
-# `renderMode: skipIfMissing` template in
-# external-secrets/controllers/base/externalsecrets.yaml). `__SERVICE_HOST__`
-# is an overlay-replaced placeholder.
+# No ServiceMonitor: the Deployments expose no scrape endpoint.
+# `__SERVICE_HOST__` is an overlay-replaced placeholder.
 ---
 apiVersion: apps/v1
 kind: Deployment

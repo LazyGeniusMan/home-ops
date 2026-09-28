@@ -38,8 +38,7 @@ spec:
     createNamespace: false
     # Keep guardrail: chart 1.20.2 ships no Helm-owned CRDs (cilium.io CRDs
     # are applied at runtime by the operator), so HelmRelease deletion never
-    # cascade-deletes them; CreateReplace advances the operator CRD path on
-    # every bump instead of re-creating cluster state.
+    # cascade-deletes them; CreateReplace advances the operator CRD path.
     crds: CreateReplace
     strategy:
       name: RetryOnFailure

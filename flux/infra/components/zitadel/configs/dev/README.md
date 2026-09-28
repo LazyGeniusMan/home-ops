@@ -2,7 +2,10 @@
 
 Dev identity provider: OIDC issuer on `https://admin.zitadel.home-ops-dev.yansyah.my.id` (login UI on `https://login.zitadel.home-ops-dev.yansyah.my.id`, NetBird-exposed). OIDC contract, SSO slice shapes, and bootstrap handoff are owned by the parent `zitadel/README.md` — this overlay documents only the dev delta.
 
-Dev delta against `configs/base`: ESO remoteRefs (dev vault), namespace-local CNPG Cluster + ScheduledBackup (dev S3 endpoint), namespace-local Dragonfly + snapshot credentials (dev S3 host), in-namespace `wildcard-home-ops-dev-tls`, admin HTTPRoute on the dev Gateway, rclone Proton destinations (dev cluster segment), login-proxy vars (dev login host, `network_name` -> dev cluster, `service_lb_ip` -> `.249`, `cloudflare_zone_id` null), `org-users.yaml` intent mirror + handoff mirrors, single-instance scaling (DB `instances` -> 1, cache `replicas` -> 1). Controllers: `ExternalDomain: admin.zitadel.home-ops-dev.yansyah.my.id` (+ `LoginV2.BaseURI: https://login.zitadel.home-ops-dev.yansyah.my.id/ui/v2/login`), API/login seeds -> 1 with chart-native HPAs 1/2.
+Dev delta against `configs/base`:
+- Secrets/data: ESO remoteRefs (dev vault), namespace-local CNPG Cluster + ScheduledBackup (dev S3 endpoint), namespace-local Dragonfly + snapshot credentials (dev S3 host), rclone Proton destinations (dev cluster segment), `org-users.yaml` intent mirror + handoff mirrors.
+- Routing: in-namespace `wildcard-home-ops-dev-tls`, admin HTTPRoute on the dev Gateway, login-proxy vars (dev login host, `network_name` -> dev cluster, `service_lb_ip` -> `.249`, `cloudflare_zone_id` null).
+- Scaling: single-instance (DB `instances` -> 1, cache `replicas` -> 1); controllers `ExternalDomain: admin.zitadel.home-ops-dev.yansyah.my.id` (+ `LoginV2.BaseURI: https://login.zitadel.home-ops-dev.yansyah.my.id/ui/v2/login`), API/login seeds -> 1 with chart-native HPAs 1/2.
 
 ## Dev clients
 

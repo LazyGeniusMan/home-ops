@@ -1,4 +1,4 @@
-# Zitadel app v4.18.0 (chart 10.0.4, app pinned separately; chart 10.0.4 embeds app v4.15.3 -- fail-safe bump checklist: read the new chart's appVersion, set image.tag + login.image.tag to it together, never bump the chart tag alone).
+# Zitadel app v4.18.0 (chart 10.0.4; chart/app lockstep checklist in update-policies/zitadel.yaml).
 # Logins run on the separate NetBird-exposed login host. First install pends until the configs ExternalSecrets sync (RetryOnFailure).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -81,13 +81,7 @@ spec:
         TLS:
           Enabled: false # terminated at the §8 Gateway, not in-pod
         # FirstInstance zero-UI bootstrap: setup Job creates org home-ops + IAM_OWNER machine user into kept Secrets.
-        # BOOTSTRAP-ONLY non-expiring auth: both ExpirationDate null (NOT
-        # omitted — omission falls back to the chart values.yaml default via
-        # Helm coalesce; null renders as an absent key, which Zitadel maps to
-        # effectively never expires). This non-expiry is intentional ONLY for
-        # first install: the setup Job runs once, then these credentials are
-        # rotated to 90-day expiries via the runbook in configs/base/
-        # zitadel-bootstrap-handoff.yaml (bootstrap obtain + rotate steps).
+        # BOOTSTRAP-ONLY non-expiring auth (first install only; rotate to 90-day expiries per the handoff runbook).
         # Rotation tracker (owner: platform; seeded at first install):
         # | credential | first-install date | rotated-to-90d date |
         # | machine key (zitadel-bootstrap-sa) | __SEED_DATE__ | __ROTATE_DATE__ |
@@ -157,12 +151,10 @@ spec:
       - name: ZITADEL_ASSETSTORAGE_BUCKETPREFIX
         value: "zitadel-assets"
     # No chart-managed routing or bundled Postgres: HTTPRoutes are hand-written
-    # in configs/base/zitadel-httproute.yaml (own the §8.1 pattern explicitly)
-    # and the database is the §10.1 CNPG instance in configs/base/zitadel-db.yaml.
-    # Slow-start: chart default liveness/readiness (period 5, no initial delay)
-    # is gated by the default startupProbe (period 1 x failureThreshold 30 =
-    # 30s budget) while Zitadel runs CNPG migrations + OIDC discovery warmup;
-    # bumped to 60s below. Login enables its own startupProbe (see login block).
+    # in configs/base/zitadel-httproute.yaml; the database is the CNPG
+    # instance in configs/base/zitadel-db.yaml.
+    # Slow-start: startupProbe covers CNPG migrations + OIDC discovery warmup
+    # (bumped to 60s below). Login enables its own startupProbe (see login block).
     startupProbe:
       enabled: true
       periodSeconds: 1

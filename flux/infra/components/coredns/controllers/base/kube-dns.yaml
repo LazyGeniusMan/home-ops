@@ -11,12 +11,7 @@ metadata:
     kubernetes.io/cluster-service: "true"
     kubernetes.io/name: CoreDNS
 spec:
-  # Static DNS IP = 10th address of the Talos default service subnet
-  # 10.96.0.0/12 (K8s convention: kubeadm/Talos allocate the API at .1 and
-  # pass --cluster-dns 10.96.0.10 to kubelets; nothing in talos/ overrides
-  # serviceSubnet, so the Talos default holds). If a serviceSubnet override
-  # is ever added, this MUST move to the 10th address of the new range or
-  # kubelets will point at a non-existent DNS IP.
+  # Static DNS IP = 10th address of the Talos default service subnet 10.96.0.0/12; move with any serviceSubnet override.
   clusterIP: 10.96.0.10
   ports:
     - name: dns

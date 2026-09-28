@@ -1,13 +1,6 @@
-# Sink allowlist for the shared apprise-go-api sink (reference only — NOT in
-# base/kustomization.yaml resources). The sink accepts unauthenticated
-# in-cluster POSTs (no HMAC path upstream: accepted risk), so access is fenced
-# by NetworkPolicy here, not Gateway routing. The sink lives in the INFRA
-# `apprise-go-api` tenant; these rules ship beside the consumer wiring
-# (notifications.yaml + NOTIFICATIONS.md) so contract and fence travel
-# together. The sink owner copies them into the sink tenant when it gains a
-# configs overlay; until then containment is DNS-name discipline (only
-# notification-controller + coderd hold the name). Cilium enforces standard
-# NetworkPolicy semantics. Intended rules: default-deny ingress, allow
+# Reference-only sink allowlist for the shared apprise-go-api sink (NOT in
+# base/kustomization.yaml resources). Unauthenticated in-cluster POSTs
+# (accepted risk): fenced by NetworkPolicy — default-deny ingress, allow
 # TCP :8080 ONLY from flux-system notification-controller + coder pods.
 # ---
 # apiVersion: networking.k8s.io/v1

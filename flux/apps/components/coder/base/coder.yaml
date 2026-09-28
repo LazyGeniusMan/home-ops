@@ -126,18 +126,10 @@ spec:
           value: "false"
         - name: CODER_OIDC_SIGN_IN_TEXT
           value: __SSO_SIGN_IN_TEXT__
-        # Notifications: single global webhook into the infra apprise-go-api sink
-        # (`http://apprise-go-api.apprise-go-api.svc:80/notify`). Coder owns the
-        # matrix credential end-to-end (no matrix-tenant leg, no apprise-coder
-        # Provider). ESO `matrix-notify` (coder-secrets.yaml) templates the full
-        # endpoint from the matrix bot bootstrap kept Secret; the endpoint below
-        # reads it via secretKeyRef. `CODER_MATRIX_APPRISE_URLS` exposes the bare
-        # matrixs:// URL for injector/operator use. Room `coder-notifications`
-        # stays literal (public name, not a secret). Known gap: the sink reads
-        # `urls` from the POST body only and coderd posts a fixed title/body
-        # payload, so posts return 204 without a visible message (see matrix
-        # NOTIFICATIONS.md). Appended LAST so overlay positional env patches
-        # (/env/0, /1, /4, /8, /11) keep their indices.
+        # Notifications: single global webhook into the infra apprise-go-api
+        # sink (endpoint from ESO `matrix-notify` secretKeyRef; 204 gap
+        # documented in matrix NOTIFICATIONS.md). Appended LAST so overlay
+        # positional env patches (/env/0, /1, /4, /8, /11) keep indices.
         - name: CODER_NOTIFICATIONS_METHOD
           value: webhook
         - name: CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT

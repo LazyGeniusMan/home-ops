@@ -280,10 +280,10 @@ spec:
         # before the rest. Own-CRD tenants gate on local infra-crds; every other
         # tenant gates at minimum on the otel-operator tenant's infra-crds
         # Established healthChecks (CRDs are cluster-scoped, cross-namespace
-        # ref is valid) — including the 6 formerly-ungated tenants
-        # (local-path-provisioner/kubevirt/vpa/netbird/apprise-go-api render no
-        # monitors today yet keep the floor gate so a future monitor never
-        # races the CRDs); kubevirt additionally waits for multus
+        # ref is valid). Tenants rendering no monitors today
+        # (local-path-provisioner/kubevirt/vpa/netbird/apprise-go-api) keep
+        # the floor gate so a future monitor never races the CRDs; kubevirt
+        # additionally waits for multus
         # infra-controllers (thick-plugin networking before VMs);
         # otel-collectors gates on the operator controllers (opentelemetry.io
         # CRDs + collector RBAC) and the shared infra CHI configs (the gateway

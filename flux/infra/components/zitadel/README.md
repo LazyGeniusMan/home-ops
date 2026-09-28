@@ -2,7 +2,7 @@
 
 Zitadel app v4.18.0 (chart 10.0.4, `oci://ghcr.io/zitadel/zitadel-charts/zitadel`): the OIDC issuer on `https://admin.zitadel.home-ops.yansyah.my.id` (login UI on `https://login.zitadel.home-ops.yansyah.my.id`, NetBird-exposed) plus the locked client contract below.
 
-Chart 10.0.4 embeds app v4.15.3; the app image is pinned separately in values (`image.tag` + `login.image.tag` = v4.18.0) — never bump the chart tag alone (a chart-only bump silently moves the app back to the embedded default).
+Chart/app lockstep (chart 10.0.4 embeds app v4.15.3; app pinned v4.18.0 via `image.tag` + `login.image.tag`): bump checklist in `update-policies/zitadel.yaml`.
 
 ## Layout
 

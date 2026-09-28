@@ -11,13 +11,13 @@
 set -o errexit
 set -o nounset
 set -o pipefail
-# Strict mode: errexit + nounset + pipefail (fetch-references.sh omits errexit by design).
+# Strict mode: errexit + nounset + pipefail.
 
 # mirror kustomize-controller build options
 kustomize_flags=("--load-restrictor=LoadRestrictionsNone")
 kustomize_config="kustomization.yaml"
 
-# Raw manifests pre-filter copyFrom/copyTo stub Secrets via yq (no blanket `-skip=Secret`; no SOPS in this repo).
+# Raw manifests pre-filter copyFrom/copyTo stub Secrets via yq (no blanket `-skip=Secret`).
 #
 # Schema-dir contract: -schema-location points at the PARENT /tmp/flux-crd-schemas (kubeconform appends the version subdir itself).
 kubeconform_flags=()

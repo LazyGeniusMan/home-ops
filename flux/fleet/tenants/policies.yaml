@@ -20,8 +20,7 @@ spec:
         # in a tenant namespace (component chart OCIRepositories reconcile
         # inside their tenant namespace, so a missing prefix denies the sync).
         # Onboarding a component with a new chart registry: add its org prefix
-        # here. Verified 2026-09-26 by scanning all spec.url in
-        # flux/{infra,apps}/components: chart sources below are exhaustive;
+        # here. Sources below are exhaustive:
         # ferretdb/headlamp-k8s/matrix-construct ship no OCIRepository
         # spec.url (image refs / bundled manifests only), so no entries.
         sources: >-

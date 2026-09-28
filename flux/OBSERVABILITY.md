@@ -43,7 +43,6 @@ Every tenant namespace carries `otel-scrape: "true"` from the fleet ResourceSet 
 
 - **Signal tables:** `HYPERDX_OTEL_EXPORTER_TABLES_TTL` default `720h` (30 days) across logs/traces/metrics/sessions (collector reconciles TTLs on existing tables).
 - **System tables** (`query_log`, `part_log`, `text_log`, `metric_log`, `asynchronous_metric_log`): `event_date + INTERVAL 7 DAY DELETE` via the chart's `extraConfig`, plus `logger` capped at `information` / `100M` x 10 files.
-- Follow-up: raise per-signal TTLs (e.g. 180d) once prd disk headroom is measured.
 
 ## HyperDX route
 

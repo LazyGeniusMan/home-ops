@@ -1,5 +1,6 @@
 # VPA chart 0.12.0 (app 1.7.1) via chartproxy OCI (proxy of https://kubernetes.github.io/autoscaler).
-# Recommender-only for HPA-paired workloads, Recreate for singletons. CRDs render as templates (crds.enabled/keep true, CreateReplace).
+# Recommender-only for HPA-paired workloads, Recreate for singletons.
+# CRDs render as templates (crds.enabled/keep true, CreateReplace).
 # Admission: Helm-managed certgen (cert-manager path mutually exclusive, skipped).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1

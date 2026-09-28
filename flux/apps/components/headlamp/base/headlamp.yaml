@@ -1,12 +1,8 @@
-# Headlamp v0.45.0: Kubernetes web UI with native OIDC login via Zitadel plus
-# the locked plugin set (ai-assistant, flux, kubevirt).
-# Chart: oci://chartproxy.container-registry.com/kubernetes-sigs.github.io/headlamp/headlamp
-# tag 0.45.0 (proxy of classic chart https://kubernetes-sigs.github.io/headlamp/;
-# chart 0.45.0 carries app 0.45.0 — bump OCIRepository ref.tag AND image.tag
-# together). Chart ref.tag is manual-only (no $imagepolicy marker — Helm
-# IS auto-tracked (marker `apps:headlamp:tag`). No cosign verify block
-# (chartproxy live-translates tarballs, so no upstream signature applies).
-# App image ghcr.io/headlamp-k8s/headlamp:v0.45.0.
+# Headlamp v0.45.0 (chart 0.45.0 carries app 0.45.0; bump ref.tag + image.tag
+# together per update-policies/headlamp.yaml). Chart via chartproxy OCI
+# (proxy of classic https://kubernetes-sigs.github.io/headlamp/; no cosign
+# verify — chartproxy live-translates tarballs). App image below + locked
+# plugin set (ai-assistant, flux, kubevirt).
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -18,10 +14,7 @@ spec:
   layerSelector:
     mediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
     operation: copy
-  # Manual-only: no $imagepolicy marker — Helm OCIRepositories are untracked by
-  # image automation. Bump ref.tag + image.tag + plugin pins in the same PR
-  # (see update-policies/headlamp.yaml; the auto image policy proposes the
-  # image.tag half, the chart half stays manual).
+  # Manual-only chart pin (see update-policies/headlamp.yaml); image.tag half is automated.
   ref:
     tag: 0.45.0
 ---
@@ -62,8 +55,7 @@ spec:
       limits:
         cpu: 500m
         memory: 256Mi
-    # Chart 0.45.0 = app 0.45.0 (lockstep); image.tag pinned explicit for
-    # update automation (marker below) — bump the chart version to match.
+    # Chart/app lockstep (see header); image.tag pinned for automation.
     image:
       tag: v0.45.0 # {"$imagepolicy": "apps:headlamp:tag"}
     config:

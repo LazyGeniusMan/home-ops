@@ -31,7 +31,7 @@ Request `?tag=` must equal a `STATELESS_URLS` tag (`flux` | `tofu` | `team`); a 
 
 ## Coder flow
 
-Coder webhook (`CODER_NOTIFICATIONS_METHOD=webhook`, unsigned POST) → sink `/notify` with per-request `urls` (body) → `#coder-notifications`. Sink contract: `projects/apprise-go-api/internal/server/notify.go` (`urls` is body-only). One global endpoint, one room.
+Coder webhook (`CODER_NOTIFICATIONS_METHOD=webhook`, unsigned POST) → sink `/notify` with per-request `urls` (body) → `#coder-notifications`. Sink contract: `projects/apprise-go-api/internal/server/notify.go` (`urls` is body-only). One global endpoint, one room. Known gap: coderd posts a fixed title/body payload, so posts return 204 without a visible message.
 
 ## Bot bootstrap chain
 

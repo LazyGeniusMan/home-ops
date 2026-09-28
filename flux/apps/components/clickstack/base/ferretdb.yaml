@@ -1,9 +1,7 @@
 # FerretDB Mongo-wire proxy over the `ferretdb` CNPG Cluster (ferretdb-postgres.yaml).
 # Image marker `apps:ferretdb:tag`. `sslmode=require` (CNPG self-signed cert;
-# require still encrypts in transit). No ServiceMonitor: the Deployment exposes no
-# metrics endpoint, and the flip waits for monitoring CRDs via the otel pipeline
-# (see the ESO `renderMode: skipIfMissing` template in
-# external-secrets/controllers/base/externalsecrets.yaml).
+# require still encrypts in transit). No ServiceMonitor: the Deployment exposes
+# no scrape endpoint.
 # Singleton sizing: HPA capped 1/1 (never scales — CNPG owns HA) + VPA Off
 # (recommender-only; never VPA-apply on a resource HPA scales on). Single
 # replica: no PDB (a PDB cannot protect 1 replica).
