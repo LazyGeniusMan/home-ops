@@ -37,8 +37,9 @@ jobs:
       - name: Run shellcheck (first-party scripts only)
         uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
         with:
-          # Vendored .terraform/module + .agents skill scripts are third-party, not owned.
-          check_together: 'scripts/*.sh flux/scripts/*.sh projects/helm-*/ci/*.sh'
+          # Vendored .terraform/modules + .agents skill scripts are third-party, not owned.
+          check_together: 'yes'
+          ignore_paths: .agents .terraform
           version: v0.11.0 # match .flox shellcheck pin
           severity: warning
 
