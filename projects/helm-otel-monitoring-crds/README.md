@@ -27,3 +27,5 @@ bash projects/helm-otel-monitoring-crds/ci/verify.sh          # lint + fetch dry
 ```
 
 Push-only publish from the `Chart.yaml` version (no git tags); re-publishing overwrites the same OCI tag.
+
+<!-- trigger CI -->

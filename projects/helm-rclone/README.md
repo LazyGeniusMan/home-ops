@@ -244,3 +244,5 @@ for f in projects/helm-rclone/ci/values-*.yaml; do
   helm template demo ./projects/helm-rclone -f "$f"
 done | grep -ri rclone.conf   # must print nothing
 ```
+
+<!-- trigger CI -->
