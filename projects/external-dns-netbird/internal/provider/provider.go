@@ -67,10 +67,8 @@ func (p *Provider) GetDomainFilter() endpoint.DomainFilterInterface {
 	return p.filter
 }
 
-// Ping is the /readyz probe: a single cheap authenticated read (ListZones)
-// with results discarded. Only API reachability matters, so unlike Records
-// it never fans out to N×ListRecords per zone — one SaaS call per probe,
-// safe under the kubelet's 10s probe period.
+// Ping is the /readyz probe: one cheap authenticated ListZones read,
+// results discarded; unlike Records it never fans out to N×ListRecords.
 func (p *Provider) Ping(ctx context.Context) error {
 	if _, err := p.api.ListZones(ctx); err != nil {
 		return softOrHard("list zones", err)
@@ -213,11 +211,7 @@ func (p *Provider) buildIndex(ctx context.Context) (index, error) {
 
 // zoneForName resolves the longest-suffix zone, auto-creating the
 // DOMAIN_FILTER candidate when autoCreate is true. Misses outside the
-// filter are permanent; API failures map soft (transient) or hard
-// (permanent 4xx) via softOrHard. NetBird never deletes DNS entries on its
-// own: a name with no matching zone is a permanent error (or an explicit
-// auto-create), so stale records are intentionally retained rather than
-// garbage-collected.
+// filter are permanent; API failures map via softOrHard.
 func (p *Provider) zoneForName(ctx context.Context, dnsName string) (string, error) {
 	name := strings.ToLower(strings.TrimSuffix(dnsName, "."))
 	zones, err := p.api.ListZones(ctx)

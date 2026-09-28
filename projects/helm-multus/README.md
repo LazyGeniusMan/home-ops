@@ -32,5 +32,3 @@ bash projects/helm-multus/ci/verify.sh          # lint + fetch dry-run + no-CRD-
 ```
 
 Push-only publish from the `Chart.yaml` version (no git tags); re-publishing overwrites the same OCI tag.
-
-<!-- trigger CI -->

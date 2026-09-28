@@ -70,7 +70,7 @@ spec:
                 - {{ $srcArg | quote }}
                 - {{ $dstArg | quote }}
               env:
-                # RCLONE_CONFIG=/dev/null disables the config file.
+                # See README Endpoint model.
                 - name: RCLONE_CONFIG
                   value: /dev/null
                 {{- $srcEnv := include "helm-rclone.endpointEnv" (dict "endpoint" $src "role" "source" "prefix" "SRC") | trim }}

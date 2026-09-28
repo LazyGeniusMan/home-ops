@@ -72,10 +72,7 @@ func statusCodeOf(err error) int {
 	if errors.Is(err, provider.ErrUpstream) {
 		return http.StatusBadGateway
 	}
-	// Anything else with a backend origin (exec/resolver failure without a
-	// permanent-failure sentinel or StatusCode carrier) is transient → 502
-	// (ESO retries). A StatusCode carrier outside 400-599 carries no
-	// backend origin and matches nothing above: an internal bug → 500.
+	// Transient backend origin → 502 (ESO retries); otherwise 500.
 	if isBackend(err) {
 		return http.StatusBadGateway
 	}

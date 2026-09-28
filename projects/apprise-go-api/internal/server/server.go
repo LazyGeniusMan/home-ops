@@ -129,10 +129,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-// negotiateFormat picks the response shape from Accept: application/json ->
-// json, text/*|html -> html, else text. It backs isJSONResponse/htmlAccept
-// in handler.go; the request-typed helpers are authoritative there, this
-// stays as the string-typed seam for unit tests.
+// negotiateFormat is the string-typed helper for unit tests; handler.go is authoritative.
 func negotiateFormat(accept string) string {
 	a := strings.ToLower(accept)
 	switch {

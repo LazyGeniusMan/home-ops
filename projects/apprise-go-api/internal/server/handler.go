@@ -348,8 +348,7 @@ func fireWebhook(s *Server, r *http.Request, ok bool, sendErr error) {
 	})
 }
 
-// isNoTargets reports the zero-survivors condition (message-suffix match;
-// serveNotify also checks errors.Is against notify.ErrNoTargets first).
+// Zero-survivor condition (serveNotify also checks errors.Is).
 func isNoTargets(err error) bool {
 	if err == nil {
 		return false

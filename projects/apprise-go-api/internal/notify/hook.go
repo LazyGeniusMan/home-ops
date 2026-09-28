@@ -168,10 +168,7 @@ func (c *HookClient) SendHook(ctx context.Context, rawURL string, payload HookPa
 	}
 	req.Header.Set("User-Agent", "Apprise-API")
 	req.Header.Set("Content-Type", "application/json")
-	// Deliberately no trace-context injection: this POST leaves the cluster
-	// for a third-party webhook, so no W3C traceparent/tracestate headers
-	// are attached (unlike the in-cluster NetBird API client, which joins
-	// the inbound trace).
+	// No trace-context injection: this POST leaves the cluster.
 	if hook.username != "" || hook.password != nil {
 		password := ""
 		if hook.password != nil {

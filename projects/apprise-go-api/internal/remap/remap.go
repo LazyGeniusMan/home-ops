@@ -57,7 +57,6 @@ func isExpected(name string) bool {
 	return ok
 }
 
-// logger is the package logger.
 var logger = slog.Default()
 
 // Step is one traversal step of a parsed source path: either a dict-key

@@ -185,10 +185,7 @@ func (c *Client) do(ctx context.Context, method, path string, body any, out any)
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Token "+c.pat)
-	// Deliberate: join the in-cluster NetBird API call to the inbound request
-	// trace. W3C traceparent/tracestate here stays inside the cluster's own
-	// telemetry (unlike the apprise-go-api outbound webhook, which strips
-	// propagation because it leaves for a third party).
+	// In-cluster call: propagate the inbound trace context.
 	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")

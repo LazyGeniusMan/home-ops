@@ -1,6 +1,4 @@
-# Default values for helm-rclone: env-only periodic sync. Remotes are
-# built exclusively from RCLONE_CONFIG_* env; no rclone.conf exists anywhere
-# (RCLONE_CONFIG=/dev/null blocks file read/auto-create).
+# Default values for helm-rclone. See README Endpoint model.
 
 # -- Container image for the sync job. Tag must be an exact pin, never "latest";
 # digest pins the registry content (tag-only images fail the render).

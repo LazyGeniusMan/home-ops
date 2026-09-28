@@ -19,9 +19,7 @@ import (
 )
 
 var (
-	// httpRequestsTotal counts requests by method, matched route pattern,
-	// and status code. PromQL sample:
-	//   sum by (route) (rate(apprise_go_api_http_requests_total[5m]))
+	// httpRequestsTotal counts requests by method, route pattern, and status.
 	httpRequestsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "apprise_go_api",
@@ -31,9 +29,7 @@ var (
 		[]string{"method", "route", "status"},
 	)
 
-	// httpRequestDurationSeconds observes request latency by method and
-	// matched route pattern. PromQL sample:
-	//   histogram_quantile(0.95, sum by (le, route) (rate(apprise_go_api_http_request_duration_seconds_bucket[5m])))
+	// httpRequestDurationSeconds observes request latency by method and route.
 	httpRequestDurationSeconds = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "apprise_go_api",
@@ -44,16 +40,14 @@ var (
 		[]string{"method", "route"},
 	)
 
-	// up is 1 while the service is serving. PromQL sample:
-	//   apprise_go_api_up
+	// up is 1 while the service is serving.
 	upGauge = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: "apprise_go_api",
 		Name:      "up",
 		Help:      "1 if the service is up.",
 	})
 
-	// buildInfo carries the ldflags-injected version. PromQL sample:
-	//   apprise_go_api_build_info
+	// buildInfo carries the ldflags-injected version.
 	buildInfo = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "apprise_go_api",
@@ -63,27 +57,21 @@ var (
 		[]string{"version"},
 	)
 
-	// attachWritable is 1 when the attachment staging directory is writable
-	// (TTL-cached probe, refreshed at most every attachProbeTTL). PromQL sample:
-	//   apprise_go_api_attach_writable
+	// attachWritable is 1 when the attachment staging dir is writable (TTL-cached).
 	attachWritable = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: "apprise_go_api",
 		Name:      "attach_writable",
 		Help:      "1 if the attachment staging directory is writable.",
 	})
 
-	// supportedServices is the number of notification service schemas
-	// supported by apprise-go. PromQL sample:
-	//   apprise_go_api_supported_services
+	// supportedServices is the number of apprise-go service schemas.
 	supportedServices = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: "apprise_go_api",
 		Name:      "supported_services",
 		Help:      "Number of notification service schemas supported.",
 	})
 
-	// sendTimeoutsTotal counts Send calls that gave up on the per-call
-	// timeout (notify.ReportTimeouts). PromQL sample:
-	//   rate(apprise_go_api_send_timeouts_total[5m])
+	// sendTimeoutsTotal counts Send calls that gave up on the per-call timeout.
 	sendTimeoutsTotal = prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: "apprise_go_api",
 		Name:      "send_timeouts_total",
@@ -91,8 +79,6 @@ var (
 	})
 
 	// sendInFlight tracks concurrent Send calls (bounded by maxInFlight).
-	// PromQL sample:
-	//   apprise_go_api_send_in_flight
 	sendInFlight = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: "apprise_go_api",
 		Name:      "send_in_flight",

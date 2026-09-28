@@ -27,8 +27,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// httpRequestsTotal counts webhook requests by method, route pattern, and
-// status code (registered pattern, never raw path).
+// httpRequestsTotal counts webhook requests (registered pattern, never raw path).
 var httpRequestsTotal = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
 		Namespace: "eso_proton_pass",
@@ -97,7 +96,7 @@ func registerOrReuseVec(c *prometheus.CounterVec) *prometheus.CounterVec {
 	return c
 }
 
-// registerOrReuseHist registers c like registerOrReuseVec for histograms.
+// registerOrReuseHist is registerOrReuseVec for histograms.
 func registerOrReuseHist(c *prometheus.HistogramVec) *prometheus.HistogramVec {
 	if err := prometheus.Register(c); err != nil {
 		var already prometheus.AlreadyRegisteredError
@@ -111,7 +110,7 @@ func registerOrReuseHist(c *prometheus.HistogramVec) *prometheus.HistogramVec {
 	return c
 }
 
-// registerOrReuseGauge registers c like registerOrReuseVec for gauges.
+// registerOrReuseGauge is registerOrReuseVec for gauges.
 func registerOrReuseGauge(c prometheus.Gauge) prometheus.Gauge {
 	if err := prometheus.Register(c); err != nil {
 		var already prometheus.AlreadyRegisteredError
@@ -125,7 +124,7 @@ func registerOrReuseGauge(c prometheus.Gauge) prometheus.Gauge {
 	return c
 }
 
-// registerOrReuseGaugeVec registers c like registerOrReuseVec for gauge vecs.
+// registerOrReuseGaugeVec is registerOrReuseVec for gauge vecs.
 func registerOrReuseGaugeVec(c *prometheus.GaugeVec) *prometheus.GaugeVec {
 	if err := prometheus.Register(c); err != nil {
 		var already prometheus.AlreadyRegisteredError

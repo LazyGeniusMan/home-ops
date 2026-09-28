@@ -29,5 +29,3 @@ bash projects/helm-kubevirt/ci/verify.sh          # lint + fetch dry-run + no-CR
 ```
 
 Push-only publish from the `Chart.yaml` version (no git tags); re-publishing overwrites the same OCI tag.
-
-<!-- trigger CI -->

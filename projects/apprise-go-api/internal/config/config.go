@@ -39,9 +39,7 @@ type Config struct {
 	Debug bool
 	// BaseURL is the public base URL of the service (APPRISE_BASE_URL).
 	BaseURL string
-	// AllowedHosts is accepted but unenforced: no Host-header check exists
-	// (ALLOWED_HOSTS). The Gateway fronts user traffic; like PLUGIN_PATHS
-	// below, the variable is read for forward-compat but changes nothing.
+	// AllowedHosts is accepted but unenforced (ALLOWED_HOSTS).
 	AllowedHosts []string
 	// SecretKey authenticates internal callbacks, read only from SECRET_KEY_FILE.
 	SecretKey string
@@ -52,9 +50,7 @@ type Config struct {
 	// PUID/PGID record the desired runtime ownership (informational under distroless nonroot).
 	PUID int
 	PGID int
-	// WorkerCount is accepted but unenforced: delivery is sequential per
-	// call (WORKER_COUNT, 0 = GOMAXPROCS default). Like PLUGIN_PATHS below,
-	// the variable is read for forward-compat but changes nothing.
+	// WorkerCount is accepted but unenforced (WORKER_COUNT).
 	WorkerCount int
 	// CallTimeoutSecs bounds a single notify call (TIMEOUT).
 	CallTimeoutSecs int
@@ -88,7 +84,7 @@ type Config struct {
 	WebhookMappingMaxDepth int
 	// WebhookURL receives outbound result callbacks (APPRISE_WEBHOOK_URL).
 	WebhookURL string
-	// PluginPaths is accepted but unsupported: apprise-go has no dynamic plugin loading (APPRISE_PLUGIN_PATHS).
+	// PluginPaths is accepted but unsupported: read for compat, changes nothing.
 	PluginPaths string
 
 	// DenyServices blocks notification services by name/prefix (APPRISE_DENY_SERVICES).
@@ -97,13 +93,9 @@ type Config struct {
 	AllowServices []string
 	// RecursionMax caps X-Apprise-Recursion-Count (APPRISE_RECURSION_MAX).
 	RecursionMax int
-	// InterpretEmojis is accepted but unenforced: apprise-go exposes no
-	// emoji-expansion option (APPRISE_INTERPRET_EMOJIS). Like PLUGIN_PATHS,
-	// the variable is read for forward-compat but changes nothing.
+	// InterpretEmojis is accepted but unenforced (APPRISE_INTERPRET_EMOJIS).
 	InterpretEmojis bool
-	// HTTPRedirects is accepted but unenforced: apprise-go exposes no
-	// redirect-policy option (APPRISE_HTTP_REDIRECTS). Like PLUGIN_PATHS,
-	// the variable is read for forward-compat but changes nothing.
+	// HTTPRedirects is accepted but unenforced (APPRISE_HTTP_REDIRECTS).
 	HTTPRedirects bool
 }
 
@@ -134,8 +126,7 @@ func Load() (Config, error) {
 		set(v)
 		return nil
 	}
-	// HTTP_PORT fails fast at startup on non-numeric values (e.g.
-	// HTTP_PORT=abc) instead of silently serving on a garbage address.
+	// HTTP_PORT must be numeric; empty means :8080.
 	port, err := httpPort()
 	if err != nil {
 		return Config{}, err
@@ -162,8 +153,7 @@ func Load() (Config, error) {
 		DenyServices:  envCSV("APPRISE_DENY_SERVICES"),
 		AllowServices: envCSV("APPRISE_ALLOW_SERVICES"),
 	}
-	// Strict numerics/bools: non-empty unparseable values fail startup
-	// instead of silently falling back (PUID/PGID already behave this way).
+	// Non-empty unparseable numerics/bools fail startup.
 	for _, step := range []func() error{
 		func() error { return strictBool(func(v bool) { cfg.Debug = v }, "DEBUG", false) },
 		func() error { return strict(func(v int) { cfg.WorkerCount = v }, "WORKER_COUNT", 0) },
@@ -270,8 +260,8 @@ const DefaultAttachAllowURL = "*"
 // `internal` token makes the default fail closed: every attachment host
 // is DNS-resolved and IP-classified (loopback, private, link-local,
 // reserved, multicast, CGN, alternate encodings blocked; unresolvable
-// hosts blocked), so ALLOW=* out of the box can no longer reach the
-// instance metadata service or the cluster network.
+// hosts blocked), so ALLOW=* stays fail-closed (no instance-metadata or
+// cluster-network reach).
 const DefaultAttachRejectURL = "127.0.* localhost* internal"
 
 // AttachAllowURLOrDefault returns the configured SSRF allowlist or "*".
@@ -335,9 +325,7 @@ func envCSV(key string) []string {
 	return out
 }
 
-// envInt reads key as an integer, failing fast on a non-empty unparseable
-// value (empty means the fallback). Silent fallbacks would hide typos, so
-// every numeric/bool knob parses strictly like PUID/PGID below.
+// envInt: empty means fallback; non-empty unparseable is an error.
 func envInt(key string, fallback int) (int, error) {
 	if raw := strings.TrimSpace(os.Getenv(key)); raw != "" {
 		v, err := strconv.Atoi(raw)

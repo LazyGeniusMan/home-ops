@@ -3,8 +3,7 @@
 # Usage: bash projects/helm-gateway-api/ci/fetch.sh [--out DIR] [--check]
 #   --out DIR  staging dir (default: <chart>/upstream)
 #   --check    verify the URL for Chart.yaml's version answers 200 (no download)
-# Version contract: Chart.yaml version == upstream release sans leading v
-# (e.g. 1.6.1 -> v1.6.1); tag bumps move Chart.yaml version + appVersion together.
+# Version contract: see README (Chart.yaml version == upstream sans leading v).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

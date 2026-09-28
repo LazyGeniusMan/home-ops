@@ -57,13 +57,9 @@ type Result struct {
 // policy filtering (the server maps it to HTTP 204).
 var ErrNoTargets = errors.New("notify: no valid URLs provided to notify")
 
-// maxInFlight bounds concurrent Send calls: apprise-go clients are
-// synchronous with no context support, so without a bound every in-flight
-// /notify request would pile up its own worker goroutine per target.
-// Calls beyond the bound fail fast with ErrOverloaded instead of queueing.
-// A slot is held until the worker goroutine exits (not until the caller
-// stops waiting): a timed-out caller still leaves its worker running, so
-// releasing on timeout would over-admit beyond the bound.
+// maxInFlight bounds concurrent Send calls (sync engine: one worker per
+// call). Over-cap calls fail fast with ErrOverloaded; the worker owns its
+// slot until exit, so timeouts count as in-flight.
 const maxInFlight = 64
 
 // ErrOverloaded reports that too many Send calls are in flight.
@@ -134,12 +130,7 @@ func (s *Sender) Send(ctx context.Context, req Request) (Result, error) {
 	if len(targets) == 0 {
 		return Result{}, ErrNoTargets
 	}
-	// The apprise-go engine is synchronous with no context support, so the
-	// send loop runs on a worker goroutine bounded by the per-call timeout
-	// (or the tighter request deadline). done is buffered (one send) so the
-	// worker never blocks reporting after the caller gave up on timeout or
-	// cancel — it finishes, reports into the buffer, and exits. The loop
-	// also stops early between targets once the request context ends.
+	// Sync engine, so the send loop runs on a worker bounded by the per-call timeout (see maxInFlight).
 	type sendResult struct {
 		delivered int
 		err       error
@@ -151,10 +142,7 @@ func (s *Sender) Send(ctx context.Context, req Request) (Result, error) {
 	}
 	inFlight++
 	inFlightMu.Unlock()
-	// The slot releases only when the worker goroutine exits (release is
-	// owned by the worker, not by the caller's wait paths below): on the
-	// timeout/cancel path the worker keeps running and keeps holding its
-	// slot, so the bound counts real concurrency instead of waiters.
+	// Slot release is worker-owned (see maxInFlight).
 	release := func() {
 		inFlightMu.Lock()
 		inFlight--
@@ -286,8 +274,7 @@ func urlScheme(raw string) string {
 	return strings.ToLower(strings.TrimSpace(scheme))
 }
 
-// IsSelfRecursionTarget reports whether rawURL addresses this API itself
-// via the apprise:// scheme. Ingress recursion enforcement is authoritative.
+// IsSelfRecursionTarget reports apprise:// self-recursion targets.
 func IsSelfRecursionTarget(raw string) bool {
 	switch urlScheme(raw) {
 	case "apprise", "apprises":

@@ -110,9 +110,6 @@ func New(p *nbprovider.Provider, log *slog.Logger, webhookAddr, metricsAddr stri
 		Name:      "adjust_endpoints_errors_total",
 		Help:      "Errors serving POST /adjustendpoints.",
 	}))
-	// Build version gauge: external_dns_netbird_build_info{version="..."} == 1.
-	// Surface via build_info (documented) — no separate /version sampler
-	// needed beyond the ops endpoint.
 	buildInfo.WithLabelValues(version.Version).Set(1)
 	return &Server{
 		provider:    p,
@@ -125,14 +122,11 @@ func New(p *nbprovider.Provider, log *slog.Logger, webhookAddr, metricsAddr stri
 	}
 }
 
-// shutdownTimeout bounds graceful drain of both listeners on SIGTERM
-// (docker stop): in-flight webhook applies finish before the process exits.
 const shutdownTimeout = 10 * time.Second
 
 // Run starts both listeners (webhook + ops) and blocks until the context
-// is cancelled or one listener fails. On context cancellation it shuts
-// both servers down gracefully with shutdownTimeout, draining in-flight
-// requests; docker stop therefore drains instead of hard-killing.
+// is cancelled or one listener fails. On SIGTERM (docker stop) both drain
+// gracefully with shutdownTimeout.
 func (s *Server) Run(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", s.handleNegotiate)

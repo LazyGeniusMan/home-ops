@@ -27,5 +27,3 @@ bash projects/helm-gateway-api/ci/verify.sh          # lint + fetch dry-run + no
 ```
 
 Push-only publish from the `Chart.yaml` version (no git tags); re-publishing overwrites the same OCI tag.
-
-<!-- trigger CI -->

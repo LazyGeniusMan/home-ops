@@ -16,8 +16,7 @@ This service implements **only** the stateless notification path:
 | Request-scoped attachments | Any persistent config storage |
 | Third-party webhook remap (`?:src=dst`) + result callback | Per-key management UI / API |
 
-Any path other than the seven routes above returns **404**
-(`APPRISE_STATELESS_STORAGE=no`; persistence is unsupported by design).
+Any other path returns **404**.
 `APPRISE_STATEFUL_MODE` must be `"disabled"` — any other value fails
 startup.
 
@@ -105,7 +104,7 @@ Validation failures use the same negotiation with a plain error message
 
 Health plus attach/config-lock flags (`status`, `version`,
 `stateful_mode`, `stateless_storage`, `attach_dir`, `can_write_attach`;
-see the status handler). Always JSON. `attach_dir` resolves
+see `handleStatus`). Always JSON. `attach_dir` resolves
 `APPRISE_ATTACH_DIR` (default OS temp dir); the writability probe is
 TTL-cached (30s, shared with `/readyz`/`/metrics`) and failure sets
 `can_write_attach: false` + `attach_permission_issue`. Non-GET → `405`.
@@ -113,7 +112,7 @@ TTL-cached (30s, shared with `/readyz`/`/metrics`) and failure sets
 ### `GET /details`
 
 Service catalog (`version`, `service_count`, `services`, `routes`;
-see the details handler). Always JSON. Non-GET → `405`.
+see `handleDetails`). Always JSON. Non-GET → `405`.
 ```
 
 ### `GET /healthz` and `GET /readyz`
@@ -144,7 +143,7 @@ Prometheus exposition via `client_golang` on the default registry
 `apprise_go_api_http_requests_total` /
 `apprise_go_api_http_request_duration_seconds_bucket` by
 `method`/`route`/`status` (`route` = matched mux pattern, never raw
-path) and one slog line; exact names live in the metrics handler.
+path) and one slog line (see `internal/server/metrics.go`).
 Version is `internal/version.Version` (`dev` locally; release images
 inject via `ARG VERSION` ldflags). The attach probe is TTL-cached
 (30s), shared by `/status`, `/readyz`, `/metrics`.
@@ -303,9 +302,6 @@ Non-empty unparseable numerics/bools (`WORKER_COUNT`, `TIMEOUT`,
 `APPRISE_HTTP_REDIRECTS`) fail startup instead of silently falling back —
 the same fail-fast rule as `PUID`/`PGID`.
 
-**Explicitly absent (stateful-only):** upstream persistence knobs are
-not read; non-`disabled` `APPRISE_STATEFUL_MODE` or non-`no`
-`APPRISE_STATELESS_STORAGE` fails startup.
 
 ## Error / status-code table
 
@@ -317,7 +313,7 @@ not read; non-`disabled` `APPRISE_STATEFUL_MODE` or non-`no`
 | `405` | Non-POST on `/notify{,/}`; non-GET on `/status`, `/details` | `Allow` header set |
 | `406` | Recursion count over max | 406, not 405 |
 | `424` | At least one target failed delivery | Partial failures surface as errors, not partial 200s |
-| `431` | JSON body over `APPRISE_UPLOAD_MAX_MEMORY_SIZE` | `to large` typo preserved verbatim |
+| `431` | JSON body over `APPRISE_UPLOAD_MAX_MEMORY_SIZE` | the 431 body is literally `JSON Payload provided is to large` |
 | `404` | Any other path (keyed `/notify/{KEY}`, `/add/`, `/cfg/`, …) | Stateless-only: no per-key storage routes exist |
 
 ## Layout
@@ -345,7 +341,7 @@ govulncheck ./...
 gofmt -s -l .
 ```
 
-Metric names are defined in code (see the metrics handler).
+Metric names are defined in code (see `internal/server/metrics.go`).
 
 Image `ghcr.io/lazygeniusman/home-ops/projects/apprise-go-api`: `main`
 push → `:dev` (+ `:dev-<sha>`), tag `apprise-go-api-v*` → `:stable` +
@@ -358,13 +354,11 @@ version; no `:latest`. Consumed in Flux via
 
 ## Divergence from upstream
 
-Stateless-only port of Python `apprise-api`: stateful paths are `404` and
+Stateful paths are `404` and
 storage knobs fail startup unless `APPRISE_STATEFUL_MODE=disabled` /
 `APPRISE_STATELESS_STORAGE=no`. Response logs are server-synthesized
 `[level, date, message]` triples. `204`/`400`/`406`/`431` bodies keep
-upstream wording (including the `to large` typo). `ALLOWED_HOSTS`,
-`WORKER_COUNT`, `APPRISE_PLUGIN_PATHS`, `APPRISE_INTERPRET_EMOJIS`, and
-`APPRISE_HTTP_REDIRECTS` are accepted no-ops. The outbound webhook
+upstream wording (the 431 body is literally `JSON Payload provided is to large`). The outbound webhook
 best-effort POSTs `{source, status, output}` with no trace headers. Send
 pipeline: per-call `TIMEOUT` caller deadline, max 64 in-flight (over-cap →
 `503`); list-form tags are validated per token (invalid → `400`). The

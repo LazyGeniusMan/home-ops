@@ -335,10 +335,7 @@ func (s *Stager) stageStream(name, mimeType string, r io.Reader, maxBytes int64)
 	if dir == "" {
 		dir = os.TempDir()
 	}
-	// Never create the staging dir on the request path: auto-creating a
-	// missing dir could mask a misconfigured mount or, worse, stage into
-	// an unintended location. The operator (or /readyz probe wiring) owns
-	// the dir; requests only fail with a 400 when it is absent.
+	// The operator owns the dir; a missing dir fails the request (400).
 	if st, err := os.Stat(dir); err != nil || !st.IsDir() {
 		return Staged{}, BadAttachment("could not prepare %s attachment in %s", name, dir)
 	}

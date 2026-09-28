@@ -14,10 +14,10 @@ lives in `templates/_helpers.tpl` behind the `helm-rclone.*` prefix.
 Consumed in Flux by seven wrappers pinning the exact chart version (no
 `$imagepolicy` marker — Helm OCIRepositories are untracked):
 `flux/apps/components/{coder,clickstack,matrix}/base/rclone-sync-*.yaml`
-(3: `rclone-sync-coder-db.yaml`, `rclone-sync-buckets.yaml`,
+(`rclone-sync-coder-db.yaml`, `rclone-sync-buckets.yaml`,
 `rclone-sync-matrix.yaml`) plus
 `flux/infra/components/{zitadel,clickhouse,cnpg,dragonfly}/configs/base/rclone-sync*.yaml`
-(4: `rclone-sync-buckets.yaml`, `rclone-sync-clickhouse.yaml`,
+(`rclone-sync-buckets.yaml`, `rclone-sync-clickhouse.yaml`,
 `rclone-sync-cnpg-backups.yaml`, `rclone-sync-dragonfly-backups.yaml`).
 Bump the chart version + all seven consumer pins atomically (see Chart.yaml).
 Every leg uses `operation: sync` (mirror; source deletion is the storage
@@ -43,13 +43,7 @@ helm upgrade --install rclone-nightly ./projects/helm-rclone \
   --values my-sync-values.yaml
 ```
 
-Verify before applying (`values.yaml` ships no credentials by design, so
-lint needs a direction fixture — bare defaults only prove the fail-fast):
-
-```bash
-helm lint projects/helm-rclone -f projects/helm-rclone/ci/values-direction-01-pvc-rwo-to-s3.yaml
-bash projects/helm-rclone/ci/verify.sh   # lint + all 10 directions + guards
-```
+Verify as in ## Verifying (`values.yaml` ships no credentials by design).
 
 ## Sync directions
 
@@ -153,7 +147,7 @@ suspend: false            # true pauses the schedule without uninstalling
 image: {repository: rclone/rclone, tag: "1.75.0"}  # exact pin, never "latest"
 rclone:
   version: ""             # overrides image.tag when set (exact pin, never "latest")
-  operation: sync         # sync default (mirror; deletes extras at destination; source deletion: storage backend or db/app operator's job); copy opt-in per release; nothing long-lived
+  operation: sync         # sync default (mirror); copy is opt-in per release via rclone.operation
   extraArgs: []           # e.g. ["--transfers=4", "--stats-one-line"]
 ```
 
@@ -244,5 +238,3 @@ for f in projects/helm-rclone/ci/values-*.yaml; do
   helm template demo ./projects/helm-rclone -f "$f"
 done | grep -ri rclone.conf   # must print nothing
 ```
-
-<!-- trigger CI -->
