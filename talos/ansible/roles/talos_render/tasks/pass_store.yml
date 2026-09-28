@@ -2,7 +2,19 @@
 # Day-0 Proton Pass auto-store (RUNBOOK §6): push secrets.bundle.yml +
 # talosconfig (+ kubeconfig when present) into the cluster vault `talos`
 # item, `Secrets` section, hidden fields. Deep-merge only: checksum-driven
-# per-field updates; never runs gen (no rotation), never creates vaults.
+# per-field updates; never runs gen (no rotation), never creates vaults
+# (the item itself is created on first push).
+# Fields — 3-segment refs pass://<vault>/<item>/<field> (vault = cluster name):
+#   pass://<cluster>/talos/secrets-bundle (e.g.
+#   pass://acme-dev-bdo1-talos-apps-01/talos/secrets-bundle) — minted by day-0
+#   `talosctl gen secrets -o build/<cluster>/secrets.bundle.yml`.
+#   pass://<cluster>/talos/talosconfig (e.g.
+#   pass://acme-dev-bdo1-talos-apps-01/talos/talosconfig) — minted by day-0
+#   `talosctl gen config <cluster> <endpoint> --with-secrets ... -t talosconfig`.
+#   pass://<cluster>/talos/kubeconfig (e.g.
+#   pass://acme-dev-bdo1-talos-apps-01/talos/kubeconfig) — fetched by day-1
+#   `talosctl kubeconfig -f`.
+# EXCLUDED (never stored here): netbird-tf/ state, proton-pass-pat (RUNBOOK §6.3).
 - name: Stat the bootstrap marker for the post-install push gate
   ansible.builtin.stat:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}/.bootstrapped"

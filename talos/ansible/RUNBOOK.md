@@ -81,12 +81,14 @@ Changes nothing on the nodes.
 
 Per cluster vault: a `talos` item with `netbird-pat` (§1.0b) **plus** an
 `eso-proton-pass` item with `pat` (see `clusters/<cluster>/pat.yml.template`).
+Day-0 also auto-stores `secrets.bundle.yml` + `talosconfig` (+ `kubeconfig`
+when present) back into the `talos` item `Secrets` section (§6.1).
 A missing item/field fails rendering naming the unresolved ref.
 
 Role order (`talos_render`): `mkdir` → login check → inject cluster + node
 patches → inject PAT → NetBird plane (§1.0b) → schematic merge/upload/ID-rewrite
-→ `gen secrets` → `gen config -t talosconfig` → per-node `gen config` with
-`--install-image` → `validate -m metal`.
+→ `gen secrets` → `gen config -t talosconfig` → Proton Pass auto-store (§6.1)
+→ per-node `gen config` with `--install-image` → `validate -m metal`.
 
 ### 1.0b NetBird setup key (PAT-driven Terraform, never vault-seeded)
 
@@ -224,7 +226,8 @@ Installs machine configs onto maintenance-booted nodes, bootstraps etcd on the f
 node, fetches the admin kubeconfig. Run **after a successful day-0 real run** for the
 same cluster — day-0 must have rendered with the same fresh-install flag.
 
-Role order (`talos_bootstrap`): session check → intent + wipe asserts →
+Role order (`talos_bootstrap`): session check → Proton Pass
+pull-restore (§6.2) → intent + wipe asserts →
 `apply-config --insecure` per node → TCP wait → `talosctl version` poll on
 every node → control-plane assert on `nodes[0]` → `bootstrap` on `nodes[0]` →
 `kubeconfig` fetch → markers.
@@ -242,7 +245,8 @@ ansible-playbook playbooks/day1.yml -i localhost, -e talos_cluster=<cluster> -e 
 
 ### 2.1b PAT source (day-0 render) + one-time interactive `agent create`
 
-Day-1 probes the `pass-cli` session only (§0.3 — it never reads the day-0
+Day-1 pulls the Pass-stored trio first (§6.2), then probes the `pass-cli`
+session only for auth (§0.3 — it never reads the day-0
 `proton-pass-pat` render; that render is day-2 input, §3.7).
 If no token exists yet, mint one interactively (one-time):
 
@@ -299,8 +303,9 @@ kubectl --kubeconfig build/$C/kubeconfig get nodes -o wide   # expect Ready
 ## 3. Day 2 — operate (`playbooks/day2.yml`)
 
 Default (no flags) is read-only health/etcd, but still checks the `pass-cli`
-session first. Flags opt into regen, secrets refresh, re-apply, upgrades, and
-the ESO PAT Secret plane. Order: auth probe → health gate → regen → secrets
+session first. Flags opt into regen, secrets refresh, pull-restore (§6.2),
+re-apply, upgrades, and the ESO PAT Secret plane. Order: auth probe →
+health gate → regen → pull-restore (`restore_secrets=true` only) → secrets
 refresh → PAT apply → re-apply (`staged` default) → Talos upgrade → Kubernetes
 upgrade (→ PAT renew with `pat_renew=true`, §3.7). Talos always precedes k8s.
 Every mutating plane requires the health probe to return `rc==0` this run (or
@@ -323,7 +328,7 @@ changes without a §3.2 flag. Health runs on **every** invocation; skip with
 health gate — use it solely to recover a cluster too sick to pass health,
 then re-run without it).
 
-### 3.2 Flags (opt-in upgrades, regen, re-apply)
+### 3.2 Flags (opt-in upgrades, regen, re-apply, restore)
 
 | Flag | Effect |
 | --- | --- |
@@ -334,6 +339,7 @@ then re-run without it).
 | `regen_kubeconfig` | Re-fetches admin kubeconfig via `talosctl kubeconfig -f` |
 | `refresh_secrets` | Re-renders + regenerates without pushing (vault-rotation pickup; implied by `reapply_configs`) |
 | `reapply_configs` (+ `reapply_mode`, default `staged`) | Runs the refresh render path, then pushes via `apply-config --mode` |
+| `restore_secrets` | Pulls absent `secrets.bundle.yml`/`talosconfig`/`kubeconfig` from Proton Pass (§6.2); default `false` (day-2 read-only) |
 | `pat_apply` | Applies the stored PAT to the ESO Secret (post-Flux only) |
 | `pat_renew` (needs `pat_apply=true`) | Renews the agent token first, then applies; blocked sessions skip with the interactive command |
 | `pat_name` / `pat_expiration` | Renew identity / expiration enum (defaults `home-ops-eso` / `1y`) |
@@ -500,7 +506,7 @@ preflight when a source patch is newer than its render, naming the `rm` below
 | `nodes-<node>-patches.yml` | source node patch, vault values, or schematic changes | `rm build/<c>/nodes-*-patches.yml`, re-run day-0 |
 | `proton-pass-pat` | vault `eso-proton-pass`/`pat` rotated | `rm build/<c>/proton-pass-pat`, re-run day-0 (or day-2 `-e reapply_configs=true`) |
 | `schematic-<node>.id` / `.sha256` | re-uploads on content change | none needed |
-| `secrets.bundle.yml` | **never** refreshes while present | `rm` + re-run day-0 only pre-install |
+| `secrets.bundle.yml` | **never** refreshes while present | `rm` + re-run day-0 only pre-install; live cluster pulls from Pass (§6.2) |
 | `talosconfig`, `nodes/<n>/*.yaml` | fresh every run (no guard) | n/a |
 | `.installed-<node>` | config re-rendered but node never re-applied | `rm` + re-run day-1 (maintenance only) / manual secure apply if installed |
 | `.bootstrapped` | never re-run by design | `rm` only to **re-bootstrap a fresh cluster**; never on a live one |
@@ -524,8 +530,8 @@ talosctl apply-config --talosconfig build/$C/talosconfig -n $N \
 Both clusters run ONE control-plane node today:
 
 - **Accepted RTO**: any node failure = full outage until the node returns.
-  Mitigation is the §6 backup (PKI bundle + `netbird-tf/` state off-machine)
-  plus reinstall from the same bundle.
+  Mitigation is the §6 backup (PKI trio in Pass + `netbird-tf/` gpg state
+  off-machine) plus reinstall from the same bundle.
 - **Control-plane taint removal is intentional** (`taints: $patch: delete`);
   re-add the taint when scaling past one node.
 - **VIP is a single speaker** (no HA) and stays the stable API endpoint across
@@ -581,11 +587,11 @@ All files `0600` (`netbird-tf/` dir `0700`).
 | `nodes-<node>-patches.yml` | day-0 inject (node) + ID-rewrite |
 | `schematics-<node>.yml` | day-0 stage (reference copy of resolved schematic) |
 | `schematic-<node>.id` / `.sha256` | day-0 factory upload / reuse (64-hex ID) |
-| `secrets.bundle.yml` | day-0 `gen secrets` (Cluster PKI bundle — never commit) |
-| `talosconfig` | day-0 `gen config -t talosconfig` |
+| `secrets.bundle.yml` | day-0 `gen secrets` (Cluster PKI bundle — never commit; Pass-backed §6.1) |
+| `talosconfig` | day-0 `gen config -t talosconfig` (Pass-backed §6.1) |
 | `nodes/<node>/controlplane.yaml` | day-0 `gen config` (control-plane nodes) |
 | `nodes/<node>/worker.yaml` | day-0 `gen config` (no worker nodes defined) |
-| `kubeconfig` | day-1 `talosctl kubeconfig -f` |
+| `kubeconfig` | day-1 `talosctl kubeconfig -f` (Pass-backed §6.1) |
 | `proton-pass-pat` | day-0 inject from `pat.yml.template` (day-2 re-render forced on refresh/reapply) |
 | `netbird-tf/` (`terraform.tfstate` plaintext) | day-0 NetBird plane (§1.0b), persistent — backup class §6.1 |
 | `.installed-<node>` / `.bootstrapped` | day-1 markers |
@@ -608,6 +614,7 @@ Pins (`talos_version`, `talos_kubernetes_pinned_version`) live in
 | `regen_talosconfig` / `regen_kubeconfig` | day-2 | `false` | Rebuild talosconfig / re-fetch kubeconfig (§3.5). |
 | `refresh_secrets` | day-2 | `false` | Re-render + regenerate without pushing (§3.6a; implied by reapply). |
 | `reapply_configs` (+ `reapply_mode`, default `staged`) | day-2 | `false` | Refresh render path, then `apply-config --mode` (§3.6). |
+| `restore_secrets` | day-2 | `false` (read-only) | Pull-restore absent files from Proton Pass (§6.2). |
 | `skip_health` | day-2 | `false` | Skips the health probe AND the mutating-plane gate (break-glass). |
 | `pat_apply` | day-2 | `false` (read-only) | Applies stored PAT to the ESO Secret (§3.7). |
 | `pat_renew` | day-2 | `false` (needs `pat_apply=true`) | Renews the agent token first (§3.7). |
@@ -616,41 +623,63 @@ Pins (`talos_version`, `talos_kubernetes_pinned_version`) live in
 
 ## 6. Backup / save — surviving a fresh clone
 
-`build/` is gitignored, so a fresh clone starts EMPTY. Most re-renders, but the PKI
-bundle cannot be re-created — back up off-machine (encrypted) after every day-0/day-1.
+`build/` is gitignored, so a fresh clone starts EMPTY. Day-0 auto-stores the PKI
+trio into Proton Pass after every render (§6.1); only the NetBird Terraform
+state still needs a manual encrypted backup.
 
 ### 6.1 What to back up
 
+Day-0 pushes `secrets.bundle.yml` + `talosconfig` (+ `kubeconfig` when present)
+into the cluster vault `talos` item, `Secrets` section, hidden fields —
+checksum-driven per-field updates, deep-merge only. Skipped on bootstrapped
+clusters unless forced (`-e talos_render_pass_store_force=true`); local files
+win. Per-field refs, redacted examples, and generating commands live beside
+the role (`roles/talos_render/tasks/pass_store.yml`).
+
 | File (`build/<cluster>/...`) | Class | Why |
 | --- | --- | --- |
-| `secrets.bundle.yml` | **CRITICAL** | Cluster PKI root — a fresh bundle does NOT match an installed cluster. |
-| `netbird-tf/` (whole dir) | **CRITICAL** | Plaintext local state holding the setup-key secret. |
-| `talosconfig` / `kubeconfig` | Convenience | Rebuildable via regen flags (§3.5); keep a copy anyway. |
-| `proton-pass-pat` | Re-mintable | Re-renders via day-0 inject; keep a copy for offline `pat_apply`. |
+| `secrets.bundle.yml` | Pass-backed + local cache | Cluster PKI root at `pass://<cluster>/talos/secrets-bundle` — a fresh bundle does NOT match an installed cluster. |
+| `talosconfig` | Pass-backed + local cache | At `pass://<cluster>/talos/talosconfig`; also rebuildable via `regen_talosconfig` (§3.2). |
+| `kubeconfig` | Pass-backed + local cache | At `pass://<cluster>/talos/kubeconfig` (lands on the next day-0 after day-1 fetches it); may be stale — prefer `regen_kubeconfig` once reachable. |
+| `netbird-tf/` (whole dir) | **CRITICAL-local, EXCLUDED from Pass** | Plaintext local state holding the setup-key secret — never stored in Pass; the gpg backup below is its only off-machine copy. |
+| `proton-pass-pat` | Re-mintable, EXCLUDED from Pass | Re-renders via day-0 inject; keep a copy for offline `pat_apply` (§6.3). |
 
 Regenerable (no backup needed): rendered patches, staged schematics + `.id`/`.sha256`, node `*.yaml`, markers.
 
 ```bash
 # Working dir: talos/ansible/
 C=<cluster>
-tar -czf - build/$C/secrets.bundle.yml build/$C/talosconfig \
-  build/$C/kubeconfig build/$C/proton-pass-pat build/$C/netbird-tf | \
-  gpg --symmetric --cipher-algo AES256 -o ~/talos-$C-backup.tgz.gpg
-# Store OFF this machine. Verify: gpg -d ~/talos-$C-backup.tgz.gpg | tar -tz
+tar -czf - build/$C/netbird-tf | \
+  gpg --symmetric --cipher-algo AES256 -o ~/talos-$C-netbird-tf.tgz.gpg
+# Store OFF this machine. Verify: gpg -d ~/talos-$C-netbird-tf.tgz.gpg | tar -tz
 ```
 
 ### 6.2 Fresh-clone restore
 
-Restore the backup, re-render the rest with day-0, then continue with day-1
-(pre-install) or day-2 (installed):
+Probe the session, pull the trio from Pass, re-render the rest with day-0, then
+continue with day-1 (pre-install) or day-2 (installed). Day-1 pulls
+unconditionally; day-2 only with `-e restore_secrets=true` (default `false`
+keeps day-2 read-only). Each file restores only when its local copy is absent
+(local files win); on a live cluster a file Pass cannot supply fails closed
+instead of minting fresh. Per-field refs live beside the role
+(`roles/talos_bootstrap/tasks/pass_restore.yml`).
 
 ```bash
 # Working dir: talos/ansible/
 C=<cluster>
-gpg -d ~/talos-$C-backup.tgz.gpg | tar -xzf -   # restores bundle + talosconfig + kubeconfig + PAT + netbird-tf/
+pass-cli login   # probe the session first (§0.3)
+ansible-playbook playbooks/day2.yml -i localhost, -e talos_cluster=$C -e restore_secrets=true   # pull: restores bundle + talosconfig + kubeconfig from Pass
 ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=$C   # re-renders patches, .id files, node yamls (netbird-tf/ restored, so the NetBird plane upserts — no imports)
-ansible-playbook playbooks/day1.yml -i localhost, -e talos_cluster=$C   # pre-install: apply + bootstrap + kubeconfig
+ansible-playbook playbooks/day1.yml -i localhost, -e talos_cluster=$C -e talos_bootstrap_fresh_install=true   # pre-install only: apply + bootstrap + kubeconfig
 ansible-playbook playbooks/day2.yml -i localhost, -e talos_cluster=$C   # installed: read-only health first, then opt in (§3.2)
+```
+
+`netbird-tf/` is NOT in Pass — restore it from gpg before the day-0 re-render:
+
+```bash
+# Working dir: talos/ansible/
+C=<cluster>
+gpg -d ~/talos-$C-netbird-tf.tgz.gpg | tar -xzf -   # restores netbird-tf/ only
 ```
 
 ### 6.3 What NEVER to do
@@ -658,9 +687,14 @@ ansible-playbook playbooks/day2.yml -i localhost, -e talos_cluster=$C   # instal
 - **Never commit `build/`** — live PKI, admin configs, vault PAT.
 - **Never re-bootstrap a live cluster** — `rm .bootstrapped` + re-run day-1 would
   `talosctl bootstrap` an already-bootstrapped etcd (split-brain).
-- **Never delete `secrets.bundle.yml` on a live cluster** (§1.7) — restore from backup instead.
-- **Never `rm -rf build/<cluster>` on a live cluster without a backup** — re-render
-  needs the SAME bundle (also wipes `netbird-tf/` state; re-anchor with
-  `tofu import` per resource — see the netbird README).
+- **Never mint fresh PKI against live state** — on a fresh clone with a live
+  cluster, pull from Pass FIRST (`restore_secrets`), then re-render (§1.7);
+  a fresh `gen secrets` orphans the cluster.
+- **Never delete `secrets.bundle.yml` on a live cluster** (§1.7) — restore from Pass instead.
+- **Never `rm -rf build/<cluster>` on a live cluster without restorable state** —
+  re-render needs the SAME bundle from Pass (plus `netbird-tf/` from gpg;
+  without it re-anchor with `tofu import` per resource — see the netbird README).
+- **Never store `netbird-tf/` in Proton Pass** — gpg backup (§6.1) is its only
+  off-machine copy.
 - **Never seed `proton-pass-pat` back into the vault** — it is the vault credential;
   it lives in `build/` and flows only to the day-2 ESO Secret apply.

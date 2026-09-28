@@ -56,8 +56,9 @@ role-aware.
 
 `build/` outputs per cluster are all gitignored — see the canonical table
 (`RUNBOOK.md` §5.2); backup rules in §6. The staged `netbird-tf/` dir keeps
-persistent plaintext local state so re-applies upsert — backed up encrypted
-with the PKI bundle (§6.1); never committed or deleted between runs (see
+persistent plaintext local state so re-applies upsert — encrypted gpg backup
+of its own (§6.1; the PKI trio lives in Proton Pass instead); never committed
+or deleted between runs (see
 `RUNBOOK.md` §1.0b). NFS stack (node schematic + exports + netconfig +
 nfs-server service) is per node — see `RUNBOOK.md` §1.6.
 
