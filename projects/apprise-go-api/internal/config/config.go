@@ -311,25 +311,6 @@ func httpPort() (string, error) {
 	return ":" + port, nil
 }
 
-// httpPortFromValue resolves an explicit port value; unparseable values
-// fall back to the default (kept for callers that validate separately).
-func httpPortFromValue(port string) (string, error) {
-	port = strings.TrimSpace(port)
-	if port == "" {
-		return defaultAddr, nil
-	}
-	port = strings.TrimPrefix(port, ":")
-	if port == "" {
-		return defaultAddr, nil
-	}
-	for i := 0; i < len(port); i++ {
-		if port[i] < '0' || port[i] > '9' {
-			return "", fmt.Errorf("config: HTTP_PORT must be a numeric port, got %q", port)
-		}
-	}
-	return ":" + port, nil
-}
-
 func envOr(key, fallback string) string {
 	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
 		return v
