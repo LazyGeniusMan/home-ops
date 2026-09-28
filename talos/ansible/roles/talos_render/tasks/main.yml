@@ -286,6 +286,11 @@
     path: "{{ talos_build_dir }}/{{ talos_cluster }}/talosconfig"
     mode: "0600"
 
+# Proton Pass auto-store (RUNBOOK §6): push bundle + talosconfig (+ kubeconfig
+# when present) into the cluster vault `talos` item, Secrets section.
+- name: Auto-store cluster secrets in Proton Pass
+  ansible.builtin.include_tasks: pass_store.yml
+
 - name: Assert node roles map to a Talos machine type
   # Unknown role: strings fail here with the node name + valid roles instead
   # of a raw Jinja KeyError inside the gen config invocation below.

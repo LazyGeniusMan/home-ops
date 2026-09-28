@@ -1,0 +1,269 @@
+---
+# Day-0 Proton Pass auto-store (RUNBOOK §6): push secrets.bundle.yml +
+# talosconfig (+ kubeconfig when present) into the cluster vault `talos`
+# item, `Secrets` section, hidden fields. Deep-merge only: checksum-driven
+# per-field updates; never runs gen (no rotation), never creates vaults.
+- name: Stat the bootstrap marker for the post-install push gate
+  ansible.builtin.stat:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/.bootstrapped"
+  check_mode: false
+  register: talos_render_pass_store_bootstrapped
+  changed_when: false
+
+- name: Decide whether the Proton Pass auto-store runs
+  ansible.builtin.set_fact:
+    talos_render_pass_store_active: >-
+      {{ not (talos_render_pass_store_bootstrapped.stat.exists | default(false))
+        or (talos_render_pass_store_force | default(false) | bool) }}
+
+- name: Note the skipped auto-store on installed clusters without opt-in
+  ansible.builtin.debug:
+    msg: >-
+      Cluster {{ talos_cluster }} is bootstrapped; skipping the Proton Pass
+      auto-store (local files win). Re-run with
+      -e talos_render_pass_store_force=true to push.
+  when: not (talos_render_pass_store_active | bool)
+
+- name: Push cluster secrets to Proton Pass
+  when: talos_render_pass_store_active | bool
+  block:
+    - name: Probe the Proton Pass store item
+      # Probes run in check mode too; only writes honour check mode below.
+      ansible.builtin.command:
+        argv:
+          - pass-cli
+          - item
+          - view
+          - --vault-name
+          - "{{ talos_clusters[talos_cluster].vault }}"
+          - --item-title
+          - "{{ talos_render_pass_store_item }}"
+          - --output
+          - json
+      environment:
+        PROTON_PASS_AGENT_REASON: >-
+          {{ talos_render_pass_agent_reason_prefix }}-{{ talos_cluster }}-store-probe-{{
+            lookup('community.general.random_string', length=16,
+            override_all='0123456789abcdef') }}
+      check_mode: false
+      changed_when: false
+      failed_when: false
+      register: talos_render_pass_store_probe
+      no_log: true
+
+    - name: Fail when the Proton Pass vault is missing
+      ansible.builtin.fail:
+        msg: >-
+          Proton Pass vault '{{ talos_clusters[talos_cluster].vault }}' not
+          found (Could not find vault). Create the vault first, then re-run
+          the play. Vaults are never auto-created.
+      when:
+        - talos_render_pass_store_probe.rc != 0
+        - '"Could not find vault" in talos_render_pass_store_probe.stderr | default("")'
+
+    - name: Fail when pass-cli has no authenticated session
+      ansible.builtin.fail:
+        msg: >-
+          No authenticated pass-cli session. Run `pass-cli login` before
+          rendering secrets, then re-run the play.
+      when:
+        - talos_render_pass_store_probe.rc != 0
+        - '"Could not find vault" not in talos_render_pass_store_probe.stderr | default("")'
+        - '"No item found with title" not in talos_render_pass_store_probe.stderr | default("")'
+
+    - name: Record whether the store item is missing
+      ansible.builtin.set_fact:
+        talos_render_pass_store_missing: "{{ talos_render_pass_store_probe.rc != 0 }}"
+
+    - name: Parse the stored Proton Pass fields
+      ansible.builtin.set_fact:
+        talos_render_pass_store_item_id: "{{ (talos_render_pass_store_probe.stdout | from_json).item.id }}"
+        talos_render_pass_store_sections: >-
+          {{ ((talos_render_pass_store_probe.stdout | from_json).item.content.Custom
+            | default({})).sections | default([]) }}
+        talos_render_pass_store_extra: >-
+          {{ ((talos_render_pass_store_probe.stdout | from_json).item.content
+            | default({})).extra_fields | default([]) }}
+      when: talos_render_pass_store_probe.rc == 0
+      no_log: true
+
+    - name: Index stored fallback extra fields
+      # Live `talos` item type is open (login items carry `netbird-pat` today):
+      # qualified writes on non-custom items land as top-level text extra
+      # fields (e.g. `Secrets.secrets-bundle`). Index by the bare field name
+      # (the part after the last dot) so drift compares stay idempotent
+      # across item types; section fields below win on key collision.
+      ansible.builtin.set_fact:
+        talos_render_pass_store_stored: >-
+          {{ (talos_render_pass_store_stored | default({}))
+            | combine({((item.name | lower).split('.') | last):
+              (item.content.values() | list | first | string)}) }}
+      loop: "{{ talos_render_pass_store_extra | default([]) }}"
+      when:
+        - talos_render_pass_store_probe.rc == 0
+        - "'.' in (item.name | default(''))"
+      no_log: true
+
+    - name: Index stored Secrets section fields
+      ansible.builtin.set_fact:
+        talos_render_pass_store_stored: >-
+          {{ (talos_render_pass_store_stored | default({}))
+            | combine({(item.1.name | lower): (item.1.content.values() | list | first | string)}) }}
+      loop: "{{ talos_render_pass_store_sections | default([]) | subelements('section_fields', skip_missing=true) }}"
+      when:
+        - talos_render_pass_store_probe.rc == 0
+        - (item.0.section_name | default('') | lower) == 'secrets'
+      no_log: true
+
+    - name: Slurp local files for the Proton Pass auto-store
+      ansible.builtin.slurp:
+        path: "{{ talos_build_dir }}/{{ talos_cluster }}/{{ item.file }}"
+      loop:
+        - {name: secrets-bundle, file: secrets.bundle.yml, required: true}
+        - {name: talosconfig, file: talosconfig, required: true}
+        - {name: kubeconfig, file: kubeconfig, required: false}
+      check_mode: false
+      failed_when: false
+      register: talos_render_pass_store_local
+      no_log: true
+
+    - name: Fail when a required local file is missing before the auto-store
+      # This role never runs gen (no rotation): on a bootstrapped cluster a
+      # missing bundle means restore from backup (RUNBOOK §6.2); pre-install
+      # it means the render did not complete — re-run day-0.
+      ansible.builtin.fail:
+        msg: >-
+          Cannot auto-store to Proton Pass: {{ item.item.file }} is missing
+          after the render. On a bootstrapped cluster restore it from backup
+          (RUNBOOK §6.2) — never mint a fresh bundle against live state.
+          Pre-install delete stale markers and re-run day-0.
+      loop: "{{ talos_render_pass_store_local.results }}"
+      when:
+        - not ansible_check_mode
+        - item.item.required | bool
+        - item.content is not defined
+
+    - name: Decide the store field set and index local contents
+      ansible.builtin.set_fact:
+        talos_render_pass_store_kubeconfig_present: >-
+          {{ talos_render_pass_store_local.results
+            | selectattr('item.name', 'equalto', 'kubeconfig')
+            | selectattr('content', 'defined') | list | length > 0 }}
+        talos_render_pass_store_local_map: >-
+          {{ (talos_render_pass_store_local_map | default({}))
+            | combine({item.item.name: (item.content | b64decode)}) }}
+      loop: "{{ talos_render_pass_store_local.results }}"
+      when: item.content is defined
+      no_log: true
+
+    - name: Decide which fields need a Proton Pass push
+      # Checksum-driven (hash of the decoded local file vs hash of the
+      # indexed stored value — never the value itself — so unchanged fields
+      # skip cleanly even for secrets.bundle.yml-sized fields).
+      ansible.builtin.set_fact:
+        talos_render_pass_store_push: >-
+          {{ (talos_render_pass_store_push | default([]))
+            + ([item.item.name]
+              if ((item.content | b64decode | hash('sha256'))
+                != ((talos_render_pass_store_stored | default({})).get(item.item.name, '')
+                  | hash('sha256')))
+              else []) }}
+      loop: "{{ talos_render_pass_store_local.results }}"
+      when: item.content is defined
+      no_log: true
+
+    - name: Note which fields would push in check mode
+      ansible.builtin.debug:
+        msg: >-
+          Proton Pass auto-store would push:
+          {{ talos_render_pass_store_push | default([]) | join(', ') }}.
+      when:
+        - ansible_check_mode
+        - talos_render_pass_store_push | default([]) | length > 0
+
+    - name: Stage the store-item template for a missing item
+      ansible.builtin.copy:
+        content: >-
+          {{ {'title': talos_render_pass_store_item,
+              'sections': [{'section_name': talos_render_pass_store_section,
+                            'fields': talos_render_pass_store_template_fields}]} | to_nice_json }}
+        dest: "{{ talos_build_dir }}/{{ talos_cluster }}/.pass-store-template.json"
+        mode: "0600"
+      vars:
+        talos_render_pass_store_template_fields: >-
+          {{ [{'field_name': 'secrets-bundle', 'field_type': 'hidden', 'value': ''},
+              {'field_name': 'talosconfig', 'field_type': 'hidden', 'value': ''}]
+            + ([{'field_name': 'kubeconfig', 'field_type': 'hidden', 'value': ''}]
+              if (talos_render_pass_store_kubeconfig_present | default(false) | bool) else []) }}
+      when:
+        - not ansible_check_mode
+        - talos_render_pass_store_missing | bool
+      no_log: true
+
+    - name: Create the Proton Pass store item
+      # PAT sessions may lack write scope — a refusal fails closed here.
+      ansible.builtin.command:
+        argv:
+          - pass-cli
+          - item
+          - create
+          - custom
+          - --vault-name
+          - "{{ talos_clusters[talos_cluster].vault }}"
+          - --from-template
+          - "{{ talos_build_dir }}/{{ talos_cluster }}/.pass-store-template.json"
+      environment:
+        PROTON_PASS_AGENT_REASON: >-
+          {{ talos_render_pass_agent_reason_prefix }}-{{ talos_cluster }}-store-create-{{
+            lookup('community.general.random_string', length=16,
+            override_all='0123456789abcdef') }}
+      when:
+        - not ansible_check_mode
+        - talos_render_pass_store_missing | bool
+      register: talos_render_pass_store_create
+      changed_when: true
+      no_log: true
+
+    - name: Remove the staged store-item template
+      ansible.builtin.file:
+        path: "{{ talos_build_dir }}/{{ talos_cluster }}/.pass-store-template.json"
+        state: absent
+      when:
+        - not ansible_check_mode
+        - talos_render_pass_store_missing | bool
+      changed_when: false
+
+    - name: Resolve the store item id for drifted updates
+      # Prefer --item-id after the first lookup (duplicate titles first-match).
+      ansible.builtin.set_fact:
+        talos_render_pass_store_id: >-
+          {{ (talos_render_pass_store_create.stdout | default('') | trim)
+            if (talos_render_pass_store_missing | bool)
+            else talos_render_pass_store_item_id }}
+      when:
+        - not ansible_check_mode
+        - talos_render_pass_store_push | default([]) | length > 0
+      no_log: true
+
+    - name: Push drifted fields to Proton Pass
+      ansible.builtin.command:
+        argv:
+          - pass-cli
+          - item
+          - update
+          - --vault-name
+          - "{{ talos_clusters[talos_cluster].vault }}"
+          - --item-id
+          - "{{ talos_render_pass_store_id }}"
+          - --field
+          - "{{ talos_render_pass_store_section }}.{{ item }}={{ talos_render_pass_store_local_map[item] }}"
+      environment:
+        PROTON_PASS_AGENT_REASON: >-
+          {{ talos_render_pass_agent_reason_prefix }}-{{ talos_cluster }}-store-push-{{
+            lookup('community.general.random_string', length=16,
+            override_all='0123456789abcdef') }}
+      loop: "{{ talos_render_pass_store_push | default([]) }}"
+      when: not ansible_check_mode
+      register: talos_render_pass_store_updated
+      changed_when: true
+      no_log: true
