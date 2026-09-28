@@ -180,6 +180,23 @@ func TestHelpers(t *testing.T) {
 	}
 }
 
+// pollInFlightZero waits up to timeout for the shared package-global
+// inFlight counter to drain to 0, reporting whether it did. A Send that
+// times out leaves its worker holding a slot until the backend finishes
+// (~2s for the blackhole servers below), so tests must drain before
+// resetting the counter: a blind reset while a prior worker still runs
+// corrupts that worker's later release and flakes later assertions.
+func pollInFlightZero(timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for ReportInFlight() != 0 {
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return true
+}
+
 func TestSendTimeoutCountsAndLogs(t *testing.T) {
 	before := ReportTimeouts()
 	srv := newBlackholeServer(2 * time.Second)
@@ -192,6 +209,11 @@ func TestSendTimeoutCountsAndLogs(t *testing.T) {
 	}
 	if got := ReportTimeouts(); got != before+1 {
 		t.Errorf("ReportTimeouts() = %d, want %d", got, before+1)
+	}
+	// The timed-out worker still holds its slot until the blackhole
+	// responds (~2s); drain before returning so the next test starts clean.
+	if !pollInFlightZero(10 * time.Second) {
+		t.Fatal("in-flight never drained after timeout, want 0")
 	}
 }
 
@@ -208,6 +230,9 @@ func isTimeoutErr(err error) bool {
 // the worker finishes. Otherwise timed-out callers would free slots for
 // new sends while their workers still run, over-admitting past maxInFlight.
 func TestSendTimeoutHoldsSlotUntilWorkerExits(t *testing.T) {
+	if !pollInFlightZero(10 * time.Second) {
+		t.Fatal("stale in-flight slots from prior test, want 0")
+	}
 	inFlightMu.Lock()
 	inFlight = 0
 	inFlightMu.Unlock()
@@ -240,17 +265,16 @@ func TestSendTimeoutHoldsSlotUntilWorkerExits(t *testing.T) {
 	}
 	// The worker finishes ~2s later and must release its slot (drains to
 	// 0 instead of leaking a held slot forever).
-	deadline := time.Now().Add(10 * time.Second)
-	for ReportInFlight() != 0 {
-		if time.Now().After(deadline) {
-			t.Fatal("in-flight never drained after worker exit, want 0")
-		}
-		time.Sleep(50 * time.Millisecond)
+	if !pollInFlightZero(10 * time.Second) {
+		t.Fatal("in-flight never drained after worker exit, want 0")
 	}
 }
 
 func TestSendOverloadFailsFast(t *testing.T) {
 	s := New(5 * time.Second)
+	if !pollInFlightZero(10 * time.Second) {
+		t.Fatal("stale in-flight slots from prior test, want 0")
+	}
 	inFlightMu.Lock()
 	inFlight = maxInFlight
 	inFlightMu.Unlock()
