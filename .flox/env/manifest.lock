@@ -95,6 +95,10 @@
         "pkg-path": "oras",
         "version": "1.3.4"
       },
+      "prek": {
+        "pkg-path": "prek",
+        "version": "0.5.3"
+      },
       "proton-pass-cli": {
         "pkg-path": "proton-pass-cli",
         "version": "2.3.3"
@@ -2211,6 +2215,93 @@
       "priority": 5
     },
     {
+      "attr_path": "prek",
+      "broken": false,
+      "derivation": "/nix/store/n43hg2aiq50l334zhgqr57q72n1vk215-prek-0.5.3.drv",
+      "description": "Better `pre-commit`, re-engineered in Rust ",
+      "install_id": "prek",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "name": "prek-0.5.3",
+      "pname": "prek",
+      "rev": "6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "rev_count": 1077996,
+      "rev_date": "2026-09-22T03:11:10Z",
+      "scrape_date": "2026-09-23T04:58:45.390280Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.5.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/lhjdrzs41v929plq1a174ryqsg0zls6q-prek-0.5.3"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "prek",
+      "broken": false,
+      "derivation": "/nix/store/vsal5vv03d4xczbis7y1djmvhjjadw5b-prek-0.5.3.drv",
+      "description": "Better `pre-commit`, re-engineered in Rust ",
+      "install_id": "prek",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "name": "prek-0.5.3",
+      "pname": "prek",
+      "rev": "6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "rev_count": 1077996,
+      "rev_date": "2026-09-22T03:11:10Z",
+      "scrape_date": "2026-09-23T05:30:39.394665Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.5.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/s7479b2i001300vnl5vfm7p702rv7zw7-prek-0.5.3"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "prek",
+      "broken": false,
+      "derivation": "/nix/store/lkc74fl75v9fja32jd1a0j4qcdn9y1jm-prek-0.5.3.drv",
+      "description": "Better `pre-commit`, re-engineered in Rust ",
+      "install_id": "prek",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "name": "prek-0.5.3",
+      "pname": "prek",
+      "rev": "6774f7bc253789b113a4f39285dc0fa100abeacc",
+      "rev_count": 1077996,
+      "rev_date": "2026-09-22T03:11:10Z",
+      "scrape_date": "2026-09-23T06:07:22.644192Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.5.3",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/3bfbp58ab1ffkvmbb1jxxglj9qhnz50x-prek-0.5.3"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
       "attr_path": "proton-pass-cli",
       "broken": false,
       "derivation": "/nix/store/lm38h5p8zx3y30nf4xi5sg0d9cxbl5hl-proton-pass-cli-2.3.3.drv",
@@ -2381,6 +2472,7 @@
       "unfree": false,
       "version": "3.14.7",
       "outputs_to_install": [
+        "out",
         "out",
         "out",
         "out",

@@ -30,7 +30,11 @@ with per-job minimums; publish jobs additionally gate on
 `github.event_name != 'pull_request'` (test-only PR legs) and
 `github.ref == 'refs/heads/main'` (dev artifacts only from main, tag legs
 excepted). Validate/lint workflows grant top-level `contents: read`.
-Concurrency groups, path-gated triggers throughout. Vendored `.github` copies
+Concurrency groups, path-gated triggers throughout. Each validate/test/lint leg
+above also runs locally before commit via prek (`.pre-commit-config.yaml` at
+the repo root mirrors these path filters per hook; pre-commit = fast gates,
+pre-push = slow whole-scope gates, manual = day-2 `--check --diff`; push,
+release, sign, and bot workflows stay CI-only). Vendored `.github` copies
 (e.g. under `flux/**/.terraform/`) are third-party, not owned. Cosign legs pin
 the binary via `cosign-release: v3.1.3` (match `.flox`); setup lines carry
 `# match .flox ...` parity comments. No dependabot/renovate (forbidden:

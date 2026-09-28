@@ -31,6 +31,10 @@ opentofu.pkg-path = "opentofu"
 opentofu.version = "1.12.6"
 golangci-lint.pkg-path = "golangci-lint"
 golangci-lint.version = "2.13.2"
+# Local CI gate: Rust pre-commit runner (staged-file-scoped hooks in
+# .pre-commit-config.yaml mirror CI path filters; `prek install` for shims).
+prek.pkg-path = "prek"
+prek.version = "0.5.3"
 govulncheck.pkg-path = "govulncheck"
 govulncheck.version = "1.8.0"
 ansible-lint.pkg-path = "ansible-lint"

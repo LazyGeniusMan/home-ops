@@ -99,8 +99,19 @@ cosign sign ghcr.io/lazygeniusman/home-ops/projects/<name>:<tag>
 scripts/fetch-references.sh -m zip   # manual-only refresh of /tmp/home-ops-docs
 pass-cli info                        # must succeed (logged in) before any secret injection
 ```
+```bash
+# Local CI gate (prek 0.5.3, Flox-pinned): staged-file-scoped hooks mirror CI path filters
+prek install                         # install pre-commit + pre-push shims (once per checkout)
+prek run                             # staged files, pre-commit stage (fast gates only)
+prek run --all-files                 # whole repo, pre-commit stage (pre-PR check)
+prek run --all-files --stage pre-push  # pre-push stage (tofu, full go, talosctl pin)
+prek run ansible-day2-check --stage manual  # day-2 --check --diff (needs pass-cli + cluster)
+prek run --dry-run --files <path>    # preview which hooks a path selects
+```
 
 CI mirrors these gates per path (Go workflows, `flux-*-validate.yaml`, `lint-shell-ansible.yaml`, push/release/image-update flows use deny-all `permissions: {}` with per-job minimums, concurrency groups, and path filters). Ansible changes require the `--check --diff` dry run plus `talosctl validate` and FQCN lint (syntax + lint in CI, `--check --diff` stays local — day-2 needs a live `pass-cli` session). Never run `kubectl` or `helm` against a cluster directly; only the Terraform-bootstrapped Flux Operator mutates cluster state.
+
+Local commits gate on the same CI test/validate/lint legs via prek (`.pre-commit-config.yaml`, staged-files-only): pre-commit runs the fast per-scope gates (meta hygiene, no-artifact guard, shellcheck, yamllint, ansible syntax+lint, `validate.sh -d` per scope, go-fast per service, helm `ci/verify.sh` per chart); pre-push runs the slow whole-scope gates (tofu trio, go-full per service, talosctl pin); day-2 `--check --diff` is manual-only (needs live `pass-cli` + cluster). Publishing (push/release/sign), image-update bots, and scheduled check-PR workflows never gate — CI-only. Run inside `flox activate` so `language: system` hooks resolve the Flox toolchain.
 
 ## Patterns
 
@@ -108,7 +119,7 @@ CI mirrors these gates per path (Go workflows, `flux-*-validate.yaml`, `lint-she
 - **Talos renders, Flux delivers.** Talos produces a bare, telemetry-free machine; Flux installs CNI, DNS, and all workloads. Keep that handoff clean: machine config never carries workloads, Flux never carries machine config.
 - **Talos conformance.** Barebone machine rules (volume `maxSize` arithmetic, ≥2 NTP servers, no-telemetry-by-absence, 64-hex schematic IDs) are stated beside the code in `talos/`; node headers + `talos/ansible/RUNBOOK.md` carry the alpha, rotation, PAT, `skip_health`, NFS, and encryption rules — never duplicated here.
 - **Base holds the shape, overlays hold the difference.** Whenever dev and prd diverge, put a placeholder in `base` (`__PROTON_PASS_BASE__`, `__WILDCARD_TLS_SECRET__`, `__SERVICE_HOST__`, `__BASE_DOMAIN__`, `__ACME_EMAIL__`) and an explicit replacement in each environment overlay. Never fork a whole file per environment.
-- **Pin parity on upgrade.** Flox manifest, `group_vars/all.yml`, Terraform/Ansible constraints, workflow `uses:` SHAs, Dockerfile `FROM` pins (Go toolchain in `.flox/env/manifest.toml`, each `Dockerfile`/`go.mod`), and Flux image/chart refs all move together. A half-upgraded pin is a bug.
+- **Pin parity on upgrade.** Flox manifest, `group_vars/all.yml`, Terraform/Ansible constraints, workflow `uses:` SHAs, Dockerfile `FROM` pins (Go toolchain in `.flox/env/manifest.toml`, each `Dockerfile`/`go.mod`), prek hook `rev` SHAs plus the `prek` Flox pin, and Flux image/chart refs all move together. A half-upgraded pin is a bug.
 - **Images and charts update themselves.** Mechanics (policy shape, inline `$imagepolicy` markers, automation cadence, hand-bumped exceptions) live in each `flux/{infra,apps}/update-policies/<name>.yaml` header and the component docs — read them there; automation proposes, human merges.
 - **First-party charts for chartless upstreams.** Upstream CRDs with no Helm chart never vendor YAML into `flux/` — they ship as `projects/helm-<name>/` (Chart.yaml `version` = upstream release, `ci/fetch.sh` fetches upstream at CI publish time, no CRDs committed, two workflows: daily check-PR + on-push fetch-publish OCI; fetch-time helm-* charts publish purely from the parsed Chart version on push (no git tags; re-publish overwrites the same OCI tag)). Consume in Flux via `OCIRepository` + `HelmRelease` with CRD `CreateReplace` on install+upgrade plus prune:false-equivalent safety, no ImagePolicy/marker (atomic hand-bump like `helm-rclone`).
 - **Upgrade lifecycle (check versions -> check changelog -> bump -> migrate/verify).** Check the available version (policy `range:` floor plus upstream tags), read the changelog first (see Changelog-first under Reference), bump the pin, then migrate values/CRDs and verify with the gates. Dev soaks first; promote dev->stable/prd only after dev is green. Chart<->app and coupled pairs move atomically — the pair list and per-type mechanics live in each `flux/{infra,apps}/update-policies/<name>.yaml` header and the component docs, not here.
@@ -165,6 +176,6 @@ Each pattern above has a matching negative — this list keeps only negatives th
 - Conventional Commits, all lowercase, imperative subject: `type(scope): subject`. Examples: `docs: add AGENTS.md contribution guide`, `feat(netbird): bound request-log route labels`, `fix(eso-proton-pass): bound log route`. Keep the subject under ~72 chars; explain the why in the body.
 - Image/chart tags are `<svc>-v*` (automation proposes, human merges); never tag or reference `:latest`.
 - One logical change per commit; docs travel with their code/config change (see Living doc).
-- Before pushing, run the gates for every scope you touched (Go vet/build/test + lint + vuln check; `helm lint`/`template` + `ci/verify.sh`; `flux/scripts/validate.sh -d flux/{apps,infra,fleet}` per scope; `tofu init -backend=false/validate/test`; `cosign sign` for published images; Ansible `--check --diff` + `talosctl validate -c <node file> -m metal` + FQCN lint; `shellcheck` on touched `*.sh`). Report gate results in the PR.
+- Before pushing, run the gates for every scope you touched — the prek shims already ran them on commit/push, so `prek run --all-files` (+ `--stage pre-push` before pushing) is the check; the per-tool equivalents are Go vet/build/test + lint + vuln check; `helm lint`/`template` + `ci/verify.sh`; `flux/scripts/validate.sh -d flux/{apps,infra,fleet}` per scope; `tofu init -backend=false/validate/test`; `cosign sign` for published images; Ansible `--check --diff` + `talosctl validate -c <node file> -m metal` + FQCN lint; `shellcheck` on touched `*.sh`. Never `--no-verify` unasked. Report gate results in the PR.
 - Workflows stay hardened: SHA-pinned `uses:`, deny-all `permissions: {}` default with per-job minimums (`contents: read` plus `packages: write` / `id-token: write` only where push/sign needs them), concurrency groups, path-gated triggers.
 - Open a PR for review; do not push to a protected branch.

@@ -1,0 +1,256 @@
+# Prek local CI gate. Stock pre-commit compatible; prek-only keys would be
+# marked with a `# prek-only` comment (none in use — stages, verbose regex,
+# and default_install_hook_types are portable).
+#
+# Scope table (mirrors CI path filters):
+#   flux/infra/** + tenants/infra.yaml + flux/scripts/** -> validate-infra
+#   flux/apps/** + tenants/apps.yaml + flux/scripts/** -> validate-apps
+#   flux/fleet/** -> validate-fleet + tofu (fleet validate has 2 jobs)
+#   scripts/** + talos/** + projects/**/ci/** + flux/scripts/**
+#     + .github/workflows/** -> shellcheck + yamllint + ansible
+#   projects/<go-svc>/**                                           -> go-fast (pre-commit) / go-full (pre-push)
+#                                                                     (<svc>.yml test legs)
+#   projects/helm-<name>/**                                        -> helm-verify-<name> (helm-<name>.yml test legs)
+#
+# Stage split: pre-commit = fast offline-only gates (seconds, commit-blocking);
+# pre-push = slow whole-scope gates (whole flux scope, tofu, full go).
+# Publishing (push/release/sign), image-update bots, and scheduled check-PR
+# workflows never gate commits or pushes — they run in CI only. Nothing here
+# touches a live cluster; day-2 --check --diff stays a documented local manual
+# gate (needs live pass-cli + cluster) and is manual-stage only.
+#
+# Toolchain: language system everywhere — every entry resolves through the
+# Flox environment (.flox/env/manifest.toml pins: prek 0.5.3, shellcheck
+# 0.11.0, yamllint 1.37.1, ansible 2.21.4, yq 4.53.3, kubeconform 0.8.0,
+# kustomize 5.8.1, go 1.26.7, golangci-lint 2.13.2, govulncheck 1.8.0,
+# helm 4.3.0, tofu 1.12.6). Run inside `flox activate`.
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+repos:
+  # -- Secret strays: hard fail on build artifacts that must never be
+  # committed (templates/placeholders only). No secrets leave the machine. --
+  - repo: local
+    hooks:
+      - id: no-artifacts
+        name: no build artifacts or credentials
+        language: system
+        entry: scripts/hooks/no-artifacts.sh
+        stages: [pre-commit]
+  # -- Fast meta hygiene (always eligible; staged files only). --
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    # Frozen: tags/v6.0.0, verified 2026-09-28.
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c
+    hooks:
+      # Fixers run only on files this change set owns: repo-wide --all-files
+      # runs would otherwise rewrite pre-existing missing-EOF files (e.g. in
+      # .agents/, .flox/, .vscode/, .xum/) outside the task scope.
+      - id: trailing-whitespace
+        stages: [pre-commit]
+        files: >-
+          (?x)^(\.github/workflows/[^/]+\.ya?ml|talos/|scripts/|flux/|projects/|AGENTS\.md|README\.md|\.pre-commit-config\.yaml|\.yamllint)
+      - id: end-of-file-fixer
+        stages: [pre-commit]
+        files: >-
+          (?x)^(\.github/workflows/[^/]+\.ya?ml|talos/|scripts/|flux/|projects/|AGENTS\.md|README\.md|\.pre-commit-config\.yaml|\.yamllint)
+      # check-yaml rejects multi-doc manifests; yamllint (same scope, document
+      # aware) is the YAML authority for owned paths, so this hook only covers
+      # the always-single-doc ones.
+      - id: check-yaml
+        name: check-yaml (single-doc owned paths)
+        stages: [pre-commit]
+        files: >-
+          (?x)^(\.github/workflows/[^/]+\.ya?ml|scripts/[^/]+\.ya?ml|projects/helm-[^/]+/(Chart\.yaml|values\.yaml)|\.pre-commit-config\.yaml|\.yamllint)
+        exclude: ^\.agents/
+      - id: check-added-large-files
+        name: check-added-large-files (max 200KB; largest owned file ~100KB)
+        args: [--maxkb=200]
+        stages: [pre-commit]
+      - id: check-merge-conflict
+        stages: [pre-commit]
+      - id: check-executables-have-shebangs
+        stages: [pre-commit]
+  # -- Shell + YAML lint (lint-shell-ansible.yaml shell/yaml jobs; file args mirror its file_or_dir). --
+  - repo: local
+    hooks:
+      - id: shellcheck
+        name: shellcheck (owned scripts)
+        language: system
+        entry: shellcheck --severity=warning
+        types: [shell]
+        files: >-
+          (?x)^(scripts/|talos/|flux/scripts/|projects/[^/]+/ci/)
+        exclude: >-
+          (?x)^(\.agents/|.*/\.terraform/)
+        stages: [pre-commit]
+      - id: yamllint
+        name: yamllint (CI-mirror scope)
+        language: system
+        entry: yamllint -c .yamllint
+        types: [yaml]
+        files: >-
+          (?x)^(\.github/workflows/|talos/|scripts/|flux/scripts/|projects/helm-rclone/ci/)
+        stages: [pre-commit]
+      - id: ansible-syntax
+        name: ansible syntax-check (all day playbooks)
+        language: system
+        entry: >-
+          env ANSIBLE_CONFIG=talos/ansible/ansible.cfg ansible-playbook
+          --syntax-check talos/ansible/playbooks/day0.yml
+          talos/ansible/playbooks/day1.yml talos/ansible/playbooks/day2.yml
+          -i localhost, -e talos_cluster=acme-dev-bdo1-talos-apps-01
+        pass_filenames: false
+        files: >-
+          (?x)^(talos/|scripts/|projects/[^/]+/ci/|flux/scripts/|\.github/workflows/)
+        stages: [pre-commit]
+      - id: ansible-lint
+        name: ansible-lint (FQCN, no bare shell)
+        language: system
+        entry: env ANSIBLE_CONFIG=talos/ansible/ansible.cfg ansible-lint talos/ansible/playbooks/ talos/ansible/roles/
+        pass_filenames: false
+        files: >-
+          (?x)^(talos/|scripts/|projects/[^/]+/ci/|flux/scripts/|\.github/workflows/)
+        stages: [pre-commit]
+      - id: talosctl-pin
+        name: talosctl client pin check
+        language: system
+        entry: talosctl version --client
+        pass_filenames: false
+        files: >-
+          (?x)^(talos/|scripts/|projects/[^/]+/ci/|flux/scripts/|\.github/workflows/)
+        stages: [pre-push]
+  # -- Flux validation (flux-*-validate.yaml mirrors; pass_filenames false: validate.sh -d scopes whole dirs). --
+  - repo: local
+    hooks:
+      - id: validate-infra
+        name: flux validate infra
+        language: system
+        entry: flux/scripts/validate.sh -d flux/infra
+        pass_filenames: false
+        files: >-
+          (?x)^(flux/infra/|flux/fleet/tenants/infra\.yaml|flux/scripts/)
+        stages: [pre-commit]
+      - id: validate-apps
+        name: flux validate apps
+        language: system
+        entry: flux/scripts/validate.sh -d flux/apps
+        pass_filenames: false
+        files: >-
+          (?x)^(flux/apps/|flux/fleet/tenants/apps\.yaml|flux/scripts/)
+        stages: [pre-commit]
+      - id: validate-fleet
+        name: flux validate fleet
+        language: system
+        entry: flux/scripts/validate.sh -d flux/fleet
+        pass_filenames: false
+        files: >-
+          (?x)^(flux/fleet/|flux/scripts/)
+        stages: [pre-commit]
+      - id: tofu-fleet
+        name: tofu init/validate/test (fleet bootstrap)
+        language: system
+        entry: scripts/hooks/tofu-gate.sh
+        pass_filenames: false
+        files: ^flux/fleet/terraform/
+        stages: [pre-push]
+  # -- Go services (CI test-leg mirror via scripts/hooks/go-gate.sh). --
+  - repo: local
+    hooks:
+      - id: go-fast-apprise-go-api
+        name: go fast gate (apprise-go-api)
+        language: system
+        entry: scripts/hooks/go-gate.sh fast projects/apprise-go-api
+        pass_filenames: false
+        files: ^projects/apprise-go-api/
+        stages: [pre-commit]
+      - id: go-fast-eso-proton-pass
+        name: go fast gate (eso-proton-pass)
+        language: system
+        entry: scripts/hooks/go-gate.sh fast projects/eso-proton-pass
+        pass_filenames: false
+        files: ^projects/eso-proton-pass/
+        stages: [pre-commit]
+      - id: go-fast-external-dns-netbird
+        name: go fast gate (external-dns-netbird)
+        language: system
+        entry: scripts/hooks/go-gate.sh fast projects/external-dns-netbird
+        pass_filenames: false
+        files: ^projects/external-dns-netbird/
+        stages: [pre-push]
+      - id: go-full-apprise-go-api
+        name: go full gate (apprise-go-api)
+        language: system
+        entry: scripts/hooks/go-gate.sh full projects/apprise-go-api
+        pass_filenames: false
+        files: ^projects/apprise-go-api/
+        stages: [pre-push]
+      - id: go-full-eso-proton-pass
+        name: go full gate (eso-proton-pass)
+        language: system
+        entry: scripts/hooks/go-gate.sh full projects/eso-proton-pass
+        pass_filenames: false
+        files: ^projects/eso-proton-pass/
+        stages: [pre-push]
+      - id: go-full-external-dns-netbird
+        name: go full gate (external-dns-netbird)
+        language: system
+        entry: scripts/hooks/go-gate.sh full projects/external-dns-netbird
+        pass_filenames: false
+        files: ^projects/external-dns-netbird/
+        stages: [pre-push]
+  # -- Helm charts (CI test-leg mirror: helm-<name>.yml verify step). --
+  - repo: local
+    hooks:
+      - id: helm-verify-rclone
+        name: helm verify (helm-rclone)
+        language: system
+        entry: bash projects/helm-rclone/ci/verify.sh
+        pass_filenames: false
+        files: ^projects/helm-rclone/
+        stages: [pre-commit]
+      - id: helm-verify-cosi
+        name: helm verify (helm-cosi)
+        language: system
+        entry: bash projects/helm-cosi/ci/verify.sh
+        pass_filenames: false
+        files: ^projects/helm-cosi/
+        stages: [pre-commit]
+      - id: helm-verify-gateway-api
+        name: helm verify (helm-gateway-api)
+        language: system
+        entry: bash projects/helm-gateway-api/ci/verify.sh
+        pass_filenames: false
+        files: ^projects/helm-gateway-api/
+        stages: [pre-commit]
+      - id: helm-verify-kubevirt
+        name: helm verify (helm-kubevirt)
+        language: system
+        entry: bash projects/helm-kubevirt/ci/verify.sh
+        pass_filenames: false
+        files: ^projects/helm-kubevirt/
+        stages: [pre-commit]
+      - id: helm-verify-multus
+        name: helm verify (helm-multus)
+        language: system
+        entry: bash projects/helm-multus/ci/verify.sh
+        pass_filenames: false
+        files: ^projects/helm-multus/
+        stages: [pre-commit]
+      - id: helm-verify-otel-monitoring-crds
+        name: helm verify (helm-otel-monitoring-crds)
+        language: system
+        entry: bash projects/helm-otel-monitoring-crds/ci/verify.sh
+        pass_filenames: false
+        files: ^projects/helm-otel-monitoring-crds/
+        stages: [pre-commit]
+  # -- Manual-only: secret-bound day-2 dry run (needs live pass-cli + cluster); never auto-runs. --
+  - repo: local
+    hooks:
+      - id: ansible-day2-check
+        name: ansible day2 --check --diff (manual; needs pass-cli + cluster)
+        language: system
+        entry: >-
+          ansible-playbook talos/ansible/playbooks/day2.yml -i localhost,
+          -e talos_cluster=acme-dev-bdo1-talos-apps-01 --check --diff
+        pass_filenames: false
+        always_run: true
+        stages: [manual]
