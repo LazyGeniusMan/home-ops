@@ -32,7 +32,8 @@
     cmd: >-
       {{ talos_operate_talosctl }} health
       --talosconfig {{ talos_talosconfig }}
-      --control-plane-nodes {{ talos_clusters[talos_cluster].nodes | selectattr('role', 'equalto', 'controlplane') | map(attribute='ip') | join(',') }}
+      --control-plane-nodes {{ talos_clusters[talos_cluster].nodes
+      | selectattr('role', 'equalto', 'controlplane') | map(attribute='ip') | join(',') }}
       --init-node {{ talos_clusters[talos_cluster].nodes[0].ip }}
   changed_when: false
   failed_when: false

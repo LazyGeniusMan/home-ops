@@ -5,7 +5,9 @@
   ansible.builtin.assert:
     that:
       - talos_operate_reapply_mode in ['auto', 'no-reboot', 'reboot', 'staged', 'try']
-    fail_msg: "reapply_mode must be one of auto, no-reboot, reboot, staged, try (got '{{ talos_operate_reapply_mode }}')."
+    fail_msg: >-
+      reapply_mode must be one of auto, no-reboot, reboot, staged, try
+      (got '{{ talos_operate_reapply_mode }}').
     success_msg: "Re-apply mode {{ talos_operate_reapply_mode }}."
   when: talos_operate_reapply_configs | bool
 

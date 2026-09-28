@@ -103,7 +103,8 @@
 
 - name: Prefer schematic-plane IDs refreshed this run over file reads
   ansible.builtin.set_fact:
-    talos_operate_refresh_ids: "{{ (talos_operate_refresh_ids | default({})) | combine(talos_render_schematic_ids | default({})) }}"
+    talos_operate_refresh_ids: "{{ (talos_operate_refresh_ids | default({}))
+      | combine(talos_render_schematic_ids | default({})) }}"
   when: talos_operate_refresh_active | bool
 
 - name: Assert schematic IDs resolve for refresh
@@ -200,11 +201,15 @@
       --with-secrets {{ talos_build_dir }}/{{ talos_cluster }}/secrets.bundle.yml
       --config-patch @{{ playbook_dir }}/../../clusters/_base/patches.yml
       --config-patch @{{ talos_build_dir }}/{{ talos_cluster }}/patches.yml
-      {{ '--config-patch-control-plane' if talos_machine_roles[item.role] == 'controlplane' else '--config-patch-worker' }}
+      {{ '--config-patch-control-plane'
+      if talos_machine_roles[item.role] == 'controlplane'
+      else '--config-patch-worker' }}
       @{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml
       --talos-version {{ talos_version }}
       --install-image
-      factory.talos.dev/metal-installer/{{ (talos_operate_refresh_ids | default({})).get(item.name, 'pending-schematic-upload') }}:{{ talos_version }}
+      factory.talos.dev/metal-installer/{{
+      (talos_operate_refresh_ids | default({})).get(item.name, 'pending-schematic-upload')
+      }}:{{ talos_version }}
       -t {{ talos_machine_roles[item.role] }}
       --force
       -o {{ talos_build_dir }}/{{ talos_cluster }}/nodes/{{ item.name }}/{{ talos_machine_roles[item.role] }}.yaml

@@ -98,7 +98,8 @@
   ansible.builtin.uri:
     url: "{{ talos_render_schematic_factory_url }}"
     method: POST
-    body: "{{ lookup('ansible.builtin.file', talos_build_dir + '/' + talos_cluster + '/schematics-' + node.name + '.yml') }}"
+    body: "{{ lookup('ansible.builtin.file', talos_build_dir + '/' + talos_cluster
+      + '/schematics-' + node.name + '.yml') }}"
     body_format: raw
     return_content: true
     status_code: [200, 201]
@@ -118,7 +119,9 @@
 - name: Fail gracefully when the factory upload fails
   ansible.builtin.assert:
     that: talos_render_schematic_upload.status in [200, 201]
-    fail_msg: "Image Factory upload failed for {{ node.name }} ({{ talos_render_schematic_factory_url }} unreachable or rejected the schematic)."
+    fail_msg: >-
+      Image Factory upload failed for {{ node.name }} ({{ talos_render_schematic_factory_url }}
+      unreachable or rejected the schematic).
     success_msg: "Schematic uploaded for {{ node.name }}."
   when: talos_render_schematic_need_upload and not ansible_check_mode
 
@@ -194,5 +197,6 @@
 
 - name: Accumulate per-node schematic IDs
   ansible.builtin.set_fact:
-    talos_render_schematic_ids: "{{ (talos_render_schematic_ids | default({})) | combine({node.name: talos_render_schematic_id}) }}"
+    talos_render_schematic_ids: "{{ (talos_render_schematic_ids | default({}))
+      | combine({node.name: talos_render_schematic_id}) }}"
   when: talos_render_schematic_id | length > 0

@@ -9,7 +9,7 @@ on:
       - 'flux/fleet/**'
       - 'flux/scripts/**'
   push:
-    branches: [ 'main' ]
+    branches: ['main']
     paths:
       - 'flux/fleet/**'
       - 'flux/scripts/**'

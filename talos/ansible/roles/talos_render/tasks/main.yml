@@ -22,9 +22,11 @@
 - name: Fail when the cluster patch source is newer than its render
   ansible.builtin.assert:
     that:
-      - not (talos_render_preflight_cluster_src.stat.exists | default(false))
+      - >-
+        not (talos_render_preflight_cluster_src.stat.exists | default(false))
         or not (talos_render_preflight_cluster_out.stat.exists | default(false))
-        or (talos_render_preflight_cluster_src.stat.mtime | default(0)) <= (talos_render_preflight_cluster_out.stat.mtime | default(0))
+        or (talos_render_preflight_cluster_src.stat.mtime | default(0))
+        <= (talos_render_preflight_cluster_out.stat.mtime | default(0))
     fail_msg: >-
       build/{{ talos_cluster }}/patches.yml is older than its source
       (clusters/{{ talos_cluster }}/patches.yml changed after the last
@@ -50,9 +52,11 @@
   # Template edits only; vault rotations still need rm + re-run day-0 (§4.3).
   ansible.builtin.assert:
     that:
-      - not (talos_render_preflight_pat_src.stat.exists | default(false))
+      - >-
+        not (talos_render_preflight_pat_src.stat.exists | default(false))
         or not (talos_render_preflight_pat_out.stat.exists | default(false))
-        or (talos_render_preflight_pat_src.stat.mtime | default(0)) <= (talos_render_preflight_pat_out.stat.mtime | default(0))
+        or (talos_render_preflight_pat_src.stat.mtime | default(0))
+        <= (talos_render_preflight_pat_out.stat.mtime | default(0))
     fail_msg: >-
       build/{{ talos_cluster }}/{{ talos_pat_filename }} is older than its
       source (pat.yml.template changed after the last render) and the inject
@@ -83,9 +87,11 @@
   # Node list order is stable: src/out result indices align 1:1 with the node loop.
   ansible.builtin.assert:
     that:
-      - not (talos_render_preflight_node_src.results[idx].stat.exists | default(false))
+      - >-
+        not (talos_render_preflight_node_src.results[idx].stat.exists | default(false))
         or not (talos_render_preflight_node_out.results[idx].stat.exists | default(false))
-        or (talos_render_preflight_node_src.results[idx].stat.mtime | default(0)) <= (talos_render_preflight_node_out.results[idx].stat.mtime | default(0))
+        or (talos_render_preflight_node_src.results[idx].stat.mtime | default(0))
+        <= (talos_render_preflight_node_out.results[idx].stat.mtime | default(0))
     fail_msg: >-
       build/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml is
       older than its source (clusters/{{ talos_cluster }}/nodes/{{
@@ -304,11 +310,15 @@
       --with-secrets {{ talos_build_dir }}/{{ talos_cluster }}/secrets.bundle.yml
       --config-patch @{{ playbook_dir }}/../../clusters/_base/patches.yml
       --config-patch @{{ talos_build_dir }}/{{ talos_cluster }}/patches.yml
-      {{ '--config-patch-control-plane' if talos_machine_roles[item.role] == 'controlplane' else '--config-patch-worker' }}
+      {{ '--config-patch-control-plane'
+      if talos_machine_roles[item.role] == 'controlplane'
+      else '--config-patch-worker' }}
       @{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml
       --talos-version {{ talos_render_version }}
       --install-image
-      factory.talos.dev/metal-installer/{{ (talos_render_schematic_ids | default({})).get(item.name, 'pending-schematic-upload') }}:{{ talos_version }}
+      factory.talos.dev/metal-installer/{{
+      (talos_render_schematic_ids | default({})).get(item.name, 'pending-schematic-upload')
+      }}:{{ talos_version }}
       -t {{ talos_machine_roles[item.role] }}
       --force
       -o {{ talos_build_dir }}/{{ talos_cluster }}/nodes/{{ item.name }}/{{ talos_machine_roles[item.role] }}.yaml

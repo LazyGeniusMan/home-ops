@@ -23,7 +23,8 @@ routes:
 apiVersion: v1alpha1
 kind: UnattendedInstallConfig
 installer:
-  image: factory.talos.dev/metal-installer/PLACEHOLDER_SCHEMATIC_ID:v1.15.0-alpha.0 # set from schematic upload (tracks the 1.15 line; see group_vars why-alpha)
+  # Set from schematic upload (tracks the 1.15 line; see group_vars why-alpha).
+  image: factory.talos.dev/metal-installer/PLACEHOLDER_SCHEMATIC_ID:v1.15.0-alpha.0
 provisioning:
   diskSelector:
     match: disk.dev_path == "/dev/sda"

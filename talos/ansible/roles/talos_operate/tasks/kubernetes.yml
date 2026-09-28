@@ -7,8 +7,9 @@
 
 - name: Build rendered machine config path for drift detection
   ansible.builtin.set_fact:
-    talos_operate_k8s_config_path: >- # noqa: yaml[line-length]
-      {{ talos_build_dir }}/{{ talos_cluster }}/nodes/{{ talos_operate_k8s_node.name }}/{{ talos_machine_roles[talos_operate_k8s_node.role] }}.yaml
+    talos_operate_k8s_config_path: >-
+      {{ talos_build_dir }}/{{ talos_cluster }}/nodes/{{ talos_operate_k8s_node.name
+      }}/{{ talos_machine_roles[talos_operate_k8s_node.role] }}.yaml
   when: talos_operate_kubernetes_version | length > 0
 
 - name: Read rendered machine config for drift detection
@@ -40,7 +41,8 @@
 
 - name: Decide whether Kubernetes upgrade is needed
   ansible.builtin.set_fact:
-    talos_operate_k8s_drift: "{{ talos_operate_rendered_k8s != 'unknown' and talos_operate_rendered_k8s != talos_operate_kubernetes_version }}"
+    talos_operate_k8s_drift: "{{ talos_operate_rendered_k8s != 'unknown'
+      and talos_operate_rendered_k8s != talos_operate_kubernetes_version }}"
   when: talos_operate_kubernetes_version | length > 0
 
 - name: Resolve all control-plane node IPs for upgrade-k8s

@@ -10,7 +10,7 @@ on:
       - 'flux/fleet/tenants/apps.yaml'
       - 'flux/scripts/**'
   push:
-    branches: [ 'main' ]
+    branches: ['main']
     paths:
       - 'flux/apps/**'
       - 'flux/fleet/tenants/apps.yaml'
