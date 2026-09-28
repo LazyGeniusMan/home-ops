@@ -247,6 +247,38 @@
     loop_var: node
     label: "{{ node.name }}"
 
+- name: Stat secrets bundle for the live-cluster fail-closed gate
+  # A live cluster (.bootstrapped exists) must never mint a fresh bundle:
+  # pull it from Proton Pass first (RUNBOOK §6.2).
+  ansible.builtin.stat:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/secrets.bundle.yml"
+  check_mode: false
+  register: talos_render_bundle_stat
+
+- name: Stat the bootstrap marker for the live-cluster fail-closed gate
+  ansible.builtin.stat:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/.bootstrapped"
+  check_mode: false
+  register: talos_render_bootstrapped_stat
+
+- name: Fail when a live cluster is missing its secrets bundle
+  # Pre-install (no .bootstrapped) proceeds to gen secrets below; live +
+  # missing fails closed instead of minting fresh PKI (RUNBOOK §6.3).
+  ansible.builtin.assert:
+    that:
+      - >-
+        not (talos_render_bootstrapped_stat.stat.exists | default(false))
+        or (talos_render_bundle_stat.stat.exists | default(false))
+    fail_msg: >-
+      build/{{ talos_cluster }}/secrets.bundle.yml is missing but the cluster
+      is live (.bootstrapped exists) — refusing to mint a fresh bundle against
+      live state. Pull it from Proton Pass first (RUNBOOK §6.2):
+      ansible-playbook playbooks/day2.yml -i localhost,
+      -e talos_cluster={{ talos_cluster }} -e restore_secrets=true, then
+      re-run day-0.
+    success_msg: "Secrets bundle present or pre-install render proceeding."
+  when: not ansible_check_mode
+
 - name: Generate Talos secrets bundle when missing
   # No no_log: -o writes to a file and prints nothing secret-bearing.
   ansible.builtin.command:

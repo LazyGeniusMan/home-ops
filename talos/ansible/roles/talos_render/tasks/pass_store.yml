@@ -6,14 +6,19 @@
 # (the item itself is created on first push).
 # Fields — 3-segment refs pass://<vault>/<item>/<field> (vault = cluster name):
 #   pass://<cluster>/talos/secrets-bundle (e.g.
-#   pass://acme-dev-bdo1-talos-apps-01/talos/secrets-bundle) — minted by day-0
+#   pass://acme-dev-bdo1-talos-apps-01/talos/secrets-bundle) — redacted
+#   `<cluster PKI bundle YAML>`; minted by day-0
 #   `talosctl gen secrets -o build/<cluster>/secrets.bundle.yml`.
 #   pass://<cluster>/talos/talosconfig (e.g.
-#   pass://acme-dev-bdo1-talos-apps-01/talos/talosconfig) — minted by day-0
+#   pass://acme-dev-bdo1-talos-apps-01/talos/talosconfig) — redacted
+#   `<client talosconfig YAML>`; minted by day-0
 #   `talosctl gen config <cluster> <endpoint> --with-secrets ... -t talosconfig`.
 #   pass://<cluster>/talos/kubeconfig (e.g.
-#   pass://acme-dev-bdo1-talos-apps-01/talos/kubeconfig) — fetched by day-1
-#   `talosctl kubeconfig -f`.
+#   pass://acme-dev-bdo1-talos-apps-01/talos/kubeconfig) — redacted
+#   `<admin kubeconfig YAML>`; fetched by day-1 `talosctl kubeconfig -f`.
+# MUST-VERIFY (never assumed): real-size bundle whitespace trim behaviour,
+# server-side field size limits, live `talos` item type (login vs custom),
+# PAT-session write allow/deny.
 # EXCLUDED (never stored here): netbird-tf/ state, proton-pass-pat (RUNBOOK §6.3).
 - name: Stat the bootstrap marker for the post-install push gate
   ansible.builtin.stat:
@@ -71,21 +76,29 @@
           the play. Vaults are never auto-created.
       when:
         - talos_render_pass_store_probe.rc != 0
-        - '"Could not find vault" in talos_render_pass_store_probe.stderr | default("")'
+        - talos_render_pass_store_probe.stderr | default('') is search('Could not find vault')
 
     - name: Fail when pass-cli has no authenticated session
+      # Logged-out fails closed even when a vault is missing (vault lookup
+      # needs a session), so only the missing-item signal counts as
+      # authenticated.
       ansible.builtin.fail:
         msg: >-
           No authenticated pass-cli session. Run `pass-cli login` before
           rendering secrets, then re-run the play.
       when:
         - talos_render_pass_store_probe.rc != 0
-        - '"Could not find vault" not in talos_render_pass_store_probe.stderr | default("")'
-        - '"No item found with title" not in talos_render_pass_store_probe.stderr | default("")'
+        - talos_render_pass_store_probe.stderr | default('') is not search('No item found with title')
 
     - name: Record whether the store item is missing
+      # A non-zero probe with no auth/item signal failed above (vault-missing
+      # or logged-out), so a missing item is exactly the authenticated
+      # empty-store signal.
       ansible.builtin.set_fact:
-        talos_render_pass_store_missing: "{{ talos_render_pass_store_probe.rc != 0 }}"
+        talos_render_pass_store_missing: >-
+          {{ talos_render_pass_store_probe.rc != 0
+            and (talos_render_pass_store_probe.stderr | default('')
+              is search('No item found with title')) }}
 
     - name: Parse the stored Proton Pass fields
       ansible.builtin.set_fact:
@@ -214,6 +227,7 @@
 
     - name: Create the Proton Pass store item
       # PAT sessions may lack write scope — a refusal fails closed here.
+      # create prints no machine-readable id, so re-probe for the id below.
       ansible.builtin.command:
         argv:
           - pass-cli
@@ -245,11 +259,39 @@
         - talos_render_pass_store_missing | bool
       changed_when: false
 
+    - name: Re-probe the Proton Pass store item after the create
+      # The create output carries no id: view again so per-field updates can
+      # resolve --item-id (duplicate titles first-match).
+      ansible.builtin.command:
+        argv:
+          - pass-cli
+          - item
+          - view
+          - --vault-name
+          - "{{ talos_clusters[talos_cluster].vault }}"
+          - --item-title
+          - "{{ talos_render_pass_store_item }}"
+          - --output
+          - json
+      environment:
+        PROTON_PASS_AGENT_REASON: >-
+          {{ talos_render_pass_agent_reason_prefix }}-{{ talos_cluster }}-store-reprobe-{{
+            lookup('community.general.random_string', length=16,
+            override_all='0123456789abcdef') }}
+      check_mode: false
+      changed_when: false
+      when:
+        - not ansible_check_mode
+        - talos_render_pass_store_missing | bool
+        - talos_render_pass_store_push | default([]) | length > 0
+      register: talos_render_pass_store_reprobe
+      no_log: true
+
     - name: Resolve the store item id for drifted updates
       # Prefer --item-id after the first lookup (duplicate titles first-match).
       ansible.builtin.set_fact:
         talos_render_pass_store_id: >-
-          {{ (talos_render_pass_store_create.stdout | default('') | trim)
+          {{ ((talos_render_pass_store_reprobe.stdout | default('') | from_json).item.id)
             if (talos_render_pass_store_missing | bool)
             else talos_render_pass_store_item_id }}
       when:
