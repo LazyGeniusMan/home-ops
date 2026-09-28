@@ -631,10 +631,27 @@ state still needs a manual encrypted backup.
 
 Day-0 pushes `secrets.bundle.yml` + `talosconfig` (+ `kubeconfig` when present)
 into the cluster vault `talos` item, `Secrets` section, hidden fields —
-checksum-driven per-field updates, deep-merge only. Skipped on bootstrapped
-clusters unless forced (`-e talos_render_pass_store_force=true`); local files
-win. Per-field refs, redacted examples, and generating commands live beside
-the role (`roles/talos_render/tasks/pass_store.yml`).
+checksum-driven per-field updates, deep-merge only (repeat updates merge with
+no field duplication). Skipped on bootstrapped clusters unless forced
+(`-e talos_render_pass_store_force=true`); local files win. Bare
+`pass://<vault>/<item>/<field>` refs resolve via `pass-cli item view`
+(inject). A missing item is created `custom` from a template; missing vaults
+are never auto-created (create the vault first, then re-run); a missing
+session fails closed (`pass-cli login` first). A `pass-cli` session backed by
+a PAT may lack item-write scope — a refused push fails closed here.
+
+Per-field refs, redacted examples, generating commands, and the remaining
+unknowns live beside the role (`roles/talos_render/tasks/pass_store.yml`):
+
+| Field (`pass://<cluster>/talos/<field>`, e.g. `pass://acme-dev-bdo1-talos-apps-01/talos/secrets-bundle`) | Contains (redacted) | Minted by |
+| --- | --- | --- |
+| `secrets-bundle` | `<cluster PKI bundle YAML>` (redacted) | `talosctl gen secrets -o build/<cluster>/secrets.bundle.yml` |
+| `talosconfig` | `<client talosconfig YAML>` (redacted) | `talosctl gen config <cluster> <endpoint> --with-secrets build/<cluster>/secrets.bundle.yml -t talosconfig -o build/<cluster>/talosconfig` |
+| `kubeconfig` | `<admin kubeconfig YAML>` (redacted) | `talosctl kubeconfig -f` (day-1 fetch into `build/<cluster>/kubeconfig`) |
+
+MUST-VERIFY (never assumed): real-size bundle whitespace trim behaviour,
+server-side field size limits, live `talos` item type (login vs custom) for
+qualified writes, PAT-session write allow/deny.
 
 | File (`build/<cluster>/...`) | Class | Why |
 | --- | --- | --- |

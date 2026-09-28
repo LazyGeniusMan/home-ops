@@ -8,11 +8,13 @@
 # Day-1 includes this unconditionally; day-2 gates it on
 # talos_operate_restore_secrets (default false keeps day-2 read-only).
 # Fields — 3-segment refs pass://<vault>/<item>/<field> (vault = cluster name):
-#   pass://<cluster>/talos/secrets-bundle, pass://<cluster>/talos/talosconfig,
-#   pass://<cluster>/talos/kubeconfig (e.g.
-#   pass://acme-dev-bdo1-talos-apps-01/talos/secrets-bundle) — auto-stored by
-#   day-0 (RUNBOOK §6.1). EXCLUDED: netbird-tf/ restores only from gpg,
-#   proton-pass-pat re-renders via day-0 inject.
+#   pass://<cluster>/talos/secrets-bundle (redacted `<cluster PKI bundle YAML>`),
+#   pass://<cluster>/talos/talosconfig (redacted `<client talosconfig YAML>`),
+#   pass://<cluster>/talos/kubeconfig (redacted `<admin kubeconfig YAML>`) — e.g.
+#   pass://acme-dev-bdo1-talos-apps-01/talos/secrets-bundle, auto-stored by
+#   day-0 `talosctl gen secrets -o ...` / `talosctl gen config ... -t talosconfig`
+#   / `talosctl kubeconfig -f` (RUNBOOK §6.1). EXCLUDED: netbird-tf/ restores
+#   only from gpg, proton-pass-pat re-renders via day-0 inject.
 - name: Resolve the pull-restore Proton Pass coordinates
   ansible.builtin.set_fact:
     talos_bootstrap_restore_pass_item: "{{ talos_bootstrap_restore_item | default('talos') }}"
