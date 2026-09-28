@@ -25,6 +25,14 @@
       day-1, then re-run the play.
     success_msg: "pass-cli session authenticated."
 
+- name: Restore missing cluster files from Proton Pass
+  # Fresh clones start with an empty build/<cluster>/: pull
+  # secrets.bundle.yml, talosconfig, and kubeconfig from the cluster vault
+  # `talos` item when the local copy is absent (local files win). Runs before
+  # the fresh-install assert so a restored pre-install state still gates on
+  # explicit intent; fail-closed on live clusters (RUNBOOK §6.2).
+  ansible.builtin.include_tasks: pass_restore.yml
+
 - name: Assert fresh-install intent for the insecure bootstrap
   # Day-1 insecure-apply is maintenance-boot only and needs the bootstrap-only
   # `wipe: true` baked in by day-0. Require the same explicit flag day-0

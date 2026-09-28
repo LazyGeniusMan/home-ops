@@ -36,3 +36,7 @@ talos_operate_upgrade_wait_retries: 30
 talos_operate_upgrade_wait_delay: 10
 # Secrets refresh without a push (RUNBOOK §3.6a).
 talos_operate_refresh_secrets: false
+# Pull-restore missing local files from Proton Pass (RUNBOOK §6.2): restores
+# secrets.bundle.yml, talosconfig, and kubeconfig when the local copy is
+# absent (local files win). Default false keeps day-2 read-only.
+talos_operate_restore_secrets: false

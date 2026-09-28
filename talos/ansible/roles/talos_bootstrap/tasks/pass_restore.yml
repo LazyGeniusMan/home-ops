@@ -1,0 +1,230 @@
+---
+# Proton Pass pull-restore (RUNBOOK §6.2): restore secrets.bundle.yml,
+# talosconfig, and kubeconfig from the cluster vault `talos` item, Secrets
+# section, hidden fields when the local copy is absent (a fresh clone starts
+# with an empty build/<cluster>/). Each file restores only when its local
+# copy is missing — local files win. One JSON pull covers the logged-out /
+# vault-missing / item-missing / field-missing matrix in a single exec.
+# Day-1 includes this unconditionally; day-2 gates it on
+# talos_operate_restore_secrets (default false keeps day-2 read-only).
+- name: Resolve the pull-restore Proton Pass coordinates
+  ansible.builtin.set_fact:
+    talos_bootstrap_restore_pass_item: "{{ talos_bootstrap_restore_item | default('talos') }}"
+    talos_bootstrap_restore_pass_section: "{{ talos_bootstrap_restore_section | default('Secrets') }}"
+    talos_bootstrap_restore_pass_reason: >-
+      {{ talos_bootstrap_restore_reason_prefix
+        | default(talos_bootstrap_pass_agent_reason_prefix | default('talos-restore')) }}
+    talos_bootstrap_restore_files:
+      secrets-bundle: secrets.bundle.yml
+      talosconfig: talosconfig
+      kubeconfig: kubeconfig
+
+- name: Stat local cluster files for the Proton Pass pull-restore
+  ansible.builtin.stat:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/{{ item.value }}"
+  loop: "{{ talos_bootstrap_restore_files | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  check_mode: false
+  register: talos_bootstrap_restore_local
+  changed_when: false
+
+- name: Stat the bootstrap marker for the pull-restore fail-closed gate
+  ansible.builtin.stat:
+    path: "{{ talos_build_dir }}/{{ talos_cluster }}/.bootstrapped"
+  check_mode: false
+  register: talos_bootstrap_restore_bootstrapped
+  changed_when: false
+
+- name: Decide which local cluster files are missing
+  ansible.builtin.set_fact:
+    talos_bootstrap_restore_missing: >-
+      {{ talos_bootstrap_restore_local.results | default([])
+        | rejectattr('stat.exists') | map(attribute='item') | map(attribute='key') | list }}
+    talos_bootstrap_restore_live: "{{ talos_bootstrap_restore_bootstrapped.stat.exists | default(false) }}"
+
+- name: Note the pull-restore skip when all local files exist
+  ansible.builtin.debug:
+    msg: >-
+      All cluster files present in build/{{ talos_cluster }}/; skipping the
+      Proton Pass pull-restore (local files win).
+  when: talos_bootstrap_restore_missing | default([]) | length == 0
+
+- name: Pull missing cluster files from Proton Pass
+  when: talos_bootstrap_restore_missing | default([]) | length > 0
+  block:
+    - name: Probe the Proton Pass store item
+      # Probes run in check mode too; only writes honour check mode below.
+      ansible.builtin.command:
+        argv:
+          - pass-cli
+          - item
+          - view
+          - --vault-name
+          - "{{ talos_clusters[talos_cluster].vault }}"
+          - --item-title
+          - "{{ talos_bootstrap_restore_pass_item }}"
+          - --output
+          - json
+      environment:
+        PROTON_PASS_AGENT_REASON: >-
+          {{ talos_bootstrap_restore_pass_reason }}-{{ talos_cluster }}-restore-probe-{{
+            lookup('community.general.random_string', length=16,
+            override_all='0123456789abcdef') }}
+      check_mode: false
+      changed_when: false
+      failed_when: false
+      register: talos_bootstrap_restore_probe
+      no_log: true
+
+    - name: Parse the stored Proton Pass fields
+      ansible.builtin.set_fact:
+        talos_bootstrap_restore_sections: >-
+          {{ ((talos_bootstrap_restore_probe.stdout | from_json).item.content.Custom
+            | default({})).sections | default([]) }}
+        talos_bootstrap_restore_extra: >-
+          {{ ((talos_bootstrap_restore_probe.stdout | from_json).item.content
+            | default({})).extra_fields | default([]) }}
+      when: talos_bootstrap_restore_probe.rc == 0
+      no_log: true
+
+    - name: Index stored fallback extra fields
+      # Mirror of the day-0 push indexer: qualified writes on non-custom
+      # items land as top-level text extra fields (e.g.
+      # `Secrets.secrets-bundle`). Index by the bare field name (the part
+      # after the last dot); Secrets section fields below win on collision.
+      ansible.builtin.set_fact:
+        talos_bootstrap_restore_stored: >-
+          {{ (talos_bootstrap_restore_stored | default({}))
+            | combine({((item.name | lower).split('.') | last):
+              (item.content.values() | list | first | string)}) }}
+      loop: "{{ talos_bootstrap_restore_extra | default([]) }}"
+      when:
+        - talos_bootstrap_restore_probe.rc == 0
+        - "'.' in (item.name | default(''))"
+      no_log: true
+
+    - name: Index stored Secrets section fields
+      ansible.builtin.set_fact:
+        talos_bootstrap_restore_stored: >-
+          {{ (talos_bootstrap_restore_stored | default({}))
+            | combine({(item.1.name | lower): (item.1.content.values() | list | first | string)}) }}
+      loop: "{{ talos_bootstrap_restore_sections | default([]) | subelements('section_fields', skip_missing=true) }}"
+      when:
+        - talos_bootstrap_restore_probe.rc == 0
+        - (item.0.section_name | default('') | lower) == (talos_bootstrap_restore_pass_section | lower)
+      no_log: true
+
+    - name: Decide which missing files Proton Pass can restore
+      # Present means stored under the field name with a non-empty value;
+      # absent or empty fields stay unrestorable (fail closed below).
+      ansible.builtin.set_fact:
+        talos_bootstrap_restore_ready: >-
+          {{ (talos_bootstrap_restore_ready | default([])) + ([item]
+            if ((talos_bootstrap_restore_stored | default({})).get(item, '') | length > 0)
+            else []) }}
+      loop: "{{ talos_bootstrap_restore_missing | default([]) }}"
+      no_log: true
+
+    - name: Note which files would restore in check mode
+      ansible.builtin.debug:
+        msg: >-
+          Proton Pass pull-restore would restore:
+          {{ talos_bootstrap_restore_ready | default([]) | join(', ') }} into
+          build/{{ talos_cluster }}/.
+      when:
+        - ansible_check_mode
+        - talos_bootstrap_restore_ready | default([]) | length > 0
+
+    - name: Restore missing cluster files from Proton Pass
+      ansible.builtin.copy:
+        content: "{{ (talos_bootstrap_restore_stored | default({}))[item] }}"
+        dest: "{{ talos_build_dir }}/{{ talos_cluster }}/{{ talos_bootstrap_restore_files[item] }}"
+        mode: "0600"
+      loop: "{{ talos_bootstrap_restore_ready | default([]) }}"
+      when: not ansible_check_mode
+      no_log: true
+
+    - name: Slurp the restored secrets bundle for the YAML check
+      ansible.builtin.slurp:
+        path: "{{ talos_build_dir }}/{{ talos_cluster }}/secrets.bundle.yml"
+      check_mode: false
+      register: talos_bootstrap_restore_bundle
+      no_log: true
+      when:
+        - not ansible_check_mode
+        - "'secrets-bundle' in (talos_bootstrap_restore_ready | default([]))"
+
+    - name: Assert the restored secrets bundle parses as YAML
+      ansible.builtin.assert:
+        that:
+          - (talos_bootstrap_restore_bundle.content | b64decode | from_yaml) is mapping
+        fail_msg: >-
+          Restored build/{{ talos_cluster }}/secrets.bundle.yml does not
+          parse as a YAML mapping — the Proton Pass field may be corrupt.
+          Re-seed it, then re-run the play.
+        success_msg: "Restored secrets.bundle.yml parses as YAML."
+      when:
+        - not ansible_check_mode
+        - "'secrets-bundle' in (talos_bootstrap_restore_ready | default([]))"
+
+    - name: Note the re-render validation after a bundle restore
+      ansible.builtin.debug:
+        msg: >-
+          Restored secrets.bundle.yml from Proton Pass. Re-run day-0 to
+          re-render, then `talosctl validate -c
+          talos/ansible/build/{{ talos_cluster }}/nodes/<node>/controlplane.yaml
+          -m metal` before bootstrapping.
+      when: "'secrets-bundle' in (talos_bootstrap_restore_ready | default([]))"
+
+    - name: Note a restored kubeconfig may be stale
+      ansible.builtin.debug:
+        msg: >-
+          Restored kubeconfig from Proton Pass may be stale. Prefer minting a
+          fresh one with day-2 -e regen_kubeconfig=true once the cluster is
+          reachable.
+      when: "'kubeconfig' in (talos_bootstrap_restore_ready | default([]))"
+
+    - name: Decide which missing files Proton Pass cannot restore
+      ansible.builtin.set_fact:
+        talos_bootstrap_restore_unready: >-
+          {{ talos_bootstrap_restore_missing | default([]) | difference(talos_bootstrap_restore_ready | default([])) }}
+
+    - name: Report the pull-restore outcome before the fail-closed gate
+      ansible.builtin.debug:
+        msg: >-
+          Proton Pass pull-restore probe rc={{ talos_bootstrap_restore_probe.rc }};
+          missing locally: {{ talos_bootstrap_restore_missing | default([]) | join(', ') }};
+          restored: {{ talos_bootstrap_restore_ready | default([]) | join(', ') | default('none', true) }};
+          still missing: {{ talos_bootstrap_restore_unready | default([]) | join(', ') | default('none', true) }}.
+      when: talos_bootstrap_restore_unready | default([]) | length > 0
+
+    - name: Fail closed when live state needs a file Proton Pass cannot supply
+      ansible.builtin.fail:
+        msg: >-
+          Cannot restore {{ talos_bootstrap_restore_unready | join(', ') }}: missing in
+          build/{{ talos_cluster }}/ and absent in Proton Pass vault
+          '{{ talos_clusters[talos_cluster].vault }}' item
+          '{{ talos_bootstrap_restore_pass_item }}' section
+          '{{ talos_bootstrap_restore_pass_section }}' (hidden fields
+          Secrets.secrets-bundle, Secrets.talosconfig, Secrets.kubeconfig).
+          The cluster is live (.bootstrapped exists) — never mint fresh
+          secrets against live state. Inspect with `pass-cli item view
+          --vault-name {{ talos_clusters[talos_cluster].vault }} --item-title
+          {{ talos_bootstrap_restore_pass_item }} --output json`, seed with `pass-cli
+          item update --vault-name {{ talos_clusters[talos_cluster].vault }}
+          --item-id <id> --field "Secrets.<field>=<value>"`, then re-run the
+          play.
+      when:
+        - talos_bootstrap_restore_unready | default([]) | length > 0
+        - talos_bootstrap_restore_live | bool
+
+    - name: Note pre-install files left for normal generation
+      ansible.builtin.debug:
+        msg: >-
+          {{ talos_bootstrap_restore_unready | join(', ') }} absent locally and in
+          Proton Pass; no live cluster (.bootstrapped missing), so day-0
+          renders fresh secrets normally. Proceeding to generation.
+      when:
+        - talos_bootstrap_restore_unready | default([]) | length > 0
+        - not (talos_bootstrap_restore_live | bool)

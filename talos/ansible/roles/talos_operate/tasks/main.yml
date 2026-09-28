@@ -85,6 +85,19 @@
 - name: Regenerate talosconfig or kubeconfig on request
   ansible.builtin.include_tasks: regen.yml
 
+- name: Restore missing cluster files from Proton Pass on request
+  # Fresh clones start with an empty build/<cluster>/: pull
+  # secrets.bundle.yml, talosconfig, and kubeconfig from the cluster vault
+  # `talos` item when the local copy is absent (local files win). Opt-in
+  # -e restore_secrets=true only — default false keeps day-2 read-only.
+  # Local-only pull, so it stays outside the cluster health gate above.
+  ansible.builtin.include_role:
+    name: talos_bootstrap
+    tasks_from: pass_restore
+  vars:
+    talos_bootstrap_restore_reason_prefix: "{{ talos_operate_pass_agent_reason_prefix }}"
+  when: talos_operate_restore_secrets | bool
+
 - name: Refresh rendered secrets from the vault on request
   ansible.builtin.include_tasks: refresh.yml
 
