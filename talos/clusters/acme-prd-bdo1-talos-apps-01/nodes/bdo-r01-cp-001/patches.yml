@@ -1,8 +1,7 @@
 # Node patch: bdo-r01-cp-001. Bare metal: 192.168.1.101/24 on enp45s0,
 # install /dev/nvme0n1 (512 GiB NVMe), data /dev/sda.
-# Volume math on the 512 GiB system disk: EPHEMERAL maxSize -400GiB (negative =
-# disk size minus 400 GiB, i.e. ~112 GiB ceiling) and nvme-data maxSize 400GiB
-# (~112 + 400 GiB ≈ full disk by design). sata-data (min 64 GiB, grow) takes
+# Volume math on the 512 GiB system disk: EPHEMERAL maxSize -400GiB, nvme-data maxSize 400GiB.
+# sata-data (min 64 GiB, grow) takes
 # /dev/sda (size unrecorded — verify with
 # `talosctl get disks --insecure -n 192.168.1.101` and record it here before
 # first apply; never guess).
@@ -25,7 +24,7 @@ routes:
 apiVersion: v1alpha1
 kind: UnattendedInstallConfig
 installer:
-  # Set from schematic upload (tracks the 1.15 line; see group_vars why-alpha).
+  # Version tracks talos_version in group_vars/all.yml.
   image: factory.talos.dev/metal-installer/PLACEHOLDER_SCHEMATIC_ID:v1.15.0-alpha.0
 provisioning:
   diskSelector:

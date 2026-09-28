@@ -55,19 +55,4 @@ For a SECOND cluster sharing the account, import ONLY the four account-global
 groups + three policies (the lines above minus `cluster_nodes`, network,
 router, setup key, LAN resource), then apply.
 
-Rotation (90d scoped key): rotate well before `setup_key_expires` (RUNBOOK §1.0b):
-
-```bash
-# Working dir: talos/ansible/ (day-0 staged build/<cluster>/netbird-tf/)
-C=<cluster>
-tofu -chdir=build/$C/netbird-tf plan   # expect REPLACE on netbird_setup_key.talos only
-tofu -chdir=build/$C/netbird-tf apply  # replace mints a NEW key value (re-key every peer)
-rm build/$C/patches.yml build/$C/nodes-*-patches.yml     # force placeholder rewrite
-ansible-playbook playbooks/day0.yml -i localhost, -e talos_cluster=$C   # re-renders with the new key
-# Installed cluster instead: day-2 re-apply pushes the new key to nodes (RUNBOOK §3.6).
-# Revocation drill (lost key): NetBird console → Setup Keys → revoke,
-# then rotate as above; joined peers STAY connected, only new joins stop.
-```
-
-Watch `setup_key_used_times` / `setup_key_last_used` after every apply —
-unexpected growth means an unplanned peer joined with the key.
+Rotation: RUNBOOK §1.0b is canonical (rotate/revoke procedure + join monitoring).

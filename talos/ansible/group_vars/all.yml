@@ -2,12 +2,9 @@
 # Shared vars: vault login gates auth; renders land in build/<cluster>/ (gitignored).
 # Local-only: playbooks run on localhost, nodes via `talosctl` (no SSH inventory).
 talos_pat_filename: proton-pass-pat
-# why-alpha: the nfs-server system extension requires Talos >= 1.15, and 1.15
-# ships only as alpha today (no stable). Deliberate pin — re-check each
-# release for a 1.15 stable and move off alpha then (blocks prd wide-NFS).
+# Talos v1.15.0-alpha.0 pins nfs-server (>=1.15); re-check stable each release.
 talos_version: v1.15.0-alpha.0
-# Recorded kubelet version day-0 renders (record only: day-2 NEVER reads this —
-# Kubernetes upgrades are explicit `-e kubernetes_version=<ver>` opt-in only).
+# Record-only; day-2 uses -e kubernetes_version opt-in.
 talos_kubernetes_pinned_version: 1.37.0
 # Image Factory endpoint (single source for render + re-apply schematic planes).
 talos_schematic_factory_url: https://factory.talos.dev/schematics

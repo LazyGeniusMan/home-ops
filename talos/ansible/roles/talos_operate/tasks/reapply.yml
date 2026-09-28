@@ -23,8 +23,7 @@
   when: talos_operate_reapply_configs | bool
 
 - name: Fail when a rendered node patch carries wipe true before apply
-  # Belt-and-braces before authenticated apply-config (RUNBOOK §1.5): refresh
-  # already forced wipe:false; this catches a stale build/ that skipped it.
+  # Refresh already forced wipe:false; this catches a stale build/.
   ansible.builtin.assert:
     that:
       - not ((item.content | default('', true) | b64decode | trim) is search('(?m)^\s*wipe:\s*true\s*$'))

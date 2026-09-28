@@ -134,9 +134,7 @@
     - (talos_operate_refresh_ids | default({})).get(item.name, '') | length > 0
 
 - name: Force wipe false in re-rendered node patches
-  # Day-2 never bootstraps (RUNBOOK §1.5): ALWAYS force wipe:false in build/
-  # regardless of talos_bootstrap_fresh_install — belt-and-braces alongside the
-  # safe-default render behavior, BEFORE `gen config` bakes machine configs.
+  # Day-2 never bootstraps: force wipe:false before gen config.
   ansible.builtin.replace:
     path: "{{ talos_build_dir }}/{{ talos_cluster }}/nodes-{{ item.name }}-patches.yml"
     regexp: '(?m)^(\s*wipe:\s*)true\s*$'

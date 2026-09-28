@@ -72,9 +72,7 @@ talosctl validate -c ansible/build/<cluster>/nodes/<node>/controlplane.yaml -m m
 
 ## Storage + NFS posture (node headers are the single source)
 
-- Disks are unencrypted — accepted for this homelab. Real production must add
-  `SystemDiskEncryption` (TPM2/KMS or ESO-held key) with documented custody +
-  recovery before storing non-replaceable data.
+- Disks unencrypted (accepted homelab posture).
 - Node `wipe: true` is bootstrap-only (automation forces `wipe: false` in
   `build/` unless day-0 renders with `-e talos_bootstrap_fresh_install=true`).
   Never edit the source per install — see `ansible/RUNBOOK.md` §1.5.

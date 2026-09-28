@@ -113,11 +113,7 @@
       no_log: true
 
     - name: Index stored fallback extra fields
-      # Live `talos` item type is open (login items carry `netbird-pat` today):
-      # qualified writes on non-custom items land as top-level text extra
-      # fields (e.g. `Secrets.secrets-bundle`). Index by the bare field name
-      # (the part after the last dot) so drift compares stay idempotent
-      # across item types; section fields below win on key collision.
+      # Non-custom items land as dotted extra fields; index by bare field name.
       ansible.builtin.set_fact:
         talos_render_pass_store_stored: >-
           {{ (talos_render_pass_store_stored | default({}))

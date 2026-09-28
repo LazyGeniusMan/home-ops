@@ -3,19 +3,14 @@
 # Explicit upgrade_image wins; otherwise the installer ref is built per node
 # from the schematic .id files. Adjacent minors only (gate below).
 - name: Parse upgrade target and pin versions for the adjacency gate
-  # Split-based parsing by design (no regex escapes): startswith/split plus
-  # digit-only match() checks, so the gate reads identically in every context.
+  # Split-based parsing: startswith/split plus digit-only match() checks.
   ansible.builtin.set_fact:
     talos_operate_upgrade_target_parts: "{{ talos_operate_upgrade_talos_version[1:].split('.') }}"
     talos_operate_upgrade_pin_parts: "{{ talos_version[1:].split('.') }}"
   when: talos_operate_upgrade_talos_version | length > 0
 
 - name: Assert the upgrade target is an adjacent minor
-  # Semver shape + adjacent-minor vs the group pin (talos_version is the live
-  # line): v1.15.x -> v1.17.x fails here; same-minor and next-minor pass.
-  # Skipped for explicit upgrade_image (a raw installer ref carries no version
-  # to gate on -- the caller owns the ref). Pre-release tags (alpha/rc) on the
-  # target are accepted as long as the minor step is adjacent.
+  # Adjacent-minor vs talos_version; skipped for explicit upgrade_image (caller owns the ref).
   ansible.builtin.assert:
     that:
       - talos_operate_upgrade_talos_version.startswith('v')

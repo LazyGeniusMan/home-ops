@@ -1,7 +1,4 @@
-# Shared barebone base patch (why-alpha: see group_vars/all.yml), applied first.
-# CNI none (Cilium arrives via GitOps), CoreDNS off, discovery off.
-# kube-proxy runs in iptables mode HERE so the base alone boots;
-# every cluster patch disables it.
+# Shared barebone base, applied first. kube-proxy iptables here; cluster patches disable it (Cilium).
 ---
 apiVersion: v1alpha1
 kind: KubeFlannelCNIConfig
@@ -22,7 +19,7 @@ $patch: delete
 ---
 apiVersion: v1alpha1
 kind: TimeSyncConfig
-# Two NTP sources (no LAN NTP yet — see RUNBOOK §4.5).
+# Two NTP sources; no LAN NTP.
 ntp:
   servers:
     - time.cloudflare.com

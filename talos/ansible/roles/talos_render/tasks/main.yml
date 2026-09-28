@@ -298,8 +298,7 @@
     label: "{{ item.name }}"
 
 - name: Generate cluster talosconfig
-  # changed_when: true is intentional — gen config runs with --force and
-  # rewrites every run, so day-0 always reports changed even when identical.
+  # --force regen: always reports changed even when identical.
   ansible.builtin.command:
     cmd: >-
       {{ talos_render_talosctl }} gen config {{ talos_cluster }}
@@ -339,7 +338,7 @@
     label: "{{ item.name }}"
 
 - name: Generate per-node machine configs
-  # Same intentional changed_when: true as the talosconfig task above (--force regen).
+  # Same --force regen as the talosconfig task above.
   ansible.builtin.command:
     cmd: >-
       {{ talos_render_talosctl }} gen config {{ talos_cluster }}

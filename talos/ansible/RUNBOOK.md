@@ -538,8 +538,7 @@ Both clusters run ONE control-plane node today:
   the §4.6 scale-up — clients never re-point.
 - **Ready-gate between upgrades**: day-2 upgrades one node, polls
   `talosctl version` until `rc==0`, then proceeds to the next.
-- **Time + DNS**: dual NTP + public DNS are intentional — no LAN NTP/DNS
-  exists yet.
+- **Time + DNS**: dual NTP + public DNS. No LAN NTP/DNS.
 - `nodes[0]` is the bootstrap node, kubeconfig source, health `--init-node`,
   and etcd query target — keep it first. Day-1 apply and day-2 upgrade loop
   over **all** nodes in list order; `role: worker` is handled
@@ -601,8 +600,6 @@ All files `0600` (`netbird-tf/` dir `0700`).
 Pins (`talos_version`, `talos_kubernetes_pinned_version`) live in
 `group_vars/all.yml` — never in this table.
 
-| Var | Play | Default | Effect |
-| --- | --- | --- | --- |
 | Var | Play | Default | Effect |
 | --- | --- | --- | --- |
 | `talos_cluster` | all | `acme-dev-bdo1-talos-apps-01` | Selects `talos_clusters[<name>]`. |

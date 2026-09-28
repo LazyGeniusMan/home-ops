@@ -1,9 +1,7 @@
 # Node patch: bdo-r01-cp-002. QEMU/KVM VM: virtio NIC ens18,
 # install /dev/sda (20 GiB OS), data /dev/sdb (960 GB).
-# Volume math on the 20 GiB system disk: EPHEMERAL maxSize -8GiB (negative =
-# disk size minus 8 GiB, i.e. ~12 GiB ceiling) and nvme-data maxSize 8GiB
-# (~12 + 8 GiB ≈ full disk by design). sata-data (min 10 GiB, grow) takes
-# /dev/sdb (960 GB). nvme-data + sata-data are XFS.
+# Volume math on the 20 GiB system disk: EPHEMERAL maxSize -8GiB, nvme-data maxSize 8GiB.
+# sata-data (min 10 GiB, grow) takes /dev/sdb (960 GB). nvme-data + sata-data are XFS.
 # Pre-flight: talosctl get links/disks --insecure -n 192.168.1.201.
 # NFS tuning is single-client-LAN sized (32 slots/threads; prd runs 64).
 ---
@@ -23,7 +21,7 @@ routes:
 apiVersion: v1alpha1
 kind: UnattendedInstallConfig
 installer:
-  # Set from schematic upload (tracks the 1.15 line; see group_vars why-alpha).
+  # Version tracks talos_version in group_vars/all.yml.
   image: factory.talos.dev/metal-installer/PLACEHOLDER_SCHEMATIC_ID:v1.15.0-alpha.0
 provisioning:
   diskSelector:
