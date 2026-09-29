@@ -97,7 +97,7 @@ local fast = new Mapping<String, Step> {
   ["check-merge-conflict"] = Builtins.check_merge_conflict
   ["check-executables-have-shebangs"] = Builtins.check_executables_have_shebangs
   // Shell + YAML lint (lint-shell-ansible.yaml shell/yaml jobs). Custom step
-  // (not the shellcheck builtin) to keep prek's check-only behavior: the
+  // (not the shellcheck builtin) to keep check-only behavior: the
   // builtin's check_diff would auto-apply fixes at pre-commit.
   ["shellcheck"] {
     glob = List("scripts/**", "talos/**", "flux/scripts/**", "projects/*/ci/**")
