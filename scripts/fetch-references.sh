@@ -301,6 +301,9 @@ cd /tmp/home-ops-docs || exit 1
 # /tmp/home-ops-docs/mise-docs/docs
 fetch_repo mise-docs https://github.com/jdx/mise main || record_fail mise-docs
 
+# /tmp/home-ops-docs/hk-docs/docs
+fetch_repo hk-docs https://github.com/jdx/hk main || record_fail hk-docs
+
 # /tmp/home-ops-docs/talos-docs/talos-v1.15.yaml + /tmp/home-ops-docs/talos-docs/public/talos/v1.15
 fetch_repo talos-docs https://github.com/siderolabs/docs main || record_fail talos-docs
 
