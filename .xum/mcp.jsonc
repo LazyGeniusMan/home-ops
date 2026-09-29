@@ -1,5 +1,6 @@
 {
   "servers": {
+    "mise": "mise mcp",
     "flux-schema": {
       "transport": "http",
       "url": "https://schemas.fluxoperator.dev/mcp"
