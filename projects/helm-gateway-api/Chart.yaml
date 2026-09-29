@@ -1,13 +1,12 @@
 apiVersion: v2
 name: helm-gateway-api
 description: >-
-  Gateway API standard-channel CRDs fetched at publish time from the
-  upstream release asset (no CRD YAML committed).
+  Gateway API standard-channel CRDs fetched at publish time from the upstream release asset (no CRD YAML committed).
 type: application
 # Chart version tracks the upstream Gateway API release (sans leading v);
 # appVersion is the same upstream (with leading v); ci/fetch.sh downloads it.
-version: 1.6.1
-appVersion: "v1.6.1"
+version: 1.6.2
+appVersion: "v1.6.2"
 keywords:
   - gateway-api
   - crds
