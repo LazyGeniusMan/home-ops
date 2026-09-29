@@ -5,8 +5,8 @@ description: >-
 type: application
 # Chart version tracks the upstream release (sans leading v);
 # appVersion is the same upstream (with leading v); ci/fetch.sh downloads it.
-version: 4.3.0
-appVersion: "v4.3.0"
+version: 4.3.1
+appVersion: "v4.3.1"
 keywords:
   - multus
   - cni
