@@ -5,8 +5,8 @@ description: >-
 type: application
 # Chart version tracks the upstream release (sans leading v);
 # appVersion is the same upstream (with leading v); ci/fetch.sh downloads it.
-version: 0.93.1
-appVersion: "v0.93.1"
+version: 0.94.1
+appVersion: "v0.94.1"
 keywords:
   - prometheus-operator
   - monitoring
