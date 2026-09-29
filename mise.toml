@@ -9,7 +9,7 @@
 # Backend map (each id verified via `mise registry` / `mise ls-remote`):
 # - core: go, python (first-party mise backends).
 # - aqua (short names resolve to these): flux2, cilium-cli, kubectl, helm,
-#   kustomize, opentofu, golangci-lint, prek, yq, kubeconform, cosign, oras,
+#   kustomize, opentofu, golangci-lint, hk, yq, kubeconform, cosign, oras,
 #   rclone, shellcheck, gh, docker (= aqua:docker/cli), docker-buildx,
 #   flux-operator-mcp.
 # - pypi/pipx: ansible-core (the previous manifest's `ansible` pin used core
@@ -50,7 +50,7 @@ netbird = { version = "0.79.0", matching = "netbird_" }
 python = "3.14.7"
 opentofu = "1.12.6"
 golangci-lint = "2.13.2"
-prek = "0.5.3"
+hk = "2.4.0"
 "go:golang.org/x/vuln/cmd/govulncheck" = "v1.8.0"
 yq = "4.53.3"
 kubeconform = "0.8.0"
@@ -65,16 +65,17 @@ talosctl = { version = "v1.15.0-alpha.0", prerelease = true }
 
 [env]
 PROTON_PASS_KEY_PROVIDER = "fs"
+HK_MISE = "1"
 
 [shell_alias]
 # terraform already means tofu (previously a shell profile alias).
 terraform = "tofu"
 
 [hooks]
-# Replaces the previous env-manager activate hook: prek shims auto-install on every
+# Replaces the previous env-manager activate hook: hk shims auto-install on every
 # directory entry — fast/idempotent (~10ms, no network, no lock), guarded to
 # repo checkouts with the config present. Never fails activation.
-enter = "if [ -f .pre-commit-config.yaml ] && git rev-parse --git-dir >/dev/null 2>&1 && command -v prek >/dev/null 2>&1; then prek install >/dev/null 2>&1 || true; fi"
+enter = "if [ -f hk.pkl ] && git rev-parse --git-dir >/dev/null 2>&1 && command -v hk >/dev/null 2>&1; then hk install >/dev/null 2>&1 || true; fi"
 
 [tasks.flux-operator-mcp]
 description = "Local-only Flux Operator MCP server for agent tooling (never exposed off-host; run by hand with `mise run flux-operator-mcp`)"
@@ -89,6 +90,6 @@ run = ["sudo mkdir -p /var/run/netbird /var/log/netbird /var/lib/netbird", "sudo
 description = "Install the pinned talosctl (tracks talos_version in talos/ansible/group_vars/all.yml)"
 run = "mise install talosctl"
 
-[tasks.prek-install]
-description = "Install prek git shims for this checkout"
-run = "prek install"
+[tasks.hk-install]
+description = "Install hk git hooks for this checkout"
+run = "hk install --mise"

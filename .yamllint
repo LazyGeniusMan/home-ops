@@ -2,7 +2,7 @@
 # Local default mirrors the lint-shell-ansible yaml job config_data
 # (.github/workflows/lint-shell-ansible.yaml). CI passes file_or_dir
 # explicitly so this file never changes CI; it keeps ad-hoc local runs
-# and the prek yamllint hook identical to CI.
+# and the hk yamllint step identical to CI.
 extends: default
 rules:
   line-length: {max: 120}

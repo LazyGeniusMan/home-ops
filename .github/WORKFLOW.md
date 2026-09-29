@@ -31,10 +31,10 @@ with per-job minimums; publish jobs additionally gate on
 `github.ref == 'refs/heads/main'` (dev artifacts only from main, tag legs
 excepted). Validate/lint workflows grant top-level `contents: read`.
 Concurrency groups, path-gated triggers throughout. Each validate/test/lint leg
-above also runs locally before commit via prek (`.pre-commit-config.yaml` at
-the repo root mirrors these path filters per hook; pre-commit = fast gates
+above also runs locally before commit via hk (`hk.pkl` at
+the repo root mirrors these path filters per step; pre-commit = fast gates
 (go-fast is vet + gofmt + tidy + build only — test -race/lint/vuln stay at
-pre-push), pre-push = slow whole-scope gates, manual = day-2 `--check --diff`;
+pre-push), pre-push = slow whole-scope gates, `hk run manual-day2` = day-2 `--check --diff`;
 flux scope validates and fetch-time chart verifies need GitHub network at
 pre-commit like CI does; push, release, sign, and bot workflows stay
 CI-only). Vendored copies (e.g. under `.terraform/` or `.agents/`) are third-party, not owned. Cosign legs pin

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Per-service Go gate: CI test-leg mirror for prek hooks.
+# Per-service Go gate: CI test-leg mirror for hk steps (go-fast-*, go-full-*).
 # Usage: scripts/hooks/go-gate.sh fast|full projects/<svc>
 # fast (pre-commit): vet + gofmt + tidy -diff + build — offline, ~2s.
 # full (pre-push): fast + test + lint + vuln — whole module, ~10s.
