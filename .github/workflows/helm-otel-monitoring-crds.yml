@@ -36,7 +36,7 @@ jobs:
       - name: Set up Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5
         with:
-          version: v4.3.0 # match .flox kubernetes-helm pin
+          version: v4.3.0 # match mise.toml helm pin
 
       - name: Verify (lint + fetch dry-run + guards)
         run: bash projects/helm-otel-monitoring-crds/ci/verify.sh
@@ -59,19 +59,19 @@ jobs:
       - name: Set up Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5
         with:
-          version: v4.3.0 # match .flox kubernetes-helm pin
+          version: v4.3.0 # match mise.toml helm pin
 
       - name: Set up ORAS
         uses: oras-project/setup-oras@931fc544afc94506508c2dadf2679cb0ae65b964 # v2.0.1
         with:
           # setup-oras v2.0.1 bundles oras up to 1.3.3; 1.3.4 installs the
           # standalone binary instead (version takes no `v` prefix).
-          version: 1.3.4 # match .flox oras pin
+          version: 1.3.4 # match mise.toml oras pin
 
       - name: Install cosign
         uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
         with:
-          cosign-release: v3.1.3 # match .flox cosign pin
+          cosign-release: v3.1.3 # match mise.toml cosign pin
 
       - name: Log in to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -83,7 +83,7 @@ jobs:
       - name: Setup yq
         uses: fluxcd/pkg/actions/yq@6d8d5d9e03f8da11e9685652e205f20aeb99c4ba # SHA-pinned
         with:
-          version: v4.53.3 # match .flox yq pin
+          version: v4.53.3 # match mise.toml yq pin
 
       - name: Resolve chart version
         id: version

@@ -40,7 +40,7 @@ jobs:
           # Vendored .terraform/modules + .agents skill scripts are third-party, not owned.
           check_together: 'yes'
           ignore_paths: .agents .terraform
-          version: v0.11.0 # match .flox shellcheck pin
+          version: v0.11.0 # match mise.toml shellcheck pin
           severity: warning
 
   yaml:
@@ -74,11 +74,11 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: '3.14.7' # match .flox python3 pin
+          python-version: '3.14.7' # match mise.toml python pin
       - name: Install Ansible toolchain
         shell: bash
-        # Pins match .flox ansible/ansible-lint + group_vars/all.yml
-        # talos_version + .flox on-activate talos_sha256.
+        # Pins match mise.toml ansible-core/ansible-lint + group_vars/all.yml
+        # talos_version + mise talosctl pin.
         run: |
           pip install 'ansible-core==2.21.4' 'ansible-lint==25.8.2'
           ansible-galaxy collection install -r talos/ansible/requirements.yml

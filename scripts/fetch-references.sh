@@ -13,7 +13,7 @@
 # re-fetches each entry below (continue-on-error; see record_fail).
 # Strict-mode note: errexit is off by design (fetch sites use
 # `|| record_fail <dest>` so one dead mirror never aborts the refresh);
-# nounset + pipefail still apply. zip mode needs the Flox `unzip` package.
+# nounset + pipefail still apply. zip mode needs system `unzip`.
 set -uo pipefail
 
 FETCH_MODE="${FETCH_MODE:-http}"

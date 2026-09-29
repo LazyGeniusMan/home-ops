@@ -95,7 +95,7 @@ check_prerequisites() {
   fi
 }
 
-# Schema pins track this repo's Flux pins (fleet terraform versions.yaml, group_vars/all.yml, .flox). Bump all together.
+# Schema pins track this repo's Flux pins (fleet terraform versions.yaml, group_vars/all.yml, mise.toml). Bump all together.
 FLUX_OPERATOR_SCHEMA_VERSION="v0.60.0"
 FLUX_OPERATOR_SCHEMA_SHA256="c062892eeac621948567464ae7688fcafa75c693bdfb170534cb221a56a194d8"
 FLUX2_SCHEMA_VERSION="v2.9.5"

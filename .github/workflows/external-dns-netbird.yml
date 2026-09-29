@@ -59,11 +59,11 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
         with:
-          version: v2.13.2 # match .flox golangci-lint pin
+          version: v2.13.2 # match mise.toml golangci-lint pin
           working-directory: projects/external-dns-netbird
 
       - name: Vulnerability check
-        # govulncheck tracks the .flox pin (v1.8.0); `go run @version` keeps CI
+        # govulncheck tracks the mise.toml pin (v1.8.0); `go run @version` keeps CI
         # and local runs on the same binary without a per-module tool directive.
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
 
@@ -104,7 +104,7 @@ jobs:
       - name: Install cosign
         uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
         with:
-          cosign-release: v3.1.3 # match .flox cosign pin
+          cosign-release: v3.1.3 # match mise.toml cosign pin
 
       - name: Extract metadata
         id: meta

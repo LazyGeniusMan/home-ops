@@ -5,7 +5,7 @@
 # Allow-by-default: anything that is not a non-help `pass-cli` call exits 0.
 # No `set -e`: an unexpected non-zero exit would block unrelated tools, so
 # every fallible expansion is guarded and the script exits explicitly.
-# Fast by design (<1s): no network, no `flox activate`, file reads only.
+# Fast by design (<1s): no network, no `mise activate`, file reads only.
 
 # Only inspect shell tool calls; all other tools pass through untouched.
 if [[ "${XUM_TOOL:-}" != "bash" ]]; then

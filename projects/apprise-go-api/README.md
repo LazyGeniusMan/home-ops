@@ -331,7 +331,7 @@ internal/version/            # build version (dev default; ldflags ARG VERSION)
 ## Develop
 
 ```sh
-flox activate
+mise trust   # once per checkout
 cd projects/apprise-go-api
 go build ./...
 go vet ./...

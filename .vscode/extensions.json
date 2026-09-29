@@ -1,6 +1,6 @@
 {
     "recommendations": [
-        "flox.flox",
+        "hverlin.mise-vscode",
         "golang.go",
         "redhat.vscode-yaml",
         "ms-kubernetes-tools.vscode-kubernetes-tools"

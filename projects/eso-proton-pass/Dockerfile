@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # eso-proton-pass: ESO webhook provider for Proton Pass (pull-only).
 # Bump pass-cli as a triple: PASS_CLI_VERSION + per-arch _sha256 below +
-# proton-pass-cli in .flox/env/manifest.toml.
+# proton-pass-cli in mise.toml.
 ARG PASS_CLI_VERSION=2.3.3
 
 FROM golang:1.26.7@sha256:e30143be198ab04cf7ba25fba83ab3a692ca584c994aad0bf131fa0eb32dd8c1 AS build

@@ -16,7 +16,7 @@ flux/     → Day 2: everything running inside Kubernetes, delivered only by Flu
 projects/ → In-repo sources consumed by Flux (Go services, first-party Helm charts)
 ```
 
-Supporting dirs: `scripts/` (manual-only `fetch-references.sh` + `tag-release.sh`), `.flox/` (pinned dev toolchain, source of truth), `.github/` (SHA-pinned CI workflows). There is no other app code in this repo.
+Supporting dirs: `scripts/` (manual-only `fetch-references.sh` + `tag-release.sh`), `mise.toml` (pinned dev toolchain, source of truth), `.github/` (SHA-pinned CI workflows). There is no other app code in this repo.
 
 Key facts:
 
@@ -49,12 +49,12 @@ Key facts:
   | Dragonfly operator | https://github.com/dragonflydb/dragonfly-operator/releases |
   | VPA | https://github.com/kubernetes/autoscaler/releases |
   | ClickHouse (server + Altinity operator) | https://github.com/ClickHouse/ClickHouse/releases + https://github.com/Altinity/clickhouse-operator/releases |
-- Toolchain source of truth is `.flox/env/manifest.toml` (`allow.unfree = true` is scoped to the four installs with no free catalog substitute: AGPL MCP server, BSD netbird, GPL pass-cli, MIT rclone — see the `[options]` why-comment). `talosctl` (version + sha256 track `talos_version` in `talos/ansible/group_vars/all.yml`) is curl-fetched by the `on-activate` hook into `.flox/cache/bin`, not from the catalog. On any tool upgrade, migrate every consumer together so pins keep parity across the Flox manifest, `talos/ansible/group_vars/all.yml`, Terraform/Ansible version constraints, GitHub workflows, Dockerfiles, and Flux manifests.
+- Toolchain source of truth is `mise.toml` (see its backend-map header comment for where each pin comes from). `talosctl` (version tracks `talos_version` in `talos/ansible/group_vars/all.yml`) installs via the `github:siderolabs/talos` backend with `prerelease = true` (aqua filters prereleases out); curl, git, tar, and unzip are system-provided with no pin. On any tool upgrade, migrate every consumer together so pins keep parity across the mise config, `talos/ansible/group_vars/all.yml`, Terraform/Ansible version constraints, GitHub workflows, Dockerfiles, and Flux manifests.
 - Secrets live in Proton Pass and are injected with the `pass-cli` binary. Gate on `pass-cli info` for login state, inject with double-brace templates plus `item view`, and always export the hardened env (`PROTON_PASS_DISABLE_TELEMETRY=1`, key provider `fs`, agent reason set, `*_FILE` file-backed pattern). Unencrypted secrets are gitignored at repo root and under `talos/.gitignore`; only double-brace `{{ }}` placeholders are ever committed. For every `pass://` reference you add, document its full path length, one redacted example, and the command that generates the value.
 
 ## Essential commands
 
-Run everything from the repo root inside Flox (`terraform` already means `tofu`). Copy-paste as-is; do not invent flags.
+Run everything from the repo root with mise active (`mise trust` once per checkout, then tools resolve from `mise.toml`; `terraform` already means `tofu` via `[shell_alias]`). Copy-paste as-is; do not invent flags.
 
 ```bash
 # Talos Day 0/1/2 — replace <cluster> with acme-dev-bdo1-talos-apps-01 or acme-prd-bdo1-talos-apps-01
@@ -99,8 +99,8 @@ scripts/fetch-references.sh -m zip   # manual-only refresh of /tmp/home-ops-docs
 pass-cli info                        # must succeed (logged in) before any secret injection
 ```
 ```bash
-# Local CI gate (prek 0.5.3, Flox-pinned): staged-file-scoped hooks mirror CI path filters
-prek install                         # shims auto-install on `flox activate`; manual re-run only if hooks were removed
+# Local CI gate (prek 0.5.3, mise-pinned): staged-file-scoped hooks mirror CI path filters
+prek install                         # shims auto-install on `mise trust` + directory entry; manual re-run only if hooks were removed
 prek run                             # staged files, pre-commit stage (fast gates only)
 prek run --all-files                 # whole repo, pre-commit stage (pre-PR check)
 prek run --all-files --stage pre-push  # pre-push stage (tofu, full go, talosctl pin)
@@ -118,11 +118,11 @@ Local prek hooks mirror these per-path gates (staged-files-only); see Essential 
 - **Talos renders, Flux delivers.** Talos produces a bare, telemetry-free machine; Flux installs CNI, DNS, and all workloads. Keep that handoff clean: machine config never carries workloads, Flux never carries machine config.
 - **Talos conformance.** Barebone machine rules (volume `maxSize` arithmetic, ≥2 NTP servers, no-telemetry-by-absence, 64-hex schematic IDs) are stated beside the code in `talos/`; node headers + `talos/ansible/RUNBOOK.md` carry the alpha, rotation, PAT, `skip_health`, NFS, and encryption rules — never duplicated here.
 - **Base holds the shape, overlays hold the difference.** Whenever dev and prd diverge, put a placeholder in `base` (`__PROTON_PASS_BASE__`, `__WILDCARD_TLS_SECRET__`, `__SERVICE_HOST__`, `__BASE_DOMAIN__`, `__ACME_EMAIL__`) and an explicit replacement in each environment overlay. Never fork a whole file per environment.
-- **Pin parity on upgrade.** Flox manifest, `group_vars/all.yml`, Terraform/Ansible constraints, workflow `uses:` SHAs, Dockerfile `FROM` pins (Go toolchain in `.flox/env/manifest.toml`, each `Dockerfile`/`go.mod`), prek hook `rev` SHAs plus the `prek` Flox pin, and Flux image/chart refs all move together. A half-upgraded pin is a bug.
+- **Pin parity on upgrade.** Mise config, `group_vars/all.yml`, Terraform/Ansible constraints, workflow `uses:` SHAs, Dockerfile `FROM` pins (Go toolchain in `mise.toml`, each `Dockerfile`/`go.mod`), prek hook `rev` SHAs plus the `prek` mise pin, and Flux image/chart refs all move together. A half-upgraded pin is a bug.
 - **Images and charts update themselves.** Mechanics (policy shape, inline `$imagepolicy` markers, automation cadence, hand-bumped exceptions) live in each `flux/{infra,apps}/update-policies/<name>.yaml` header and the component docs — read them there; automation proposes, human merges.
 - **First-party charts for chartless upstreams.** Upstream CRDs with no Helm chart never vendor YAML into `flux/` — they ship as `projects/helm-<name>/` (Chart.yaml `version` = upstream release, `ci/fetch.sh` fetches upstream at CI publish time, no CRDs committed, two workflows: daily check-PR + on-push fetch-publish OCI; fetch-time helm-* charts publish purely from the parsed Chart version on push (no git tags; re-publish overwrites the same OCI tag)). Consume in Flux via `OCIRepository` + `HelmRelease` with CRD `CreateReplace` on install+upgrade plus prune:false-equivalent safety, no ImagePolicy/marker (atomic hand-bump like `helm-rclone`).
 - **Upgrade lifecycle (check versions -> check changelog -> bump -> migrate/verify).** Check the available version (policy `range:` floor plus upstream tags), read the changelog first (see Changelog-first under Reference), bump the pin, then migrate values/CRDs and verify with the gates. Dev soaks first; promote dev->stable/prd only after dev is green. Chart<->app and coupled pairs move atomically — the pair list and per-type mechanics live in each `flux/{infra,apps}/update-policies/<name>.yaml` header and the component docs, not here.
-- **Platform / supply chain.** Cosign legs pin the binary explicitly (`cosign-release`, matching the cosign pin in `.flox/env/manifest.toml`) with `# match .flox` parity comments on setup lines; always quote `"$DIGEST_URL"`. No dependabot/renovate — SHA pins and Flox pins refresh by hand; no config files.
+- **Platform / supply chain.** Cosign legs pin the binary explicitly (`cosign-release`, matching the cosign pin in `mise.toml`) with `# match mise.toml` parity comments on setup lines; always quote `"$DIGEST_URL"`. No dependabot/renovate — SHA pins and mise pins refresh by hand; no config files.
 - **Helm OCI-first; official preferred, chartproxy for classic-only, first-party for chartless.** New charts use `OCIRepository` + `chartRef` (interval 1h); no classic `HelmRepository`, no third-party mirrors, never vendor upstream YAML. Chartproxy mappings carry a header comment stating the upstream classic source proxied; local docs under `/tmp/home-ops-docs/helm-charts-oci-proxy`.
 - **Production-ready by default.** Follow upstream best practices and harden for security on every deployment: health checks, resource requests/limits, autoscaling, and secrets-via-ESO on everything you add (details below). Scalable, observable, private-by-default is the baseline.
 - **Workload standards (all values tuned per component docs):**
@@ -163,10 +163,10 @@ Each pattern above has a matching negative — this list keeps only negatives th
 
 - YAML: 2-space indent, `yamllint`-clean, `kubeconform`-strict valid; multi-doc Talos patches keep each `---` document's `apiVersion`/`kind` explicit.
 - Kustomize: `base` is deployable-shaped with placeholders; overlays only patch. Keep `interval: 30m` Kustomizations, `dependsOn` infra for apps, and `Ready` readiness semantics consistent with neighboring components.
-- Go: `gofmt`-clean, `go vet` + `golangci-lint` (pinned in `.flox/env/manifest.toml`) + `govulncheck` green; conventional layout (`cmd/`, `internal/`), wrapped errors, no dead code.
+- Go: `gofmt`-clean, `go vet` + `golangci-lint` (pinned in `mise.toml`) + `govulncheck` green; conventional layout (`cmd/`, `internal/`), wrapped errors, no dead code.
 - Terraform/OpenTofu: `tofu fmt`-clean, `init -backend=false` + `validate` + `test` green; `approvePlan: auto` + `destroy: false` on Flux-managed consumers; outputs that Flux needs go through `writeOutputsToSecret`.
 - Ansible: FQCN everywhere (`community.general.*`, `ansible.builtin.*`), no bare `shell:` when a module exists, group vars carry pins.
-- Shell: `shellcheck`-clean (pinned in `.flox/env/manifest.toml`); `set -euo pipefail` (documented `set -uo pipefail` exception: `scripts/fetch-references.sh:17`), justified inline `disable=` with why-comment.
+- Shell: `shellcheck`-clean (pinned in `mise.toml`); `set -euo pipefail` (documented `set -uo pipefail` exception: `scripts/fetch-references.sh:17`), justified inline `disable=` with why-comment.
 - Dockerfiles: pinned `FROM` with digest where available, `ARG VERSION` threaded into labels/binary, nonroot distroless runtime.
 - Comments: Flux YAMLs that wrap a local project link back to the `projects/` source path; chartproxy mappings and singleton quirks carry a header comment stating the upstream classic source proxied (chartproxy) or the reason (singleton).
 

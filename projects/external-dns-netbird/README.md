@@ -80,7 +80,7 @@ in `flux/infra/components/external-dns/controllers/base/external-dns.yaml`
 ## Develop
 
 ```sh
-flox activate
+mise trust   # once per checkout
 cd projects/external-dns-netbird
 go build ./...
 go vet ./...

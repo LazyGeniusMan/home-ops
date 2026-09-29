@@ -56,7 +56,7 @@ Exact metric names live in `internal/server/server.go`.
 ## Develop
 
 ```sh
-flox activate
+mise trust   # once per checkout
 cd projects/eso-proton-pass
 go build ./...
 go vet ./...

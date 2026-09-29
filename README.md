@@ -136,9 +136,9 @@ flux/scripts/validate.sh -d flux/fleet
 - CI mirrors the gates per path (Go vet/build/test + lint, Helm lint/template,
   per-scope Flux validation, Tofu validate/test); see [`.github/WORKFLOW.md`](.github/WORKFLOW.md).
   The same legs run locally on commit/push via prek (`.pre-commit-config.yaml`,
-  Flox-pinned `prek 0.5.3`): `prek install` once per checkout, then staged
+  mise-pinned `prek 0.5.3`): `prek install` once per checkout, then staged
   files gate the commit and `prek run --all-files --stage pre-push` gates the push.
-- Toolchain source of truth is `.flox/env/manifest.toml`; refresh local reference
+- Toolchain source of truth is `mise.toml`; refresh local reference
   docs by hand with `scripts/fetch-references.sh -m zip`.
 - Start with [`AGENTS.md`](AGENTS.md), then [`talos/ansible/RUNBOOK.md`](talos/ansible/RUNBOOK.md)
   §§0–6 for machines and the `flux/*/README.md` files for the platform.

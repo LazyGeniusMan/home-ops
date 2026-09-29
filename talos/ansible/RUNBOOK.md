@@ -10,14 +10,15 @@ Talos API, no SSH. Default cluster is `acme-dev-bdo1-talos-apps-01`;
 
 ## 0. Prereqs (do once per shell)
 
-### 0.1 Enter the flox environment (repo root)
+### 0.1 Enter the mise environment (repo root)
 
-The flox hook provides `talosctl` (version tracks `talos_version` in
+Mise provides `talosctl` (version tracks `talos_version` in
 `group_vars/all.yml`).
 
 ```bash
-# Working dir: repo root (where .flox/ lives)
-flox activate
+# Working dir: repo root (where mise.toml lives)
+mise trust                # once per checkout
+mise install              # install the pinned toolchain
 talosctl version --client   # must match group_vars talos_version
 cd talos/ansible            # all playbook commands run from here
 ```
