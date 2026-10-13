@@ -5,8 +5,8 @@ description: >-
 type: application
 # Chart version tracks the upstream release (sans leading v);
 # appVersion is the same upstream (with leading v); ci/fetch.sh downloads it.
-version: 1.9.0
-appVersion: "v1.9.0"
+version: 1.9.1
+appVersion: "v1.9.1"
 keywords:
   - kubevirt
   - virtualization
